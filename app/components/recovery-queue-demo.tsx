@@ -1,4 +1,5 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState } from "react";
+import { usePrefersReducedMotion } from "capsomer/react/hooks";
 import { Check, RefreshCw, X } from "lucide-react";
 
 import {
@@ -9,7 +10,6 @@ import {
   PAYMENTS,
   recoveredText,
   recoveredTone,
-  REDUCED_MOTION_QUERY,
   rowClass,
   type Status,
   statValueClass,
@@ -55,22 +55,6 @@ import {
 // The correctness reason: the old read happened once on mount, so a visitor who
 // turned reduced motion ON while the page sat open kept the loop running. That
 // is the WCAG 2.2.2 case this behavior is here to serve.
-function subscribeToReducedMotion(onStoreChange: () => void): () => void {
-  const query = window.matchMedia(REDUCED_MOTION_QUERY);
-  query.addEventListener("change", onStoreChange);
-  return () => query.removeEventListener("change", onStoreChange);
-}
-
-function getReducedMotion(): boolean {
-  return window.matchMedia(REDUCED_MOTION_QUERY).matches;
-}
-
-// The server cannot know the preference, so it renders the animation's first
-// frame, which is what it rendered before this change too.
-function getReducedMotionOnServer(): boolean {
-  return false;
-}
-
 // All three icons, the one for `status` showing (Tailwind's `hidden` on the
 // others), so the island can switch them.
 function StatusIcons({ status }: { status: Status }) {
@@ -128,11 +112,7 @@ function Stat({
 }
 
 export function RecoveryQueueDemo() {
-  const reducedMotion = useSyncExternalStore(
-    subscribeToReducedMotion,
-    getReducedMotion,
-    getReducedMotionOnServer,
-  );
+  const reducedMotion = usePrefersReducedMotion();
   const [tickIndex, setTickIndex] = useState(0);
   const [pulse, setPulse] = useState(true);
 

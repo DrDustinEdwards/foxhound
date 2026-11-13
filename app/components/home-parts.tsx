@@ -1,7 +1,7 @@
 // Pieces of the home page (routes/home.tsx split): product icons, arrows, the
 // how-it-works steps and the billing answer.
 
-import { ArrowRight, ArrowUpRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
+import { ArrowRight, RefreshCw, ScanSearch, Shield, TrendingUp } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import {
   BILLING_FAQ_PARTS,
@@ -24,19 +24,8 @@ const INLINE_LINK =
 export function Arrow() {
   return (
     <ArrowRight
-      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
       size={13}
-      strokeWidth={1.5}
-      aria-hidden
-    />
-  );
-}
-
-export function SourceArrow() {
-  return (
-    <ArrowUpRight
-      className="inline-block transition-transform duration-150 group-hover:-translate-y-px group-hover:translate-x-px"
-      size={12}
       strokeWidth={1.5}
       aria-hidden
     />

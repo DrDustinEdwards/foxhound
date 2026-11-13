@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts, bool, json } from "./columns";
-import { accounts } from "./tenancy";
+import { accounts, accountRef, optionalAccountRef } from "./tenancy";
 
 // ============================================================================
 // Platform / ops
@@ -12,9 +12,7 @@ export const outcomes = sqliteTable(
   "outcomes",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     product: text("product").notNull(),
     eventType: text("event_type").notNull(),
     eventData: json("event_data"),
@@ -63,46 +61,9 @@ export const cronConfig = sqliteTable("cron_config", {
   updatedAt: ts("updated_at").notNull(),
 });
 
-// global: single canonical run log (cron_runs merged in)
-export const cronRunHistory = sqliteTable(
-  "cron_run_history",
-  {
-    id: id(),
-    cronName: text("cron_name").notNull(),
-    startedAt: ts("started_at"),
-    finishedAt: ts("finished_at").notNull(),
-    status: text("status").notNull(),
-    rowsProcessed: integer("rows_processed"),
-    message: text("message"),
-    createdAt: ts("created_at").notNull(),
-  },
-  (t) => [
-    index("cron_run_history_cron_idx").on(t.cronName),
-    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
-    index("cron_run_history_created_idx").on(t.createdAt),
-    // The admin overview's "last cron finished" read (admin/overview.server.ts).
-    index("cron_run_history_finished_idx").on(t.finishedAt),
-    // The admin Crons page reads each cron's newest run and newest
-    // success (max finished_at grouped by cron and status, then those rows) and
-    // the last day's failures. Without these it scans the whole history, which
-    // the five-minute ticks fill at 576 rows a day.
-    index("cron_run_history_cron_status_finished_idx").on(t.cronName, t.status, t.finishedAt),
-    index("cron_run_history_status_finished_idx").on(t.status, t.finishedAt),
-    // runJobs reads each cron's newest finish (cron/run.ts) without a status.
-    index("cron_run_history_cron_finished_idx").on(t.cronName, t.finishedAt),
-  ],
-);
-
-// global: site-runtime ./cron's CRON_SQL (migration 0067), written by runJobs and read by /health's cronCheck. Epoch ms.
-export const cronRuns = sqliteTable("cron_runs", {
-  name: text("name").primaryKey(),
-  everyMinutes: integer("every_minutes").notNull(),
-  firstStartedAt: integer("first_started_at"),
-  lastStartedAt: integer("last_started_at"),
-  lastOkAt: integer("last_ok_at"),
-  lastFailedAt: integer("last_failed_at"),
-  lastError: text("last_error"),
-});
+// site-runtime ./cron's CRON_SQL and CRON_LOG_SQL, written by runJobs: one row per job (read by /health's cronCheck
+// and the gates in app/lib/cron/run.ts) and each run kept (the admin Crons page, the alerts).
+export { cronRunLog, cronRuns } from "@dustinedwards/site-runtime/drizzle";
 
 // global
 export const adminAuditLog = sqliteTable("admin_audit_log", {
@@ -130,9 +91,7 @@ export const adminImpersonations = sqliteTable(
     id: id(),
     tokenHash: text("token_hash").notNull(),
     adminEmail: text("admin_email").notNull(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     startedAt: ts("started_at").notNull(),
     expiresAt: ts("expires_at").notNull(),
     endedAt: ts("ended_at"),
@@ -170,9 +129,7 @@ export const mcpWrites = sqliteTable(
   "mcp_writes",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     /** api_keys.id. Soft ref; see the header. */
     apiKeyId: text("api_key_id").notNull(),
     /** The MCP tool name that performed the write. */
@@ -208,9 +165,7 @@ export const mcpCalls = sqliteTable(
   "mcp_calls",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     /** api_keys.id. Soft ref; see the header. */
     apiKeyId: text("api_key_id").notNull(),
     /** oauth_clients.id (or a metadata-document URL) the key was issued to;
@@ -304,7 +259,7 @@ export const aiCalls = sqliteTable(
   "ai_calls",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     source: text("source").notNull(),
     model: text("model").notNull(),
     promptTokens: integer("prompt_tokens").notNull(),
@@ -355,9 +310,7 @@ export const customerNotes = sqliteTable(
   "customer_notes",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeCustomerId: text("stripe_customer_id").notNull(),
     body: text("body").notNull(),
     createdBy: text("created_by"),
@@ -366,17 +319,5 @@ export const customerNotes = sqliteTable(
   (t) => [index("customer_notes_account_idx").on(t.accountId)],
 );
 
-// NEW: daily aggregate per path (raw page_404s rows are not migrated; see legacy-map.md)
-export const page404Daily = sqliteTable(
-  "page_404_daily",
-  {
-    id: id(),
-    day: ts("day").notNull(),
-    path: text("path").notNull(),
-    referrerHost: text("referrer_host").notNull().default(""),
-    kind: text("kind").notNull().default("page"),
-    hitCount: integer("hit_count").notNull().default(0),
-  },
-  // site-runtime ./not-found's shape (NOT_FOUND_UPGRADE_SQL, migration 0061).
-  (t) => [uniqueIndex("page_404_daily_day_path_referrer_uq").on(t.day, t.path, t.referrerHost)],
-);
+// site-runtime ./not-found's daily 404 count per path (raw page_404s rows are not migrated; see legacy-map.md).
+export { page404Daily } from "@dustinedwards/site-runtime/drizzle";

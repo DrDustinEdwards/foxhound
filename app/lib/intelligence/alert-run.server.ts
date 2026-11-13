@@ -1,3 +1,4 @@
+import { likeStartsWith } from "@dustinedwards/site-runtime/d1";
 import {
   and,
   count,
@@ -6,7 +7,6 @@ import {
   gte,
   isNotNull,
   isNull,
-  like,
   lte,
   ne,
   notInArray,
@@ -25,7 +25,13 @@ import {
   recoverySteps,
   type Db,
 } from "~/db";
-import { DAY_MS, FAILED_PAYMENT_STATUS_ACTIVE, HOUR_MS, type AlertMetric } from "~/lib/constants";
+import {
+  CRITICAL_HEALTH_SCORE_MAX,
+  DAY_MS,
+  FAILED_PAYMENT_STATUS_ACTIVE,
+  HOUR_MS,
+  type AlertMetric,
+} from "~/lib/constants";
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
@@ -39,7 +45,6 @@ import {
 import {
   ALERT_COOLDOWN_WINDOW_MS,
   CRITICAL_CUSTOMERS_METRIC,
-  CRITICAL_HEALTH_SCORE_MAX,
   buildAlertHistoryInsert,
   buildCriticalAlertHistoryInsert,
   buildAlertLastTriggeredUpdate,
@@ -48,6 +53,7 @@ import {
 } from "./alerts";
 import { accountProcessingEligible } from "./sync.server";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // Recova's evaluateAlerts (lib/alert-evaluation.ts, blob 0e28ecbf), which ran
 // at the tail of its recovery, disputes and scheduled-audit crons: each
 // account's enabled alerts against Recova's eleven metrics, then the always-on
@@ -99,8 +105,8 @@ async function computeAlertMetrics(
         and(
           eq(recoverySteps.accountId, accountId),
           isNull(recoverySteps.deletedAt),
-          like(recoverySteps.stepType, "email_%"),
-          like(recoverySteps.result, "email_sent%"),
+          likeStartsWith(recoverySteps.stepType, "email_"),
+          likeStartsWith(recoverySteps.result, "email_sent"),
           gte(recoverySteps.executedAt, sevenDaysAgo),
         ),
       ),
@@ -192,7 +198,7 @@ export async function evaluateAndRecordAlerts(
   const firings = evaluateAlerts(configs, metrics, now.getTime());
   if (firings.length === 0) return 0;
 
-  const target = await loadAlertTarget(db, accountId);
+  const target = await loadAlertTarget(env, db, accountId);
   for (const f of firings) {
     const outcome = await notifyThresholdAlert(env, target, f, now);
     await db.batch([
@@ -302,7 +308,7 @@ export async function runCriticalCustomersCheck(
     });
     return { kind: "fired", count, ...sent };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     console.error(`critical customers alert failed for account ${accountId}:`, message);
     return { kind: "error", message };
   }
@@ -354,10 +360,7 @@ export async function runAlertsForAllAccounts(
     try {
       fired += await evaluateAccountAlerts(env, db, id, now);
     } catch (err) {
-      console.error(
-        `alert evaluation failed for account ${id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`alert evaluation failed for account ${id}:`, errorMessage(err));
     }
   }
   return { accounts: eligible.length, fired };

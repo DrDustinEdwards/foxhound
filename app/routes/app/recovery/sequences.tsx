@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { useId } from "react";
 import { ChartFrame } from "capsomer/react/chart-frame";
 import { Disclosure } from "capsomer/react/disclosure";
@@ -34,6 +35,7 @@ import {
 
 import type { Route } from "./+types/sequences";
 import { NOINDEX } from "~/lib/seo/meta";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // /recovery/sequence. Recova is the spec: its page,
 // app/(app)/recovery/sequence/page.tsx at blob 953c3f57, with
@@ -99,7 +101,7 @@ function StatCard({
 function StatRow({ performance }: { performance: StepPerformanceSummary }) {
   return (
     <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-      <StatCard label="Emails sent" value={performance.totalSent.toLocaleString("en-US")} />
+      <StatCard label="Emails sent" value={formatCount(performance.totalSent)} />
       <StatCard
         label="Avg open rate"
         value={`${performance.avgOpenRatePct}%`}
@@ -235,7 +237,7 @@ function StepCardView({ card }: { card: StepCard }) {
               ever reaches this component (email-preview.server.ts). */}
           <div
             className="overflow-x-auto text-label leading-relaxed text-text-subtle"
-            dangerouslySetInnerHTML={{ __html: preview }}
+            dangerouslySetInnerHTML={markup(preview)}
           />
         </Disclosure>
       ) : null}
@@ -267,7 +269,7 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
 
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10.
-    <div className="mx-auto max-w-[1280px] px-4 py-10 md:px-8">
+    <div className="cap-admin-page gap-0 px-4 py-10 md:px-8" data-width="page">
       <div className="mb-6">
         <PageHead
           title="Recovery sequence"

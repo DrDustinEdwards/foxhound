@@ -1,27 +1,22 @@
 import { useNavigation, useRevalidator } from "react-router";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { AttentionList } from "capsomer/react/attention-list";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
-import { Spinner } from "capsomer/react/skeleton";
-import { StatTile, StatTiles, type StatTileLinkProps } from "capsomer/react/stat-tile";
+import { Row, RowList } from "capsomer/react/row-list";
+import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cronRunHref } from "~/lib/admin/crons";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
-import {
-  overviewAttention,
-  overviewAttentionGroups,
-  overviewPending,
-  plural,
-} from "~/lib/admin/overview";
+import { overviewAttention, overviewAttentionGroups, overviewPending } from "~/lib/admin/overview";
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { getAdminOverview, listRecentAdminActions } from "~/lib/admin/overview.server";
 import { getD1SizeBytes } from "~/lib/admin/operations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import type { AdminHandle } from "~/lib/admin/page";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -46,25 +41,6 @@ export async function loader({ context }: Route.LoaderArgs) {
     listRecentAdminActions(db),
   ]);
   return { overview, d1SizeBytes, recentActions, now };
-}
-
-// A Capsomer tile is a link or a button; with nowhere to go it would be a
-// button that does nothing, so each tile opens the page behind its number.
-function tileLink({ href, children, ...rest }: StatTileLinkProps) {
-  return (
-    <Link to={href} {...rest}>
-      {children}
-    </Link>
-  );
-}
-
-// AttentionLinkProps is RowLinkProps (Capsomer), so one renderer serves both lists.
-function rowLink({ href, children, ...rest }: RowLinkProps) {
-  return (
-    <Link to={href} {...rest}>
-      {children}
-    </Link>
-  );
 }
 
 /** Amounts in several currencies are never added together:
@@ -97,15 +73,15 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
       ? "No cron runs failed in the last 24 hours."
       : `${plural(failed, "cron run", "cron runs")} failed in the last 24 hours.`;
   // While the page's data is read again the last good data stays on screen,
-  // each list marked busy with a spinner saying so (patterns.md "Loading").
-  const reading = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
+  // each list marked busy with a spinner saying so (patterns.md "Loading"):
+  // the attention list's and each panel's `reading`.
 
   return (
     <div className="grid gap-6">
       <StatTiles label="Platform">
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="MRR under management"
           figure={moneyFigure(
             overview.mrrByCurrency.map((m) => ({ cents: m.totalCents, currency: m.currency })),
@@ -121,18 +97,18 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
           figure={String(overview.merchantCount)}
           detail={`${overview.pausedCount} paused. Demo accounts are not counted.`}
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Recovered this month"
           figure={moneyFigure(overview.recoveredThisMonth.byCurrency)}
           detail={`${plural(overview.recoveredThisMonth.paymentCount, "attributed payment", "attributed payments")} since the 1st (UTC)`}
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Open disputes"
           figure={String(overview.openDisputesCount)}
           detail={
@@ -143,28 +119,28 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Active recoveries"
           figure={String(overview.activeRecoveriesCount)}
           detail="Failed payments currently in a sequence"
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="New connections"
           figure={String(overview.newConnectionsCount)}
           detail="Connected in the last 7 days and still connected"
         />
         <StatTile
           href="/admin/merchants"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Billing exempt"
           figure={String(overview.billingExemptCount)}
           detail="Not invoiced"
         />
         <StatTile
           href="/admin/operations"
-          renderLink={tileLink}
+          renderLink={routerRenderLink}
           label="Database size"
           figure={formatBytes(d1SizeBytes)}
           tone={d1Share >= D1_ALERT_THRESHOLD ? "warn" : undefined}
@@ -173,91 +149,82 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         />
       </StatTiles>
 
-      <div aria-busy={pending || undefined}>
-        <AttentionList
-          items={overviewAttention(overview, now)}
-          groups={overviewAttentionGroups(overview)}
-          read={reading}
-          renderLink={rowLink}
-        />
-      </div>
+      <AttentionList
+        items={overviewAttention(overview, now)}
+        groups={overviewAttentionGroups(overview)}
+        reading={pending}
+        renderLink={routerRenderLink}
+      />
 
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Recent admin actions"
-          src={reading}
-          more={<Link to="/admin/platform/audit-log">View audit log</Link>}
-          flush
-        >
-          {recentActions.length === 0 ? (
-            <Empty kind="nothing-yet" title="No admin actions yet.">
-              Every admin action that changes production writes one here and in the audit log.
-            </Empty>
-          ) : (
-            <RowList label="Recent admin actions" primary={false}>
-              {recentActions.map((a) => (
-                <Row
-                  key={a.id}
-                  // The row's one link opens what the action was done to, or the
-                  // audit log when the action has no page of its own to open.
-                  title={a.action}
-                  href={a.target?.href ?? "/admin/platform/audit-log"}
-                  renderLink={rowLink}
-                  detail={a.target ? `${a.target.label}, by ${a.actorEmail}` : `by ${a.actorEmail}`}
-                  meta={<AdminTime at={a.createdAt} />}
-                />
+      <Panel
+        title="Recent admin actions"
+        reading={pending}
+        more={<Link to="/admin/platform/audit-log">View audit log</Link>}
+        flush
+      >
+        {recentActions.length === 0 ? (
+          <Empty kind="nothing-yet" title="No admin actions yet.">
+            Every admin action that changes production writes one here and in the audit log.
+          </Empty>
+        ) : (
+          <RowList label="Recent admin actions" primary={false}>
+            {recentActions.map((a) => (
+              <Row
+                key={a.id}
+                // The row's one link opens what the action was done to, or the
+                // audit log when the action has no page of its own to open.
+                title={a.action}
+                href={a.target?.href ?? "/admin/platform/audit-log"}
+                renderLink={routerRenderLink}
+                detail={a.target ? `${a.target.label}, by ${a.actorEmail}` : `by ${a.actorEmail}`}
+                meta={<Time at={a.createdAt} empty="never" tip />}
+              />
+            ))}
+          </RowList>
+        )}
+      </Panel>
+
+      <Panel
+        title="Cron health"
+        reading={pending}
+        more={<Link to="/admin/platform/crons">View crons</Link>}
+      >
+        <div className="grid gap-2">
+          <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
+            {failed === 1 ? (
+              <Link
+                to={cronRunHref(failedRuns[0].id)}
+                className="text-error-text underline underline-offset-2"
+              >
+                {failedSentence}
+              </Link>
+            ) : (
+              failedSentence
+            )}
+          </p>
+          {failed > 0 ? (
+            <ul className="m-0 grid gap-1 p-0 text-label">
+              {failedRuns.map((run) => (
+                <li key={run.id}>
+                  <Link to={cronRunHref(run.id)} className="text-text underline underline-offset-2">
+                    {run.cronName}
+                  </Link>{" "}
+                  <span className="text-text-tertiary">
+                    failed <Time at={run.finishedAt} empty="never" tip />
+                    {run.message ? `: ${run.message}` : null}
+                  </span>
+                </li>
               ))}
-            </RowList>
-          )}
-        </Panel>
-      </div>
-
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Cron health"
-          src={reading}
-          more={<Link to="/admin/platform/crons">View crons</Link>}
-        >
-          <div className="grid gap-2">
-            <p className={`m-0 text-label ${failed > 0 ? "text-error-text" : "text-success-text"}`}>
-              {failed === 1 ? (
-                <Link
-                  to={cronRunHref(failedRuns[0].id)}
-                  className="text-error-text underline underline-offset-2"
-                >
-                  {failedSentence}
-                </Link>
-              ) : (
-                failedSentence
-              )}
-            </p>
-            {failed > 0 ? (
-              <ul className="m-0 grid gap-1 p-0 text-label">
-                {failedRuns.map((run) => (
-                  <li key={run.id}>
-                    <Link
-                      to={cronRunHref(run.id)}
-                      className="text-text underline underline-offset-2"
-                    >
-                      {run.cronName}
-                    </Link>{" "}
-                    <span className="text-text-tertiary">
-                      failed <AdminTime at={run.finishedAt} />
-                      {run.message ? `: ${run.message}` : null}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            ) : null}
-            <p className="m-0 text-label text-text-tertiary">
-              Last run <AdminTime at={lastRunAt} />
-              {disabledCount > 0
-                ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.`
-                : null}
-            </p>
-          </div>
-        </Panel>
-      </div>
+            </ul>
+          ) : null}
+          <p className="m-0 text-label text-text-tertiary">
+            Last run <Time at={lastRunAt} empty="never" tip />
+            {disabledCount > 0
+              ? `. ${plural(disabledCount, "cron is", "crons are")} switched off.`
+              : null}
+          </p>
+        </div>
+      </Panel>
     </div>
   );
 }

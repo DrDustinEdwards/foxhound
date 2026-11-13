@@ -1,6 +1,7 @@
 import { slugify } from "@drdustinedwards/site-helpers/slug";
 import {
   RefusedError,
+  d1MediaStore,
   mediaLibrary,
   type MediaAdapter,
   type MediaKeyInput,
@@ -9,13 +10,12 @@ import {
 
 import type { Db } from "~/db";
 import { EXTENSIONS, UPLOAD_KEY, mediaUrl } from "~/lib/media/images";
-import { mediaStore } from "~/lib/media/store.server";
 import { suggestFor } from "~/lib/media/suggest.server";
 import { mediaUses } from "~/lib/media/usage.server";
 
 // Carrel's media group over the blog's media library: site-api's mediaLibrary
-// over the R2 bucket MEDIA and the index tables of migration 0059
-// (mediaStore). Carrel is the only writer; nothing here touches a merchant
+// over the R2 bucket MEDIA and site-api's standard index tables (migration
+// 0080), written by its d1MediaStore. Carrel is the only writer; nothing here touches a merchant
 // table, Stripe, or a money path. What is the blog's own is set here: the
 // pictures it takes, its addresses and keys, the shrink size, the reference
 // check, where earlier bytes are kept, and the suggester. Not
@@ -48,7 +48,7 @@ function uploadKey(file: MediaKeyInput, attempt: number): string {
 
 export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
   return mediaLibrary({
-    store: mediaStore(db),
+    store: d1MediaStore(env.DB),
     bucket: env.MEDIA,
     images: env.IMAGES,
     limits: LIMITS,

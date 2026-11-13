@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field } from "capsomer/react/field";
@@ -27,7 +28,7 @@ import {
   recordEstimatorRun,
   type EstimatorResult,
 } from "~/lib/estimator/estimate.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -464,3 +465,5 @@ function EstimatorResultCard({ result, currency }: { result: EstimatorResult; cu
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

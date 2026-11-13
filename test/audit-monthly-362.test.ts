@@ -84,7 +84,7 @@ const { buildMonthlyAuditEmail, compareTotals } = await import("~/lib/audit/mont
 const { driveMonthlyAudit } = await import("./helpers/monthly-audit-queue");
 const { renderFoxhoundEmail } = await import("~/lib/email/templates");
 const { handleQueueBatch } = await import("~/lib/queue/consumer");
-const { runCronJob } = await import("~/lib/cron/run");
+const { runJob } = await import("./helpers/cron");
 const { CRON_JOBS, jobsForSchedule } = await import("~/lib/cron/registry");
 
 const CRON_NAME = "monthly-audit";
@@ -619,7 +619,7 @@ describe("(5): a failing account is retried, and never stops another", () => {
     const queued: unknown[] = [];
     const e = env(undefined, queued);
     const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-    await runCronJob(e, job.name, job.handler);
+    await runJob(e, job.name, job.handler, job.schedule);
     await db.update(accounts).set({ auditAutoRun: false }).where(eq(accounts.id, "acct_on"));
 
     await consume(e, queued);

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { decryptToken } from "~/lib/stripe/encryption";
 
 import { accounts, apiKeys, stripeConnections } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
@@ -32,7 +33,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
 
 const MINE = "acct_mine";
@@ -44,6 +45,7 @@ const auditRows: Record<string, unknown>[] = [];
 function env(): Env {
   return {
     DB: {},
+    ENCRYPTION_KEY: "ab".repeat(32),
     EMAIL_TOKEN_KEY: TEST_LINK_KEY,
     TOOL_CALL_LOG: {
       idFromName: () => "tool-calls",
@@ -69,7 +71,7 @@ async function seed() {
   await db.insert(apiKeys).values({
     id: `key_${MINE}`,
     accountId: MINE,
-    keyHash: await hashMcpToken(token),
+    keyHash: await sha256Hex(token),
     label: "agent",
     scope: MCP_TOKEN_SCOPE.MERCHANT,
     // A key that may change the account, as one made in Settings.
@@ -183,7 +185,9 @@ describe("PLANT 2: what the log never keeps", () => {
       .get(MINE) as {
       slack_webhook_url: string;
     };
-    expect(stored.slack_webhook_url).toBe(url);
+    // Stored sealed, never as the URL; it opens to what was sent.
+    expect(stored.slack_webhook_url).not.toContain("logPangolinSecret");
+    expect(await decryptToken(env(), stored.slack_webhook_url)).toBe(url);
   });
 
   it("an email address inside a stored error is masked", async () => {

@@ -1,3 +1,5 @@
+import { currencyExponent, formatMoneyShort } from "@dustinedwards/site-runtime/money";
+
 import { formatCurrencyTotalsShort } from "~/lib/dashboard/console";
 import type { FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { isPaymentTimeRange, type PaymentTimeRange } from "~/lib/recovery/time-range";
@@ -45,14 +47,10 @@ export function parsePaymentsAmount(
   return Math.min(Math.max(n, floorCents), ceilingCents);
 }
 
-/** The page number in the URL ("page"), 1 when absent or not a whole page. */
-export function parsePaymentsPage(value: string | null): number {
-  const n = Number(value ?? "1");
-  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 1;
+/** Recova's amount slider moves in 10-unit steps (AmountRangeSlider.tsx STEP): 10 major units of the range's currency. */
+export function amountSliderStep(currency: string): number {
+  return 10 * 10 ** currencyExponent(currency);
 }
-
-/** Recova's amount slider moves in $10 steps (AmountRangeSlider.tsx STEP). */
-export const AMOUNT_SLIDER_STEP_CENTS = 1000;
 
 /** Recova's decline words: its filter options and its row pill, which renders
  *  the category under CSS capitalize. Foxhound's two extra categories take
@@ -70,11 +68,16 @@ export function declineWord(category: string): string {
   return DECLINE_CATEGORY_WORDS[category] ?? category;
 }
 
-/** Recova's slider figures: whole dollars with no separator, and the top end
- *  as "$N+" (AmountRangeSlider.tsx formatDollars). */
-export function sliderDollars(cents: number, isMax = false, absoluteMax = 0): string {
-  if (isMax && cents >= absoluteMax) return `$${Math.round(absoluteMax / 100)}+`;
-  return `$${Math.round(cents / 100)}`;
+/** Recova's slider figures: whole units, and the top end as "$N+"
+ *  (AmountRangeSlider.tsx formatDollars), in the range's currency. */
+export function sliderAmount(
+  minor: number,
+  currency: string,
+  isMax = false,
+  absoluteMax = 0,
+): string {
+  if (isMax && minor >= absoluteMax) return `${formatMoneyShort(absoluteMax, currency)}+`;
+  return formatMoneyShort(minor, currency);
 }
 
 /** The head's figures, totaled per currency over the rows on screen, as
@@ -90,15 +93,6 @@ export interface PaymentsHeaderStats {
 export function paymentsHeaderLine(stats: PaymentsHeaderStats): string {
   const rate = stats.ratePct > 0 ? ` · ${stats.ratePct}% recovery rate` : "";
   return `${formatCurrencyTotalsShort(stats.atRisk)} at risk · ${formatCurrencyTotalsShort(stats.recovered)} recovered${rate}`;
-}
-
-/** Recova's pager line, PaymentsTable.tsx: "Showing 1–25 of 60 payments".
- *  With All chosen Recova's page size is the total, so it reads 1 to total. */
-export function paymentsShowingText(page: number, pageSize: number | "all", total: number): string {
-  const size = pageSize === "all" ? total : pageSize;
-  const from = (page - 1) * size + 1;
-  const to = Math.min(page * size, total);
-  return `Showing ${from}–${to} of ${total} payments`;
 }
 
 /** Recova clears the bulk result 3 seconds after it lands (PaymentsClient.tsx

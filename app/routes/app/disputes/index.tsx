@@ -14,9 +14,10 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute-link";
-import { StatCard } from "~/components/stat-card";
+import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
+import "capsomer/stat-tile.css";
 import { getDb } from "~/db";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -46,7 +47,8 @@ import {
 import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import type { Tone } from "~/lib/recovery/labels";
-import { formatAmounts, formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
+import { formatAmounts } from "~/lib/money/totals";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -197,11 +199,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   } catch (err) {
     // A transient Stripe or D1 failure throws (resolveDisputedRecovery's
     // contract) and writes nothing, the same answer the detail page gives.
-    logEvent(
-      "dispute_sync_failed",
-      { error: err instanceof Error ? err.message : String(err) },
-      { level: "error" },
-    );
+    logEvent("dispute_sync_failed", { error: errorMessage(err) }, { level: "error" });
     return data(
       { sync: { ok: false, message: "Could not import the dispute. Please try again." } },
       { status: 500 },
@@ -218,12 +216,17 @@ const PILL_TONE: Record<Tone, PillTone | undefined> = {
   neutral: undefined,
 };
 
+function WinRateTile({ stats }: { stats: Parameters<typeof winRateCard>[0] }) {
+  const { value, subtext } = winRateCard(stats);
+  return <StaticStatTile size="lg" label="Win rate" figure={value} detail={subtext} />;
+}
+
 export default function Disputes({ loaderData, actionData }: Route.ComponentProps) {
   const { disputes, stats, health, withEvidence, nowMs, isDemo, isOwner, warnings } = loaderData;
   const hasEvidence = new Set(withEvidence);
 
   return (
-    <div className="mx-auto max-w-[1280px] px-4 md:px-8 py-8 md:py-10">
+    <div className="cap-admin-page gap-0 px-4 md:px-8 py-8 md:py-10" data-width="page">
       <div className="mb-8">
         <PageHead title="Dashboard" />
       </div>
@@ -231,12 +234,18 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       {/* Recova's grid, five across from md, in Recova's order. Win rate takes
           the place of Recova's "Saved vs Smart Disputes", which is not built
           (Dustin, PR #75 questions 2 and 4; see stats.ts). */}
-      <div className="mb-8 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <StatCard label="Open disputes" value={String(stats.openCount)} />
-        <StatCard label="At stake" value={formatAmounts(stats.atStake)} />
-        <StatCard label="Submitted by Foxhound" value={String(stats.submittedByFoxhoundCount)} />
-        <StatCard label="Fees owed" value={formatAmounts(stats.feesOwed)} />
-        <StatCard label="Win rate" {...winRateCard(stats)} />
+      <div className="mb-8 [--tiles-columns:repeat(2,minmax(0,1fr))] md:[--tiles-columns:repeat(5,minmax(0,1fr))]">
+        <StatTiles layout="grid" label="Dispute figures">
+          <StaticStatTile size="lg" label="Open disputes" figure={String(stats.openCount)} />
+          <StaticStatTile size="lg" label="At stake" figure={formatAmounts(stats.atStake)} />
+          <StaticStatTile
+            size="lg"
+            label="Submitted by Foxhound"
+            figure={String(stats.submittedByFoxhoundCount)}
+          />
+          <StaticStatTile size="lg" label="Fees owed" figure={formatAmounts(stats.feesOwed)} />
+          <WinRateTile stats={stats} />
+        </StatTiles>
       </div>
 
       {disputes.length === 0 ? (

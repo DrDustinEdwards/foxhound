@@ -4,8 +4,9 @@
 import type { Block } from "capsomer/email";
 import type { CurrencyCents } from "~/lib/audit/full-audit.server";
 import { formatBps, formatTotals, SCOPE_UNREAD } from "~/lib/audit/render";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
+import { percent } from "capsomer/behavior/meter";
 
 export interface CurrencyComparison {
   currency: string;
@@ -177,9 +178,7 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   const disputeWinRate = disputes.ok
     ? (() => {
         const { won, lost } = disputes.data.historical;
-        return won + lost > 0
-          ? `${Math.round((won / (won + lost)) * 100)}% (${won}W / ${lost}L)`
-          : null;
+        return won + lost > 0 ? `${percent(won, won + lost)}% (${won}W / ${lost}L)` : null;
       })()
     : SCOPE_UNREAD;
 

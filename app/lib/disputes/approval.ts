@@ -49,15 +49,19 @@ export function canApprove(state: DisputeState): boolean {
 
 /** SHA-256 hex of the evidence fields at the moment of approval, canonicalized
  *  by field name so the hash does not depend on read/render order. Proves
- *  exactly which version of the evidence was approved. */
+ *  exactly which version of the evidence was approved.
+ *
+ *  The order is by code unit, not localeCompare, so the same fields hash the
+ *  same on every runtime and locale; the canonical text is JSON of [name, value]
+ *  pairs, so a value holding "=" or a newline cannot make two different field
+ *  sets read as one. Hashes written before 2026-11-11 used a name=value join. */
 export async function hashEvidence(
   fields: { fieldName: string; fieldValue: string }[],
 ): Promise<string> {
-  const canonical = [...fields]
-    .sort((a, b) => a.fieldName.localeCompare(b.fieldName))
-    .map((f) => `${f.fieldName}=${f.fieldValue}`)
-    .join("\n");
-  return sha256Hex(canonical);
+  const pairs = fields
+    .map((f) => [f.fieldName, f.fieldValue] as const)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return sha256Hex(JSON.stringify(pairs));
 }
 
 /**

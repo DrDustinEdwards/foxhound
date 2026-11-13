@@ -1,6 +1,7 @@
-import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { DISPUTE_FEE_PERCENT } from "~/lib/billing/page";
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { DEADLINE_SOON_DAYS, DEADLINE_URGENT_DAYS } from "~/lib/disputes/labels";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // The /product/disputes copy. Recova's spec is
 // app/(marketing)/product/disputes/page.tsx (blob c412d54f), read whole, and
@@ -8,7 +9,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 //
 // - Branding: Recova becomes Foxhound.
 // - Every product fact is read from Foxhound's engine, never typed (RULES.md
-//   2.1): the fee from DISPUTE_FEE_BPS, the cap from DISPUTE_FEE_CAP_CENTS,
+//   2.1): the fee from DISPUTE_FEE_PERCENT, the cap from DISPUTE_FEE_CAP_CENTS,
 //   the deadline bands from the dashboard's own DEADLINE_SOON_DAYS and
 //   DEADLINE_URGENT_DAYS.
 // - Truthfulness fixes where Recova's words describe something Foxhound does
@@ -24,7 +25,7 @@ import { formatMoneyShort } from "~/lib/money-format";
 //
 // Every one of these is listed in the J57 PR notes for the seat to read.
 
-const pct = `${DISPUTE_FEE_BPS / 100}%`;
+const pct = `${DISPUTE_FEE_PERCENT}%`;
 const cap = formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd");
 
 // Truthfulness: Recova reads "Automated dispute evidence building and Stripe

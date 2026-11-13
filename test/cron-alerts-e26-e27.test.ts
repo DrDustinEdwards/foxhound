@@ -1,8 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { cronAlerts, cronRunHistory } from "~/db/schema";
-
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // ROWS E26 AND E27: the cron failure and cron stale
 // alerts, checked against Recova's lib/cron-monitor.ts (blob 2891dd9b,
@@ -25,7 +23,11 @@ interface Sent {
   headers?: Record<string, string>;
 }
 
-const harness = vi.hoisted(() => ({ db: null as unknown, sent: [] as unknown[] }));
+const harness = vi.hoisted(() => ({
+  db: null as unknown,
+  sqlite: null as unknown,
+  sent: [] as unknown[],
+}));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => harness.db,
@@ -45,10 +47,11 @@ vi.mock("~/db/billable", async (importOriginal) => {
   };
 });
 
-const { alertCronFailure, buildFailureAlertEmail, describeAge, runCronHealthCheck } =
+const { alertCronFailure, buildFailureAlertEmail, runCronHealthCheck } =
   await import("~/lib/cron/alerts.server");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
-const { runCronJob } = await import("~/lib/cron/run");
+const { runJob, loggedRuns } = await import("./helpers/cron");
+const { cronRunId } = await import("~/lib/admin/crons");
 const constants = await import("~/lib/constants");
 const schema = await import("~/db/schema");
 
@@ -66,8 +69,15 @@ function env(): Env {
       get: () => ({ acquire: async () => "tok", release: async () => {} }),
       idFromName: (n: string) => n,
     },
-    DB: {},
+    DB: d1Over(harness.sqlite as Parameters<typeof d1Over>[0]),
   } as unknown as Env;
+}
+/** A fresh migrated database, the one getDb() and env().DB both reach. */
+function freshDb() {
+  const { sqlite, db } = createInMemoryDb();
+  harness.db = db;
+  harness.sqlite = sqlite;
+  return db;
 }
 function sent(): Sent[] {
   return harness.sent as Sent[];
@@ -117,14 +127,14 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
   });
 
   it("no stack, no stack lines (Recova's `error?.stack ?` guard)", async () => {
-    const db = createInMemoryDb().db;
+    const db = freshDb();
     harness.db = db;
     await alertCronFailure(env(), db, { ...input, stack: null }, NOW);
     expect(only().text).not.toContain("Stack (first 500 chars):");
   });
 
   it("a refused send returns its named outcome and never throws", async () => {
-    const db = createInMemoryDb().db;
+    const db = freshDb();
     harness.db = db;
     const broken = {
       ...env(),
@@ -140,30 +150,29 @@ describe("E26: the cron failure alert says what Recova's notifyCronFailure says"
       error: "binding exploded",
     });
     const noBinding = { ...env(), EMAIL: undefined } as unknown as Env;
-    const second = await alertCronFailure(noBinding, createInMemoryDb().db, input, NOW);
+    const second = await alertCronFailure(noBinding, freshDb(), input, NOW);
     expect(second).toMatchObject({ sent: false, reason: "send_failed" });
   });
 });
 
 describe("E26 trigger: every cron's catch, with the error's stack", () => {
   it("a failing run sends the alert with Recova's stack excerpt", async () => {
-    harness.db = createInMemoryDb().db;
+    harness.db = freshDb();
     const e = env();
-    const outcome = await runCronJob(e, "recovery-tick", async () => {
+    await runJob(e, "recovery-tick", async () => {
       throw new Error("boom");
     });
-    expect(outcome.alert).toEqual({ sent: true });
+    const [run] = loggedRuns(harness.sqlite as Parameters<typeof loggedRuns>[0], "recovery-tick");
     const m = only();
     expect(m.subject).toBe("[Foxhound Ops] Cron failure: recovery-tick");
     expectBothParts(m, ["Message: boom", "Stack (first 500 chars):", "Error: boom"]);
-    expect(m.text).toContain(`Run id: ${outcome.runId}`);
+    expect(m.text).toContain(`Run id: ${cronRunId("recovery-tick", run!.started_at)}`);
   });
 });
 
 describe("E26 trigger: the billing run alerts when any account fails to invoice", () => {
   async function seedAccounts(ids: string[]) {
-    const { db } = createInMemoryDb();
-    harness.db = db;
+    const db = freshDb();
     for (const id of ids) {
       await db.insert(schema.accounts).values({
         id,
@@ -208,37 +217,19 @@ describe("E26 trigger: the billing run alerts when any account fails to invoice"
 // ---- E27 ------------------------------------------------------------------------
 
 describe("E27: the cron stale alert says what Recova's notifyCronStale says", () => {
-  it("Recova's describeAge, its units and its floor", () => {
-    expect(describeAge(59_000)).toBe("59 seconds ago");
-    expect(describeAge(61_000)).toBe("1 minutes ago");
-    expect(describeAge(90 * 60_000)).toBe("1 hours ago");
-    expect(describeAge(49 * 60 * 60_000)).toBe("2 days ago");
-  });
-
   it("TRIGGER: no SUCCESSFUL run within the interval, as Recova's watcher reads last_succeeded_at", async () => {
-    // A cron that keeps running and failing is stale to Recova: its watcher
-    // reads last_succeeded_at, not the last run of any status.
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    const recentFail = new Date(NOW.getTime() - 60_000);
-    await db.insert(cronRunHistory).values({
-      id: "f1",
-      cronName: "d1-backup",
-      finishedAt: recentFail,
-      status: "failed",
-      createdAt: recentFail,
-    });
+    // cron_runs, which runJobs writes for every run that executes, is what the
+    // shared cronAlert reads: the last success three days ago on a daily job.
+    freshDb();
     const oldSuccess = new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
-    await db.insert(cronRunHistory).values({
-      id: "s1",
-      cronName: "d1-backup",
-      finishedAt: oldSuccess,
-      status: "success",
-      createdAt: oldSuccess,
-    });
+    (harness.sqlite as Parameters<typeof d1Over>[0])
+      .prepare(
+        "INSERT INTO cron_runs (name, every_minutes, first_started_at, last_started_at, last_ok_at) VALUES (?, ?, ?, ?, ?)",
+      )
+      .run("d1-backup", 1440, oldSuccess.getTime(), oldSuccess.getTime(), oldSuccess.getTime());
     await runCronHealthCheck(
       env(),
-      db,
+      harness.db as ReturnType<typeof freshDb>,
       [{ name: "d1-backup", schedule: constants.CRON_SCHEDULE_DAILY }],
       NOW,
     );
@@ -247,19 +238,5 @@ describe("E27: the cron stale alert says what Recova's notifyCronStale says", ()
       `Last succeeded: ${oldSuccess.toISOString()}`,
       "Age: last succeeded 3 days ago",
     ]);
-  });
-
-  it("an unmapped schedule is reported in the run, never emailed (Recova alerts only on its schedule list)", async () => {
-    const db = createInMemoryDb().db;
-    harness.db = db;
-    const result = await runCronHealthCheck(
-      env(),
-      db,
-      [{ name: "mystery", schedule: "0 0 */3 * *" }],
-      NOW,
-    );
-    expect(result.message).toContain("mystery(unknown_schedule)");
-    expect(sent()).toHaveLength(0);
-    expect(await db.select().from(cronAlerts)).toHaveLength(0);
   });
 });

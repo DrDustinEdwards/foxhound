@@ -17,7 +17,7 @@
 // failure that promise cannot survive.
 //
 // ROBOTS.TXT IS THE ADVISORY HALF AND IS NOT SUFFICIENT. The
-// group-parity fix in app/routes/files/robots.ts now excludes /e/ from every
+// group-parity fix in app/lib/seo/files.ts now excludes /e/ from every
 // named group, and a well-behaved crawler will obey it. The agents that make
 // this urgent are the USER-TRIGGERED fetchers (ChatGPT-User, Claude-User,
 // Perplexity-User): a customer pastes a dunning email into an assistant, the
@@ -43,7 +43,7 @@
  * strings mainstream browsers actually send: none of Chrome, Firefox, Safari or
  * Edge contains any of them.
  *
- * DELIBERATELY NOT DERIVED FROM robots.ts's ALLOWED_BOTS. That list answers "who
+ * DELIBERATELY NOT DERIVED FROM robots.txt's allowed bots. That list answers "who
  * do we WANT crawling the public site", which is a marketing question and
  * includes agents we are courting. This one answers "who must not write money
  * data", which is a billing question. They overlap today and must stay free to

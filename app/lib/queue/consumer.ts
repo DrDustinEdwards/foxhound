@@ -2,6 +2,7 @@ import { AUDIT_QUEUE_NAME, EMAIL_EVENTS_QUEUE_NAME, EMAIL_QUEUE_NAME } from "~/l
 import { processEmailJob } from "~/lib/email/dispatch";
 import { processEmailEvent } from "~/lib/email/events";
 import type { EmailJob } from "~/lib/email/types";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Single queue-consumer entry, dispatched by queue name:
 //   foxhound-email        -> send each job through the one send module (ack/retry)
@@ -31,7 +32,7 @@ export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): 
       } catch (err) {
         console.error(
           `email event ${message.id} failed (attempt ${message.attempts}), retrying:`,
-          err instanceof Error ? err.message : err,
+          errorMessage(err),
         );
         message.retry();
       }

@@ -10,10 +10,10 @@
 // columns the sync owns, so the two cannot fight: the sync rewrites
 // customer_context every day, and the score reads both.
 
-import { toDate } from "@drdustinedwards/site-helpers/xml";
 import { DAY_MS } from "~/lib/constants";
 
 import { monthlyEquivalentCents, type BillingInterval } from "./signals";
+import { stripeDate } from "~/lib/stripe/time";
 
 type SubscriptionChangeKind =
   | "cancel_scheduled"
@@ -37,7 +37,10 @@ export interface SubscriptionChange {
 interface ItemLike {
   quantity?: number | null;
   current_period_end?: number | null;
-  price?: { unit_amount?: number | null; recurring?: { interval?: string | null } | null } | null;
+  price?: {
+    unit_amount?: number | null;
+    recurring?: { interval?: string | null; interval_count?: number | null } | null;
+  } | null;
 }
 
 /** The parts of a Stripe subscription this reads. */
@@ -60,13 +63,15 @@ function itemsMrrCents(items: ItemLike[]): number {
   return items.reduce(
     (sum, item) =>
       sum +
-      monthlyEquivalentCents(item.price?.unit_amount ?? 0, item.quantity ?? 1, interval(item)),
+      monthlyEquivalentCents(
+        item.price?.unit_amount ?? 0,
+        item.quantity ?? 1,
+        interval(item),
+        item.price?.recurring?.interval_count ?? 1,
+      ),
     0,
   );
 }
-
-const fromUnixSeconds = (unixSeconds: number | null | undefined) =>
-  unixSeconds ? toDate(unixSeconds * 1000) : null;
 
 function scheduled(
   cancelAtPeriodEnd: boolean | null | undefined,
@@ -79,9 +84,9 @@ function scheduled(
  *  cancel_at_period_end the latest item period end (on the pinned API version
  *  the period lives on the item). Null when neither is on the event. */
 function cancelDate(sub: SubscriptionLike): Date | null {
-  if (sub.cancel_at) return fromUnixSeconds(sub.cancel_at);
+  if (sub.cancel_at) return stripeDate(sub.cancel_at);
   const ends = (sub.items?.data ?? []).map((i) => i.current_period_end ?? 0).filter((n) => n > 0);
-  return ends.length > 0 ? fromUnixSeconds(Math.max(...ends)) : null;
+  return ends.length > 0 ? stripeDate(Math.max(...ends)) : null;
 }
 
 /**
@@ -118,7 +123,7 @@ export function detectSubscriptionChanges(
       changes.push({
         ...blank,
         kind: "paused",
-        resumesAt: fromUnixSeconds(sub.pause_collection?.resumes_at),
+        resumesAt: stripeDate(sub.pause_collection?.resumes_at),
       });
     else if (was) changes.push({ ...blank, kind: "resumed" });
   }

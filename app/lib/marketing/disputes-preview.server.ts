@@ -1,6 +1,6 @@
+import { formatDate } from "capsomer/behavior/time";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import type { DisputeState } from "~/lib/constants";
-import { formatDateMonthDay } from "~/lib/date-format";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildDisputesSeed } from "~/lib/demo/disputes-seed";
 import {
@@ -11,11 +11,12 @@ import {
   isDisputeResolved,
 } from "~/lib/disputes/labels";
 import { sortDisputesNewestFirst } from "~/lib/disputes/order";
-import { computeDisputeStats, winRateCard, type MoneyPart } from "~/lib/disputes/stats";
-import { formatAmounts, formatMoney } from "~/lib/money-format";
+import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
+import { formatAmounts, type CurrencyAmount } from "~/lib/money/totals";
+import { hourlyPreview } from "./hourly-preview";
 
 import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
-import { HOUR_MS } from "~/lib/constants";
 
 // The data behind the /product/disputes previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from a hand-written
@@ -52,7 +53,7 @@ const PREVIEW_TABLE_ROWS = 6;
  * whose dispute fees are settled. So nothing is owed, and the card reads
  * $0.00, as the demo dashboard does (PR #79).
  */
-const DEMO_FEES_OWED: MoneyPart[] = [];
+const DEMO_FEES_OWED: CurrencyAmount[] = [];
 
 /** Build the preview as of `now`. Pure: the same instant gives the same preview. */
 function buildDisputesPreview(now: Date): DisputesPreview {
@@ -101,7 +102,7 @@ function buildDisputesPreview(now: Date): DisputesPreview {
       resolved,
       deadlineDays: days,
       deadlineUrgency: deadlineUrgency(days),
-      deadlineDate: formatDateMonthDay(d.evidenceDeadline),
+      deadlineDate: formatDate(d.evidenceDeadline, { style: "monthDay" }) ?? "",
       triage:
         d.triageRecommendation === "fight" || d.triageRecommendation === "accept"
           ? { recommendation: d.triageRecommendation, confidence: d.triageConfidence }
@@ -125,13 +126,5 @@ function buildDisputesPreview(now: Date): DisputesPreview {
   };
 }
 
-// The seed is cheap, but its deadlines count whole days from `now`, so one
-// preview serves every request in the same hour, as the Recovery spoke's does.
-let cached: { hour: number; preview: DisputesPreview } | null = null;
-
-export function disputesPreviewFor(nowMs: number): DisputesPreview {
-  const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour)
-    cached = { hour, preview: buildDisputesPreview(new Date(hour * HOUR_MS)) };
-  return cached.preview;
-}
+// One preview per clock hour (hourlyPreview).
+export const disputesPreviewFor = hourlyPreview(buildDisputesPreview);

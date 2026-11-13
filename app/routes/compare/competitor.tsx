@@ -1,5 +1,7 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Link } from "capsomer/react/link";
 
+import { CARD, CARD_MD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { COMPETITORS } from "~/lib/compare/competitors";
@@ -10,6 +12,8 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/competitor";
 import "capsomer/table.css";
+import "capsomer/button.css";
+import "capsomer/panel.css";
 
 // NEW in Phase 6 Pass 3 (net-new). Templated Foxhound-vs-competitor page for
 // each of the six named competitors (ROUTES.md Rev 2). Neither Capsid
@@ -45,7 +49,13 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
   const { competitor } = loaderData;
 
   return (
-    <div>
+    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
+    // the panels, the button and the focus ring read the family.
+    <div
+      className="fh-cap [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
       <MarketingPageHeader
         trail={[
           { label: "Compare", href: "/compare" },
@@ -97,19 +107,23 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           </table>
         </div>
 
-        <section className="mb-10 rounded-lg border border-border bg-surface p-5">
-          <h2 className="mb-3 text-title font-medium text-text">Where Foxhound is behind</h2>
-          <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-relaxed text-text-secondary">
-            {competitor.foxhoundCons.map((con) => (
-              <li key={con} className="flex items-start gap-2">
-                <span
-                  aria-hidden="true"
-                  className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-text-tertiary"
-                />
-                <span>{con}</span>
-              </li>
-            ))}
-          </ul>
+        <section className={`${CARD_MD} mb-10`}>
+          <div className="cap-panel-body">
+            <div>
+              <h2 className="mb-3 text-title font-medium text-text">Where Foxhound is behind</h2>
+              <ul className="m-0 flex list-none flex-col gap-2.5 p-0 text-label leading-relaxed text-text-secondary">
+                {competitor.foxhoundCons.map((con) => (
+                  <li key={con} className="flex items-start gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-text-tertiary"
+                    />
+                    <span>{con}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
         </section>
 
         {competitor.priceSource ? (
@@ -126,21 +140,24 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           <p className="mb-10 text-label text-text-tertiary">{competitor.omittedNote}</p>
         ) : null}
 
-        <div className="rounded-lg border border-border bg-surface p-6 text-center">
-          <p className="mb-2 text-body font-medium text-text">See Foxhound's pricing in full</p>
-          <p className="mb-5 text-label text-text-secondary">
-            {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of won
-            disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
-            {RECOVERY_MATURITY_DAYS} days.
-          </p>
-          <Link
-            to="/pricing"
-            className="inline-flex items-center gap-2 rounded-md bg-brand px-5 py-2.5 text-label font-medium text-on-brand hover:bg-brand-dark"
-          >
-            View pricing
-          </Link>
+        <div className={`${CARD} text-center`}>
+          <div className="cap-panel-body">
+            <div>
+              <p className="mb-2 text-body font-medium text-text">See Foxhound's pricing in full</p>
+              <p className="mb-5 text-label text-text-secondary">
+                {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of
+                won disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
+                {RECOVERY_MATURITY_DAYS} days.
+              </p>
+              <Link to="/pricing" className="cap-btn" data-variant="primary">
+                View pricing
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

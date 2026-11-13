@@ -1,7 +1,16 @@
-import { and, desc, eq } from "drizzle-orm";
+import { appOrigin } from "~/lib/app-origin";
+// Recova's describeAge (check-cron-health/route.ts), its units and its floor as written, "1 hours ago" included.
+import {
+  alertOnce,
+  cronAlert,
+  describeAge,
+  type AlertOutcome,
+} from "@dustinedwards/site-runtime/cron-alert";
+import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
-import { cronAlerts, cronRunHistory } from "~/db/schema";
+import { cronRunLog, cronRuns } from "~/db/schema";
+import { cronRunId } from "~/lib/admin/crons";
 import {
   CRON_SCHEDULE_BLOG,
   CRON_SCHEDULE_DAILY,
@@ -13,7 +22,6 @@ import {
   DAY_MS,
 } from "~/lib/constants";
 import { sendRenderedTransactionalEmail, sendTransactionalEmail } from "~/lib/email/send";
-import { isUniqueConstraintError } from "~/lib/money/serializer";
 import {
   manageEmailSettingsLine,
   recoveryFooterNote,
@@ -24,7 +32,7 @@ import type { Rendered } from "capsomer/email";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 /** Cron-failure alerting. Ruling 311 measured that a failing cron records
- *  `status: "failed"` to cron_run_history and notifies NOBODY, so a job that
+ *  a failed run and notifies NOBODY, so a job that
  *  fails every run fails silently until somebody opens /admin/operations. That
  *  matters most for billing-monthly, which has never executed once in any
  *  environment and whose first real run is a supervised event.
@@ -42,52 +50,35 @@ import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
  *  FAIL-OPEN, ALWAYS: the alerting path must never take down the cron it
  *  observes. Every send is caught, its outcome returned for the caller to
  *  record, and never rethrown. An observability tool that can fail a money job
- *  is worse than no observability. */
+ *  is worse than no observability.
+ *
+ *  SHARED: the once-a-day dedupe (claim the day's slot in `alerts_sent`, send,
+ *  give the slot back when the send did not go) is site-runtime's alertOnce, and
+ *  which jobs are failing or stale is its cronAlert over `cron_runs`. What stays
+ *  here is Foxhound's own: the mails (Recova's words on Capsomer's alert
+ *  template), the dead-letter alert, the schedule table. */
 
-export type AlertKind = "failure" | "stale" | "dead_letter";
-
-export type AlertOutcome =
-  | { sent: true }
-  | { sent: false; reason: "deduped" }
-  | { sent: false; reason: "send_failed"; error: string };
-
-/** UTC calendar day, the day-granularity half of the dedupe key. */
-export function utcDay(now: Date): string {
-  return now.toISOString().slice(0, 10);
-}
+type AlertKind = "failure" | "stale" | "dead_letter";
+export type { AlertOutcome };
 
 /** How long each schedule may go without a run before it is STALE.
  *
  *  The JOBS come from the registry, never a hand list, which is what 313
  *  required. This table maps a SCHEDULE to its period, which is unavoidable
  *  without a cron-expression parser (a dependency, and adding one is a build
- *  decision rather than an agent's). A schedule absent from this table is
- *  REPORTED as unknown rather than silently treated as healthy, so adding a
- *  fourth schedule surfaces here instead of creating a blind spot.
+ *  decision rather than an agent's).
  *
- *  THAT SURFACING IS A DAILY LINE IN A TABLE NOBODY READS, and 376 item 15 is
- *  the proof: the weekly schedule was missing here for the whole life of the
- *  weekly digest and the blind spot reported itself, correctly, into the void.
- *  The guard that actually closes it is a test that derives this table's keys
- *  from the registry's schedules, so the gap fails a build instead. Exported for
+ *  A schedule missing here is a blind spot, and 376 item 15 is the proof: the
+ *  weekly schedule was missing for the whole life of the weekly digest and its
+ *  only report was a daily line nobody read. The guard is a test that derives
+ *  this table's keys from the registry's schedules, so the gap fails a build. Exported for
  *  that test, which is the only reason this is not module-private. */
 export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   [CRON_SCHEDULE_RECOVERY_TICK]: 5 * 60 * 1000,
-  // THE WEEKLY DIGEST'S SCHEDULE. It was missing from this table
-  // from the day session 55 added the repo's first new cron expression, so
-  // cron-health reported weekly-digest as `unknown_schedule` every day since:
-  // the one job in the registry that this table could not answer for.
-  //
-  // The comment three lines below predicted exactly this and did not prevent it,
-  // which is why the parity plant now derives the schedule set from the registry
-  // rather than trusting a warning to be read.
   [CRON_SCHEDULE_WEEKLY]: 7 * DAY_MS,
   [CRON_SCHEDULE_DAILY]: DAY_MS,
   [CRON_SCHEDULE_MONTHLY]: 31 * DAY_MS,
-  // The merged monthly audit's own hour. Mapped at the same
-  // period as the other monthly jobs: a schedule missing from this map is
-  // reported as `unknown_schedule`, which is a blind spot rather than an alert,
-  // so a new expression that skips this line silently stops being watched.
+  // The merged monthly audit's own hour, at the other monthly jobs' period.
   [CRON_SCHEDULE_MONTHLY_AUDIT]: 31 * DAY_MS,
   // The expiring-card alert at legacy's 09:00 (parity gap 11). Daily, so a day.
   [CRON_SCHEDULE_EXPIRING_CARDS]: DAY_MS,
@@ -96,11 +87,6 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   // a healthy job.
   [CRON_SCHEDULE_BLOG]: 5 * 60 * 1000,
 };
-
-/** A job may miss this many periods before it is called stale. Two rather than
- *  one, because a single skipped tick is normal (a lock held, a not-due skip)
- *  and alerting on it would train the reader to ignore the alert. */
-const STALE_PERIOD_MULTIPLIER = 2;
 
 /** Each schedule's cadence in words, for the stale alert's subject and body
  *  (E27). Recova's check-cron-health keeps a hand label per cron in the same
@@ -118,90 +104,17 @@ const CADENCE_LABEL: Record<string, string> = {
   [CRON_SCHEDULE_BLOG]: "every minute",
 };
 
-/** Recova's describeAge (check-cron-health/route.ts), its units and its floor
- *  as written, "1 hours ago" included. Pure. */
-export function describeAge(ms: number): string {
-  const seconds = Math.floor(ms / 1000);
-  if (seconds < 60) return `${seconds} seconds ago`;
-  if (seconds < 3600) return `${Math.floor(seconds / 60)} minutes ago`;
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)} hours ago`;
-  return `${Math.floor(seconds / 86400)} days ago`;
-}
-
 export interface JobSchedule {
   name: string;
   schedule: string;
 }
 
+/** A job the health check found not well, for the stale mail. */
 export interface StaleFinding {
   cronName: string;
-  /** The last SUCCESSFUL run as runCronHealthCheck passes it (Recova's
-   *  last_succeeded_at); null when the job has never succeeded, which is the
-   *  billing-monthly case. */
+  /** The last success (cron_runs.last_ok_at); null when it never succeeded,
+   *  which is the billing-monthly case. */
   lastRunAt: Date | null;
-  reason: "never_run" | "overdue" | "unknown_schedule";
-}
-
-/** Pure: which registered jobs look stale, given their last run times. */
-export function findStaleCrons(
-  jobs: JobSchedule[],
-  lastRunByCron: Map<string, Date | null>,
-  now: Date,
-): StaleFinding[] {
-  const out: StaleFinding[] = [];
-  for (const job of jobs) {
-    const period = SCHEDULE_PERIOD_MS[job.schedule];
-    const lastRunAt = lastRunByCron.get(job.name) ?? null;
-
-    if (period === undefined) {
-      // Loud rather than skipped: an unmapped schedule is a blind spot.
-      out.push({ cronName: job.name, lastRunAt, reason: "unknown_schedule" });
-      continue;
-    }
-    if (lastRunAt === null) {
-      out.push({ cronName: job.name, lastRunAt: null, reason: "never_run" });
-      continue;
-    }
-    if (now.getTime() - lastRunAt.getTime() > period * STALE_PERIOD_MULTIPLIER) {
-      out.push({ cronName: job.name, lastRunAt, reason: "overdue" });
-    }
-  }
-  return out;
-}
-
-/** Claim the one-per-cron-per-kind-per-day slot. TRUE means this caller may
- *  send. The claim is a unique-index insert, so two concurrent cron invocations
- *  cannot both win: the database refuses the second, not a read-then-write in
- *  application code that could interleave. */
-export async function claimAlertSlot(
-  db: Db,
-  cronName: string,
-  kind: AlertKind,
-  now: Date,
-  detail?: string,
-): Promise<boolean> {
-  try {
-    await db.insert(cronAlerts).values({
-      id: crypto.randomUUID(),
-      cronName,
-      kind,
-      alertedOn: utcDay(now),
-      detail: detail ?? null,
-      createdAt: now,
-    });
-    return true;
-  } catch (err) {
-    // The unique index rejected it: already alerted today for this cron+kind.
-    if (isUniqueConstraintError(err)) return false;
-    // Anything else (D1 down, a schema error) is not "already alerted". The
-    // alert exists to report a broken system, so it goes out undeduplicated
-    // rather than being swallowed.
-    console.error(
-      "cron alert dedupe claim failed; sending anyway:",
-      err instanceof Error ? err.message : err,
-    );
-    return true;
-  }
 }
 
 export interface FailureAlertInput {
@@ -290,7 +203,7 @@ export function buildStaleAlertEmail(
         `Last succeeded: ${finding.lastRunAt ? finding.lastRunAt.toISOString() : "(never)"}`,
         `Age: ${agePhrase}`,
         ...(cadence ? [`Expected cadence: ${cadence}`] : []),
-        "Check /admin/operations and the cron_run_history table.",
+        "Check /admin/platform/crons and the cron_run_log table.",
       ],
     },
   };
@@ -354,51 +267,52 @@ export function deadLetterAlertMessage(
 /** Send one alert, deduped, never throwing. A cron alert (E26, E27) goes on
  *  Capsomer's alert template with Recova's footer; the dead-letter alert,
  *  Foxhound's own, keeps its HTML body. */
-export async function sendAlert(
+async function sendAlert(
   env: Env,
-  db: Db,
   cronName: string,
   kind: AlertKind,
   message: { subject: string; bodyHtml: string } | CronAlertMessage,
   now: Date,
 ): Promise<AlertOutcome> {
-  const claimed = await claimAlertSlot(db, cronName, kind, now, message.subject);
-  if (!claimed) return { sent: false, reason: "deduped" };
-
-  try {
-    if ("alert" in message) {
-      const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, env.BETTER_AUTH_URL ?? "", now);
-      const outcome = await sendRenderedTransactionalEmail(env, { to: SUPPORT_EMAIL, rendered });
-      if (outcome.status === "sent") return { sent: true };
-      return { sent: false, reason: "send_failed", error: outcome.error ?? outcome.reason };
-    }
-    await sendTransactionalEmail(env, {
-      to: SUPPORT_EMAIL,
-      subject: message.subject,
-      bodyHtml: message.bodyHtml,
-    });
-    return { sent: true };
-  } catch (err) {
-    // SWALLOWED BY DESIGN. The caller records this; the cron carries on.
-    return {
-      sent: false,
-      reason: "send_failed",
-      error: err instanceof Error ? err.message : "alert send failed",
-    };
-  }
+  return alertOnce({
+    db: env.DB,
+    key: cronName,
+    kind,
+    detail: message.subject,
+    now,
+    send: () => deliver(env, message, now),
+  });
 }
 
-/** The last successful run of a cron, for the failure email's context. */
+/** One alert mail out: true when it went, else the reason. Throws are alertOnce's to catch. */
+async function deliver(
+  env: Env,
+  message: { subject: string; bodyHtml: string } | CronAlertMessage,
+  now: Date,
+): Promise<{ sent: boolean; error?: string }> {
+  if ("alert" in message) {
+    const rendered = renderCronAlertEmail(SUPPORT_EMAIL, message, appOrigin(env), now);
+    const outcome = await sendRenderedTransactionalEmail(env, { to: SUPPORT_EMAIL, rendered });
+    return outcome.status === "sent"
+      ? { sent: true }
+      : { sent: false, error: outcome.error ?? outcome.reason };
+  }
+  await sendTransactionalEmail(env, {
+    to: SUPPORT_EMAIL,
+    subject: message.subject,
+    bodyHtml: message.bodyHtml,
+  });
+  return { sent: true };
+}
+
+/** The last successful run of a cron, for the failure email's context: cron_runs keeps it however long ago it was. */
 async function lastSuccessAt(db: Db, cronName: string): Promise<Date | null> {
-  const row = (
-    await db
-      .select({ finishedAt: cronRunHistory.finishedAt })
-      .from(cronRunHistory)
-      .where(and(eq(cronRunHistory.cronName, cronName), eq(cronRunHistory.status, "success")))
-      .orderBy(desc(cronRunHistory.finishedAt))
-      .limit(1)
-  )[0];
-  return row?.finishedAt ?? null;
+  const [row] = await db
+    .select({ okAt: cronRuns.lastOkAt })
+    .from(cronRuns)
+    .where(eq(cronRuns.name, cronName))
+    .limit(1);
+  return row?.okAt == null ? null : new Date(row.okAt);
 }
 
 /** The dead-letter alert (313 build B). Shares the dedupe mechanism with the cron
@@ -412,7 +326,6 @@ const DEAD_LETTER_ALERT_KEY = "email-dead-letters";
 
 export async function alertDeadLetters(
   env: Env,
-  db: Db,
   counts: { written: number; failed: number },
   now: Date,
 ): Promise<AlertOutcome> {
@@ -420,7 +333,6 @@ export async function alertDeadLetters(
   try {
     return await sendAlert(
       env,
-      db,
       DEAD_LETTER_ALERT_KEY,
       "dead_letter",
       deadLetterAlertMessage(counts, now),
@@ -435,12 +347,33 @@ export async function alertDeadLetters(
   }
 }
 
-/** The never-executed and overdue detector, as a cron handler.
+/** The last failed (or refused) run of a cron, for a failure the health check finds. */
+async function lastFailedRun(
+  db: Db,
+  cronName: string,
+): Promise<{ id: string; message: string | null } | null> {
+  const [run] = await db
+    .select({ startedAt: cronRunLog.startedAt, reason: cronRunLog.reason })
+    .from(cronRunLog)
+    .where(and(eq(cronRunLog.name, cronName), ne(cronRunLog.outcome, "ok")))
+    .orderBy(desc(cronRunLog.id))
+    .limit(1);
+  return run ? { id: cronRunId(cronName, run.startedAt), message: run.reason || null } : null;
+}
+
+/** The failing, overdue and never-run detector, as a cron handler: site-runtime's
+ *  cronAlert over `cron_runs`, one Foxhound mail per job and kind per day.
  *
  *  TAKES ITS JOBS AS A PARAMETER rather than importing the registry, which would
  *  be circular: the registry imports this module to register the check. The
  *  caller passes CRON_JOBS, so the expectations are still DERIVED from the
  *  registry and never from a hand list, which is what 313 required.
+ *
+ *  A job is stale past two of its periods (`graceMinutes` is one more period):
+ *  a single skipped tick is normal (a lock held, a not-due skip) and alerting on
+ *  it would train the reader to ignore the alert. A job whose last run failed is
+ *  mailed as a failure, so one that failed and then stopped running is still
+ *  heard about every day.
  *
  *  It reports rather than throws: a health check that fails the run it is
  *  reporting on would be its own worst finding. */
@@ -450,42 +383,47 @@ export async function runCronHealthCheck(
   jobs: JobSchedule[],
   now: Date,
 ): Promise<{ rowsProcessed: number; message: string }> {
-  // Last SUCCESSFUL run per cron (E27): Recova's watcher reads
-  // last_succeeded_at, so a cron that keeps running and failing is stale as
-  // well as failing, and both alerts go.
-  const lastRuns = new Map<string, Date | null>();
-  for (const job of jobs) {
-    lastRuns.set(job.name, await lastSuccessAt(db, job.name));
-  }
-
-  const stale = findStaleCrons(jobs, lastRuns, now);
   const scheduleOf = new Map(jobs.map((j) => [j.name, j.schedule]));
-  let alerted = 0;
-  const deduped: string[] = [];
-
-  for (const finding of stale) {
-    // An unmapped schedule is reported in the run's message and not emailed:
-    // Recova alerts only on the crons in its schedule list, and a test holds
-    // every registry schedule to a period, so this is a blind spot the build
-    // catches rather than a stale cron.
-    if (finding.reason === "unknown_schedule") continue;
-    const outcome = await sendAlert(
-      env,
-      db,
-      finding.cronName,
-      "stale",
-      buildStaleAlertEmail({ ...finding, schedule: scheduleOf.get(finding.cronName) ?? "" }, now),
-      now,
-    );
-    if (outcome.sent) alerted += 1;
-    else if (outcome.reason === "deduped") deduped.push(finding.cronName);
-  }
-
-  const names = stale.map((s) => `${s.cronName}(${s.reason})`).join(", ");
+  const { found, alerted, deduped } = await cronAlert({
+    db: env.DB,
+    jobs: jobs.map((j) => ({
+      name: j.name,
+      everyMinutes: SCHEDULE_PERIOD_MS[j.schedule]! / 60_000,
+    })),
+    graceMinutes: (every) => every,
+    each: true,
+    now,
+    send: async ([item]) => {
+      const lastRunAt = item.lastOkAt === null ? null : new Date(item.lastOkAt);
+      if (item.kind === "stale") {
+        const schedule = scheduleOf.get(item.name) ?? "";
+        return deliver(
+          env,
+          buildStaleAlertEmail({ cronName: item.name, lastRunAt, schedule }, now),
+          now,
+        );
+      }
+      const failed = await lastFailedRun(db, item.name);
+      return deliver(
+        env,
+        buildFailureAlertEmail(
+          {
+            cronName: item.name,
+            runId: failed?.id ?? null,
+            error: failed?.message ?? null,
+            lastSuccessAt: lastRunAt,
+          },
+          now,
+        ),
+        now,
+      );
+    },
+  });
+  const names = found.map((f) => `${f.name}(${f.reason})`).join(", ");
   return {
-    rowsProcessed: stale.length,
-    message: stale.length
-      ? `${stale.length} stale: ${names}; ${alerted} alerted, ${deduped.length} deduped`
+    rowsProcessed: found.length,
+    message: found.length
+      ? `${found.length} not well: ${names}; ${alerted.length} alerted, ${deduped.length} deduped`
       : "all crons within tolerance",
   };
 }
@@ -500,7 +438,7 @@ export async function alertCronFailure(
   try {
     const last = await lastSuccessAt(db, input.cronName);
     const message = buildFailureAlertEmail({ ...input, lastSuccessAt: last }, now);
-    return await sendAlert(env, db, input.cronName, "failure", message, now);
+    return await sendAlert(env, input.cronName, "failure", message, now);
   } catch (err) {
     // Even the CONTEXT LOOKUP is inside the swallow: a database hiccup while
     // building an alert must not fail the cron that is already failing.

@@ -1,15 +1,16 @@
 import { data, Form, useNavigation, useRevalidator } from "react-router";
+import { Alert } from "capsomer/react/banner";
 import { Link } from "capsomer/react/link";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { Status, type Tone as StatusTone } from "capsomer/react/status";
+import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/confirm-dialog.css";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
 import { logAdminAction } from "~/lib/admin/audit.server";
@@ -110,9 +111,9 @@ export async function action({ context, request }: Route.ActionArgs) {
 // color together), not an uppercase code-style badge. Recova's status pills:
 // success, failed, and "no runs" for a cron that has never run.
 const RUN_STATUS: Record<string, { tone: StatusTone; word: string }> = {
-  success: { tone: "ok", word: "Succeeded" },
+  ok: { tone: "ok", word: "Succeeded" },
   failed: { tone: "crit", word: "Failed" },
-  skipped: { tone: "nodata", word: "Skipped" },
+  refused: { tone: "crit", word: "Refused" },
 };
 
 const HEADING_ID = "admin-crons-heading";
@@ -165,65 +166,55 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
 
   return (
     <div className="grid grid-cols-1 gap-6">
-      {error ? (
-        <p
-          role="alert"
-          className="rounded-md border border-red bg-red-bg px-3 py-2 text-label text-error-text"
-        >
-          {error}
-        </p>
-      ) : null}
+      {error ? <Alert>{error}</Alert> : null}
       {/* Present and empty until a change, so it is announced when filled. */}
       <p role="status" className={done ? "text-label text-text" : "cap-sr-only"}>
         {done ? `${done.cronName} ${done.enabled ? "is on." : "is switched off."}` : null}
       </p>
 
-      <div aria-busy={pending || undefined}>
-        <Panel
-          title="Scheduled jobs"
-          headingId={HEADING_ID}
-          src={pending ? <Spinner size="sm" label="Reading again" /> : undefined}
-          description={crons.length > 0 ? cronsSummaryWords(crons.length, switchedOff) : undefined}
-          flush
-        >
-          {crons.length === 0 ? (
-            <Empty kind="nothing-yet" title="No scheduled jobs are registered.">
-              Every job in Foxhound&apos;s cron registry appears here.
-            </Empty>
-          ) : (
-            <div
-              className="cap-table-wrap"
-              data-reflow="medium"
-              data-cap="table"
-              role="region"
-              aria-labelledby={HEADING_ID}
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <caption className="cap-sr-only">
-                  Scheduled jobs, in the order the registry runs them, with each one&apos;s last
-                  run.
-                </caption>
-                <thead>
-                  <tr>
-                    <th scope="col">Cron</th>
-                    <th scope="col">State</th>
-                    <th scope="col">Last run</th>
-                    <th scope="col">Last succeeded</th>
-                    <th scope="col">Last message</th>
-                    <th scope="col">Change</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {crons.map((c) => (
-                    <CronTableRow key={c.name} cron={c} busy={busy} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </Panel>
-      </div>
+      <Panel
+        title="Scheduled jobs"
+        headingId={HEADING_ID}
+        reading={pending}
+        description={crons.length > 0 ? cronsSummaryWords(crons.length, switchedOff) : undefined}
+        flush
+      >
+        {crons.length === 0 ? (
+          <Empty kind="nothing-yet" title="No scheduled jobs are registered.">
+            Every job in Foxhound&apos;s cron registry appears here.
+          </Empty>
+        ) : (
+          <div
+            className="cap-table-wrap"
+            data-reflow="medium"
+            data-cap="table"
+            role="region"
+            aria-labelledby={HEADING_ID}
+            tabIndex={0}
+          >
+            <table className="cap-table">
+              <caption className="cap-sr-only">
+                Scheduled jobs, in the order the registry runs them, with each one&apos;s last run.
+              </caption>
+              <thead>
+                <tr>
+                  <th scope="col">Cron</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Last run</th>
+                  <th scope="col">Last succeeded</th>
+                  <th scope="col">Last message</th>
+                  <th scope="col">Change</th>
+                </tr>
+              </thead>
+              <tbody>
+                {crons.map((c) => (
+                  <CronTableRow key={c.name} cron={c} busy={busy} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Panel>
     </div>
   );
 }
@@ -251,7 +242,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
           <>
             <Status tone={status.tone}>{status.word}</Status>
             <span className="block">
-              <AdminTime at={c.lastRun.finishedAt} />
+              <Time at={c.lastRun.finishedAt} empty="never" tip />
             </span>
           </>
         ) : (
@@ -263,7 +254,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
             <ul className="grid gap-1">
               {c.recentFailures.map((run) => (
                 <li key={run.id} id={cronRunAnchor(run.id)} className="rounded-sm text-text">
-                  Failed <AdminTime at={run.finishedAt} />
+                  Failed <Time at={run.finishedAt} empty="never" tip />
                   {run.message ? (
                     <span className="text-text-secondary">: {run.message}</span>
                   ) : null}
@@ -274,7 +265,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
         ) : null}
       </td>
       <td data-label="Last succeeded">
-        <AdminTime at={c.lastSucceededAt} empty="Never" />
+        <Time at={c.lastSucceededAt} empty="Never" tip />
       </td>
       <td
         data-label="Last message"

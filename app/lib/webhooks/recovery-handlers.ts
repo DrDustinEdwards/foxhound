@@ -31,7 +31,12 @@ import {
   buildSequenceStartBatch,
   type ChargeFacts,
 } from "./batches";
-import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
+import {
+  claimOnly,
+  type IntentOf,
+  type WebhookContext,
+  type WebhookOutcome,
+} from "./handler-context";
 import {
   findActiveFailedPayment,
   findRecoverableFailedPayment,
@@ -83,15 +88,6 @@ function bestDecline(
 /** Paid or void: Stripe has nothing left to collect on the invoice. */
 function invoiceClosed(status: string | null): boolean {
   return status === "paid" || status === "void";
-}
-
-async function claimOnly(ctx: WebhookContext, reason: string): Promise<WebhookOutcome> {
-  const { applied } = await executeMoneyWrite(ctx.env, {
-    accountId: ctx.accountId,
-    idempotencyKey: ctx.idempotencyKey,
-    build: (db) => buildClaimOnlyBatch(db, ctx.claim),
-  });
-  return applied ? { status: "ignored", reason } : { status: "duplicate" };
 }
 
 export async function handleIntake(
@@ -184,17 +180,10 @@ export async function handleStripeGaveUp(
   ctx: WebhookContext,
   intent: IntentOf<"stripe_gave_up">,
 ): Promise<WebhookOutcome> {
-  const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
+  const { env, receivedAt, accountId, connectionId, claim } = ctx;
   const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
   if (!existing || existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied
-      ? { status: "ignored", reason: existing ? "sequence_already_started" : "no_failed_payment" }
-      : { status: "duplicate" };
+    return claimOnly(ctx, existing ? "sequence_already_started" : "no_failed_payment");
   }
   const decline = bestDecline(
     null,
@@ -276,12 +265,7 @@ export async function handleRecover(
   const failedPaymentId = await findRecoverableFailedPayment(env, accountId, intent.invoiceId);
   if (!failedPaymentId) {
     // A normal renewal payment (no active failure): nothing to recover, claim only.
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: "no_active_failure" } : { status: "duplicate" };
+    return claimOnly(ctx, "no_active_failure");
   }
   const { attribution, recoveredByStepId, recoveryMethod } = await resolveRecoveryAttribution(
     env,
@@ -415,12 +399,7 @@ export async function handleStampRefund(
     intent.paymentIntentId,
   );
   if (!refundedFailedPaymentId) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: "refund_not_ours" } : { status: "duplicate" };
+    return claimOnly(ctx, "refund_not_ours");
   }
   const { applied } = await executeMoneyWrite(env, {
     accountId,

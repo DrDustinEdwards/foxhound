@@ -1,3 +1,6 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
+import { pageEnvelope, statusText } from "capsomer/behavior/pagination";
+import { relative, toMs } from "capsomer/behavior/time";
 import { ArrowRight, TrendingUp } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -11,10 +14,12 @@ import {
 import { Link } from "capsomer/react/link";
 import { dismissBanner } from "capsomer/behavior/banner";
 import { Banner } from "capsomer/react/banner";
+import { useShownFor } from "capsomer/react/hooks";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
+import { RangeSlider } from "capsomer/react/range-slider";
 import { Glyph, Pill, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/bulk-bar.css";
@@ -27,6 +32,7 @@ import "capsomer/field.css";
 import "capsomer/page-head.css";
 import "capsomer/pagination.css";
 import "capsomer/panel.css";
+import "capsomer/range-slider.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
@@ -35,21 +41,19 @@ import "capsomer/table.css";
 // /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
-import { DualRangeSlider } from "~/components/dual-range-slider";
 import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import { formatTimeAgo } from "~/lib/date-format";
 import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
 import {
-  getAmountBounds,
   getGlobalPaymentStatusCounts,
   listFilteredFailedPayments,
   listPaymentSummaryRows,
   listStepsForFailedPayments,
+  readPaymentFilters,
   tallyStatusCounts,
 } from "~/lib/recovery/queries.server";
 import { countFailuresByCustomer } from "~/lib/recovery/dashboard-queries.server";
@@ -59,35 +63,31 @@ import type {
   FailedPaymentSort,
 } from "~/lib/recovery/queries.server";
 import { buildPaymentParams, withParams } from "~/lib/recovery/payment-filters";
+import { sliderAmount } from "~/lib/recovery/payments-list";
 import {
-  AMOUNT_SLIDER_STEP_CENTS,
+  amountSliderStep,
   DECLINE_CATEGORY_WORDS,
   PAYMENTS_DEFAULT_PAGE_SIZE,
   PAYMENTS_PAGE_SIZE_OPTIONS,
   BULK_RESULT_DISMISS_MS,
   bulkResultClearsItself,
   bulkResultLine,
-  parsePaymentsAmount,
-  parsePaymentsPage,
-  parsePaymentsPageSize,
-  parsePaymentsSort,
-  parsePaymentsTimeRange,
   declineWord,
   paymentsHeaderLine,
-  paymentsShowingText,
 } from "~/lib/recovery/payments-list";
 import { paymentHeaderStats, paymentStepLabel } from "~/lib/recovery/payments-list.server";
-import { recoveryRateValueClass, showingCountFor } from "~/lib/recovery/payments-stats";
+import { showingCountFor } from "~/lib/recovery/payments-stats";
+import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import {
-  actionableSelection,
   allVisibleSelected,
-  selectedCount,
   toggleAllVisible,
   toggleOne,
-} from "~/lib/recovery/bulk-selection";
+  visibleSelection,
+} from "capsomer/behavior/bulk-bar";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { runBulkAction } from "~/lib/recovery/bulk-actions.server";
 import {
+  actionableSelection,
   failedIds,
   isBulkActionIntent,
   isBulkRefusal,
@@ -99,12 +99,13 @@ import { moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
 import { resendDepsFor, triggerDepsFor } from "~/lib/recovery/manual-action-deps.server";
 import { BULK_ACTION_CONFIRM_THRESHOLD, BULK_ACTION_MAX_PER_SUBMISSION } from "~/lib/constants";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
-import { resolvePaymentTimeRangeCutoff, type PaymentTimeRange } from "~/lib/recovery/time-range";
+import type { PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { percent } from "capsomer/behavior/meter";
 
 // /recovery/payments. Recova is the spec: its page,
 // app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
@@ -148,39 +149,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const nowMs = Date.now();
 
-  const params = new URL(request.url).searchParams;
-  const search = params.get("q")?.trim() || null;
-  const status = params.get("status") || null;
-  const declineCategory = params.get("category") || null;
-  const sort = parsePaymentsSort(params.get("sort"));
-  const time = parsePaymentsTimeRange(params.get("time"));
-  const page = parsePaymentsPage(params.get("page"));
-  const pageSize = parsePaymentsPageSize(params.get("perPage"));
-
-  const bounds = await getAmountBounds(db, accountId);
-  const amountMinParsed = parsePaymentsAmount(
-    params.get("amountMin"),
-    bounds.minCents,
-    bounds.maxCents,
-  );
-  const amountMaxParsed = parsePaymentsAmount(
-    params.get("amountMax"),
-    bounds.minCents,
-    bounds.maxCents,
-  );
-  // A handle resting on its own end is no filter.
-  const amountMinCents =
-    amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null;
-  const amountMaxCents =
-    amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null;
-  const detectedAfterMs = resolvePaymentTimeRangeCutoff(time, nowMs);
-
-  const filterInput = { search, declineCategory, detectedAfterMs, amountMinCents, amountMaxCents };
+  const { input, filters, time, bounds, amountMinParsed, amountMaxParsed } =
+    await readPaymentFilters(db, accountId, new URL(request.url).searchParams, nowMs);
 
   const [result, globalCounts, summaryRows] = await Promise.all([
-    listFilteredFailedPayments(db, accountId, { ...filterInput, status, sort, page, pageSize }),
+    listFilteredFailedPayments(db, accountId, filters),
     getGlobalPaymentStatusCounts(db, accountId),
-    listPaymentSummaryRows(db, accountId, filterInput),
+    listPaymentSummaryRows(db, accountId, input),
   ]);
 
   const customerIds = [...new Set(result.payments.map((p) => p.stripeCustomerId))];
@@ -223,8 +198,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   // Recova's status counts respect every filter but status itself.
   const pillCounts = tallyStatusCounts(summaryRows.map((r) => r.status));
   // Legacy's exact computation: an account with no failed payments reads 0.
-  const globalRecoveryRatePct =
-    globalCounts.all > 0 ? Math.round((globalCounts.recovered / globalCounts.all) * 100) : 0;
+  const globalRecoveryRatePct = percent(globalCounts.recovered, globalCounts.all);
 
   return {
     result: {
@@ -241,12 +215,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     bounds,
     nowMs,
     filters: {
-      search: search ?? "",
-      status: status ?? "",
-      declineCategory: declineCategory ?? "",
+      search: filters.search ?? "",
+      status: filters.status ?? "",
+      declineCategory: filters.declineCategory ?? "",
       time,
-      sort,
-      pageSize,
+      sort: filters.sort,
+      pageSize: filters.pageSize,
       amountMinCents: amountMinParsed ?? bounds.minCents,
       amountMaxCents: amountMaxParsed ?? bounds.maxCents,
     },
@@ -476,6 +450,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     from: undefined,
   }));
   const rows = result.payments;
+  // Recova's pager line ("Showing 1 to 25 of 60 payments"), with All as one
+  // page of the whole list.
+  const shown = pageEnvelope(result.page, result.pageSize, result.totalCount);
+  const showing = statusText(shown.page, shown.perPage, shown.total, "payments");
 
   // Failures stay selected (approved 2026-09-19): when a response lands the
   // selection becomes exactly the ids that failed, until it is edited again.
@@ -490,23 +468,21 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     sel.from !== bulk && applied ? new Set(failedIds(applied.results)) : sel.ids;
   const setSelected = (ids: ReadonlySet<string>) => setSel({ ids, from: bulk });
 
-  const [dismissedFor, setDismissedFor] = useState<unknown>(null);
-  const dismissed = dismissedFor === bulk;
   // Recova clears the result after 3 seconds. Here only an all-succeeded
   // result does; one with a failure or a refusal waits to be dismissed
   // (WCAG 2.2.1), pending Dustin's ruling. The failures stay selected.
-  useEffect(() => {
-    if (!bulkResultClearsItself(bulk)) return;
-    const t = setTimeout(() => setDismissedFor(bulk), BULK_RESULT_DISMISS_MS);
-    return () => clearTimeout(t);
-  }, [bulk]);
+  const [shownBulk, dismissBulk] = useShownFor(
+    bulk,
+    BULK_RESULT_DISMISS_MS,
+    bulkResultClearsItself,
+  );
   const [confirmFor, setConfirmFor] = useState<{ from: unknown; intent: BulkActionIntent } | null>(
     null,
   );
   const confirming = confirmFor !== null && confirmFor.from === bulk ? confirmFor.intent : null;
   const [lastConfirm, setLastConfirm] = useState<BulkActionIntent>("trigger");
 
-  const selectionCount = selectedCount(selected, rows);
+  const selectionCount = visibleSelection(selected, rows).length;
   const actionable = actionableSelection(selected, rows);
   const headerChecked = allVisibleSelected(selected, rows);
 
@@ -542,8 +518,12 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     },
     [],
   );
-  function onSearch(value: string) {
+  // An IME (Japanese, Chinese and Korean input, many phone keyboards) fires change events while a word is still being
+  // composed; the search waits for compositionend, which commits it (UI Events, Composition Events), as Capsomer's
+  // catalog search does.
+  function onSearch(value: string, composing = false) {
     setSearch(value);
+    if (composing) return;
     if (searchTimer.current) clearTimeout(searchTimer.current);
     searchTimer.current = setTimeout(() => {
       sentSearch.current = value.trim();
@@ -581,14 +561,14 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     {
       label: "Recovery rate",
       value: `${globalRecoveryRatePct}%`,
-      className: recoveryRateValueClass(globalRecoveryRatePct),
+      className: recoveryRateClassName(globalRecoveryRatePct),
     },
   ];
 
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
     // the page's one <main>, so this is a plain wrapper.
-    <div className="mx-auto w-full min-w-0 max-w-[1280px] px-4 py-10 md:px-8">
+    <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
       <div className="mb-6">
         <PageHead
           title="Payments"
@@ -623,34 +603,36 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           Banner puts its children inside a <p>, which cannot hold the list,
           so the itemised result is Capsomer's banner markup with the title,
           the list and the note as siblings in .cap-banner-body. */}
-      {bulk && !dismissed ? (
+      {shownBulk ? (
         <div className="mb-4">
-          {isBulkRefusal(bulk) ? (
-            <Banner tone="crit" onDismiss={() => setDismissedFor(bulk)}>
-              {bulk.refused === "empty"
+          {isBulkRefusal(shownBulk) ? (
+            <Banner tone="crit" onDismiss={dismissBulk}>
+              {shownBulk.refused === "empty"
                 ? "Nothing was selected, so nothing was changed."
-                : bulk.refused === "unknown_intent"
+                : shownBulk.refused === "unknown_intent"
                   ? "That is not an action this page performs. Nothing was changed."
-                  : `${bulk.submitted} payments is more than the limit of ${bulk.ceiling} per submission. Nothing was changed and nothing was trimmed to fit. Narrow the selection and try again.`}
+                  : `${shownBulk.submitted} payments is more than the limit of ${shownBulk.ceiling} per submission. Nothing was changed and nothing was trimmed to fit. Narrow the selection and try again.`}
             </Banner>
           ) : (
             <div
               className="cap-banner"
               data-cap="banner"
-              data-tone={failedIds(bulk.results).length === 0 ? "ok" : "crit"}
-              role={failedIds(bulk.results).length === 0 ? "status" : "alert"}
+              data-tone={failedIds(shownBulk.results).length === 0 ? "ok" : "crit"}
+              role={failedIds(shownBulk.results).length === 0 ? "status" : "alert"}
             >
-              <Glyph name={failedIds(bulk.results).length === 0 ? "ok" : "crit"} />
+              <Glyph name={failedIds(shownBulk.results).length === 0 ? "ok" : "crit"} />
               <div className="cap-banner-body">
-                <p className="cap-banner-title">{bulkResultLine(bulk.intent, bulk.results)}</p>
+                <p className="cap-banner-title">
+                  {bulkResultLine(shownBulk.intent, shownBulk.results)}
+                </p>
                 <div className="cap-banner-text">
                   <ul className="m-0 flex list-none flex-col gap-1 p-0 text-label">
-                    {orderForDisplay(bulk.results).map((r) => (
+                    {orderForDisplay(shownBulk.results).map((r) => (
                       <li key={r.id}>
                         <span className="font-bold">
                           {r.ok
-                            ? (bulkCopy(bulk.intent)?.didLabel ?? "Applied")
-                            : (bulkCopy(bulk.intent)?.didNotLabel ?? "Not applied")}
+                            ? (bulkCopy(shownBulk.intent)?.didLabel ?? "Applied")
+                            : (bulkCopy(shownBulk.intent)?.didNotLabel ?? "Not applied")}
                         </span>
                         <span className="ml-2">{rowLabel(r.id)}</span>
                         {r.reason ? (
@@ -662,7 +644,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                     ))}
                   </ul>
                 </div>
-                {failedIds(bulk.results).length > 0 ? (
+                {failedIds(shownBulk.results).length > 0 ? (
                   <p className="cap-banner-text">
                     The payments that did not take it are still selected, so the next attempt is
                     exactly those.
@@ -680,7 +662,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                     // when it was inside, never to <body>.
                     const banner = e.currentTarget.closest<HTMLElement>("[data-cap='banner']");
                     if (banner) dismissBanner(banner);
-                    setDismissedFor(bulk);
+                    dismissBulk();
                   }}
                 >
                   Dismiss
@@ -708,7 +690,10 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   type="text"
                   name="q"
                   value={search}
-                  onChange={(e) => onSearch(e.target.value)}
+                  onChange={(e) =>
+                    onSearch(e.target.value, (e.nativeEvent as InputEvent).isComposing)
+                  }
+                  onCompositionEnd={(e) => onSearch(e.currentTarget.value)}
                   placeholder="Search by name, email, or plan..."
                   aria-label="Search payments"
                 />
@@ -786,14 +771,42 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   ))}
                 </select>
               </div>
-              <DualRangeSlider
+              {bounds.currencies.length > 1 ? (
+                <div className="cap-select-wrap">
+                  <select
+                    className="cap-select"
+                    name="currency"
+                    aria-label="Currency of the amount range"
+                    value={bounds.currency}
+                    onChange={(e) =>
+                      go({
+                        currency: e.target.value === bounds.defaultCurrency ? "" : e.target.value,
+                        amountMin: "",
+                        amountMax: "",
+                      })
+                    }
+                  >
+                    {bounds.currencies.map((c) => (
+                      <option key={c} value={c}>
+                        {c.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : null}
+              <RangeSlider
+                className="md:min-w-[220px] md:flex-[0_0_240px]"
+                label="Amount"
                 min={bounds.minCents}
                 max={bounds.maxCents}
-                valueMin={filters.amountMinCents}
-                valueMax={filters.amountMaxCents}
-                step={AMOUNT_SLIDER_STEP_CENTS}
-                minName="amountMin"
-                maxName="amountMax"
+                low={filters.amountMinCents}
+                high={filters.amountMaxCents}
+                step={amountSliderStep(bounds.currency)}
+                names={["amountMin", "amountMax"]}
+                handleLabels={["Minimum amount", "Maximum amount"]}
+                format={(minor, which) =>
+                  sliderAmount(minor, bounds.currency, which === "high", bounds.maxCents)
+                }
                 onCommit={(nextMin, nextMax) =>
                   go({
                     amountMin: nextMin > bounds.minCents ? String(nextMin) : "",
@@ -803,7 +816,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
               />
               <div className="flex flex-wrap items-center gap-3">
                 <span className="whitespace-nowrap text-micro text-text-subtle">
-                  {resultCount} result{resultCount !== 1 ? "s" : ""}
+                  {plural(resultCount, "result")}
                 </span>
                 {hasActiveFilters ? (
                   <Link
@@ -974,7 +987,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                           <span className="flex items-center justify-between gap-2">
                             <span className="text-micro text-text-subtle">
                               <span className="block whitespace-nowrap">
-                                {formatTimeAgo(p.detectedAt, nowMs)}
+                                {relative(toMs(p.detectedAt), nowMs, "UTC")}
                               </span>
                               <span className="mt-0.5 block whitespace-nowrap">
                                 {formatLongDate(p.detectedAt)}
@@ -1014,9 +1027,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       {result.totalCount > 0 ? (
         <div className="mt-4">
           <nav className="cap-pagination" aria-label="Payment pages">
-            <p className="cap-pagination-status">
-              {paymentsShowingText(result.page, result.pageSize, result.totalCount)}
-            </p>
+            <p className="cap-pagination-status">{showing}</p>
             <ul className="cap-pagination-list">
               <li>
                 {result.page > 1 ? (

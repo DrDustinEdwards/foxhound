@@ -1,6 +1,6 @@
-import { Alert } from "capsomer/react/banner";
-import { Button } from "capsomer/react/button";
-import type { ReactNode } from "react";
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
+import { ConsentRefusal, ConsentScreen } from "capsomer/react/consent";
+import type { FormHTMLAttributes, ReactNode } from "react";
 import { data, Form, redirect, useNavigation } from "react-router";
 import { describeRedirect } from "@dustinedwards/site-runtime/mcp-login";
 
@@ -8,6 +8,7 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
+import "capsomer/consent.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // buttons, the alert and the focus ring read. The site header loads the same
 // file; this page has no header, so it imports it itself, as auth-card.tsx does.
@@ -53,8 +54,8 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 //     /login honors it through safeNextPath, whose checks are anchored.
 //   - Recova's force-dynamic fix and its hard-navigation login fix existed
 //     because Next.js served a cached signed-out render. A React Router loader
-//     runs on every request, the cache policy makes this path private, no-store
-//     (app/lib/http/cache-policy.ts), and the login action answers with a
+//     runs on every request, this page is private, no-store (its `headers`
+//     below), and the login action answers with a
 //     server redirect that carries the session cookie, so neither has anything
 //     to fix here.
 //   - The scope a URL asks for can never raise what is granted. Every grant
@@ -73,6 +74,9 @@ export const handle = { hydrate: true };
 export function meta() {
   return [{ title: "Authorize access - Foxhound" }, NOINDEX];
 }
+
+// Drawn for one reader, and its URL holds a token: kept out of caches and Web Analytics (site-runtime PRIVATE_PAGE_HEADERS).
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 export const middleware: Route.MiddlewareFunction[] = [noindexHeader];
 
@@ -247,64 +251,45 @@ export async function action({ request, context }: Route.ActionArgs) {
   return redirect(target);
 }
 
-/**
- * Recova's frame: `min-h-screen flex items-center justify-center p-6` around a
- * `w-full max-w-[460px]` card with a 40px inset. The card is Capsomer's panel
- * through its HTML contract, body only, because the React Panel always draws
- * an h2 header band and this page's one heading is its h1 (the gap J62 named).
- * The wrapper puts the parts in Capsomer's amber family with Foxhound's
- * neutrals (.fh-cap), so the buttons and the focus ring are amber. The inner
- * div's 24px plus the panel body's own 16px is Recova's 40px.
- */
-function ConsentCard({ children }: { children: ReactNode }) {
+// Recova's frame (one 460px card centered on a full-height page, the
+// wordmark on top) is Capsomer's consent screen, in its amber family with
+// Foxhound's neutrals (.fh-cap), so the buttons and the focus ring are amber.
+// Its words are site-runtime's MCP consent page's (mcp-login.mjs): a
+// metadata-document client's name is vouched for by the host that publishes
+// it, a registered client's is only its own claim.
+function Frame({ children }: { children: ReactNode }) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-bg p-6">
-      <div
-        className="fh-cap w-full max-w-[460px] [--border-focus:var(--ring)]"
-        data-cap-site="foxhound"
-        data-family="amber"
-        data-oauth-consent=""
-      >
-        <section className="cap-panel">
-          <div className="cap-panel-body">
-            <div className="p-6">{children}</div>
-          </div>
-        </section>
-      </div>
-    </main>
+    <div
+      className="fh-cap flex min-h-screen items-center bg-bg [--border-focus:var(--ring)]"
+      data-cap-site="foxhound"
+      data-family="amber"
+    >
+      {children}
+    </div>
   );
 }
 
-/** Recova's small mono label over a block (its 11px uppercase eyebrow). */
-function Eyebrow({
-  id,
-  children,
-  className = "",
-}: {
-  id?: string;
-  children: ReactNode;
-  className?: string;
-}) {
+// React Router's Form, for its pending state. Its props are narrower than a
+// form's (the router's method and encoding names), so the screen's post goes
+// through this wrapper, which passes what the screen sets (it always posts).
+function PostForm({ className, children }: FormHTMLAttributes<HTMLFormElement>) {
   return (
-    <p
-      id={id}
-      className={`font-mono text-micro uppercase tracking-wide text-text-tertiary ${className}`}
-    >
+    <Form method="post" className={className}>
       {children}
-    </p>
+    </Form>
   );
 }
 
 export default function Authorize({ loaderData, actionData }: Route.ComponentProps) {
   const navigation = useNavigation();
-  const submitting = navigation.state !== "idle" ? navigation.formData?.get("intent") : null;
+  const intent = navigation.state !== "idle" ? navigation.formData?.get("intent") : null;
+  const submitting = intent === "allow" || intent === "deny" ? intent : null;
 
   if (!loaderData.ok) {
     return (
-      <ConsentCard>
-        <h1 className="mb-2 text-title font-medium text-text">{loaderData.title}</h1>
-        <p className="text-label text-text-subtle">{loaderData.message}</p>
-      </ConsentCard>
+      <Frame>
+        <ConsentRefusal title={loaderData.title}>{loaderData.message}</ConsentRefusal>
+      </Frame>
     );
   }
 
@@ -312,126 +297,35 @@ export default function Authorize({ loaderData, actionData }: Route.ComponentPro
   const error = actionData && "error" in actionData ? actionData.error : null;
 
   return (
-    <ConsentCard>
-      <div className="mb-8">
-        <Wordmark size="title" />
-      </div>
-
-      <h1 className="mb-2 text-title font-medium text-text">
-        {consent.clientName} wants to connect to your Foxhound account
-      </h1>
-      <p className="mb-2 text-label text-text-subtle">
-        Approving grants access to the account below. You can revoke it any time from Settings.
-      </p>
-      {/* Who the client is and where its access goes, as site-runtime's MCP
-          consent page says it (mcp-login.mjs): a metadata-document client's
-          name is vouched for by the host that publishes it, a registered
-          client's is only its own claim. */}
-      <p className="mb-6 text-label text-text-subtle" data-oauth-client="">
-        {consent.publishedBy ? (
-          <>
-            Published by <strong className="font-medium text-text">{consent.publishedBy}</strong>.
-          </>
-        ) : (
-          "This app registered itself, so its name is its own claim, not checked."
-        )}{" "}
-        Its access will be sent to{" "}
-        <strong className="font-medium text-text">{consent.redirectHost}</strong>.
-      </p>
-
-      {consent.redirectWarning ? (
-        <div className="mb-5">
-          <Alert tone="warn">{consent.redirectWarning}</Alert>
-        </div>
-      ) : null}
-
-      <div className="mb-5 rounded-lg border border-border-sub bg-bg px-4 py-3">
-        <Eyebrow className="mb-1">Account</Eyebrow>
-        <p className="text-label font-medium text-text">{consent.accountName}</p>
-        {consent.email ? (
-          <p className="mt-0.5 font-mono text-micro text-text-subtle">{consent.email}</p>
-        ) : null}
-      </div>
-
-      <div className="mb-6">
-        <Eyebrow id="oauth-can" className="mb-2">
-          What {consent.clientName} can do
-        </Eyebrow>
-        <ul
-          aria-labelledby="oauth-can"
-          className="m-0 list-disc pl-4 text-label leading-relaxed text-text-secondary"
-        >
-          {CONSENT_CAPABILITIES.filter((c) => !c.write).map((c) => (
-            <li key={c.text}>{c.text}</li>
-          ))}
-        </ul>
-      </div>
-
-      {error ? (
-        <div className="mb-3">
-          <Alert tone="crit">{error}</Alert>
-        </div>
-      ) : null}
-
-      <Form method="post">
-        <input type="hidden" name="client_id" value={consent.clientId} />
-        <input type="hidden" name="redirect_uri" value={consent.redirectUri} />
-        <input type="hidden" name="response_type" value="code" />
-        <input type="hidden" name="code_challenge" value={consent.codeChallenge} />
-        <input type="hidden" name="code_challenge_method" value="S256" />
-        <input type="hidden" name="account_id" value={consent.accountId} />
-        {consent.state ? <input type="hidden" name="state" value={consent.state} /> : null}
-        <div className="mb-6 rounded-lg border border-border-sub bg-bg px-4 py-3">
-          <label className="cap-check items-start text-label">
-            <input
-              type="checkbox"
-              name="allow_write"
-              value="1"
-              defaultChecked={consent.wantsWrite}
-              className="mt-1"
-            />
-            <span>
-              <span className="font-medium">Allow changes</span>
-              {CONSENT_CAPABILITIES.filter((c) => c.write).map((c) => (
-                <span key={c.text} className="mt-0.5 block text-text-subtle">
-                  {c.text}
-                </span>
-              ))}
-              <span className="mt-0.5 block text-text-subtle">
-                Without this, {consent.clientName} can only read.
-              </span>
-              <span className="mt-0.5 block font-mono text-micro text-text-subtle">
-                {MERCHANT_SCOPES.write}
-              </span>
-            </span>
-          </label>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            type="submit"
-            name="intent"
-            value="allow"
-            variant="primary"
-            size="lg"
-            pending={submitting === "allow"}
-          >
-            {submitting === "allow" ? "Approving..." : "Allow access"}
-          </Button>
-          <Button
-            type="submit"
-            name="intent"
-            value="deny"
-            size="lg"
-            pending={submitting === "deny"}
-          >
-            Deny
-          </Button>
-        </div>
-      </Form>
-
-      <p className="mt-5 text-center text-micro text-text-subtle">
-        Foxhound never shares your Stripe access token with third-party clients.
-      </p>
-    </ConsentCard>
+    <Frame>
+      <ConsentScreen
+        client={consent.clientName}
+        product="Foxhound"
+        publishedBy={consent.publishedBy}
+        redirectHost={consent.redirectHost}
+        redirectWarning={consent.redirectWarning}
+        account={{ name: consent.accountName, email: consent.email }}
+        can={CONSENT_CAPABILITIES.filter((c) => !c.write).map((c) => c.text)}
+        write={{
+          items: CONSENT_CAPABILITIES.filter((c) => c.write).map((c) => c.text),
+          scope: MERCHANT_SCOPES.write,
+          defaultChecked: consent.wantsWrite,
+        }}
+        error={error}
+        hidden={{
+          client_id: consent.clientId,
+          redirect_uri: consent.redirectUri,
+          response_type: "code",
+          code_challenge: consent.codeChallenge,
+          code_challenge_method: "S256",
+          account_id: consent.accountId,
+          state: consent.state || undefined,
+        }}
+        submitting={submitting}
+        brand={<Wordmark size="title" />}
+        footnote="Foxhound never shares your Stripe access token with third-party clients."
+        Form={PostForm}
+      />
+    </Frame>
   );
 }

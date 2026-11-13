@@ -8,7 +8,6 @@ import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import {
   buildDisputeIntakeBatch,
   buildDisputeResolutionBatch,
-  buildDisputeStampBatch,
   buildIntakeBatch,
   buildRecoverBatch,
   buildRefundStampBatch,
@@ -236,18 +235,6 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(marker.sql).toMatch(/refund_signal_at.*is null/i); // first refund wins
     expect(marker.params).toContain("acc_1");
     expect(sqlOf(refund[2]).sql).toMatch(/update .*recovered_payments/i);
-  });
-
-  it("dispute stamp batch: claim + the failed payment's dispute marker + conditional update on recovered_payments", () => {
-    const dispute = buildDisputeStampBatch(db, {
-      claim,
-      accountId: "acc_1",
-      failedPaymentId: "fp_1",
-      at: now,
-    });
-    expect(dispute.length).toBe(3);
-    expect(sqlOf(dispute[1]).sql).toMatch(/update .*failed_payments.*dispute_signal_at/i);
-    expect(sqlOf(dispute[2]).sql).toMatch(/update .*recovered_payments/i);
   });
 
   it("dispute intake batch = claim + disputes row + evidence rows, no recovery link", () => {

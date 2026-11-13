@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
@@ -8,17 +9,17 @@ import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
 import { planTierPill } from "~/lib/intelligence/customer-directory";
 import {
   dayOverDayCents,
-  monthKeyOf,
   monthLabel,
   newMrrMonthToDateCents,
   planBreakdownRows,
   signedMoney,
 } from "~/lib/intelligence/dashboard";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 import { healthScoreBand, type HealthScoreBand } from "~/lib/intelligence/health-band";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { hourlyPreview } from "./hourly-preview";
 
 import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./intelligence-preview";
-import { HOUR_MS } from "~/lib/constants";
 
 // The data behind the /product/intelligence previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hand-written numbers
@@ -123,13 +124,13 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     asOf: now.toISOString(),
     dashboard: {
       mrr: formatMoneyShort(latest?.totalMrrCents ?? 0, currency),
-      activeCustomers: (latest?.activeCustomersCount ?? 0).toLocaleString("en-US"),
+      activeCustomers: formatCount(latest?.activeCustomersCount ?? 0),
       dayOverDay: delta ? signedMoney(delta, currency) : "--",
       dayOverDaySign: delta ? (delta > 0 ? 1 : -1) : 0,
       newMrrMtd: formatMoneyShort(newMrrMonthToDateCents(daily, now.getTime()), currency),
       currency,
       plans: planBreakdownRows(latest?.perPlanBreakdown ?? null),
-      narrativeMonth: monthLabel(monthKeyOf(report.reportMonth)),
+      narrativeMonth: monthLabel(monthKey(report.reportMonth)),
       narrative: report.narrative,
     },
     customers: rows,
@@ -137,13 +138,5 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
   };
 }
 
-// The seed is cheap, but its dates count from `now`, so one preview serves
-// every request in the same hour, as the Recovery and Disputes spokes' do.
-let cached: { hour: number; preview: IntelligencePreview } | null = null;
-
-export function intelligencePreviewFor(nowMs: number): IntelligencePreview {
-  const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour)
-    cached = { hour, preview: buildIntelligencePreview(new Date(hour * HOUR_MS)) };
-  return cached.preview;
-}
+// One preview per clock hour (hourlyPreview).
+export const intelligencePreviewFor = hourlyPreview(buildIntelligencePreview);

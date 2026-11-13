@@ -1,11 +1,14 @@
-import { and, eq, gte, isNull, like, ne, sql } from "drizzle-orm";
+import { likeStartsWith } from "@dustinedwards/site-runtime/d1";
+import { and, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { failedPayments, getDb, outcomes, recoveredPayments, recoverySteps } from "~/db";
+import { DAY_MS } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { isBillableAttribution, type ResolvedAttribution } from "./attribution";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // Records a recovered payment WITH its attribution, through the per-account
 // money-write Durable Object, as ONE atomic batch: the recovered_payments row
 // (the billing denominator) + the outcomes moat row. Both attributed and
@@ -257,7 +260,7 @@ export async function reconcileRetryRecovery(
 /** How far back the daily sweep looks. The race it closes is seconds wide and
  *  the sweep runs daily, so a week covers every missed tick without reaching
  *  back to re-attribute (and so newly bill) old history. */
-const ATTRIBUTION_SWEEP_LOOKBACK_MS = 7 * 24 * 60 * 60 * 1000;
+const ATTRIBUTION_SWEEP_LOOKBACK_MS = 7 * DAY_MS;
 const ATTRIBUTION_SWEEP_LIMIT = 200;
 
 export interface AttributionSweepResult {
@@ -298,7 +301,7 @@ export async function upgradeMissedRetryAttributions(
         eq(recoveredPayments.attributionKind, "stripe_baseline"),
         isNull(recoveredPayments.deletedAt),
         gte(recoveredPayments.recoveredAt, new Date(now.getTime() - ATTRIBUTION_SWEEP_LOOKBACK_MS)),
-        like(recoverySteps.stepType, "retry_%"),
+        likeStartsWith(recoverySteps.stepType, "retry_"),
         eq(recoverySteps.result, "retry_succeeded"),
         isNull(recoverySteps.deletedAt),
       ),
@@ -327,7 +330,7 @@ export async function upgradeMissedRetryAttributions(
     } catch (err) {
       result.failed.push({
         failedPaymentId: row.failedPaymentId,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessage(err),
       });
     }
   }

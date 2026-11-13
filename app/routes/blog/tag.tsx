@@ -1,3 +1,5 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -93,7 +95,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
         <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label }]} />
         <h1 className="mb-2 text-section font-medium tracking-tight text-text">{label}</h1>
         <p className="mb-10 font-mono text-label text-text-tertiary">
-          {posts.length} {posts.length === 1 ? "article" : "articles"}
+          {plural(posts.length, "article")}
         </p>
         {posts.length === 0 ? (
           <p className="text-body text-text-secondary">No articles tagged {label} yet.</p>
@@ -108,3 +110,5 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

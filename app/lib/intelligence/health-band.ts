@@ -28,7 +28,8 @@ export function healthScoreClassName(score: number): string {
   return CLASS_NAME[healthScoreBand(score)];
 }
 
-const METER_TONE: Record<HealthScoreBand, MeterTone> = {
+/** A band as the tone of Capsomer's meter, badge and pill: red, the warning color, green. */
+export const METER_TONE: Record<HealthScoreBand, MeterTone> = {
   at_risk: "crit",
   watch: "warn",
   healthy: "ok",

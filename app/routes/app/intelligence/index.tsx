@@ -1,3 +1,4 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { useCallback, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { data, useFetcher } from "react-router";
@@ -21,7 +22,6 @@ import {
   GENERATE_REPORT_ERROR_STATUS,
   dayOverDayCents,
   firstSnapshotSentence,
-  monthKeyOf,
   monthLabel,
   narrativeErrorMessage,
   newMrrMonthToDateCents,
@@ -32,6 +32,7 @@ import {
   weeklyMovements,
   type GenerateReportError,
 } from "~/lib/intelligence/dashboard";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 import {
   drawHealth,
   drawMovement,
@@ -43,7 +44,7 @@ import { healthScoreMeterTone } from "~/lib/intelligence/health-band";
 import { generateMonthlyReport } from "~/lib/intelligence/report-generate.server";
 import { getIntelligenceOverview, getReportsArchive } from "~/lib/intelligence/views.server";
 import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/trends.server";
-import { formatMoney, formatMoneyShort, toMajorUnits } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -98,8 +99,8 @@ export async function loader({ context }: Route.LoaderArgs) {
     overview,
     healthDistribution,
     mrrSeries,
-    reports: archive.map((r) => ({ month: monthKeyOf(r.reportMonth), narrative: r.narrative })),
-    currentMonth: monthKeyOf(new Date(nowMs)),
+    reports: archive.map((r) => ({ month: monthKey(r.reportMonth), narrative: r.narrative })),
+    currentMonth: monthKey(new Date(nowMs)),
     nowMs,
     isDemo: auth.isDemo,
   };
@@ -155,7 +156,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The
   // shell owns the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8 md:py-10">
+    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8 md:py-10" data-width="page">
       <div className="mb-6">
         <PageHead title="Dashboard" lead="MRR trends and customer health" />
       </div>
@@ -268,9 +269,7 @@ function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; 
         </p>
       </Panel>
       <Panel title="Active customers" size="sm">
-        <p className={`${figure} text-text`}>
-          {latest.activeCustomersCount.toLocaleString("en-US")}
-        </p>
+        <p className={`${figure} text-text`}>{formatCount(latest.activeCustomersCount)}</p>
       </Panel>
       <Panel title="New MRR (MTD)" size="sm">
         <p className={`${figure} text-success-text`}>

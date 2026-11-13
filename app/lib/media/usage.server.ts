@@ -1,9 +1,10 @@
 import type { MediaUse } from "@dustinedwards/site-api";
+import { keysAtAddresses } from "@dustinedwards/site-runtime/image";
 import { sql } from "drizzle-orm";
 
 import { blogPosts, type Db } from "~/db";
 
-import { mediaKeysIn } from "./images";
+import { MEDIA_ADDRESSES } from "./images";
 
 // The media library's reference check: every place a blog post cites a library
 // file, as `/media/<key>` in its body or as its cover address, published or
@@ -39,13 +40,13 @@ export async function mediaUses(db: Db): Promise<Map<string, MediaUse[]>> {
   const title = (id: string) => (titles.get(id) ?? id).slice(0, 1000);
 
   for (const post of posts) {
-    for (const key of mediaKeysIn(post.body))
+    for (const key of keysAtAddresses(post.body, MEDIA_ADDRESSES))
       add(key, { type: "post", id: post.id, title: title(post.id), detail: "in the post" });
-    for (const key of mediaKeysIn(post.cover ?? ""))
+    for (const key of keysAtAddresses(post.cover, MEDIA_ADDRESSES))
       add(key, { type: "post", id: post.id, title: title(post.id), detail: "the cover picture" });
   }
   for (const row of waiting) {
-    for (const key of mediaKeysIn(row.source)) {
+    for (const key of keysAtAddresses(row.source, MEDIA_ADDRESSES)) {
       add(key, {
         type: "post",
         id: row.content_id,

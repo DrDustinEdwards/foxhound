@@ -1,4 +1,5 @@
-import { and, count, desc, eq, gte, inArray, isNull, like } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 
 import {
   accounts,
@@ -9,7 +10,7 @@ import {
   recoverySteps,
   type Db,
 } from "~/db";
-import { D1_MAX_BOUND_PARAMS, DAY_MS } from "~/lib/constants";
+import { DAY_MS } from "~/lib/constants";
 
 import {
   ACTIONABLE_RECOMMENDATIONS,
@@ -33,10 +34,8 @@ import {
 // One query per input for the whole account, grouped in memory, as the sync
 // does, rather than Recova's two reads per customer.
 
-const ENGAGEMENT_WINDOW_DAYS = 30;
-
-/** Customer ids per outreach lookup, leaving room for the other two parameters. */
-const OUTREACH_LOOKUP_SLICE = D1_MAX_BOUND_PARAMS - 2;
+/** How far back a customer's emails and clicks count as engagement (also the customer view's window). */
+export const ENGAGEMENT_WINDOW_DAYS = 30;
 
 /** Recova's rules_v1, named so a later rule change is told apart in the log. */
 const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";
@@ -72,7 +71,7 @@ async function loadEngagementTallies(
           eq(failedPayments.accountId, accountId),
           isNull(recoverySteps.deletedAt),
           isNull(failedPayments.deletedAt),
-          like(recoverySteps.result, "email_sent%"),
+          likeStartsWith(recoverySteps.result, "email_sent"),
           gte(recoverySteps.executedAt, cutoff),
           customer,
         ),
@@ -205,22 +204,19 @@ export async function personalOutreachCustomerIds(
   stripeCustomerIds: readonly string[],
 ): Promise<string[]> {
   const ids = [...new Set(stripeCustomerIds.filter(Boolean))];
-  const out: string[] = [];
-  // In slices under D1's bound-parameter cap: the page can list every payment.
-  for (let i = 0; i < ids.length; i += OUTREACH_LOOKUP_SLICE) {
-    const rows = await db
-      .select({ id: customerContext.stripeCustomerId })
-      .from(customerContext)
-      .where(
-        and(
-          eq(customerContext.accountId, accountId),
-          eq(customerContext.recommendedAction, "personal_outreach"),
-          inArray(customerContext.stripeCustomerId, ids.slice(i, i + OUTREACH_LOOKUP_SLICE)),
-        ),
-      );
-    for (const r of rows) out.push(r.id);
-  }
-  return out;
+  if (ids.length === 0) return [];
+  // The page can list every payment, so the list is one bound parameter.
+  const rows = await db
+    .select({ id: customerContext.stripeCustomerId })
+    .from(customerContext)
+    .where(
+      and(
+        eq(customerContext.accountId, accountId),
+        eq(customerContext.recommendedAction, "personal_outreach"),
+        inList(customerContext.stripeCustomerId, ids),
+      ),
+    );
+  return rows.map((r) => r.id);
 }
 
 /** The recommendation_log insert for one customer's run. Operational, not a

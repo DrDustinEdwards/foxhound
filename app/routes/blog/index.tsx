@@ -1,12 +1,14 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
-import { CoverPicture } from "~/components/blog/cover-picture";
+import { Picture } from "capsomer/react/picture";
+import "capsomer/picture.css";
 import { BlogPostCard } from "~/components/blog/blog-post-card";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { formatTagChip } from "~/lib/blog/format";
 import { coverPicture } from "~/lib/blog/markdown.server";
 import {
   getFeaturedPost,
@@ -124,7 +126,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
           >
             All articles{" "}
             <ArrowRight
-              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+              className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
               size={13}
               strokeWidth={1.5}
               aria-hidden
@@ -196,7 +198,7 @@ function BlogHero({
                   className="cap-pill"
                   data-variant="outline"
                 >
-                  {formatTagChip(post.tags[0])}
+                  {titleCase(post.tags[0])}
                 </Link>
               </>
             ) : null}
@@ -213,7 +215,7 @@ function BlogHero({
               Read the guide
               <ArrowRight
                 data-icon="end"
-                className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                 size={13}
                 strokeWidth={1.5}
                 aria-hidden
@@ -226,7 +228,12 @@ function BlogHero({
             to={`/blog/${post.slug}`}
             className="block aspect-video w-full overflow-hidden rounded-xl border border-border-sub bg-bg"
           >
-            <CoverPicture cover={cover} className="h-full w-full object-cover" />
+            <Picture
+              attrs={cover.picture}
+              alt={cover.alt}
+              priority
+              className="h-full w-full object-cover"
+            />
           </Link>
         ) : (
           <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-sub">
@@ -289,7 +296,7 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
           >
             See all{" "}
             <ArrowRight
-              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+              className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
               size={13}
               strokeWidth={1.5}
               aria-hidden
@@ -320,3 +327,5 @@ function BlogLatestStrip({ posts }: { posts: BlogPostSummary[] }) {
     </section>
   );
 }
+
+export const headers = () => publicPageHeaders();

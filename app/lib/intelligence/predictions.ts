@@ -4,6 +4,7 @@
 // realizedOutcome once the horizon elapses) is a later backtest pass, out of
 // scope for TASK-foxhound-intelligence-ai.md.
 
+import { fnv1a32 } from "@dustinedwards/site-runtime/encoding";
 import type { Db } from "~/db";
 import { predictions } from "~/db";
 import type { HealthFactor } from "./risk";
@@ -19,12 +20,7 @@ import type { HealthFactor } from "./risk";
 export function hashFactorBands(factors: HealthFactor[]): string {
   const sorted = [...factors].sort((a, b) => a.signal.localeCompare(b.signal));
   const input = JSON.stringify(sorted.map((f) => [f.signal, f.deltaPoints]));
-  let hash = 0x811c9dc5;
-  for (let i = 0; i < input.length; i += 1) {
-    hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return (hash >>> 0).toString(16).padStart(8, "0");
+  return fnv1a32(input);
 }
 
 export interface PredictionFields {

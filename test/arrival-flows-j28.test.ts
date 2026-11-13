@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { SIGN_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-form";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -100,20 +101,22 @@ describe("A7: accepting an invite before signing in", () => {
       `/signup?next=${encodeURIComponent(`/invite/${TOKEN}`)}`,
     );
     const cookie = clicked.headers.get("set-cookie") ?? "";
-    expect(cookie).toContain(`invite_token=${TOKEN}`);
+    expect(cookie).toContain(`__Host-invite_token=${TOKEN}`);
     expect(cookie).toMatch(/HttpOnly/i);
 
     // Signed in as the invited address, back on the invite page with the cookie.
     signIn("user_mate", "mate@acme.test");
     const back = await run(() =>
       invite.loader({
-        request: request(`/invite/${TOKEN}`, { headers: { cookie: `invite_token=${TOKEN}` } }),
+        request: request(`/invite/${TOKEN}`, {
+          headers: { cookie: `__Host-invite_token=${TOKEN}` },
+        }),
         params: { token: TOKEN },
         context: context(),
       } as never),
     );
     expect(back.headers.get("location")).toBe("/console");
-    expect(back.headers.get("set-cookie")).toMatch(/invite_token=;.*Max-Age=0/i);
+    expect(back.headers.get("set-cookie")).toMatch(/__Host-invite_token=;.*Max-Age=0/i);
     expect(
       sqlite
         .prepare("SELECT user_id AS u, status AS s FROM account_members WHERE id = 'm_1'")
@@ -183,7 +186,7 @@ describe("A8: /welcome is the landing for one new connection", () => {
 });
 
 describe("A10: a disposable address at sign-up", () => {
-  it("is refused with a code that brings the visitor back to /login with Recova's sentence", async () => {
+  it("is refused with a code that brings the visitor back to /login with the network's sentence", async () => {
     const before = authOptions.databaseHooks.user.create.before;
     await expect(before({ email: "x@mailinator.com" } as never)).rejects.toMatchObject({
       body: { code: "disposable_email" },
@@ -193,8 +196,6 @@ describe("A10: a disposable address at sign-up", () => {
       params: {},
       context: context(),
     } as never);
-    expect((page as { error: string }).error).toBe(
-      "Please use a real email address. Disposable email providers are not allowed.",
-    );
+    expect((page as { error: string }).error).toBe(SIGN_IN_WORDS.code.disposable);
   });
 });

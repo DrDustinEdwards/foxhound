@@ -1,18 +1,15 @@
-import { schedulePurgeHook } from "@dustinedwards/site-runtime/edge-cache";
 import {
-  createSiteApi,
-  webmentionHook,
+  standardSiteApi,
   type RateLimiter,
   type ScheduleRun,
   type SiteApi,
 } from "@dustinedwards/site-api";
 import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
-import { d1SiteApiStore } from "@dustinedwards/site-api/store";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 
 import { getDb } from "~/db";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
-import { indexNow } from "~/lib/seo/indexnow.server";
+import { INDEXNOW_KEY } from "~/lib/seo/indexnow-key";
 
 import { carrelAdapter } from "./adapter.server";
 import { carrelMediaAdapter } from "./media-adapter.server";
@@ -48,21 +45,20 @@ function carrelLimiter(env: Env): RateLimiter {
   };
 }
 
-/** One site-api over the blog, for a Carrel request and for the cron alike.
- *  The store (drizzle/migrations/0064_site_api_store.sql) makes every write
- *  safe to send again under its change id, keeps the preview links and the
- *  webmentions each post sent, and holds a failed hook for the cron to retry.
- *  The hooks run after a write that changes a public page and after each
- *  schedule the cron applies: IndexNow, webmentions to the pages a post links
- *  to, and the edge-page purge. An applied schedule has no request behind it,
- *  so its purge is a hook (a Carrel request's write is purged by the gateway,
- *  workers/app.ts, which also covers media library writes). */
-function carrelSiteApi(env: Env, stylesheets: string[] = []): SiteApi {
+/** One site-api over the blog, for a Carrel request and for the cron alike:
+ *  site-api's standard store (drizzle/migrations/0064_site_api_store.sql) and
+ *  hooks. The store makes every write safe to send again under its change id,
+ *  keeps the preview links and the webmentions each post sent, and holds a
+ *  failed hook for the cron to retry. The hooks run after a write that changes
+ *  a public page and after each schedule the cron applies: IndexNow (only from
+ *  https://foxhoundapp.com, Foxhound's own key), webmentions to the pages a post
+ *  links to, and the edge-page purge. */
+export function carrelSiteApi(env: Env, stylesheets: string[] = []): SiteApi {
   const db = getDb(env);
-  const store = d1SiteApiStore(env.DB);
-  return createSiteApi({
+  return standardSiteApi({
+    db: env.DB,
     // The blog's media library rides beside the posts (media-adapter.server.ts),
-    // and the 404s entry.server.tsx counts beside both, for Carrel's report.
+    // and the 404s the shared Worker counts beside both, for Carrel's report.
     adapter: {
       ...carrelAdapter(db, d1ScheduledUpdates(env.DB), stylesheets),
       media: carrelMediaAdapter(env, db),
@@ -70,24 +66,9 @@ function carrelSiteApi(env: Env, stylesheets: string[] = []): SiteApi {
     },
     key: env.CARREL_SITE_KEY,
     limiter: carrelLimiter(env),
-    store,
-    hooks: [indexNow, webmentionHook({ store }), schedulePurgeHook()],
+    indexNow: { origin: "https://foxhoundapp.com", key: INDEXNOW_KEY },
+    hooks: (standard) => [standard.indexNow, standard.webmention, standard.purge],
   });
-}
-
-/** Null when the request is neither under the prefix nor a preview link, so
- *  the caller falls through. `ctx` keeps the hooks alive after the response is
- *  sent; `stylesheets` are the root route's, which a preview is drawn in. */
-export async function handleCarrelRequest(
-  request: Request,
-  env: Env,
-  ctx: ExecutionContext,
-  stylesheets: string[] = [],
-): Promise<Response | null> {
-  const api = carrelSiteApi(env, stylesheets);
-  if (api.matchesPreviewLink(request)) return api.servePreviewLink(request);
-  if (!api.matches(request)) return null;
-  return api.handle(request, ctx);
 }
 
 /** The blog-schedules cron (app/lib/cron/registry.ts): puts every scheduled

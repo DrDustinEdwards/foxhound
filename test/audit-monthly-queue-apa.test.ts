@@ -1,16 +1,9 @@
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  accounts,
-  auditDigestRuns,
-  auditRuns,
-  cronAlerts,
-  cronRunHistory,
-  stripeConnections,
-} from "~/db/schema";
+import { accounts, auditDigestRuns, auditRuns, stripeConnections } from "~/db/schema";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
 // job_97878f0d1fde: THE MONTHLY AUDIT IS ONE ACCOUNT PER QUEUE MESSAGE.
 //
@@ -22,7 +15,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //
 // The cron now only enqueues, one message per opted-in account, and the queue
 // consumer audits the one account its message names. Every test here drives the
-// REAL registered cron handler through runCronJob and the REAL consumer entry
+// REAL registered cron handler through the real runner and the REAL consumer entry
 // (handleQueueBatch, which workers/app.ts hands every non-DLQ batch to), with
 // getConnectedStripe as the only live seam and an in-memory queue standing in
 // for the AUDIT_QUEUE producer binding.
@@ -44,7 +37,8 @@ vi.mock("~/lib/stripe/encryption", async (importOriginal) => ({
   decryptToken: async () => "sk_test_token",
 }));
 
-const { runCronJob } = await import("~/lib/cron/run");
+const { loggedRuns, runJob } = await import("./helpers/cron");
+const { cronRunId } = await import("~/lib/admin/crons");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
 const { handleQueueBatch } = await import("~/lib/queue/consumer");
 
@@ -121,7 +115,7 @@ function fakeQueue(fail?: Error) {
 }
 
 function setup() {
-  const { db } = createInMemoryDb();
+  const { sqlite, db } = createInMemoryDb();
   harness.db = db;
   const { stripe, calls } = countingStripe();
   harness.stripe = stripe;
@@ -130,7 +124,7 @@ function setup() {
   const messages: { to: string; text?: string }[] = [];
   const failFor = new Set<string>();
   const e = {
-    DB: {},
+    DB: d1Over(sqlite),
     EMAIL: {
       send: async (m: { to: string; text?: string }) => {
         messages.push(m);
@@ -146,7 +140,9 @@ function setup() {
     },
     AUDIT_QUEUE: queue.binding,
   } as unknown as Env;
-  return { db, env: e, queue, stripeCalls: calls, delivered, messages, failFor };
+  const alerts = () =>
+    sqlite.prepare("SELECT * FROM alerts_sent").all() as Array<{ key: string; kind: string }>;
+  return { db, sqlite, env: e, queue, stripeCalls: calls, delivered, messages, failFor, alerts };
 }
 
 async function seedAccount(db: TestDb, id: string, row: Record<string, unknown> = {}) {
@@ -171,7 +167,7 @@ async function seedAccount(db: TestDb, id: string, row: Record<string, unknown> 
 
 async function runCron(e: Env) {
   const job = CRON_JOBS.find((j) => j.name === CRON_NAME)!;
-  return runCronJob(e, job.name, job.handler);
+  return runJob(e, job.name, job.handler, job.schedule);
 }
 
 interface Delivery {
@@ -213,7 +209,7 @@ const bodyFor = (bodies: unknown[], accountId: string) =>
 
 describe("the cron enqueues one message per opted-in account and audits nothing itself", () => {
   it("only opted-in, processing-eligible accounts are queued, each with its month and run", async () => {
-    const { db, env, queue, stripeCalls, delivered } = setup();
+    const { db, sqlite, env, queue, stripeCalls, delivered } = setup();
     await seedAccount(db, "a_on");
     await seedAccount(db, "b_on");
     await seedAccount(db, "c_off", { auditAutoRun: false });
@@ -221,12 +217,10 @@ describe("the cron enqueues one message per opted-in account and audits nothing 
     await seedAccount(db, "e_paused", { processingPaused: true });
     await seedAccount(db, "demo_teamflow");
 
-    const outcome = await runCron(env);
+    await runCron(env);
 
-    expect(outcome.status).toBe("success");
-    const runs = await db.select().from(cronRunHistory);
-    expect(runs).toHaveLength(1);
-    expect(runs[0].rowsProcessed).toBe(2);
+    const runs = loggedRuns(sqlite, CRON_NAME);
+    expect(runs.map((r) => r.outcome)).toEqual(["ok"]);
 
     const queued = queue.bodies as { accountId: string }[];
     expect(queued.map((b) => b.accountId).sort()).toEqual(["a_on", "b_on"]);
@@ -234,7 +228,7 @@ describe("the cron enqueues one message per opted-in account and audits nothing 
       expect(body).toEqual({
         accountId: body.accountId,
         periodMonth: PERIOD,
-        cronRunId: runs[0].id,
+        cronRunId: cronRunId(CRON_NAME, runs[0]!.started_at),
       });
     }
 
@@ -296,7 +290,7 @@ describe("the consumer audits the one account its message names", () => {
 
 describe("a failure logs the whole err and lets the queue retry", () => {
   it("the LAST attempt raises the monthly-audit failure alert", async () => {
-    const { db, env, queue, failFor } = setup();
+    const { db, env, queue, failFor, alerts } = setup();
     await seedAccount(db, "a_on");
     await runCron(env);
     vi.spyOn(console, "error").mockImplementation(() => {});
@@ -305,14 +299,14 @@ describe("a failure logs the whole err and lets the queue retry", () => {
 
     // Attempts before the last one alert nobody: the queue may yet succeed.
     await deliver(env, [{ body, attempts: 1 }]);
-    expect(await db.select().from(cronAlerts)).toHaveLength(0);
+    expect(alerts()).toHaveLength(0);
 
     // max_retries is 3, so the fourth delivery is the last one.
     expect(await deliver(env, [{ body, attempts: 4 }])).toEqual(["retry"]);
-    const alerts = await db.select().from(cronAlerts);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].cronName).toBe(CRON_NAME);
-    expect(alerts[0].kind).toBe("failure");
+    const sent = alerts();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].key).toBe(CRON_NAME);
+    expect(sent[0].kind).toBe("failure");
   });
 });
 
@@ -394,7 +388,7 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
   });
 
   it("a claim STUCK PENDING is retried, never re-sent, and the last attempt alerts", async () => {
-    const { db, env, queue, delivered, messages } = setup();
+    const { db, env, queue, delivered, messages, alerts } = setup();
     await seedAccount(db, "a_on");
     await runCron(env);
     await plant(db, "pending");
@@ -404,13 +398,13 @@ describe("a refused claim on a redelivery is seen, and a stuck one alerts", () =
     // A redelivery after a killed run: look again later, do not send.
     expect(await deliver(env, [{ body, attempts: 2 }])).toEqual(["retry"]);
     expect(loggedText(logged).join("\n")).toContain("pending");
-    expect(await db.select().from(cronAlerts)).toHaveLength(0);
+    expect(alerts()).toHaveLength(0);
 
     // The last attempt: still pending, so it alerts and lets the message go.
     expect(await deliver(env, [{ body, attempts: 4 }])).toEqual(["ack"]);
-    const alerts = await db.select().from(cronAlerts);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].cronName).toBe(CRON_NAME);
+    const sent = alerts();
+    expect(sent).toHaveLength(1);
+    expect(sent[0].key).toBe(CRON_NAME);
 
     // Nothing was ever mailed to the merchant, and the row was never retaken.
     expect(delivered.filter((to) => to === "a_on@merchant.test")).toEqual([]);

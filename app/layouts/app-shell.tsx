@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import {
   Outlet,
   useLocation,
@@ -5,7 +6,6 @@ import {
   useNavigate,
   useNavigation,
   useRouteLoaderData,
-  useSubmit,
   type ShouldRevalidateFunctionArgs,
 } from "react-router";
 import {
@@ -27,17 +27,20 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
-import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import { initialsOf, SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
 import { ErrorPage } from "capsomer/react/error-page";
-import { Banner } from "capsomer/react/banner";
+import { ModeBanner } from "capsomer/react/mode-banner";
+import { shouldShowRouteSplash } from "capsomer/behavior/route-splash";
+import { RouteSplash } from "capsomer/react/route-splash";
 import "capsomer/admin-shell.css";
 import "capsomer/banner.css";
+import "capsomer/mode-banner.css";
 import "capsomer/button.css";
+import "capsomer/route-splash.css";
 import "capsomer/time.css";
 
 import { Footer } from "~/components/footer";
 import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";
-import { RouteSplash } from "~/components/route-splash";
 import {
   ACCOUNT_SWITCH_URL,
   businessSwitcher,
@@ -47,12 +50,11 @@ import {
   businessRows,
   currentRow,
   headerLogo,
-  personInitials,
   renderHeaderLink,
   THEME_PREF_KEY,
-  useThemeMemory,
+  themeMemory,
 } from "~/components/site-header";
-import { shouldShowRouteSplash } from "~/lib/navigation/route-splash";
+import { isSplashPath } from "~/lib/navigation/route-splash";
 import { appShellMiddleware } from "~/lib/auth/guards";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { IMPERSONATION_STOP_PATH } from "~/lib/admin/impersonation.server";
@@ -72,7 +74,6 @@ import {
 } from "~/lib/nav/manifest";
 import { DEFAULT_THEME } from "~/lib/theme";
 import { resolveThemeForRequest } from "~/lib/theme.server";
-import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
 
 import { noindexHeader } from "~/lib/seo/meta";
@@ -93,6 +94,9 @@ const sameOriginWrites: Route.MiddlewareFunction = ({ request }, next) => {
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
+
+// Drawn for one reader and kept out of Web Analytics (site-runtime PRIVATE_PAGE_HEADERS); the children inherit it.
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 export const middleware: Route.MiddlewareFunction[] = [
   noindexHeader,
@@ -235,15 +239,11 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   } = loaderData;
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const submit = useSubmit();
-  useThemeMemory(theme, "account");
-  useCollapseKey();
   const readAt = useReadAt(loaderData.readAt);
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
-  // Legacy's loading.tsx, ported to RR8's substrate (305). The decision lives in
-  // a pure predicate so it can be tested without a DOM; see its header for why a
-  // bare state check would blank this page during every money action.
-  const splash = shouldShowRouteSplash(useNavigation());
+  // Legacy's loading.tsx on RR8's substrate: Capsomer decides when (never during
+  // the revalidation after a post), and the app names the paths.
+  const splash = shouldShowRouteSplash(useNavigation(), isSplashPath);
 
   // The menu: the product you are in and its pages. On a settings page it is
   // the settings list instead, under a row back to the product, so a settings
@@ -394,6 +394,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         band="dark"
         switchers={business ? [business, products] : [products]}
         themePrefKey={THEME_PREF_KEY}
+        {...themeMemory("account", theme)}
         renderLink={renderHeaderLink}
         updated={{ at: readAt }}
         status={
@@ -409,7 +410,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         onHelp={() => void navigate("/help")}
         account={{
           name: userName || email,
-          initials: personInitials(userName, email),
+          initials: initialsOf(userName, email),
           email: userName ? email : undefined,
           appLabel: accountName ?? email,
           appLinks: [
@@ -420,54 +421,43 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             })),
             ...(isAdmin ? [{ label: "Admin", href: "/admin" }] : []),
           ],
-          onSignOut: () => void submit(null, { method: "post", action: "/logout" }),
+          // A plain form post, so sign-out works before the page hydrates.
+          signOutAction: "/logout",
         }}
       >
-        {/* The demo banner, at the top of the page under the page bar: the
-            header is the first element on the page in every state, so the
-            wordmark never moves between demo and signed-in. Always exactly two
-            lines regardless of demoSignedIn, via the explicit <br />, so the
-            banner's own height cannot vary between the two demo states. */}
+        {/* The demo band and the admin's read-only "View as merchant" band
+            (Recova's "Impersonating: {email}" with "Stop impersonating"), at
+            the top of the page under the page bar, in Capsomer's mode banner
+            and its words: the header stays the first element on the page in
+            every state, so the wordmark never moves. Recova's demo header
+            carried Connect Stripe (to /signup) on every demo page; a visitor
+            without an account gets it, with Exit demo second. A signed-in
+            merchant already has an account, so they get Exit only. Stop is a
+            plain link: it leaves the app for /admin, behind Access. */}
         {isDemo ? (
-          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 border-b border-border bg-chrome px-4 py-2 text-center">
-            <span className="text-label text-chrome-text-secondary">
-              You're viewing a live demo with sample data.
-              <br />
-              {demoSignedIn
-                ? "Nothing you do here is saved. This is not your real account."
-                : "This is your dashboard after you connect Stripe. Nothing you do here is saved."}
-            </span>
-            {/* Recova's demo header carried a primary Connect Stripe button (to
-                /signup) on every demo page; a visitor without an account gets it
-                here, with Exit demo as the second action. A signed-in merchant
-                viewing the demo already has an account, so they get Exit only. */}
-            <span className="flex shrink-0 items-center gap-2">
-              {demoSignedIn ? null : (
-                <a href="/signup" className="cap-btn" data-variant="primary" data-size="sm">
-                  Connect Stripe
-                </a>
-              )}
-              <a href="/demo/exit" className="cap-btn" data-size="sm">
-                {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
-              </a>
-            </span>
-          </div>
-        ) : null}
-        {/* An admin viewing this merchant read-only (Recova's "Impersonating:
-            {email}" banner with "Stop impersonating"). On every app page while
-            the view is open; Stop is a plain link because it leaves the app
-            for /admin, behind Access. */}
-        {viewingAs ? (
-          <Banner
-            tone="warn"
+          <ModeBanner
+            mode="demo"
+            signedIn={demoSignedIn}
             actions={
-              <a href={viewingAs.stopHref} className="cap-btn" data-size="sm">
-                Stop
-              </a>
+              <>
+                {demoSignedIn ? null : (
+                  <a href="/signup" className="cap-btn" data-variant="primary" data-size="sm">
+                    Connect Stripe
+                  </a>
+                )}
+                <a href="/demo/exit" className="cap-btn" data-size="sm">
+                  {demoSignedIn ? "Exit demo, return to your account" : "Exit demo"}
+                </a>
+              </>
             }
-          >
-            Viewing as {accountName ?? "this merchant"} (read-only).
-          </Banner>
+          />
+        ) : null}
+        {viewingAs ? (
+          <ModeBanner
+            mode="view-as"
+            who={accountName ?? "this merchant"}
+            stopHref={viewingAs.stopHref}
+          />
         ) : null}
         {/* Ruling 146: exactly one <main> on every app page. It is the shell's
             own (AdminShell's main region, #cap-main, the skip link's target),
@@ -476,7 +466,9 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
             header, menu and footer stay put and only the page swaps. The
             footer stays below the page, as legacy's SiteFooter is a sibling of
             the page content. */}
-        <div className="fh-app-page">{splash ? <RouteSplash /> : <Outlet />}</div>
+        <div className="fh-app-page">
+          {splash ? <RouteSplash mark={{ src: "/icon-512.png", alt: "Foxhound" }} /> : <Outlet />}
+        </div>
         <Footer variant="app" />
       </AdminShell>
     </div>
@@ -501,7 +493,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   // The header's theme button still saves where the layout's did.
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
-  useThemeMemory(rootTheme, "account");
 
   // Capsomer's error page (its failed Empty), as the root boundary draws it (app/root.tsx), under the shell's header.
   return (
@@ -516,6 +507,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
             <SiteHeader
               logo={headerLogo("/")}
               themePrefKey={THEME_PREF_KEY}
+              {...themeMemory("account", rootTheme)}
               sheetTitle="Foxhound menu"
               renderLink={renderHeaderLink}
             />

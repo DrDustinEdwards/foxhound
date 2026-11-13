@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { useEffect, useId, useState } from "react";
@@ -11,9 +12,9 @@ import {
   signalPasskeys,
   signalUnknownCredential,
 } from "@dustinedwards/site-runtime/sign-in-client";
+import { securityHistoryWords } from "@dustinedwards/site-runtime/sign-in-words";
 
 import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
-import { formatDateShort } from "~/lib/date-format";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 
 /** Where this person is signed in (site-runtime's sessionRows, current first);
@@ -47,36 +48,6 @@ export type SignInSettings = {
    *  page is not this person's own (the demo, an admin's view). */
   signalAs: string | null;
 };
-
-const WAY_IN: Record<string, string> = {
-  link: "an email link",
-  code: "an emailed code",
-  passkey: "a passkey",
-  google: "Google",
-  apple: "Apple",
-};
-const PROVIDER: Record<string, string> = { google: "Google", apple: "Apple" };
-
-/** One history row in words, such as "Signed in with a passkey". */
-function historyLabel({ kind, via }: Pick<SecurityHistoryEntry, "kind" | "via">): string {
-  const provider = (via && PROVIDER[via]) ?? "A sign-in method";
-  switch (kind) {
-    case "sign-in":
-      return via && WAY_IN[via] ? `Signed in with ${WAY_IN[via]}` : "Signed in";
-    case "passkey-added":
-      return "Passkey added";
-    case "passkey-removed":
-      return "Passkey removed";
-    case "sign-in-linked":
-      return `${provider} connected`;
-    case "sign-in-unlinked":
-      return `${provider} disconnected`;
-    case "email-changed":
-      return "Email address changed";
-    case "recovery":
-      return "Signed in by email with no passkey left; other devices signed out";
-  }
-}
 
 /**
  * How this person signs in (site-runtime ./sign-in): their passkeys, and
@@ -282,9 +253,9 @@ export function SignInMethodsPanel({
                     {d.device ?? "Unknown device"}
                     {d.current ? " (this device)" : null}
                     <span className="block text-text-tertiary">
-                      Signed in {formatDateShort(d.signedInAt)}
+                      Signed in {formatDate(d.signedInAt, { style: "medium" }) ?? ""}
                       {d.location ? ` near ${d.location}` : null}, last active{" "}
-                      {formatDateShort(d.lastActiveAt)}
+                      {formatDate(d.lastActiveAt, { style: "medium" }) ?? ""}
                     </span>
                   </span>
                   {d.current ? null : (
@@ -329,9 +300,11 @@ export function SignInMethodsPanel({
               <ul className="flex flex-col gap-2">
                 {initial.history.map((h, i) => (
                   <li key={`${h.at.toISOString()}-${i}`} className="text-label text-text">
-                    {historyLabel(h)}
+                    {securityHistoryWords(h)}
                     <span className="block text-text-tertiary">
-                      {[formatDateShort(h.at), h.device, h.location].filter(Boolean).join(", ")}
+                      {[formatDate(h.at, { style: "medium" }) ?? "", h.device, h.location]
+                        .filter(Boolean)
+                        .join(", ")}
                     </span>
                   </li>
                 ))}
@@ -372,9 +345,9 @@ function PasskeyItem({
   const fieldId = useId();
   const facts = [
     passkey.provider !== passkey.name ? passkey.provider : null,
-    passkey.createdAt ? `added ${formatDateShort(passkey.createdAt)}` : null,
+    passkey.createdAt ? `added ${formatDate(passkey.createdAt, { style: "medium" }) ?? ""}` : null,
     passkey.lastUsedAt
-      ? `last used ${formatDateShort(passkey.lastUsedAt)}`
+      ? `last used ${formatDate(passkey.lastUsedAt, { style: "medium" }) ?? ""}`
       : "not used to sign in yet",
   ].filter(Boolean);
 

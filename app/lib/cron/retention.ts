@@ -1,12 +1,12 @@
 import type { BatchItem } from "drizzle-orm/batch";
 import { and, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { Db } from "~/db";
 import {
   aiCalls,
   aiCallsMonthly,
-  cronRunHistory,
   emailSends,
   engagementEvents,
   getDb,
@@ -16,9 +16,7 @@ import {
 } from "~/db";
 import {
   DAY_MS,
-  DELETE_ID_BATCH_SIZE,
   RETENTION_AI_CALLS_DAYS,
-  RETENTION_CRON_HISTORY_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_HEALTH_SCORE_DAYS,
@@ -27,7 +25,7 @@ import {
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
 import { computeAiCallCostCents } from "~/lib/ai/cost";
-import { monthKeyUTC } from "~/lib/date-format";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 import type { CronJobResult } from "./run";
 
@@ -44,16 +42,6 @@ export function cutoffFor(days: number, nowMs: number): Date {
   return new Date(nowMs - days * DAY_MS);
 }
 
-/** Split an id list into chunks that fit under D1's bound-parameter ceiling.
- *  Pure, and exported so the boundary is directly testable at a row count ABOVE
- *  the ceiling, which is the only assertion that would have caught the original
- *  bug. */
-export function chunkIds<T>(ids: readonly T[], size: number = DELETE_ID_BATCH_SIZE): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size) as T[]);
-  return out;
-}
-
 /** Delete up to RETENTION_SWEEP_LIMIT rows matching a predicate, returning the
  *  count.
  *
@@ -61,7 +49,7 @@ export function chunkIds<T>(ids: readonly T[], size: number = DELETE_ID_BATCH_SI
  *  a SUBQUERY, so its bound-parameter count is CONSTANT (the predicate's own
  *  operands plus the limit) no matter how many rows match. That is the whole
  *  difference between a fix and a larger version of the bug: an id list costs
- *  O(rows) parameters and breaks the day a table crosses D1_MAX_BOUND_PARAMS.
+ *  O(rows) parameters and breaks the day a table crosses 100 bound parameters.
  *  retention-health-score failed every day for 29 days that way, building 417
  *  placeholders against a documented ceiling of 100.
  *
@@ -164,18 +152,6 @@ export async function sweepHealthScoreHistory(env: Env): Promise<CronJobResult> 
   return { rowsProcessed: rows };
 }
 
-export async function sweepCronRunHistory(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_CRON_HISTORY_DAYS, Date.now());
-  const rows = await deleteOlderThan(
-    getDb(env),
-    cronRunHistory,
-    cronRunHistory.id,
-    cronRunHistory.createdAt,
-    cutoff,
-  );
-  return { rowsProcessed: rows };
-}
-
 /** Non-actioned social leads only (a lead we replied to is kept).
  *
  *  Two predicate terms rather than one, but still a PREDICATE: it goes through
@@ -216,7 +192,7 @@ export function aggregateAiCalls(rows: AiCallRow[]): AiCallAggregate[] {
   const map = new Map<string, AiCallAggregate>();
   for (const r of rows) {
     const accountKey = r.accountId ?? "";
-    const month = monthKeyUTC(r.createdAt);
+    const month = monthKey(r.createdAt);
     const key = `${accountKey}|${r.model}|${month}`;
     const agg = map.get(key) ?? {
       accountKey,
@@ -276,8 +252,8 @@ export async function sweepAiCalls(env: Env): Promise<CronJobResult> {
       }),
   );
 
-  // THE ONE SITE WHERE AN ID LIST IS SEMANTICALLY REQUIRED, so this one is
-  // BATCHED rather than converted to a predicate.
+  // THE ONE SITE WHERE AN ID LIST IS SEMANTICALLY REQUIRED, so this one keeps
+  // its ids rather than converting to a predicate.
   //
   // The other sweeps may re-express their delete as "whatever currently matches
   // the predicate", because every matching row is equally deletable. This one
@@ -287,15 +263,24 @@ export async function sweepAiCalls(env: Env): Promise<CronJobResult> {
   // would drop AI calls that were never rolled into a monthly bucket. That is
   // silent loss in a cost ledger, which is worse than the bug being fixed.
   //
-  // So the ids stay, and are chunked under D1's ceiling. The chunks go into the
-  // SAME batch as the upserts, so the aggregate-then-delete stays one atomic
-  // transaction and a crash still never double-counts.
-  const deletes = chunkIds(rows.map((r) => r.id)).map((chunk) =>
-    db.delete(aiCalls).where(inArray(aiCalls.id, chunk)),
-  );
+  // So the ids stay, bound as ONE json parameter (inList), so the delete is one
+  // statement however many rows were aggregated. It goes into the SAME batch as
+  // the upserts, so the aggregate-then-delete stays one atomic transaction and a
+  // crash still never double-counts.
+  const deletes = [
+    db.delete(aiCalls).where(
+      inList(
+        aiCalls.id,
+        rows.map((r) => r.id),
+      ),
+    ),
+  ];
   await db.batch([upserts[0], ...upserts.slice(1), ...deletes] as [
     BatchItem<"sqlite">,
     ...BatchItem<"sqlite">[],
   ]);
-  return { rowsProcessed: rows.length, message: `${groups.length} monthly buckets` };
+  return {
+    rowsProcessed: rows.length,
+    message: `${rows.length} calls into ${groups.length} monthly buckets`,
+  };
 }

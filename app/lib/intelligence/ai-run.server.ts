@@ -9,6 +9,7 @@ import {
   intelligenceReports,
   type Db,
 } from "~/db";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
 import { PREDICTION_HORIZON_DAYS } from "~/lib/constants";
 import { getMrrAnalytics } from "~/lib/dashboard/stats.server";
 
@@ -24,6 +25,7 @@ import { buildRecommendationLogInsert, recommendForAccount } from "./recommendat
 import { computeHealthScore, type HealthFactor } from "./risk";
 import { healthScoreInput, loadScoreExtras, scoreColumns } from "./score-inputs.server";
 import { accountProcessingEligible } from "./sync.server";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // The Intelligence nightly orchestration: scoring -> predictions -> narrative,
 // for one account, then for every processing-eligible account
@@ -210,7 +212,7 @@ export async function writeNarrativeReport(
   },
 ): Promise<void> {
   const { accountId, now, result, scored } = input;
-  const reportMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const reportMonth = new Date(startOfUtcMonthMs(now.getTime()));
   const idByCustomer = new Map(scored.map((c) => [c.stripeCustomerId, c.customerContextId]));
   const narrativeBatch: BatchItem<"sqlite">[] = [
     db
@@ -257,10 +259,7 @@ export async function runIntelligenceAiForAllAccounts(
         customersScored: 0,
         error: err instanceof Error ? err.message : "run failed",
       });
-      console.error(
-        `intelligence run failed for account ${id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`intelligence run failed for account ${id}:`, errorMessage(err));
     }
   }
   return results;

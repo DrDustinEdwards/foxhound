@@ -18,6 +18,7 @@ import type { AdminMcpEnv } from "./env";
 import { SCOPE_READ, SCOPE_WRITE } from "./scopes";
 import { ADMIN_TOOLS } from "./tools";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // The protocol: the official MCP SDK, stateless, serving 2026-07-28 and, through
 // site-runtime's era router, the 2025-era clients that still open with
 // initialize. Who the caller is was settled by index.ts (site-runtime's adminMcpWorker) before this runs.
@@ -109,11 +110,7 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
       } catch (err) {
         // An unexpected failure's text stays in the log: it was not written
         // for an agent and could carry anything.
-        console.error(
-          "admin mcp tool failed:",
-          tool.name,
-          err instanceof Error ? err.message : String(err),
-        );
+        console.error("admin mcp tool failed:", tool.name, errorMessage(err));
         return result(
           { error: `${tool.name} could not reach Foxhound. Try again.`, tool: tool.name },
           true,

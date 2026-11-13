@@ -38,6 +38,7 @@ import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // /billing: Recova's billing page on Foxhound's billing engine.
 // Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
@@ -89,7 +90,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       sessionId,
       expectedCustomerId: accountRow?.platformStripeCustomerId ?? null,
     }).catch((err) => {
-      console.error("billing setup finalize failed:", err instanceof Error ? err.message : err);
+      console.error("billing setup finalize failed:", errorMessage(err));
     });
     throw redirect("/billing");
   }
@@ -161,7 +162,7 @@ export async function action({ context, request }: Route.ActionArgs) {
     return redirect(session.url);
   } catch (err) {
     // Stripe's and D1's messages stay in the log; the merchant gets one sentence.
-    console.error("billing setup start failed:", err instanceof Error ? err.message : err);
+    console.error("billing setup start failed:", errorMessage(err));
     return data({ error: "Could not start billing setup. Please try again." }, { status: 400 });
   }
 }

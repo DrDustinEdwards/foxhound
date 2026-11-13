@@ -8,7 +8,8 @@
 // CLIENT-SAFE BY CONSTRUCTION: the routes render these, so this module imports
 // nothing from a `.server` file.
 
-import { formatMoney } from "~/lib/money-format";
+import { plural } from "@drdustinedwards/site-helpers/text";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { CustomerRecommendation, RecommendedAction } from "./recommend";
 
@@ -84,7 +85,7 @@ export function engagementEvidence(e: CustomerRecommendation["engagement"], nowM
   const { emailsSent30d: sent, emailsOpened30d: opened, lastOpenAtMs } = e.evidence;
   if (e.band === "green" && lastOpenAtMs !== null) {
     const days = Math.max(0, Math.round((nowMs - lastOpenAtMs) / DAY_MS));
-    return `Engagement: green (${sent} sent, ${opened} opened, last open ${days} ${days === 1 ? "day" : "days"} ago)`;
+    return `Engagement: green (${sent} sent, ${opened} opened, last open ${plural(days, "day")} ago)`;
   }
   return `Engagement: ${e.band} (${sent} sent, ${opened} opened in last 30 days)`;
 }

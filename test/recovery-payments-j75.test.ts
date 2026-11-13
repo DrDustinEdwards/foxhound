@@ -66,7 +66,13 @@ function data(over: Partial<LoaderData> = {}): LoaderData {
     globalRecoveryRatePct: 25,
     pillCounts: { all: 4, active: 1, recovered: 1, failedUnrecovered: 1, cancelled: 1 },
     header: { atRisk: [{ currency: "usd", cents: 4999 }], recovered: [], ratePct: 0 },
-    bounds: { minCents: 0, maxCents: 100_000 },
+    bounds: {
+      minCents: 0,
+      maxCents: 100_000,
+      currency: "usd",
+      defaultCurrency: "usd",
+      currencies: ["usd"],
+    },
     nowMs: NOW,
     filters: {
       search: "",
@@ -302,7 +308,7 @@ describe("J75: the loader", () => {
       params: {},
     } as never)) as Response;
     expect(res.status).toBe(200);
-    return (await res.text()).trim().split("\n").slice(1);
+    return (await res.text()).trim().split("\r\n").slice(1);
   }
 
   it("exports the rows on screen, as Recova's Export CSV does, never every filtered row", async () => {

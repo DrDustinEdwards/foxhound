@@ -1,7 +1,8 @@
 import { DISPUTE_FEE_CAP_CENTS, STRIPE_PREVIEW_API_VERSION } from "~/lib/constants";
-import { currencyExponent } from "~/lib/money-format";
+import { fromMajorUnits } from "@dustinedwards/site-runtime/money";
 import { getStripe } from "~/lib/stripe/client";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE $500 CAP, CONVERTED AT RESOLUTION (ruling 377(7), PRICING.md rev 5 item 2,
 // reversing 376(6)'s "FX never").
 //
@@ -25,15 +26,6 @@ import { getStripe } from "~/lib/stripe/client";
 // response shape below is Stripe's documented one and has NOT been exercised
 // against a live account; that is stated rather than implied.
 
-/** Minor units per major unit for a currency, as Stripe reports amounts (100
- *  for USD, 1 for JPY, 1,000 for KWD, and 100 for UGX, which Stripe still
- *  sends as a two-decimal value). The exponent comes from the one table in
- *  money-format.ts, so the cap and every displayed amount agree on what a
- *  Stripe amount means. Getting this wrong scales a cap by 100. */
-export function minorUnitsPerMajor(currency: string): number {
-  return 10 ** currencyExponent(currency);
-}
-
 export interface ResolvedDisputeCap {
   /** The cap to apply, in the DISPUTE's minor units. */
   capMinorUnits: number;
@@ -48,9 +40,7 @@ export class DisputeCapQuoteError extends Error {
     readonly currency: string,
     cause: unknown,
   ) {
-    super(
-      `fx quote for usd->${currency} failed: ${cause instanceof Error ? cause.message : String(cause)}`,
-    );
+    super(`fx quote for usd->${currency} failed: ${errorMessage(cause)}`);
     this.name = "DisputeCapQuoteError";
   }
 }
@@ -118,7 +108,7 @@ export async function resolveDisputeCap(
   // being capped a hundred times too high.
   const capMajor = (DISPUTE_FEE_CAP_CENTS / 100) * rate;
   return {
-    capMinorUnits: Math.round(capMajor * minorUnitsPerMajor(code)),
+    capMinorUnits: fromMajorUnits(capMajor, code),
     rate,
     quoteId: quote.id ?? null,
     quotedAt: now,

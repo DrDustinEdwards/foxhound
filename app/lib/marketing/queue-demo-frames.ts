@@ -1,6 +1,8 @@
 // The home hero's recovery queue (components/recovery-queue-demo.tsx) as data: its frames and the classes
 // each state draws with. Shared with the queue-demo island (islands/queue-demo.ts), which plays the same
-// frames on a page that does not hydrate. No imports: the island is bundled on its own.
+// frames on a page that does not hydrate. The island is bundled on its own, so the one import is Prelum's
+// dependency-free ./text.
+import { formatCount } from "@drdustinedwards/site-helpers/text";
 
 export type Status = "failed" | "running" | "recovered";
 type StepState = "done" | "active" | "pending";
@@ -170,7 +172,7 @@ export function statValueClass(tone?: string): string {
 }
 
 export function recoveredText(recovered: number): string {
-  return `$${recovered.toLocaleString("en-US")}`;
+  return `$${formatCount(recovered)}`;
 }
 
 export function recoveredTone(recovered: number): string {

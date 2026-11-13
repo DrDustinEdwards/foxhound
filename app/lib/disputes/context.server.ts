@@ -14,6 +14,8 @@ import {
   disputeContextColumns,
   emptyDisputeContext,
 } from "./triage";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
+import { stripeDate } from "~/lib/stripe/time";
 
 // Recova's fetchDisputeContext (lib/disputes-evidence.ts, blob 2d5e7af6) on the
 // connected account's own token: the disputed charge's billing details, card
@@ -46,10 +48,6 @@ function combineAvs(
   return `line1:${line1 ?? "n/a"} zip:${zip ?? "n/a"}`;
 }
 
-function iso(seconds: number | null | undefined): string | null {
-  return seconds ? new Date(seconds * 1000).toISOString() : null;
-}
-
 /** Prior charges read for evidence, and how many are listed in it. */
 const PRIOR_CHARGES_CAP = 500;
 const PRIOR_CHARGES_LISTED = 20;
@@ -67,10 +65,7 @@ export async function fetchDisputeContextWith(
     };
     context.smartDisputesStatus = dispute.smart_disputes?.status ?? null;
   } catch (err) {
-    console.error(
-      "dispute context: disputes.retrieve failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: disputes.retrieve failed", errorMessage(err));
   }
 
   let disputedCurrency: string | null = null;
@@ -87,15 +82,12 @@ export async function fetchDisputeContextWith(
     context.radarRiskScore = charge.outcome?.risk_score ?? null;
     context.radarRiskLevel = charge.outcome?.risk_level ?? null;
     context.threeDSecure = card?.three_d_secure?.result ?? null;
-    context.serviceDate = new Date(charge.created * 1000);
+    context.serviceDate = stripeDate(charge.created);
     context.customerId =
       input.customerId ??
       (typeof charge.customer === "string" ? charge.customer : (charge.customer?.id ?? null));
   } catch (err) {
-    console.error(
-      "dispute context: charges.retrieve failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: charges.retrieve failed", errorMessage(err));
     return context;
   }
 
@@ -117,13 +109,13 @@ export async function fetchDisputeContextWith(
       .filter((c) => !disputedCurrency || c.currency === disputedCurrency)
       .reduce((sum, c) => sum + c.amount, 0);
     context.priorChargesJson = historic.slice(0, PRIOR_CHARGES_LISTED).map((c) => ({
-      date: new Date(c.created * 1000).toISOString(),
+      date: stripeDate(c.created).toISOString(),
       amount: c.amount,
       currency: c.currency,
       status: c.status,
     }));
   } catch (err) {
-    console.error("dispute context: charges.list failed", err instanceof Error ? err.message : err);
+    console.error("dispute context: charges.list failed", errorMessage(err));
   }
 
   try {
@@ -134,16 +126,13 @@ export async function fetchDisputeContextWith(
       context.subscriptionJson = {
         id: sub.id,
         status: sub.status,
-        start_date: iso(sub.start_date),
-        canceled_at: iso(sub.canceled_at),
+        start_date: stripeDate(sub.start_date)?.toISOString() ?? null,
+        canceled_at: stripeDate(sub.canceled_at)?.toISOString() ?? null,
         plan_amount: sub.items.data[0]?.price?.unit_amount ?? null,
       };
     }
   } catch (err) {
-    console.error(
-      "dispute context: subscriptions.list failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: subscriptions.list failed", errorMessage(err));
   }
 
   return context;
@@ -167,10 +156,7 @@ async function fetchDisputeContext(
     const stripe = getConnectedStripe(await decryptToken(env, row.token));
     return await fetchDisputeContextWith(stripe, input);
   } catch (err) {
-    console.error(
-      "dispute context: connection read failed",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("dispute context: connection read failed", errorMessage(err));
     return emptyDisputeContext(input.customerId);
   }
 }

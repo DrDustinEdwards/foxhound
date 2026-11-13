@@ -1,7 +1,14 @@
 // Pure display helpers for /admin/platform/crons and the Overview's cron health, shared
 // by both pages (not a .server module: the components render them).
 
+import { plural } from "@drdustinedwards/site-helpers/text";
 import { ordinal } from "~/lib/billing/page";
+
+/** A run's id: its job and start (epoch ms), the key of its cron_run_log row. email_sends and audit_digest_runs
+ *  record it as cron_run_id, and the Crons page anchors the run by it. */
+export function cronRunId(cronName: string, startedAt: number): string {
+  return `${cronName}-${startedAt}`;
+}
 
 /** The element id of one run on /admin/platform/crons. */
 export function cronRunAnchor(runId: string): string {
@@ -86,7 +93,7 @@ export function cronEnableHref(cronName: string): string {
 
 /** "19 scheduled jobs, 1 switched off.", "1 scheduled job, none switched off." */
 export function cronsSummaryWords(total: number, switchedOff: number): string {
-  const jobs = total === 1 ? "1 scheduled job" : `${total} scheduled jobs`;
+  const jobs = plural(total, "scheduled job");
   return `${jobs}, ${switchedOff === 0 ? "none" : switchedOff} switched off.`;
 }
 

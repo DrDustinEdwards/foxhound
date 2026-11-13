@@ -15,7 +15,6 @@ import {
 import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
-import { isSlug } from "@drdustinedwards/site-helpers/slug";
 import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import { desc, eq } from "drizzle-orm";
 
@@ -26,7 +25,6 @@ import {
   renamePost,
   setPublished,
   setTrashed,
-  uniqueSlugFromTitle,
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
 import { renderMarkdown } from "~/lib/blog/markdown.server";
@@ -34,6 +32,7 @@ import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
+import { isSlug, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
 
 // The Carrel site adapter over Foxhound's blog. Posts live in
 // D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
@@ -255,7 +254,20 @@ export function carrelAdapter(
       const existing = await load(id);
       if (existing) throw new VersionConflictError(existing.version);
       const post = parse(source);
-      const slug = post.slug ?? (await uniqueSlugFromTitle(db, post.title));
+      const slug =
+        post.slug ??
+        (await uniqueSlug(post.title, {
+          fallback: "post",
+          max: 80,
+          taken: async (candidate) =>
+            (
+              await db
+                .select({ id: blogPosts.id })
+                .from(blogPosts)
+                .where(eq(blogPosts.slug, candidate))
+                .limit(1)
+            ).length > 0,
+        }));
       await createPost(db, {
         id,
         title: post.title,
@@ -623,7 +635,7 @@ export function carrelAdapter(
         const { html } = await renderMarkdown(db, post.body);
         return previewDocument({
           title: post.title,
-          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${escapeHtml(post.title)}</h1><div class="blog-prose e-content">${html}</div></article></main>`,
+          body: `<main class="mx-auto max-w-[680px] px-6 py-12"><article class="h-entry"><h1 class="mb-4 text-page-title font-medium leading-tight tracking-tight text-text">${escapeHtml(post.title)}</h1><div class="blog-prose e-content" data-context="prose">${html}</div></article></main>`,
           origin: SITE_ORIGIN,
           stylesheets,
           attributes: { "data-theme": "light" },

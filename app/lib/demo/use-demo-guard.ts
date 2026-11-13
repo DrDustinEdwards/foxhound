@@ -1,20 +1,16 @@
-import { createElement, useMemo, type FormHTMLAttributes } from "react";
-import { useRouteLoaderData } from "react-router";
+import { createElement, useMemo, type ComponentProps } from "react";
+import { Form, useRouteLoaderData } from "react-router";
 import "capsomer/banner.css";
 import "capsomer/read-only-form.css";
 import { ReadOnlyForm, type FormComponent } from "capsomer/react/read-only-form";
 
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
-import { routerForm } from "~/lib/router-link";
 
 // The same form, keeping the scroll position after its post (React Router's preventScrollReset),
 // for a form that saves as it is changed.
-const KeepScrollForm: FormComponent = (props: FormHTMLAttributes<HTMLFormElement>) =>
-  createElement(routerForm, {
-    ...props,
-    preventScrollReset: true,
-  } as FormHTMLAttributes<HTMLFormElement>);
+const KeepScrollForm: FormComponent = (props) =>
+  createElement(Form, { ...props, preventScrollReset: true });
 
 // The props every mutating form in the app shell gives Capsomer's ReadOnlyForm, so a demo
 // visitor who presses Save, Approve or any payment action stays where they are and reads why
@@ -26,7 +22,7 @@ const KeepScrollForm: FormComponent = (props: FormHTMLAttributes<HTMLFormElement
 export function useDemoGuard({ keepScroll = false }: { keepScroll?: boolean } = {}) {
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   return {
-    form: keepScroll ? KeepScrollForm : routerForm,
+    form: keepScroll ? KeepScrollForm : Form,
     readOnly: Boolean(shell?.isDemo),
     message: DEMO_READ_ONLY_MESSAGE,
   };
@@ -39,8 +35,8 @@ export function useDemoConfirmForm(): FormComponent {
   const { readOnly, message } = useDemoGuard();
   return useMemo<FormComponent>(
     () =>
-      function DemoConfirmForm(props: FormHTMLAttributes<HTMLFormElement>) {
-        return createElement(ReadOnlyForm, { ...props, form: routerForm, readOnly, message });
+      function DemoConfirmForm(props: ComponentProps<FormComponent>) {
+        return createElement(ReadOnlyForm, { ...props, form: Form, readOnly, message });
       },
     [readOnly, message],
   );

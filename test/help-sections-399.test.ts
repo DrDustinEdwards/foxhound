@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { accounts, cronRunHistory } from "~/db";
+import { cronRuns } from "~/db";
 import { cronDisplayStatus, getVisibleCronStatus } from "~/lib/help/platform-status.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -58,32 +58,17 @@ describe("cronDisplayStatus", () => {
 });
 
 describe("getVisibleCronStatus", () => {
-  async function seed(rows: { cronName: string; status: string; minutesAgo: number }[]) {
-    const { db } = createInMemoryDb();
-    const now = new Date(NOW);
-    await db.insert(accounts).values({ id: "acc_1", name: "Acme", createdAt: now });
-    let n = 0;
-    for (const r of rows) {
-      await db.insert(cronRunHistory).values({
-        id: "crh_" + n++,
-        cronName: r.cronName,
-        finishedAt: new Date(NOW - r.minutesAgo * 60_000),
-        status: r.status,
-        createdAt: now,
-      });
-    }
-    return db;
-  }
-
-  it("takes the newest SUCCESS for the time-ago and the newest run for the status", async () => {
+  it("takes the last SUCCESS for the time-ago and the newest run for the status", async () => {
     // The discriminating case: a cron that succeeded an hour ago and failed
     // five minutes ago must read as an error while still reporting the real
-    // last success. Taking the newest row for both would lose the success time;
-    // taking the newest success for both would hide the failure.
-    const db = await seed([
-      { cronName: "recovery-tick", status: "success", minutesAgo: 60 },
-      { cronName: "recovery-tick", status: "failed", minutesAgo: 5 },
-    ]);
+    // last success.
+    const { db } = createInMemoryDb();
+    await db.insert(cronRuns).values({
+      name: "recovery-tick",
+      everyMinutes: 5,
+      lastOkAt: NOW - 60 * 60_000,
+      lastFailedAt: NOW - 5 * 60_000,
+    });
     const row = (await getVisibleCronStatus(db, NOW)).find((r) => r.cronName === "recovery-tick")!;
     expect(row.status).toBe("error");
     expect(row.lastSucceededAt?.getTime()).toBe(NOW - 60 * 60_000);

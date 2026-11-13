@@ -162,7 +162,7 @@ describe("PLANT 2: the tools", () => {
   // The ruling's nine, plus the owner's test mail (preview and send), which
   // Dustin approved on 2026-10-15 (cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ).
   // test/admin-email-send-preview.test.ts holds those two to their own rules.
-  it("are exactly the ruling's nine, the two test-mail tools and the backup check, foxhound_admin_ named, with all four hints", () => {
+  it("are exactly the ruling's nine, the two test-mail tools, foxhound_admin_ named, with all four hints", () => {
     expect([...ADMIN_TOOL_NAMES].sort()).toEqual(
       [
         "foxhound_admin_whats_next",
@@ -172,7 +172,6 @@ describe("PLANT 2: the tools", () => {
         "foxhound_admin_check_health",
         "foxhound_admin_read_audit_log",
         "foxhound_admin_pause",
-        "foxhound_admin_check_backup",
         "foxhound_admin_stage_change",
         "foxhound_admin_list_staged",
         "foxhound_admin_preview_email",
@@ -246,7 +245,6 @@ describe("PLANT 2: the tools", () => {
       ["foxhound_admin_read_audit_log", {}, "GET", "/api/admin/v1/audit-log"],
       ["foxhound_admin_list_staged", {}, "GET", "/api/admin/v1/staged"],
       ["foxhound_admin_pause", { account_id: "acct_a" }, "POST", "/api/admin/v1/pause"],
-      ["foxhound_admin_check_backup", {}, "GET", "/api/admin/v1/backup"],
       [
         "foxhound_admin_stage_change",
         { kind: "resume_account", account_id: "acct_a" },

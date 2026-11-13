@@ -7,6 +7,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { readEvidenceFile } from "~/lib/disputes/evidence-files.server";
 
 import type { Route } from "./+types/file";
+import { contentDisposition } from "@dustinedwards/site-runtime/r2-object";
 
 // /disputes/:id/files/:fileId: one merchant evidence file, served by the
 // Worker. Recova's evidence-url route (57ccef71) checked the key's account
@@ -14,7 +15,7 @@ import type { Route } from "./+types/file";
 // S3 URL; Foxhound's bucket is a Worker binding with no signed URLs, so the
 // Worker checks the row under the signed-in account and this dispute and
 // streams the object itself. The file is someone's customer data: never
-// cached (the one cache policy, app/lib/http/cache-policy.ts, makes this path
+// cached (site-runtime's Worker sends an answer with no Cache-Control as
 // private, no-store, so the route sets no header of its own), never sniffed
 // into another type, and inert: site-runtime's UPLOAD_HEADERS (nosniff and a
 // sandboxed policy that loads nothing), except a PDF's policy below.
@@ -50,7 +51,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
         ? { "Content-Security-Policy": PDF_POLICY }
         : {}),
       "Content-Type": result.contentType,
-      "Content-Disposition": `inline; filename="${result.name.replace(/[^A-Za-z0-9._-]/g, "")}"`,
+      "Content-Disposition": contentDisposition("inline", result.name),
     },
   });
 }

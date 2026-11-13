@@ -1,24 +1,22 @@
+import { formatDate, relative, toMs } from "capsomer/behavior/time";
 import { isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { recoveryFeeCents } from "~/lib/billing/fees";
-import {
-  DAY_MS,
-  type DeclineCategory,
-  HOUR_MS,
-  RECOVERY_FEE_BPS,
-  RECOVERY_MATURITY_MS,
-} from "~/lib/constants";
+import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
+import { DAY_MS, type DeclineCategory, RECOVERY_MATURITY_MS } from "~/lib/constants";
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
-import { formatRelativeTime } from "~/lib/dashboard/recovery-window";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { buildTeamflowBase } from "~/lib/demo/customer-base";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, formatStepType } from "~/lib/recovery/labels";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 import { summarizeSequence } from "~/lib/recovery/sequence-summary";
+import { hourlyPreview } from "./hourly-preview";
 
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
+import { percent } from "capsomer/behavior/meter";
 
 // The data behind the /product/recovery previews: the demo account's
 // seed, never a merchant's rows. Recova draws these from hardcoded Teamflow
@@ -68,13 +66,6 @@ function roiColumn(rows: { amountCents: number; currency: string }[]): RoiColumn
   };
 }
 
-const DATE_FORMAT = new Intl.DateTimeFormat("en-US", {
-  month: "short",
-  day: "numeric",
-  year: "numeric",
-  timeZone: "UTC",
-});
-
 /** Build the preview as of `now`. Pure: the same instant gives the same preview. */
 function buildRecoveryPreview(now: Date): RecoveryPreview {
   const nowMs = now.getTime();
@@ -102,11 +93,11 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
   const cohort = failures.filter((f) => f.detectedAt.getTime() >= cutoff30);
   const ratePct =
     cohort.length > 0
-      ? Math.round((cohort.filter((f) => recoveredIds.has(f.id)).length / cohort.length) * 100)
+      ? percent(cohort.filter((f) => recoveredIds.has(f.id)).length, cohort.length)
       : null;
 
   const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));
-  const firstOfMonth = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
+  const firstOfMonth = startOfUtcMonthMs(nowMs);
   // This month: Foxhound-attributed recoveries since the 1st, matured or not.
   // Asking isBillableRecoveryRow as of each row's own maturity date keeps the
   // engine's attribution allow-list and its refund, dispute and delete checks
@@ -155,8 +146,8 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       status: f.status,
       statusLabel: FAILED_PAYMENT_STATUS_LABELS[f.status] ?? f.status,
       failureCount: failuresByCustomer.get(f.stripeCustomerId) ?? 1,
-      detectedAgo: formatRelativeTime(f.detectedAt, nowMs) ?? "",
-      detectedDate: DATE_FORMAT.format(f.detectedAt),
+      detectedAgo: relative(toMs(f.detectedAt), nowMs, "UTC", { granularity: "day" }),
+      detectedDate: formatDate(f.detectedAt, { style: "medium" }) ?? "",
     };
   });
 
@@ -174,7 +165,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       rateTone: ratePct === null ? null : recoveryRateTone(ratePct),
     },
     roi: {
-      feePct: RECOVERY_FEE_BPS / 100,
+      feePct: RECOVERY_FEE_PERCENT,
       thisMonth: roiColumn(thisMonth),
       allTime: roiColumn(billable),
     },
@@ -185,11 +176,4 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
 // The seed walks ninety days of a 200-customer account, which is real work, so
 // one preview serves every request in the same hour. Its relative times ("2d
 // ago") are read at the hour too, which keeps them right to the day.
-let cached: { hour: number; preview: RecoveryPreview } | null = null;
-
-export function recoveryPreviewFor(nowMs: number): RecoveryPreview {
-  const hour = Math.floor(nowMs / HOUR_MS);
-  if (cached?.hour !== hour)
-    cached = { hour, preview: buildRecoveryPreview(new Date(hour * HOUR_MS)) };
-  return cached.preview;
-}
+export const recoveryPreviewFor = hourlyPreview(buildRecoveryPreview);

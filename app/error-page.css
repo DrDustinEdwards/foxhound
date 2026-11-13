@@ -1,5 +1,5 @@
-/* The 404 and error page (Capsomer's ErrorPage in app/root.tsx, the bar, footer
-   and 410 withdrawal in app/components/error-view.tsx): Capsomer's button,
+/* The 404, 410 and error page (Capsomer's ErrorPage in app/root.tsx, the bar,
+   footer and words in app/components/error-view.tsx): Capsomer's button,
    Empty and error page on the amber family, in Foxhound's neutrals.
 
    Same pattern as app/site-header.css: Capsomer's tokens and the amber family
@@ -17,30 +17,6 @@
 @import "capsomer/button.css";
 @import "capsomer/empty.css";
 @import "capsomer/error-page.css";
-
-/* The numeral's two tones (Recova's expected-state accent and red, carried
-   onto the amber family): the family's accent text for an expected state (404, the 410
-   withdrawal), its critical color for a fault. Both read from the
-   data-family="amber" wrapper, so they switch with the theme on their own. */
-.fh-error-page .fh-error-numeral {
-  color: var(--accent-text);
-}
-.fh-error-page .fh-error-numeral[data-tone="fault"] {
-  color: var(--crit);
-}
-
-/* Foxhound's global focus rule (app.css, *:focus-visible) is unlayered, so it
-   beats Capsomer's layered ring on every element: a 2px --border-focus outline, and
-   corners squared to 2px on the focused button itself. Reverting those three
-   properties to the layer below hands the button back its own ring (3px,
-   opaque, the family's --ring, button.md "The default and its reason"); it
-   adds nothing to the component. The site header does the same for its
-   corners (app.css, .cap-site-header :focus-visible). */
-.fh-error-page .cap-btn:focus-visible {
-  outline: revert-layer;
-  outline-offset: revert-layer;
-  border-radius: revert-layer;
-}
 
 /* The bar, in the site header's band colors (app.css, .fh-cap
    .cap-site-header): Foxhound's chrome, its line, and the header's wordmark in

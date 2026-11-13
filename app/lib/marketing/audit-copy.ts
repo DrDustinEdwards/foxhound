@@ -1,3 +1,4 @@
+import { formatDate } from "capsomer/behavior/time";
 import { AUDIT_SUMMARY_STRUCTURE } from "~/lib/audit/summary";
 import { ordinal } from "~/lib/billing/page";
 import {
@@ -12,6 +13,7 @@ import {
   AUDIT_SCOPE_WORDS,
 } from "~/lib/marketing/audit-access";
 import { countWord } from "~/lib/marketing/decline-categories";
+import { listText } from "capsomer/behavior/hooks";
 
 // The /product/audit copy. Recova's spec is
 // app/(marketing)/product/audit/page.tsx (blob 210ce79d) and
@@ -63,13 +65,12 @@ const autoRunDay = ordinal(AUDIT_AUTO_RUN_DAY);
 const summarySentences = countWord(AUDIT_SUMMARY_STRUCTURE.length).toLowerCase();
 /** "the biggest revenue leak with its dollar amount, what Foxhound fixes
  *  automatically today, and one forward-looking risk or opportunity". */
-const summaryPlan = (() => {
-  const parts = AUDIT_SUMMARY_STRUCTURE.map((s) => {
+const summaryPlan = listText(
+  AUDIT_SUMMARY_STRUCTURE.map((s) => {
     const bare = s.replace(/\.$/, "");
     return bare.charAt(0).toLowerCase() + bare.slice(1);
-  });
-  return `${parts.slice(0, -1).join(", ")}, and ${parts[parts.length - 1]}`;
-})();
+  }),
+);
 
 export const AUDIT_META_DESCRIPTION =
   "Free Stripe diagnostic. See failed invoices, expiring cards, open disputes, and business health in 30 seconds. No account required.";
@@ -220,11 +221,7 @@ export const AUDIT_HISTORY_EXAMPLE = [
   { month: 3, summary: "4 failed · 1 expiring · 1 dispute" },
   { month: 2, summary: "2 failed · 0 expiring · 0 disputes" },
 ].map((run) => ({
-  date: new Intl.DateTimeFormat("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: "UTC",
-  }).format(new Date(Date.UTC(2026, run.month, AUDIT_AUTO_RUN_DAY))),
+  date:
+    formatDate(new Date(Date.UTC(2026, run.month, AUDIT_AUTO_RUN_DAY)), { style: "medium" }) ?? "",
   summary: run.summary,
 }));

@@ -1,6 +1,12 @@
-import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
+import {
+  errorMessage,
+  logEvent,
+  OWASP_EVENTS,
+  requestFields,
+} from "@dustinedwards/site-runtime/log";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 import { eq } from "drizzle-orm";
+import { jsonResponse } from "@dustinedwards/site-runtime/http";
 
 import { getDb, type Db } from "~/db";
 import { accounts, adminApiCalls } from "~/db/schema";
@@ -29,7 +35,6 @@ import {
   listMerchants,
   setProcessingPaused,
 } from "~/lib/admin/merchants.server";
-import { backupStatus } from "~/lib/backup/d1-backup";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import {
@@ -40,13 +45,15 @@ import {
 } from "~/lib/admin/staged.server";
 import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
-import { isAdminEmail } from "~/lib/auth/roles";
+import { isAdminEmail } from "@dustinedwards/site-runtime/access";
+import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
 import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit, isWithinRateLimit } from "~/lib/http/rate-limit";
 import { ToolInputError } from "~/lib/mcp/registry";
 import { MERCHANT_TOOLS } from "~/lib/mcp/tools.server";
 import { readJson } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding";
 
 // THE FOXHOUND ADMIN API at /api/admin/v1 (MCP ruling 2026-10-10, rule 9
 // amendment; job_21de68b30fc2 PR 1).
@@ -65,7 +72,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // next call, whatever the MCP still believes. The key failures share one 401
 // body so a guess cannot tell a revoked key from an unknown one.
 //
-// WHAT IT OFFERS. Reads, the files backup run now (copy only), a pause (one merchant, or every merchant through the
+// WHAT IT OFFERS. Reads (backups are Capsid Admin's, through /api/operator), a pause (one merchant, or every merchant through the
 // brake), staging, and the owner's test mail (/emails: preview any email, or
 // send it to the caller's own inbox; ../admin/email-send.server.ts, approved by
 // Dustin 2026-10-15). Test mail moves no money and writes no recovery state. Pausing stops money moving, so it is a direct write;
@@ -100,37 +107,20 @@ class ApiError extends Error {
   }
 }
 
-function json(status: number, body: Json): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json", "Cache-Control": "private, no-store" },
-  });
-}
-
-const UNAUTHORIZED = () => json(401, { ok: false, error: "Unauthorized" });
+const UNAUTHORIZED = () => jsonResponse({ ok: false, error: "Unauthorized" }, 401);
 
 async function authenticate(request: Request, env: Env, db: Db): Promise<Caller | Response> {
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
   const refuse = async (response: Response, reason: string) => {
     logEvent(
       OWASP_EVENTS.authorizationFailure,
       { ...requestFields(request), door: "admin-api", reason },
       { level: "warn" },
     );
-    const allowed = await isWithinRateLimit(
-      env,
-      "admin-api-anon",
-      ip,
-      RATE_LIMIT_MCP_ANON.max,
-      RATE_LIMIT_MCP_ANON.windowMs,
-    );
-    return allowed ? response : json(429, { ok: false, error: "Too many requests" });
+    const allowed = await isIpWithinRateLimit(env, request, "admin-api-anon", RATE_LIMIT_MCP_ANON);
+    return allowed ? response : jsonResponse({ ok: false, error: "Too many requests" }, 429);
   };
 
-  const header = request.headers.get("authorization") ?? "";
-  const token = header.toLowerCase().startsWith("bearer ")
-    ? header.slice("bearer ".length).trim()
-    : "";
+  const token = bearerToken(request.headers.get("authorization")) ?? "";
   if (!token.startsWith(MCP_TOKEN_PREFIX)) return refuse(UNAUTHORIZED(), "no admin key");
   const verified = await verifyMcpToken(db, token);
   if (!verified || verified.scope !== MCP_TOKEN_SCOPE.ADMIN)
@@ -139,10 +129,13 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
   const actor = (request.headers.get(ACTING_ADMIN_HEADER) ?? "").trim().toLowerCase();
   if (!isAdminEmail(env, actor)) {
     return refuse(
-      json(403, {
-        ok: false,
-        error: `The acting admin is missing or not a Foxhound admin. Send the signed-in admin's email in ${ACTING_ADMIN_HEADER}.`,
-      }),
+      jsonResponse(
+        {
+          ok: false,
+          error: `The acting admin is missing or not a Foxhound admin. Send the signed-in admin's email in ${ACTING_ADMIN_HEADER}.`,
+        },
+        403,
+      ),
       "acting admin not on ADMIN_EMAIL",
     );
   }
@@ -154,7 +147,7 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
     RATE_LIMIT_MCP.max,
     RATE_LIMIT_MCP.windowMs,
   );
-  if (!within) return json(429, { ok: false, error: "Too many requests" });
+  if (!within) return jsonResponse({ ok: false, error: "Too many requests" }, 429);
   return { keyId: verified.keyId, actorEmail: actor };
 }
 
@@ -165,12 +158,8 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
 function page(url: URL, route: string): number {
   const raw = url.searchParams.get("cursor");
   if (!raw) return 1;
-  try {
-    const { t, p } = JSON.parse(atob(raw)) as { t?: unknown; p?: unknown };
-    if (t === route && typeof p === "number" && Number.isInteger(p) && p >= 1) return p;
-  } catch {
-    // Falls through to the refusal.
-  }
+  const p = readPageCursor(route, raw);
+  if (p !== null && p >= 1) return p;
   throw new ApiError(
     400,
     `That cursor was not issued by ${route}. Omit cursor to start from the first page.`,
@@ -184,9 +173,7 @@ function slice<T>(route: string, rows: T[], pageNumber: number) {
     items,
     total: rows.length,
     has_more: hasMore,
-    next_cursor: hasMore
-      ? btoa(JSON.stringify({ t: route, p: pageNumber + 1 })).replace(/=+$/, "")
-      : null,
+    next_cursor: hasMore ? pageCursor(route, pageNumber + 1) : null,
   };
 }
 
@@ -447,13 +434,6 @@ const ROUTES: ApiRoute[] = [
     },
   },
   {
-    // The backup state now, uncached: the newest complete dump and each files pass, warning past 26 hours. The same
-    // read as /health's backup field, which /health caches for an hour.
-    method: "GET",
-    pattern: "/backup",
-    handler: async ({ env, now }) => ({ ...(await backupStatus(env, now)) }),
-  },
-  {
     method: "POST",
     pattern: "/pause",
     handler: async ({ db, caller, body }) => {
@@ -554,10 +534,7 @@ const ROUTES: ApiRoute[] = [
       } catch (err) {
         // The real send would refuse for the same reason (a CAN-SPAM guard, a
         // missing signing key), so the refusal is the answer.
-        throw new ApiError(
-          409,
-          `This email cannot be built: ${err instanceof Error ? err.message : String(err)}.`,
-        );
+        throw new ApiError(409, `This email cannot be built: ${errorMessage(err)}.`);
       }
       return { preview, merchant: merchantForPreview(merchant), note: EMAIL_NOTE };
     },
@@ -606,7 +583,7 @@ const ROUTES: ApiRoute[] = [
             type: type.type,
             status: "failed",
             provider_message_id: null,
-            error: err instanceof Error ? err.message : String(err),
+            error: errorMessage(err),
           });
           continue;
         }
@@ -667,12 +644,7 @@ async function logCall(
       createdAt: new Date(),
     });
   } catch (err) {
-    console.error(
-      "admin api call log write failed:",
-      caller.keyId,
-      path,
-      err instanceof Error ? err.message : String(err),
-    );
+    console.error("admin api call log write failed:", caller.keyId, path, errorMessage(err));
   }
 }
 
@@ -706,7 +678,7 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
   let error: string | null = null;
   if (!found) {
     error = `No ${request.method} ${path}. This API offers: ${ADMIN_API_ROUTES.join(", ")}.`;
-    response = json(404, { ok: false, error });
+    response = jsonResponse({ ok: false, error }, 404);
   } else {
     try {
       const data = await found.route.handler({
@@ -718,17 +690,17 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
         body,
         now: new Date(),
       });
-      response = json(200, { ok: true, data });
+      response = jsonResponse({ ok: true, data });
     } catch (err) {
       if (err instanceof ApiError) {
         error = err.message;
-        response = json(err.status, { ok: false, error });
+        response = jsonResponse({ ok: false, error }, err.status);
       } else {
         // An unexpected failure's text stays on the server, as on the merchant
         // MCP: it can carry the values of the query it failed on.
-        console.error("admin api failed:", path, err instanceof Error ? err.message : String(err));
+        console.error("admin api failed:", path, errorMessage(err));
         error = "Foxhound could not finish this call because of an internal error. Try again.";
-        response = json(500, { ok: false, error });
+        response = jsonResponse({ ok: false, error }, 500);
       }
     }
   }

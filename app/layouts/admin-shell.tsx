@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
+import { useEffect, useState } from "react";
 import { Outlet, useLocation, useMatches, useNavigate, useRouteLoaderData } from "react-router";
 import {
   Activity,
@@ -18,21 +19,16 @@ import {
   type AdminApp,
   type AdminEntry,
 } from "capsomer/react/admin-shell";
+import { initialsOf } from "capsomer/react/site-header";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 
 import "~/admin.css";
 import { HoundMark } from "~/components/hound-mark";
-import {
-  personInitials,
-  renderHeaderLink,
-  THEME_PREF_KEY,
-  useThemeMemory,
-} from "~/components/site-header";
+import { renderHeaderLink, THEME_PREF_KEY, themeMemory } from "~/components/site-header";
 import { adminContext } from "~/lib/admin/context";
 import { adminPageName } from "~/lib/admin/page";
-import { getAdminSession } from "~/lib/auth/access.server";
+import { accessAdmin } from "@dustinedwards/site-runtime/access";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { useCollapseKey } from "~/lib/use-collapse-key";
 import { useReadAt } from "~/lib/use-read-at";
 import { DEFAULT_THEME, type Theme } from "~/lib/theme";
 import { noindexHeader } from "~/lib/seo/meta";
@@ -45,16 +41,19 @@ export const handle = { hydrate: true };
 
 // The ONE gate for /admin. Cloudflare Access signs the person in before a
 // request reaches the Worker; this re-verifies Access's JWT and the
-// ADMIN_EMAIL and CO_OWNER_EMAILS roster (app/lib/auth/access.server.ts), so a request that got
+// ADMIN_EMAIL and CO_OWNER_EMAILS roster (site-runtime accessAdmin), so a request that got
 // round Access, or an Access setup that is wrong, never reaches an admin loader
 // or action. Anything else gets a 404, as before, so /admin's existence is not
 // disclosed. /admin no longer sits under the merchant app shell: no Better Auth
 // session, no account, no demo cookie are involved.
+// Drawn for one reader and kept out of Web Analytics (site-runtime PRIVATE_PAGE_HEADERS); the children inherit it.
+export const headers = () => PRIVATE_PAGE_HEADERS;
+
 export const middleware: Route.MiddlewareFunction[] = [
   noindexHeader,
   async ({ request, context }, next) => {
     const { env } = context.get(cloudflareContext);
-    const session = await getAdminSession(env, request);
+    const session = await accessAdmin(request, env);
     if (!session) throw new Response("Not Found", { status: 404 });
     // ONLY THIS ORIGIN MAY WRITE. Access's CF_Authorization cookie rides along
     // on a POST from any site the admin has open, so every admin action (the
@@ -75,16 +74,18 @@ export function loader({ context }: Route.LoaderArgs) {
 
 const icon = (Icon: typeof LayoutDashboard) => <Icon className="cap-admin-icon" aria-hidden />;
 
-// The admin's pages, grouped as the menu shows them. `match` decides which
-// entry is current. The phone's tab bar takes the first five (Capsomer 0.9.0:
-// no More tab, because the header's menu button opens the full list).
-const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
+// The admin's pages, grouped as the menu shows them. The shell marks the
+// current one from the address (its `pathname`, the longest href winning).
+// The phone's tab bar takes the first five (Capsomer 0.9.0: no More tab,
+// because the header's menu button opens the full list).
+const ENTRIES: AdminEntry[] = [
   {
     id: "overview",
     label: "Overview",
     href: "/admin",
     icon: icon(LayoutDashboard),
-    match: (p) => p === "/admin",
+    // Only /admin itself: an address below it marks its own entry or none.
+    match: [/^\/admin$/],
   },
   {
     id: "merchants",
@@ -92,7 +93,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/merchants",
     group: "Customers",
     icon: icon(Store),
-    match: (p) => p.startsWith("/admin/merchants"),
   },
   {
     id: "users",
@@ -100,7 +100,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/users",
     group: "Customers",
     icon: icon(Users),
-    match: (p) => p.startsWith("/admin/users"),
   },
   {
     id: "operations",
@@ -108,7 +107,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/operations",
     group: "Platform",
     icon: icon(Activity),
-    match: (p) => p.startsWith("/admin/operations"),
   },
   {
     id: "crons",
@@ -116,7 +114,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/crons",
     group: "Platform",
     icon: icon(Clock),
-    match: (p) => p.startsWith("/admin/platform/crons"),
   },
   {
     id: "errors",
@@ -124,7 +121,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/errors",
     group: "Platform",
     icon: icon(Bug),
-    match: (p) => p.startsWith("/admin/platform/errors"),
   },
   {
     id: "webhooks",
@@ -132,7 +128,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/webhooks",
     group: "Platform",
     icon: icon(Webhook),
-    match: (p) => p.startsWith("/admin/platform/webhooks"),
   },
   {
     id: "brake",
@@ -140,7 +135,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/brake",
     group: "Controls",
     icon: icon(OctagonPause),
-    match: (p) => p.startsWith("/admin/brake"),
   },
   {
     id: "staged",
@@ -148,7 +142,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/staged",
     group: "Controls",
     icon: icon(ListChecks),
-    match: (p) => p.startsWith("/admin/staged"),
   },
   {
     id: "audit-log",
@@ -156,7 +149,6 @@ const ENTRIES: Array<AdminEntry & { match: (path: string) => boolean }> = [
     href: "/admin/platform/audit-log",
     group: "Records",
     icon: icon(ScrollText),
-    match: (p) => p.startsWith("/admin/platform/audit-log"),
   },
 ];
 
@@ -175,25 +167,30 @@ const STRIP_APPS: AdminApp[] = FAMILY_APPS.map(({ id, label, href, logo }) => ({
 // Capsomer's tokens are keyed on data-cap-theme. It follows the site's own
 // theme, which the root loader already resolved for <html data-theme>, so the
 // server render has the right palette and nothing flashes. The header's theme
-// button sets <html data-theme> and announces a "cap-theme" event; this keeps
-// the admin's palette and Foxhound's fh_theme cookie in step with it. The
-// button's own memory is set to the same answer before it reads it.
-function useAdminTheme(): Theme {
+// button sets <html data-theme>, saves the choice to Foxhound's fh_theme cookie
+// (themeMemory) and announces a "cap-theme" event; this keeps the admin's
+// palette in step with it.
+function useAdminTheme(): { served: Theme; showing: Theme } {
   const rootData = useRouteLoaderData<typeof rootLoader>("root");
   const initial = rootData?.theme ?? DEFAULT_THEME;
   const [theme, setTheme] = useState<Theme>(initial);
-  useThemeMemory(initial, "cookie", setTheme);
-  return theme;
+  useEffect(() => {
+    const onTheme = (e: Event) => {
+      const choice = (e as CustomEvent<{ choice?: string }>).detail?.choice;
+      if (choice === "light" || choice === "dark") setTheme(choice);
+    };
+    document.addEventListener("cap-theme", onTheme);
+    return () => document.removeEventListener("cap-theme", onTheme);
+  }, []);
+  return { served: initial, showing: theme };
 }
 
 export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   const { pathname } = useLocation();
   const matches = useMatches();
   const navigate = useNavigate();
-  const theme = useAdminTheme();
+  const { served, showing: theme } = useAdminTheme();
   const readAt = useReadAt(loaderData.readAt);
-  useCollapseKey();
-  const nav = ENTRIES.map(({ match, ...entry }) => ({ ...entry, current: match(pathname) }));
   const page = adminPageName(matches) ?? "Foxhound admin";
   const { email } = loaderData;
 
@@ -217,10 +214,12 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         // Each admin route's meta title stays the browser title.
         documentTitle={false}
         page={page}
-        nav={nav}
+        nav={ENTRIES}
+        pathname={pathname}
         apps={STRIP_APPS}
         prefKey="foxhound-admin"
         themePrefKey={THEME_PREF_KEY}
+        {...themeMemory("cookie", served)}
         renderLink={renderHeaderLink}
         updated={{ at: readAt }}
         status={<h1 className="fh-admin-page-name">{page}</h1>}
@@ -232,13 +231,11 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
           // The Access login, not the family owner's name: Foxhound stands
           // apart from the Dustin Edwards network.
           name: email,
-          initials: personInitials(null, email),
+          initials: initialsOf(null, email),
           role: "Admin",
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.
-          onSignOut: () => {
-            window.location.assign("/cdn-cgi/access/logout");
-          },
+          accessLogout: true,
         }}
       >
         {/* The one page frame (Capsomer's .cap-admin-page): every admin page

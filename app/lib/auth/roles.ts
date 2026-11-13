@@ -5,8 +5,6 @@
 //   Account role   - owner vs member, stored on account_members.role. Governs
 //                    team permissions within a single merchant account.
 
-export { isAdminEmail } from "@dustinedwards/site-runtime/access";
-
 import { DAY_MS } from "~/lib/constants";
 
 export const MEMBER_ROLE = {
@@ -34,5 +32,5 @@ export const MEMBER_STATUS = {
 /** Team invites expire after 7 days. */
 export const INVITE_TTL_MS = 7 * DAY_MS;
 
-// isAdminEmail (re-exported above): true when the email is ADMIN_EMAIL (the main admin) or on
+// isAdminEmail (site-runtime/access): true when the email is ADMIN_EMAIL (the main admin) or on
 // CO_OWNER_EMAILS, as site-runtime's admin roster reads them.

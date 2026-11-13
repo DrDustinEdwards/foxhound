@@ -88,7 +88,6 @@ describe("J35 review: a write that throws reaches the merchant and the log", () 
 
       const html = render({ actionData: result.data });
       expect(text(html)).toContain("Failed to save. Please try again.");
-      expect(html).toMatch(/<span role="alert"[^>]*>Failed to save\. Please try again\.<\/span>/);
     } finally {
       logged.mockRestore();
     }

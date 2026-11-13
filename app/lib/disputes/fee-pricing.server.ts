@@ -9,6 +9,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { sendDisputeFeeNotice } from "./notices.server";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE PRICING RETRY for a won dispute whose fee could not be priced at
 // resolution (Dustin, 2026-10-25, "Skip until priced").
 //
@@ -184,7 +185,7 @@ export async function priceUnpricedDisputeFees(
       cap = await resolveDisputeCap(env, win.currency, now);
     } catch (err) {
       result.failed += 1;
-      result.errors.push(`${win.id}: ${err instanceof Error ? err.message : String(err)}`);
+      result.errors.push(`${win.id}: ${errorMessage(err)}`);
       continue;
     }
 
@@ -226,7 +227,7 @@ export async function priceUnpricedDisputeFees(
   return result;
 }
 
-/** The cron_run_history message. */
+/** The cron_run_log message. */
 export function describeDisputeFeePricing(result: DisputeFeePricingResult): string {
   const base = `${result.priced} dispute fees priced, ${result.notified} merchants told, ${result.failed} still unpriced`;
   return result.mismatched > 0

@@ -1,7 +1,7 @@
 import { eq, isNotNull } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
-import { stripeConnections } from "~/db/schema";
+import { accounts, stripeConnections } from "~/db/schema";
 import { keyIdOf, loadKeyring, reencryptToken } from "~/lib/stripe/encryption";
 
 /** Step 4 of the rotation runbook in app/lib/stripe/encryption.ts: move every
@@ -40,25 +40,52 @@ export async function reencryptConnectionTokens(env: Env, db: Db): Promise<Rotat
   // Loaded once and up front so a broken keyring fails before any row is
   // touched, rather than half way through a rewrite.
   const keyring = loadKeyring(env);
-
   const rows = await db
     .select({ id: stripeConnections.id, token: stripeConnections.stripeAccessToken })
     .from(stripeConnections)
     .where(isNotNull(stripeConnections.stripeAccessToken));
+  return reencryptRows(env, keyring.activeId, rows, async (id, next) => {
+    await db
+      .update(stripeConnections)
+      .set({ stripeAccessToken: next })
+      .where(eq(stripeConnections.id, id));
+  });
+}
 
+/** The same step for the sealed Slack webhook URLs on accounts
+ *  (app/lib/notify/slack-webhook-secret.server.ts), which share the keyring, so a
+ *  rotation is finished only when both report zero failures. `connectionId` in
+ *  the report carries the account id here. */
+export async function reencryptSlackWebhooks(env: Env, db: Db): Promise<RotationReport> {
+  const keyring = loadKeyring(env);
+  const rows = await db
+    .select({ id: accounts.id, token: accounts.slackWebhookUrl })
+    .from(accounts)
+    .where(isNotNull(accounts.slackWebhookUrl));
+  return reencryptRows(env, keyring.activeId, rows, async (id, next) => {
+    await db.update(accounts).set({ slackWebhookUrl: next }).where(eq(accounts.id, id));
+  });
+}
+
+async function reencryptRows(
+  env: Env,
+  activeKeyId: string,
+  rows: { id: string; token: string | null }[],
+  write: (id: string, next: string) => Promise<void>,
+): Promise<RotationReport> {
   const report: RotationReport = {
     scanned: rows.length,
     rewritten: 0,
     alreadyActive: 0,
     failures: [],
-    activeKeyId: keyring.activeId,
+    activeKeyId,
   };
 
   for (const row of rows) {
     const current = row.token;
     if (!current) continue;
 
-    if (keyIdOf(current) === keyring.activeId) {
+    if (keyIdOf(current) === activeKeyId) {
       report.alreadyActive += 1;
       continue;
     }
@@ -69,10 +96,7 @@ export async function reencryptConnectionTokens(env: Env, db: Db): Promise<Rotat
         report.alreadyActive += 1;
         continue;
       }
-      await db
-        .update(stripeConnections)
-        .set({ stripeAccessToken: next })
-        .where(eq(stripeConnections.id, row.id));
+      await write(row.id, next);
       report.rewritten += 1;
     } catch (err) {
       // The message is the failure reason, never the value that failed.

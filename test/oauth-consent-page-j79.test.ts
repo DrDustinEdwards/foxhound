@@ -51,7 +51,8 @@ describe("A9: Recova's card, in Recova's order", () => {
       /<input[^>]*name="allow_write"[^>]*checked/,
     );
     // The write line sits beside the box, not in the list every grant gets.
-    const list = /<ul[^>]*aria-labelledby="oauth-can"[^>]*>([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
+    const list =
+      /<ul[^>]*aria-labelledby="cap-consent-can"[^>]*>([\s\S]*?)<\/ul>/.exec(html)?.[1] ?? "";
     expect(list).not.toMatch(/Change your settings/);
     expect(html).toMatch(/Change your settings and alerts/);
   });

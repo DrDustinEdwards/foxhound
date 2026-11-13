@@ -1,3 +1,4 @@
+import { relative, toMs } from "capsomer/behavior/time";
 import type { Db } from "~/db";
 import { DAY_MS, DECLINE_CATEGORIES, type DeclineCategory, HOUR_MS } from "~/lib/constants";
 import { isCardExpiringSoon } from "~/lib/recovery/expiring-card";
@@ -30,7 +31,6 @@ import {
   countByDayAndCategory,
   cumulativeRecoveryRateDaily,
   type DailyRatePoint,
-  formatRelativeTime,
   type RecoveryTimingBucket,
   recoveryTimingBuckets,
   resolveRangeCutoff,
@@ -38,6 +38,7 @@ import {
   SPARKLINE_TRAILING_DAYS,
   type WebhookHealth,
 } from "./recovery-window";
+import { percent } from "capsomer/behavior/meter";
 
 // The Recovery dashboard windowed read model (TASK-foxhound-recovery-surface-
 // parity.md Phase 1): Foxhound's equivalent of legacy's fetchDashboardData.
@@ -231,8 +232,8 @@ export async function getRecoveryDashboardWindow(
       const b = emailBuckets[category]!;
       return {
         category,
-        openRatePct: Math.round((b.opened / b.sent) * 100),
-        clickRatePct: Math.round((b.clicked / b.sent) * 100),
+        openRatePct: percent(b.opened, b.sent),
+        clickRatePct: percent(b.clicked, b.sent),
         emailCount: b.sent,
       };
     },
@@ -240,8 +241,8 @@ export async function getRecoveryDashboardWindow(
   const totalEmailsSent = emailSteps.length;
   const totalOpened = emailSteps.filter((s) => s.openedAt).length;
   const totalClicked = emailSteps.filter((s) => s.clickedAt).length;
-  const openRatePct = totalEmailsSent > 0 ? Math.round((totalOpened / totalEmailsSent) * 100) : 0;
-  const clickRatePct = totalEmailsSent > 0 ? Math.round((totalClicked / totalEmailsSent) * 100) : 0;
+  const openRatePct = percent(totalOpened, totalEmailsSent);
+  const clickRatePct = percent(totalClicked, totalEmailsSent);
   const stepsInRange =
     cutoffMs === null
       ? emailSteps
@@ -249,14 +250,8 @@ export async function getRecoveryDashboardWindow(
   const sentInRange = stepsInRange.length;
   const emailsSentInRange = {
     sent: sentInRange,
-    openRatePct:
-      sentInRange > 0
-        ? Math.round((stepsInRange.filter((s) => s.openedAt).length / sentInRange) * 100)
-        : 0,
-    clickRatePct:
-      sentInRange > 0
-        ? Math.round((stepsInRange.filter((s) => s.clickedAt).length / sentInRange) * 100)
-        : 0,
+    openRatePct: percent(stepsInRange.filter((s) => s.openedAt).length, sentInRange),
+    clickRatePct: percent(stepsInRange.filter((s) => s.clickedAt).length, sentInRange),
   };
 
   // ---- Current-state facts (range-invariant) ----
@@ -268,7 +263,7 @@ export async function getRecoveryDashboardWindow(
     isCardExpiringSoon(c.expiresYear, c.expiresMonth, new Date(nowMs)),
   ).length;
   const webhookHealth = connection ? classifyWebhookHealth(connection.lastWebhookAt, nowMs) : null;
-  const lastRecoveryAgo = formatRelativeTime(lastRecoveryAt, nowMs);
+  const lastRecoveryAgo = relative(toMs(lastRecoveryAt), nowMs, "UTC", { granularity: "day" });
 
   return {
     rangeLabel,
@@ -277,7 +272,7 @@ export async function getRecoveryDashboardWindow(
     recoveredCount: recoveredInCohortCount,
     recoveryRatePct:
       failuresWithOutcome.length > 0
-        ? Math.round((recoveredInCohortCount / failuresWithOutcome.length) * 100)
+        ? percent(recoveredInCohortCount, failuresWithOutcome.length)
         : null,
     recoveredRevenue: groupSumByCurrency(
       recovered.map((r) => ({ currency: r.currency, cents: r.amountCents })),

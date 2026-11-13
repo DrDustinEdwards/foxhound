@@ -1,9 +1,10 @@
 import { and, count, eq, gte, lte, notInArray, sql } from "drizzle-orm";
 
 import { accounts, auditRuns, customerContext, disputes, recoveredPayments, type Db } from "~/db";
+import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
-import { byCurrencyCode } from "~/lib/money-format";
+import { byCurrencyCode } from "~/lib/money/totals";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   ATTENTION_ROWS_PER_CATEGORY,
@@ -152,10 +153,9 @@ export async function getConsoleView(
   nowMs: number,
   recoveryRatePct: number | null,
 ): Promise<ConsoleView> {
-  const now = new Date(nowMs);
   // UTC month boundary, so "this month" is stable regardless of server zone and
   // matches what the billing run considers a month.
-  const startOfMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const startOfMonth = new Date(startOfUtcMonthMs(nowMs));
   const urgentBefore = new Date(nowMs + DISPUTE_URGENT_HOURS * HOUR_MS);
 
   const [

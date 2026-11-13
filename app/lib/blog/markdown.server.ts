@@ -4,11 +4,7 @@
 //
 // Prelum's own blocks carry the `:::faq` list (its pairs feed the FAQPage
 // JSON-LD) and `::postlink[slug|text]`, looked up in D1 (an unknown slug shows
-// as code so it is seen). What only Foxhound writes is one site pack:
-//
-//   - Heading ids come from legacy's generateSlug, so links to a section
-//     made before the move still land.
-//   - Links off this site open in a new tab, as legacy's did.
+// as code so it is seen). Heading ids are Prelum's slugger's.
 //
 // A hand-drawn diagram is a `:::figure` that names its light and dark files.
 // The renderer takes that pair out and inlines one SVG (./diagrams). An
@@ -16,17 +12,13 @@
 // their fills from the site's variables, so the same art follows the theme.
 
 import { ContentError, RENDER_VERSION, render } from "@drdustinedwards/site-helpers/render/nomath";
-import type { RenderPack } from "@drdustinedwards/site-helpers/render/packs";
-import type { Root as HastRoot } from "hast";
-import { toString as hastToString } from "hast-util-to-string";
-import { visit } from "unist-util-visit";
+import { keyOfAddress, keysAtAddresses } from "@dustinedwards/site-runtime/image";
 
 import type { Db } from "~/db";
-import { images, mediaKeyOf, mediaKeysIn, mediaUrl } from "~/lib/media/images";
+import { MEDIA_ADDRESSES, images, mediaUrl } from "~/lib/media/images";
 import { mediaRow, mediaRowsByKey, type MediaRow } from "~/lib/media/store.server";
 
 import { BLOG_DIAGRAMS } from "./diagrams";
-import { generateSlug } from "./format";
 import { resolvePostLink, type BlogPostSummary } from "./queries.server";
 
 export interface TocItem {
@@ -34,29 +26,6 @@ export interface TocItem {
   text: string;
   id: string;
 }
-
-// Before Prelum's own slugger, which keeps an id already set.
-function rehypeHeadingIds() {
-  return (tree: HastRoot) => {
-    const used = new Map<string, number>();
-    visit(tree, "element", (node) => {
-      if (node.tagName !== "h2" && node.tagName !== "h3") return;
-      const base = generateSlug(hastToString(node).trim()) || "section";
-      const count = used.get(base) ?? 0;
-      used.set(base, count + 1);
-      node.properties.id = count === 0 ? base : `${base}-${count + 1}`;
-    });
-  };
-}
-
-const foxhoundPack: RenderPack = {
-  name: "foxhound",
-  directives: [],
-  setup: () => ({
-    remark: [],
-    rehype: [[rehypeHeadingIds]],
-  }),
-};
 
 // A post's pictures are the media library's (/media/<key>, sized by the
 // library's index in app/lib/carrel/media-adapter.server.ts). A library
@@ -73,7 +42,7 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
   const resolveImage = async (src: string): Promise<{ width: number; height: number }> => {
     const size = DIAGRAM.exec(src);
     if (size) return { width: Number(size[1]), height: Number(size[2]) };
-    const key = mediaKeyOf(src);
+    const key = keyOfAddress(src, MEDIA_ADDRESSES);
     const picture = key ? pictures.get(key) : undefined;
     if (picture?.width && picture.height) return { width: picture.width, height: picture.height };
     throw new ContentError(
@@ -84,7 +53,7 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
     );
   };
   const imageProps = (src: string) => {
-    const key = mediaKeyOf(src);
+    const key = keyOfAddress(src, MEDIA_ADDRESSES);
     const picture = key ? pictures.get(key) : undefined;
     if (!picture) return null;
     const attrs = images.attributes(
@@ -104,7 +73,10 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
       sources: attrs.sources.map((source) => ({ type: source.type, srcSet: source.srcset })),
     };
   };
-  return { resolveImage, media: { keyOf: mediaKeyOf, imageProps } };
+  return {
+    resolveImage,
+    media: { keyOf: (src: string) => keyOfAddress(src, MEDIA_ADDRESSES), imageProps },
+  };
 }
 
 /**
@@ -119,7 +91,7 @@ export async function coverPicture(
   use: "content" | "featured",
 ) {
   if (!post.coverImageUrl) return null;
-  const key = mediaKeyOf(post.coverImageUrl);
+  const key = keyOfAddress(post.coverImageUrl, MEDIA_ADDRESSES);
   const row = key ? await mediaRow(db, key) : null;
   const src = row ? mediaUrl(row.key, row.sha256) : post.coverImageUrl;
   const alt = post.coverImageAlt ?? post.title;
@@ -213,10 +185,8 @@ export async function renderMarkdown(
   version: string;
 }> {
   const diagrams = takeDiagramFigures(body);
-  const keys = mediaKeysIn(diagrams.body);
-  const pictures = new Map(
-    (keys.length > 0 ? await mediaRowsByKey(db, keys) : []).map((row) => [row.key, row]),
-  );
+  const keys = [...keysAtAddresses(diagrams.body, MEDIA_ADDRESSES)];
+  const pictures = new Map((await mediaRowsByKey(db, keys)).map((row) => [row.key, row]));
   const { resolveImage, media } = mediaOptions(pictures);
   const postLink = async (slug: string) => {
     const target = await resolvePostLink(db, slug);
@@ -226,7 +196,7 @@ export async function renderMarkdown(
     file: "post",
     body: diagrams.body,
     resolveImage,
-    options: { packs: [foxhoundPack], media, postLink },
+    options: { media, postLink },
   });
   const html = stitchDiagramFigures(rendered.html, diagrams.slugs);
   const { toc, faq } = rendered;

@@ -1,19 +1,6 @@
-import {
-  and,
-  asc,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  like,
-  lte,
-  ne,
-  notInArray,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, isNull, lte, ne, notInArray, or, sql } from "drizzle-orm";
+import { inList, likeContains } from "@dustinedwards/site-runtime/d1";
+import { currencyExponent } from "@dustinedwards/site-runtime/money";
 import { byAccount, byAccountActive } from "~/db/scope";
 import {
   type Db,
@@ -30,7 +17,15 @@ import {
   FAILED_PAYMENT_STATUS_UNRECOVERED,
   type DeclineCategory,
 } from "~/lib/constants";
+import { parsePage } from "capsomer/behavior/pagination";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
+import {
+  parsePaymentsAmount,
+  parsePaymentsPageSize,
+  parsePaymentsSort,
+  parsePaymentsTimeRange,
+} from "~/lib/recovery/payments-list";
+import { resolvePaymentTimeRangeCutoff } from "~/lib/recovery/time-range";
 import { notCancelledResult } from "./dashboard-queries.server";
 
 // Recovery-surface read models (Phase 5 slice 5b): failed payments, their
@@ -71,6 +66,8 @@ export interface FailedPaymentFilterInput {
   detectedAfterMs: number | null;
   amountMinCents: number | null;
   amountMaxCents: number | null;
+  /** The currency the amount range is in; the range only matches payments in it. */
+  amountCurrency?: string | null;
 }
 
 export interface FailedPaymentFilters extends FailedPaymentFilterInput {
@@ -101,11 +98,11 @@ function baseFailedPaymentConditions(accountId: string) {
  *  (the paginated list itself adds status separately, see below). */
 function applyFailedPaymentFilters(conditions: unknown[], filters: FailedPaymentFilterInput): void {
   if (filters.search) {
-    const term = `%${filters.search}%`;
+    const term = filters.search;
     const searchCondition = or(
-      like(failedPayments.customerName, term),
-      like(failedPayments.customerEmail, term),
-      like(failedPayments.planName, term),
+      likeContains(failedPayments.customerName, term),
+      likeContains(failedPayments.customerEmail, term),
+      likeContains(failedPayments.planName, term),
     );
     if (searchCondition) conditions.push(searchCondition);
   }
@@ -114,6 +111,11 @@ function applyFailedPaymentFilters(conditions: unknown[], filters: FailedPayment
   if (filters.detectedAfterMs !== null) {
     conditions.push(gte(failedPayments.detectedAt, new Date(filters.detectedAfterMs)));
   }
+  if (
+    filters.amountCurrency &&
+    (filters.amountMinCents !== null || filters.amountMaxCents !== null)
+  )
+    conditions.push(eq(failedPayments.currency, filters.amountCurrency));
   if (filters.amountMinCents !== null)
     conditions.push(gte(failedPayments.amountCents, filters.amountMinCents));
   if (filters.amountMaxCents !== null)
@@ -175,25 +177,92 @@ export async function listFilteredFailedPayments(
 export interface AmountBounds {
   minCents: number;
   maxCents: number;
+  /** The currency the range is in (minor units of it). An amount filter only
+   *  matches payments in this currency, because 10000 is $100 in USD but ¥10000
+   *  in JPY. */
+  currency: string;
+  /** The account's most common currency: the range's currency unless the URL names another. */
+  defaultCurrency: string;
+  /** Every currency the account has failed payments in, most common first. */
+  currencies: string[];
 }
 
-const AMOUNT_BOUNDS_STEP_CENTS = 10_000;
+/** The range's ceiling rounds up to a whole number of these major units (100: $100, ¥100). */
+const AMOUNT_BOUNDS_STEP_MAJOR = 100;
 
-/** The dual-handle amount range's absolute bounds: 0 up to the account's
- *  actual highest failed-payment amount, rounded up to the nearest $100 (a
- *  hardcoded ceiling would either clip a real merchant's larger invoices or
- *  waste most of the slider's range on a small one). */
-export async function getAmountBounds(db: Db, accountId: string): Promise<AmountBounds> {
-  const [row] = await db
-    .select({ max: sql<number>`max(${failedPayments.amountCents})` })
+/** The dual-handle amount range's absolute bounds in one currency: 0 up to the
+ *  account's highest failed-payment amount in it, rounded up to the next 100
+ *  major units (a hardcoded ceiling would clip a larger invoice or waste the
+ *  slider on a small one). `wanted` picks the currency; an unknown or missing
+ *  one falls back to the account's most common. */
+export async function getAmountBounds(
+  db: Db,
+  accountId: string,
+  wanted?: string | null,
+): Promise<AmountBounds> {
+  const rows = await db
+    .select({
+      currency: failedPayments.currency,
+      n: sql<number>`count(*)`,
+      max: sql<number>`max(${failedPayments.amountCents})`,
+    })
     .from(failedPayments)
-    .where(and(...baseFailedPaymentConditions(accountId)));
-  const maxAmount = row?.max ?? 0;
-  const maxCents = Math.max(
-    AMOUNT_BOUNDS_STEP_CENTS,
-    Math.ceil(maxAmount / AMOUNT_BOUNDS_STEP_CENTS) * AMOUNT_BOUNDS_STEP_CENTS,
+    .where(and(...baseFailedPaymentConditions(accountId)))
+    .groupBy(failedPayments.currency)
+    .orderBy(desc(sql`count(*)`), asc(failedPayments.currency));
+  const defaultCurrency = rows[0]?.currency ?? "usd";
+  const row = rows.find((r) => r.currency === wanted?.toLowerCase()) ?? rows[0];
+  const currency = row?.currency ?? defaultCurrency;
+  const step = AMOUNT_BOUNDS_STEP_MAJOR * 10 ** currencyExponent(currency);
+  const maxCents = Math.max(step, Math.ceil((row?.max ?? 0) / step) * step);
+  return {
+    minCents: 0,
+    maxCents,
+    currency,
+    defaultCurrency,
+    currencies: rows.map((r) => r.currency),
+  };
+}
+
+/** The payments list's filters as its URL states them, shared by the page and its CSV export so the export is always
+ *  the rows on screen. `filters` is what listFilteredFailedPayments takes; the amounts as parsed (null when absent)
+ *  are the slider's handles. A handle resting on its own end is no filter. */
+export async function readPaymentFilters(
+  db: Db,
+  accountId: string,
+  params: URLSearchParams,
+  nowMs: number,
+) {
+  const time = parsePaymentsTimeRange(params.get("time"));
+  const bounds = await getAmountBounds(db, accountId, params.get("currency"));
+  const amountMinParsed = parsePaymentsAmount(
+    params.get("amountMin"),
+    bounds.minCents,
+    bounds.maxCents,
   );
-  return { minCents: 0, maxCents };
+  const amountMaxParsed = parsePaymentsAmount(
+    params.get("amountMax"),
+    bounds.minCents,
+    bounds.maxCents,
+  );
+  const input: FailedPaymentFilterInput = {
+    search: params.get("q")?.trim() || null,
+    declineCategory: params.get("category") || null,
+    detectedAfterMs: resolvePaymentTimeRangeCutoff(time, nowMs),
+    amountMinCents:
+      amountMinParsed !== null && amountMinParsed > bounds.minCents ? amountMinParsed : null,
+    amountMaxCents:
+      amountMaxParsed !== null && amountMaxParsed < bounds.maxCents ? amountMaxParsed : null,
+    amountCurrency: bounds.currency,
+  };
+  const filters: FailedPaymentFilters = {
+    ...input,
+    status: params.get("status") || null,
+    sort: parsePaymentsSort(params.get("sort")),
+    page: parsePage(params.get("page")),
+    pageSize: parsePaymentsPageSize(params.get("perPage")),
+  };
+  return { input, filters, time, bounds, amountMinParsed, amountMaxParsed };
 }
 
 export interface PaymentStatusCounts {
@@ -443,14 +512,10 @@ export async function listStepsForFailedPayments(
     .where(
       and(
         eq(recoverySteps.accountId, accountId),
-        inArray(recoverySteps.failedPaymentId, failedPaymentIds),
+        inList(recoverySteps.failedPaymentId, failedPaymentIds),
       ),
     );
 }
-
-/** Ids per step-count read: D1 binds at most 100 parameters a statement, and
- *  the account id takes one. */
-const STEP_COUNT_IDS_PER_READ = 90;
 
 /** Executed and total recovery_steps per failed payment, for the CSV export's
  *  Steps Executed and Total Steps (Recova's lib/csv.ts: steps with an executed
@@ -462,25 +527,23 @@ export async function countStepsForFailedPayments(
   failedPaymentIds: string[],
 ): Promise<Map<string, { executed: number; total: number }>> {
   const counts = new Map<string, { executed: number; total: number }>();
-  for (let i = 0; i < failedPaymentIds.length; i += STEP_COUNT_IDS_PER_READ) {
-    const ids = failedPaymentIds.slice(i, i + STEP_COUNT_IDS_PER_READ);
-    const rows = await db
-      .select({
-        failedPaymentId: recoverySteps.failedPaymentId,
-        executed: count(recoverySteps.executedAt),
-        total: count(),
-      })
-      .from(recoverySteps)
-      .where(
-        and(
-          byAccountActive(recoverySteps.accountId, recoverySteps.deletedAt, accountId),
-          inArray(recoverySteps.failedPaymentId, ids),
-        ),
-      )
-      .groupBy(recoverySteps.failedPaymentId);
-    for (const row of rows)
-      counts.set(row.failedPaymentId, { executed: row.executed, total: row.total });
-  }
+  if (failedPaymentIds.length === 0) return counts;
+  const rows = await db
+    .select({
+      failedPaymentId: recoverySteps.failedPaymentId,
+      executed: count(recoverySteps.executedAt),
+      total: count(),
+    })
+    .from(recoverySteps)
+    .where(
+      and(
+        byAccountActive(recoverySteps.accountId, recoverySteps.deletedAt, accountId),
+        inList(recoverySteps.failedPaymentId, failedPaymentIds),
+      ),
+    )
+    .groupBy(recoverySteps.failedPaymentId);
+  for (const row of rows)
+    counts.set(row.failedPaymentId, { executed: row.executed, total: row.total });
   return counts;
 }
 

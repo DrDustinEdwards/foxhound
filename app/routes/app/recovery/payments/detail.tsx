@@ -1,23 +1,20 @@
-import { useEffect, useId, useState } from "react";
+import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
+import { useId, useState } from "react";
 
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Check,
-  ChevronDown,
-  Circle,
-  Mail,
-  RotateCcw,
-  Shield,
-} from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check, Circle, Mail, RotateCcw, Shield } from "lucide-react";
 
 import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
-import { Pill, Status } from "capsomer/react/status";
+import { CopyButton } from "capsomer/react/copy";
+import { ExpandToggle } from "capsomer/react/disclosure";
+import { Pill } from "capsomer/react/status";
+import { useShownFor } from "capsomer/react/hooks";
 import "capsomer/banner.css";
 import "capsomer/button.css";
+import "capsomer/copy.css";
+import "capsomer/disclosure.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
@@ -28,13 +25,7 @@ import "~/site-header.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import {
-  formatDateMonthDay,
-  formatDateShort,
-  formatRelativeFuture,
-  formatTimeAgo,
-} from "~/lib/date-format";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
   ATTRIBUTION_KIND_LABELS,
   FAILED_PAYMENT_STATUS_LABELS,
@@ -74,6 +65,7 @@ import type { Route } from "./+types/detail";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { markup } from "capsomer/behavior/trusted-html";
 
 export function meta() {
   return [{ title: "Payment detail - Foxhound" }, NOINDEX];
@@ -135,6 +127,11 @@ export const ACTION_SUCCESS_CLEAR_MS = 2000;
 
 /** Recova's 2000ms hold on "Saved" beside Save note (PaymentDetailClient.tsx 189). */
 export const NOTE_SAVED_CLEAR_MS = 2000;
+
+/** A result that clears on its own: a success notice (an error stays). */
+function isNotice(result: object): boolean {
+  return "notice" in result;
+}
 
 export async function action({ context, params, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
@@ -295,18 +292,6 @@ export const MANUAL_ACTIONS = [
 // `payment.status === 'active'`.
 export const ACTIONS_VISIBLE_STATUS = "active";
 
-/** Legacy's own 2000ms hold on the "Copied" confirmation (PaymentDetailClient.tsx
- *  221 at blob 7f54aa45). */
-export const COPIED_RESET_MS = 2000;
-
-/** The Copy email button's words: "Copy email", then Recova's copied state
- *  for COPIED_RESET_MS (PaymentDetailClient.tsx 248-253, green "Copied" with a
- *  tick), as Capsomer's ok status: its tick glyph and word in the ok color. */
-export function CopyEmailLabel({ copied }: { copied: boolean }) {
-  if (!copied) return <>Copy email</>;
-  return <Status tone="ok">Copied</Status>;
-}
-
 /** Legacy's back link, PaymentDetailClient.tsx 130-132. */
 export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
@@ -331,46 +316,27 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   const isDemo = Boolean(shell?.isDemo);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
-  const [copied, setCopied] = useState(false);
   const demoReasonId = useId();
   const navigation = useNavigation();
   const busy = navigation.state !== "idle";
   const pressedIntent = navigation.formData?.get("intent") ?? null;
 
   // Recova's action result: a success clears after 2000ms, an error stays until the next press.
-  const notice = actionData && "notice" in actionData ? actionData.notice : null;
-  const [clearedNoticeFor, setClearedNoticeFor] = useState<unknown>(null);
+  const [shownActionData] = useShownFor(actionData, ACTION_SUCCESS_CLEAR_MS, isNotice);
   // Pressing an action clears the last result at once, as Recova's does.
   const actionResult = visibleActionResult({
-    actionData,
-    clearedFor: clearedNoticeFor,
+    actionData: shownActionData,
     pendingIntent: pressedIntent,
   });
-  useEffect(() => {
-    if (!notice) return;
-    const timer = setTimeout(() => setClearedNoticeFor(actionData), ACTION_SUCCESS_CLEAR_MS);
-    return () => clearTimeout(timer);
-  }, [actionData, notice]);
 
   // Recova saves a note in place (PaymentDetailClient.tsx saveNote): "Saving..."
   // on the button, then "Saved" beside it for 2000ms, or its error line.
   const noteFetcher = useFetcher<typeof action>();
   const noteSaving = noteFetcher.state !== "idle";
   const noteResult = noteFetcher.data;
-  const [savedClearedFor, setSavedClearedFor] = useState<unknown>(null);
-  const noteSaved = Boolean(noteResult && "notice" in noteResult && savedClearedFor !== noteResult);
-  useEffect(() => {
-    if (!noteResult || !("notice" in noteResult)) return;
-    const timer = setTimeout(() => setSavedClearedFor(noteResult), NOTE_SAVED_CLEAR_MS);
-    return () => clearTimeout(timer);
-  }, [noteResult]);
+  const [shownNote] = useShownFor(noteResult, NOTE_SAVED_CLEAR_MS, isNotice);
+  const noteSaved = Boolean(shownNote && isNotice(shownNote));
   const noteError = noteResult && "error" in noteResult;
-
-  function copyEmail() {
-    void navigator.clipboard?.writeText(failedPayment.customerEmail);
-    setCopied(true);
-    setTimeout(() => setCopied(false), COPIED_RESET_MS);
-  }
 
   const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
   const creditedStep =
@@ -427,14 +393,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             <div className="flex flex-wrap items-center gap-3 text-label text-text-subtle">
               {/* The email shows here only when a name took the heading. */}
               {failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}
-              <span className="text-micro">
-                <button type="button" className="cap-link-btn" onClick={copyEmail}>
-                  <CopyEmailLabel copied={copied} />
-                </button>
-              </span>
-              <span className="sr-only" role="status">
-                {copied ? "Email copied" : ""}
-              </span>
+              <CopyButton text={failedPayment.customerEmail} size="xs">
+                Copy email
+              </CopyButton>
               {failedPayment.planName ? <span>&middot; {failedPayment.planName}</span> : null}
             </div>
           </div>
@@ -578,10 +539,10 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </Panel>
         <Panel size="sm" title="Detected">
           <p className="m-0 text-title font-bold text-text">
-            {formatTimeAgo(failedPayment.detectedAt, nowMs)}
+            {relative(toMs(failedPayment.detectedAt), nowMs, "UTC")}
           </p>
           <p className="m-0 mt-1 text-micro text-text-subtle">
-            {formatDateMonthDay(failedPayment.detectedAt)}
+            {formatDate(failedPayment.detectedAt, { style: "monthDay" }) ?? ""}
           </p>
         </Panel>
         <Panel size="sm" title="Customer age">
@@ -624,7 +585,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
             {failedPayment.resolvedAt ? (
               <DetailRow
                 label={failedPayment.status === "recovered" ? "Recovered" : "Resolved"}
-                value={formatDateShort(failedPayment.resolvedAt)}
+                value={formatDate(failedPayment.resolvedAt, { style: "medium" }) ?? ""}
               />
             ) : null}
           </dl>
@@ -669,7 +630,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       className="flex items-center justify-between border-b border-border-sub py-1.5 no-underline"
                     >
                       <span className="text-micro text-text-subtle">
-                        {formatTimeAgo(p.detectedAt, nowMs)}
+                        {relative(toMs(p.detectedAt), nowMs, "UTC")}
                       </span>
                       <span className="flex items-center gap-2">
                         <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
@@ -766,9 +727,9 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                         </div>
                         <span className="whitespace-nowrap font-mono text-micro text-text-subtle">
                           {executed
-                            ? formatTimeAgo(step.executedAt, nowMs)
+                            ? relative(toMs(step.executedAt), nowMs, "UTC")
                             : pending
-                              ? formatRelativeFuture(step.scheduledAt, nowMs)
+                              ? until(toMs(step.scheduledAt), nowMs)
                               : ""}
                         </span>
                       </div>
@@ -779,8 +740,8 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                       ) : null}
                       <p className="m-0 text-micro text-text-subtle">
                         {executed
-                          ? `Executed ${formatDateShort(step.executedAt)}`
-                          : `Scheduled ${formatDateShort(step.scheduledAt)}`}
+                          ? `Executed ${formatDate(step.executedAt, { style: "medium" }) ?? ""}`
+                          : `Scheduled ${formatDate(step.scheduledAt, { style: "medium" }) ?? ""}`}
                       </p>
 
                       {showEngagement || showExpander ? (
@@ -802,7 +763,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                   />
                                 )}
                                 {step.openedAt
-                                  ? `Opened ${formatTimeAgo(step.openedAt, nowMs)}`
+                                  ? `Opened ${relative(toMs(step.openedAt), nowMs, "UTC")}`
                                   : "Not opened"}
                               </span>
                               {/* A suspect click is shown as what it is:
@@ -825,37 +786,32 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                                 )}
                                 {step.clickedAt
                                   ? step.clickSuspectReason
-                                    ? `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
-                                    : `Clicked ${formatTimeAgo(step.clickedAt, nowMs)}`
+                                    ? `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
+                                    : `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}`
                                   : "Not clicked"}
                               </span>
                             </>
                           ) : null}
                           {showExpander ? (
                             <span className="text-micro">
-                              <button
-                                type="button"
-                                className="cap-link-btn"
-                                aria-expanded={expanded}
-                                onClick={() => setExpandedStepId(expanded ? null : step.id)}
-                              >
-                                {expanded ? "Hide email" : "View email"}
-                                <ChevronDown
-                                  className={`ml-1 h-3 w-3 ${expanded ? "rotate-180" : ""}`}
-                                  strokeWidth={1.5}
-                                  aria-hidden="true"
-                                />
-                              </button>
+                              <ExpandToggle
+                                label="View email"
+                                openLabel="Hide email"
+                                open={expanded}
+                                onToggle={() => setExpandedStepId(expanded ? null : step.id)}
+                                controls={`step-email-${step.id}`}
+                              />
                             </span>
                           ) : null}
                         </div>
                       ) : null}
                       {step.previewHtml && expanded ? (
                         <div
+                          id={`step-email-${step.id}`}
                           className="mt-3 rounded-lg border border-border bg-bg p-4 text-label text-text"
                           // Sanitized in the loader by sanitizeEmailPreviewHtml;
                           // the raw body is never sent to the browser.
-                          dangerouslySetInnerHTML={{ __html: step.previewHtml }}
+                          dangerouslySetInnerHTML={markup(step.previewHtml)}
                         />
                       ) : null}
                     </div>
@@ -923,7 +879,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         >
           {formatMoney(recovery.amountCents, recovery.currency)} recovered via{" "}
           {recoveredViaWords((recovery.attributionKind as AttributionKind) ?? "stripe_baseline")}{" "}
-          &middot; {formatTimeAgo(recovery.recoveredAt, nowMs)}
+          &middot; {relative(toMs(recovery.recoveredAt), nowMs, "UTC")}
           {/* Only once Stripe's balance transaction has been read. Billing stays
               on the gross amount above. */}
           {recovery.netAmountCents != null && recovery.netCurrency ? (

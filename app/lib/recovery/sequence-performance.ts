@@ -1,6 +1,8 @@
 import type { DeclineCategory } from "~/lib/constants";
 import { formatStepType } from "./labels";
 import { isEmailStep, isRetryStep, RECOVERY_SCHEDULES } from "./schedule";
+import { plural } from "@drdustinedwards/site-helpers/text";
+import { percent } from "capsomer/behavior/meter";
 
 // Pure account-wide step-performance aggregation for /recovery/sequence
 // (Foxhound's equivalent of legacy's sequence-utils.ts + SequenceView.tsx),
@@ -62,7 +64,7 @@ for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
  *  every offset, as Recova's chips say them (SequenceView.tsx 5507b89f:
  *  "72 hours after failure", "168 hours after failure"). */
 export function formatStepTiming(hours: number): string {
-  return `${hours} hour${hours === 1 ? "" : "s"} after failure`;
+  return `${plural(hours, "hour")} after failure`;
 }
 
 /**
@@ -97,8 +99,8 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
   const totalSent = emailSteps.length;
   const totalOpened = emailSteps.filter((s) => s.openedAt).length;
   const totalClicked = emailSteps.filter((s) => s.clickedAt).length;
-  const avgOpenRatePct = totalSent > 0 ? Math.round((totalOpened / totalSent) * 100) : 0;
-  const avgClickRatePct = totalSent > 0 ? Math.round((totalClicked / totalSent) * 100) : 0;
+  const avgOpenRatePct = percent(totalOpened, totalSent);
+  const avgClickRatePct = percent(totalClicked, totalSent);
 
   const byType = new Map<
     string,
@@ -118,9 +120,9 @@ export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPer
       stepType,
       label: sequenceStepLabel(stepType, null),
       sent: b.sent,
-      openRatePct: Math.round((b.opened / b.sent) * 100),
-      clickRatePct: Math.round((b.clicked / b.sent) * 100),
-      recoveryRatePct: Math.round((b.recovered / b.sent) * 100),
+      openRatePct: percent(b.opened, b.sent),
+      clickRatePct: percent(b.clicked, b.sent),
+      recoveryRatePct: percent(b.recovered, b.sent),
     }))
     .sort(
       (a, b) =>
@@ -205,7 +207,7 @@ export function buildStepCard(
       timingLabel,
       attempted,
       recovered,
-      successRatePct: attempted > 0 ? Math.round((recovered / attempted) * 100) : null,
+      successRatePct: attempted > 0 ? percent(recovered, attempted) : null,
     };
   }
 
@@ -222,8 +224,8 @@ export function buildStepCard(
     label,
     timingLabel,
     sent,
-    openRatePct: sent > 0 ? Math.round((opened / sent) * 100) : null,
-    clickRatePct: sent > 0 ? Math.round((clicked / sent) * 100) : null,
+    openRatePct: sent > 0 ? percent(opened, sent) : null,
+    clickRatePct: sent > 0 ? percent(clicked, sent) : null,
     latestSubject: latest?.aiSubject ?? null,
     latestBodyHtml: latest?.aiBodyHtml ?? null,
   };

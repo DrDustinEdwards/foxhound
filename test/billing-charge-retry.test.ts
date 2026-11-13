@@ -1,3 +1,4 @@
+import { monthKey } from "@dustinedwards/site-runtime/time";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -69,7 +70,7 @@ vi.mock("~/lib/stripe/client", () => ({
   }),
 }));
 
-const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep, periodKeyOf } =
+const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep } =
   await import("~/lib/billing/charge-retry");
 const { describeSweepRun, runMonthlyBilling } = await import("~/lib/billing/run");
 const { CRON_JOBS } = await import("~/lib/cron/registry");
@@ -248,7 +249,7 @@ describe("mode 1: the create threw, Stripe has nothing", () => {
 
     expect(seenLines).toHaveLength(1);
     expect(seenLines[0].idempotencyKey).toBe(
-      recoveryFeeItemIdempotencyKey(ACCOUNT_ID, periodKeyOf(PERIOD_START), "usd", "rec_1"),
+      recoveryFeeItemIdempotencyKey(ACCOUNT_ID, monthKey(PERIOD_START), "usd", "rec_1"),
     );
   });
 });

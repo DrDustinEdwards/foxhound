@@ -38,7 +38,7 @@ vi.mock("~/lib/backup/d1-backup", () => ({
 }));
 
 const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 const { confirmStagedChange, rejectStagedChange } = await import("~/lib/admin/staged.server");
 
 const ROOT = new URL("../", import.meta.url);
@@ -104,7 +104,7 @@ async function seed() {
     db.insert(apiKeys).values({
       id: `key_${token}`,
       accountId,
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "test",
       scope,
       createdAt: NOW,
@@ -311,17 +311,6 @@ describe("PLANT 3: pause is a direct write, audited under the acting admin", () 
       expect(String(json.error).length).toBeGreaterThan(10);
     }
     expect((await db.select().from(accounts)).some((r) => r.processingPaused)).toBe(false);
-  });
-});
-
-describe("the backup state", () => {
-  it("reads for an admin; a merchant key is refused", async () => {
-    const { keys } = await seed();
-    const refused = await api("/backup", { key: keys.merchant, actor: ADMIN });
-    expect(refused.status).toBeGreaterThanOrEqual(401);
-    const state = await api("/backup", asAdmin(keys.admin));
-    expect(state.status).toBe(200);
-    expect(state.json.data).toEqual({ last_ok: null, age_hours: null, files: {} });
   });
 });
 

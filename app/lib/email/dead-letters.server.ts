@@ -98,7 +98,7 @@ export async function recordDeadLetters(
 
   // One alert per day for the whole class, deduped by the same mechanism the
   // cron alerts use. A burst of dead letters is one problem, not N.
-  const alert = await alertDeadLetters(env, db, { written, failed }, now);
+  const alert = await alertDeadLetters(env, { written, failed }, now);
 
   return { written, failed, alerted: alert.sent };
 }

@@ -22,11 +22,13 @@
 // Its link is a digest token: following it switches off this
 // account's digest and suppresses no address (PR 158 review round 1).
 
+import { plural } from "@drdustinedwards/site-helpers/text";
 import type { Block } from "capsomer/email";
 
 import { recoveryFooterNote } from "~/lib/email/templates";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { CurrencyAmount } from "~/lib/money/totals";
+import { percent } from "capsomer/behavior/meter";
 
 export const DIGEST_TEMPLATE = "weekly_digest";
 
@@ -79,13 +81,6 @@ const DIGEST_FROM_NAME = "Foxhound";
  */
 const DIGEST_RECOMMENDATIONS_LIVE = true;
 
-/** Legacy's `recoveryRate`: whole percent, and ZERO when nothing failed, never
- *  a division by zero and never "n/a". */
-export function recoveryRate(totalFailed: number, totalRecovered: number): number {
-  if (totalFailed <= 0) return 0;
-  return Math.round((totalRecovered / totalFailed) * 100);
-}
-
 /**
  * Legacy's currency resolution, in order: the most common currency across the
  * week's recovered payments, else the first failed payment's, else `usd`.
@@ -105,16 +100,12 @@ export function resolveDigestCurrency(
   return failed[0]?.currency ?? "usd";
 }
 
-function formatAmount(cents: number, currency: string): string {
-  return formatMoney(cents, currency);
-}
-
 /** Per-currency totals joined ("$693.00 + €40.00"), or zero in the account's
  *  currency when there is nothing to total. */
 function formatAmounts(amounts: CurrencyAmount[], fallbackCurrency: string): string {
   const shown = amounts.filter((a) => a.cents !== 0);
-  if (shown.length === 0) return formatAmount(0, fallbackCurrency);
-  return shown.map((a) => formatAmount(a.cents, a.currency)).join(" + ");
+  if (shown.length === 0) return formatMoney(0, fallbackCurrency);
+  return shown.map((a) => formatMoney(a.cents, a.currency)).join(" + ");
 }
 
 /**
@@ -169,7 +160,7 @@ function intelligenceSection(input: DigestInput): Block[] {
   if (outreach > 0) {
     out.push({
       type: "paragraph",
-      text: `${outreach} ${outreach === 1 ? "customer" : "customers"} flagged for personal outreach.`,
+      text: `${plural(outreach, "customer")} flagged for personal outreach.`,
     });
   }
   if (input.highRiskCustomers.length > 0) {
@@ -177,7 +168,7 @@ function intelligenceSection(input: DigestInput): Block[] {
       { type: "paragraph", text: "Top at-risk customers" },
       ...input.highRiskCustomers.map((c): Block =>
         c.mrrCents != null
-          ? row(c.name, `${formatAmount(c.mrrCents, c.currency ?? input.currency)}/mo`)
+          ? row(c.name, `${formatMoney(c.mrrCents, c.currency ?? input.currency)}/mo`)
           : { type: "paragraph", text: c.name },
       ),
     );
@@ -194,7 +185,8 @@ function intelligenceSection(input: DigestInput): Block[] {
 
 /** Recova's body, in Recova's order, with Recova's labels. Pure. */
 export function buildDigestBlocks(input: DigestInput): Block[] {
-  const rate = recoveryRate(input.totalFailed, input.totalRecovered);
+  // Legacy's recoveryRate: a whole percent, zero when nothing failed.
+  const rate = percent(input.totalRecovered, input.totalFailed);
   const weekEnding = input.now.toLocaleDateString("en-US", {
     weekday: "long",
     month: "long",

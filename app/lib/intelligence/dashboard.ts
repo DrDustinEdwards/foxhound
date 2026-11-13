@@ -1,6 +1,7 @@
+import { formatDate } from "capsomer/behavior/time";
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
-import { formatDateMonthDay } from "~/lib/date-format";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 
 // Pure helpers for the Intelligence dashboard, shared by the
 // page and its tests. No database, no AI, no server import: the page bundles
@@ -8,15 +9,10 @@ import { formatMoneyShort } from "~/lib/money-format";
 
 // ---- The monthly summary's month pager (Recova's MonthlyNarrative.tsx) ----
 
-/** "YYYY-MM" of a date, in UTC. */
-export function monthKeyOf(date: Date): string {
-  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
-}
-
 /** The month `delta` months from "YYYY-MM". Recova's shiftMonth. */
 export function shiftMonth(yyyymm: string, delta: number): string {
   const [y, m] = yyyymm.split("-");
-  return monthKeyOf(new Date(Date.UTC(Number(y), Number(m) - 1 + delta, 1)));
+  return monthKey(new Date(Date.UTC(Number(y), Number(m) - 1 + delta, 1)));
 }
 
 /** "October 2026". Recova's monthLabel. */
@@ -68,10 +64,8 @@ export function dayOverDayCents(points: readonly DailyPoint[]): number | null {
 
 /** Recova's "New MRR (MTD)": new MRR summed over this UTC month's snapshots. */
 export function newMrrMonthToDateCents(points: readonly DailyPoint[], nowMs: number): number {
-  const month = monthKeyOf(new Date(nowMs));
-  return points
-    .filter((p) => monthKeyOf(p.at) === month)
-    .reduce((sum, p) => sum + p.newMrrCents, 0);
+  const month = monthKey(new Date(nowMs));
+  return points.filter((p) => monthKey(p.at) === month).reduce((sum, p) => sum + p.newMrrCents, 0);
 }
 
 /** "+$120" or "-$45": Recova printed only a plus, and a fall read as a rise. */
@@ -200,11 +194,11 @@ export function mrrTrendAlt(points: readonly MrrPointLike[], currency: string): 
   const last = points[points.length - 1];
   if (!first || !last) return "MRR: no snapshots yet.";
   if (points.length === 1) {
-    return `MRR on ${formatDateMonthDay(last.at)}: ${formatMoneyShort(last.totalMrrCents, currency)}.`;
+    return `MRR on ${formatDate(last.at, { style: "monthDay" }) ?? ""}: ${formatMoneyShort(last.totalMrrCents, currency)}.`;
   }
   return (
     `MRR across ${points.length} daily snapshots, from ${formatMoneyShort(first.totalMrrCents, currency)} ` +
-    `on ${formatDateMonthDay(first.at)} to ${formatMoneyShort(last.totalMrrCents, currency)} on ${formatDateMonthDay(last.at)}.`
+    `on ${formatDate(first.at, { style: "monthDay" }) ?? ""} to ${formatMoneyShort(last.totalMrrCents, currency)} on ${formatDate(last.at, { style: "monthDay" }) ?? ""}.`
   );
 }
 
@@ -219,7 +213,7 @@ export function nrrAlt(points: readonly { at: Date; nrrPct: number | null }[]): 
   if (!last) return "Net revenue retention: no figure yet.";
   const values = present.map((p) => p.nrrPct);
   return (
-    `Net revenue retention by week, latest ${formatPct(last.nrrPct)} on ${formatDateMonthDay(last.at)}, ` +
+    `Net revenue retention by week, latest ${formatPct(last.nrrPct)} on ${formatDate(last.at, { style: "monthDay" }) ?? ""}, ` +
     `ranging from ${formatPct(Math.min(...values))} to ${formatPct(Math.max(...values))}. 100% is the line.`
   );
 }
@@ -239,7 +233,7 @@ export function movementAlt(
   if (!last) return "MRR movement: no snapshots yet.";
   const m = (c: number) => formatMoneyShort(c, currency);
   return (
-    `MRR movement by week. Week of ${formatDateMonthDay(last.at)}: new ${m(last.newMrrCents)}, ` +
+    `MRR movement by week. Week of ${formatDate(last.at, { style: "monthDay" }) ?? ""}: new ${m(last.newMrrCents)}, ` +
     `expansion ${m(last.expansionMrrCents)}, reactivation ${m(last.reactivationMrrCents)}, ` +
     `contraction ${m(last.contractionMrrCents)}, churn ${m(last.churnMrrCents)}.`
   );
@@ -256,7 +250,7 @@ export function healthAlt(
   const last = days[days.length - 1];
   if (!last) return "Customer health distribution: no scores yet.";
   return (
-    `Customers per health band over 90 days. Latest, ${formatDateMonthDay(new Date(`${last.date}T00:00:00Z`))}: ` +
+    `Customers per health band over 90 days. Latest, ${formatDate(new Date(`${last.date}T00:00:00Z`), { style: "monthDay" }) ?? ""}: ` +
     `${last.atRisk} high risk, ${last.watch} medium risk, ${last.healthy} healthy.`
   );
 }

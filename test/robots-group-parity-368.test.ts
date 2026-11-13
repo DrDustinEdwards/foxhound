@@ -1,7 +1,13 @@
-import { CONTENT_SIGNAL } from "@drdustinedwards/site-helpers/robots";
+import {
+  AI_SEARCH_BOTS,
+  AI_TRAINING_BOTS,
+  CONTENT_SIGNAL,
+  DENIED_BOTS,
+  SEARCH_ENGINE_BOTS,
+} from "@drdustinedwards/site-helpers/robots";
 import { describe, expect, it } from "vitest";
 
-import { ALLOWED_BOTS, DENIED_BOTS, DISALLOW_PATHS, buildRobotsTxt } from "~/routes/files/robots";
+import { DISALLOW_PATHS, siteFiles } from "~/lib/seo/files";
 
 // RULING 368 RULING 1: THE SIXTEEN NAMED GROUPS CARRIED A BARE `Allow: /`.
 //
@@ -21,13 +27,14 @@ import { ALLOWED_BOTS, DENIED_BOTS, DISALLOW_PATHS, buildRobotsTxt } from "~/rou
 // one step from an invoice.
 //
 // THE PLANT IS DERIVED FROM THE RENDERED FILE, not from the constants that feed
-// it. It parses the real output of `buildRobotsTxt` into groups the way a
+// it. It parses the real /robots.txt the site answers into groups the way a
 // crawler would, so a change to the RENDERER (a dropped loop, a reordered push,
 // a group emitted without its disallows) fails here even though every constant
 // is untouched. Asserting `DISALLOW_PATHS.length` against itself would have
 // passed against the exact bug this fixes.
 
-const RENDERED = buildRobotsTxt("https://foxhoundapp.test");
+const ALLOWED_BOTS = [...SEARCH_ENGINE_BOTS, ...AI_SEARCH_BOTS, ...AI_TRAINING_BOTS];
+const RENDERED = await (await siteFiles(new Request("https://foxhoundapp.com/robots.txt")))!.text();
 
 /** Parse robots.txt the way a crawler groups it: a run of `User-agent:` lines
  *  followed by that group's directives, ending at the blank line. */
@@ -150,7 +157,7 @@ describe("PLANT 2: what the disallow set must and must not contain", () => {
 
 describe("PLANT 3: the file a crawler actually receives", () => {
   it("ends with the sitemap line, outside every group", () => {
-    expect(RENDERED.trimEnd().endsWith("Sitemap: https://foxhoundapp.test/sitemap.xml")).toBe(true);
+    expect(RENDERED.trimEnd().endsWith("Sitemap: https://foxhoundapp.com/sitemap.xml")).toBe(true);
   });
 
   it("has no duplicate user-agent declaration, which would split a group", () => {

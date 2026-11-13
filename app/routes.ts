@@ -1,7 +1,5 @@
 import { type RouteConfig, index, layout, prefix, route } from "@react-router/dev/routes";
 
-import { INDEXNOW_KEY_PATH } from "./lib/seo/indexnow-key";
-
 export default [
   layout("./layouts/marketing.tsx", [
     index("./routes/home.tsx"),
@@ -231,13 +229,9 @@ export default [
 
   // Files (resource routes, no shell)
   route("sitemap.xml", "./routes/files/sitemap.ts"),
-  route("robots.txt", "./routes/files/robots.ts"),
-  route("site.webmanifest", "./routes/files/site-webmanifest.ts"),
-  route("ai.txt", "./routes/files/ai-txt.ts"),
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),
   route("feed.rss", "./routes/files/feed.ts"),
-  route(".well-known/security.txt", "./routes/files/security-txt.ts"),
   // OAuth discovery. Recova's next.config.ts rewrote
   // both paths to one handler because Claude.ai probes both; one module here,
   // so each path needs its own id.
@@ -255,9 +249,6 @@ export default [
   route(".well-known/oauth-protected-resource/mcp", "./routes/files/oauth-protected-resource.ts", {
     id: "oauth-protected-resource-mcp",
   }),
-  // The IndexNow key file: /<key>.txt at the root, named
-  // after Foxhound's own key so the path and the body cannot drift apart.
-  route(INDEXNOW_KEY_PATH.slice(1), "./routes/files/indexnow-key.ts"),
   route("og/:params", "./routes/files/og.ts"),
   // Recova's card URL, /og?type=blog&title=...&description=... (ruling 41,
   // row F6). Same module as the path form, so it needs its own id.
@@ -290,10 +281,6 @@ export default [
   route("api/oauth/token", "./routes/api/oauth-token.ts"),
   route("api/oauth/register", "./routes/api/oauth-register.ts"),
   route("api/oauth/revoke", "./routes/api/oauth-revoke.ts"),
-
-  // Content-Security-Policy report sink (J22, F16): the policy's report-uri and
-  // report-to name it. Action-only resource route at Recova's own path.
-  route("csp-report", "./routes/csp-report.ts"),
 
   // Logout (action-only resource route; clears the session, redirects to /login)
   route("logout", "./routes/auth/logout.ts"),

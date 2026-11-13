@@ -28,7 +28,7 @@ import { runAlertsForAllAccounts } from "~/lib/intelligence/alert-run.server";
 import { runIntelligenceSyncForAllAccounts } from "~/lib/intelligence/sync.server";
 import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
-import { pruneAuthEvents } from "@dustinedwards/site-runtime/sign-in";
+import { pruneAuthEvents, pruneExpiredAuth } from "@dustinedwards/site-runtime/sign-in";
 
 import { runD1Backup, runEvidenceBackup, runMediaBackup } from "~/lib/backup/d1-backup";
 import {
@@ -60,7 +60,6 @@ import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
 import {
   sweepAiCalls,
-  sweepCronRunHistory,
   sweepEmailSends,
   sweepEngagementEvents,
   sweepHealthScoreHistory,
@@ -70,8 +69,8 @@ import {
 
 // The scheduled-job registry: the single list mapping cron schedules to handlers.
 // The scheduled() handler in workers/app.ts dispatches by controller.cron to every
-// job on that schedule; each goes through runCronJob (config gate + interval gate
-// + per-cron DO lock + cron_run_history). Every schedule here MUST appear in
+// job on that schedule; each goes through runScheduledJobs (config gate + interval
+// gate + per-cron DO lock, cron_runs and cron_run_log). Every schedule here MUST appear in
 // wrangler.jsonc triggers.crons, or the job never fires (guarded by a test).
 
 export interface CronJob {
@@ -365,10 +364,16 @@ const stripeMissedEvents: CronHandler = async (env) => {
 
 /** site-runtime's auth_events (migration 0068): rows with no user go after 30
  *  days, the rest after a year. The package owns the table and its rule, so
- *  this is its pruneAuthEvents, not a sweep in retention.ts. */
+ *  this is its pruneAuthEvents, not a sweep in retention.ts. Then
+ *  pruneExpiredAuth: Better Auth never deletes an expired session, and a
+ *  verification row only when it is used. */
 const retentionAuthEvents: CronHandler = async (env) => {
   await pruneAuthEvents(env.DB);
-  return { rowsProcessed: 0, message: "auth_events pruned" };
+  await pruneExpiredAuth(env.DB);
+  return {
+    rowsProcessed: 0,
+    message: "auth_events, expired sessions and verification rows pruned",
+  };
 };
 
 /** The merchant MCP's tool-call log (TOOL_CALL_LOG): new rows copied to AUDIT_BUCKET, copied rows older than 90 days
@@ -457,7 +462,6 @@ export const CRON_JOBS: CronJob[] = [
     schedule: CRON_SCHEDULE_DAILY,
     handler: sweepHealthScoreHistory,
   },
-  { name: "retention-cron-history", schedule: CRON_SCHEDULE_DAILY, handler: sweepCronRunHistory },
   { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
   { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
@@ -491,7 +495,6 @@ const RUN_NOW: Record<string, { backup?: boolean }> = {
   "retention-email-sends": {},
   "retention-webhook-events": {},
   "retention-health-score": {},
-  "retention-cron-history": {},
   "retention-social-leads": {},
   "retention-page-404": {},
   "retention-ai-calls": {},

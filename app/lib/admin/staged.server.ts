@@ -31,6 +31,7 @@ import { isKnownCronName, setCronEnabled } from "./crons.server";
 import { setBillingExempt, setProcessingPaused } from "./merchants.server";
 import { DAY_MS } from "~/lib/constants";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 const STAGED_KINDS = ["resume_account", "release_brake", "cron_enable", "billing_exempt"] as const;
 type StagedKind = (typeof STAGED_KINDS)[number];
 
@@ -264,7 +265,7 @@ export async function confirmStagedChange(
       },
     };
   } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
+    const error = errorMessage(err);
     await db
       .update(stagedChanges)
       .set({ status: "failed", result: { error } })

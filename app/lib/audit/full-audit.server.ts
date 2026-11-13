@@ -2,6 +2,7 @@ import { byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
 import { recoveredPayments } from "~/db";
 import { BILLABLE_ATTRIBUTION_KINDS } from "~/lib/constants";
+import { groupSumByCurrency } from "~/lib/money/totals";
 
 // The audit's "Foxhound adds" band: this account's own billable recoveries,
 // summed per currency. The monthly audit email reads it.
@@ -35,10 +36,9 @@ export async function computeFoxhoundAddsCents(
     .where(byAccountActive(recoveredPayments.accountId, recoveredPayments.deletedAt, accountId));
 
   const billable = new Set<string>(BILLABLE_ATTRIBUTION_KINDS);
-  const totals = new Map<string, number>();
-  for (const row of rows) {
-    if (!billable.has(row.attributionKind)) continue;
-    totals.set(row.currency, (totals.get(row.currency) ?? 0) + row.amountCents);
-  }
-  return [...totals.entries()].map(([currency, cents]) => ({ currency, cents }));
+  return groupSumByCurrency(
+    rows
+      .filter((row) => billable.has(row.attributionKind))
+      .map((row) => ({ currency: row.currency, cents: row.amountCents })),
+  );
 }

@@ -17,6 +17,7 @@ import { readWinbackSequenceId } from "~/lib/recovery/winback-metadata";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-health";
 import { asId } from "~/lib/stripe/ids";
+import { stripeDate } from "~/lib/stripe/time";
 
 // Pure Stripe-event classification for the connected-account webhook. Maps a
 // verified event to the intent the processor acts on and pulls the refs it needs
@@ -233,10 +234,6 @@ function cardAutoUpdated(paymentMethod: Stripe.PaymentMethod): WebhookIntent {
   return { kind: "card_auto_updated", customerId };
 }
 
-function unixToDate(seconds: number | null | undefined): Date | null {
-  return typeof seconds === "number" && Number.isFinite(seconds) ? new Date(seconds * 1000) : null;
-}
-
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
   // Stripe's name for payment_method.automatically_updated before 2020-08-27,
   // with the same PaymentMethod payload. Stripe no longer emits it and the SDK
@@ -288,7 +285,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         // On the pinned API version the subscription lives under `parent`;
         // the top-level `subscription` field is gone.
         subscriptionId: asId(invoice.parent?.subscription_details?.subscription),
-        paidAt: unixToDate(invoice.status_transitions?.paid_at ?? event.created),
+        paidAt: stripeDate(invoice.status_transitions?.paid_at ?? event.created),
         amountPaidCents: invoice.amount_paid ?? 0,
         currency: invoice.currency ?? "usd",
       };
@@ -338,7 +335,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       return {
         kind: "dispute_updated",
         ...fields,
-        eventCreatedAt: new Date(event.created * 1000),
+        eventCreatedAt: stripeDate(event.created),
         funds: disputeFundsMovements(event.data.object as Stripe.Dispute),
       };
     }
@@ -459,7 +456,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         customerId,
         subscriptionId: subscription.id,
         currency: subscription.currency ?? null,
-        occurredAt: new Date(event.created * 1000),
+        occurredAt: stripeDate(event.created),
         changes,
       };
     }
@@ -484,7 +481,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       return {
         kind: "account_health",
         health: readAccountHealth(account),
-        observedAt: new Date(event.created * 1000),
+        observedAt: stripeDate(event.created),
       };
     }
     case "account.application.deauthorized":
@@ -502,7 +499,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         paymentIntentId: asId(warning.payment_intent),
         fraudType: warning.fraud_type ?? "unknown",
         actionable: warning.actionable === true,
-        createdAt: new Date((warning.created ?? 0) * 1000),
+        createdAt: stripeDate(warning.created ?? 0),
       };
     }
     case "invoice.upcoming": {
@@ -524,7 +521,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         customerId,
         customerEmail: invoice.customer_email ?? null,
         customerName: invoice.customer_name ?? null,
-        chargeAt: new Date(chargeAtSeconds * 1000),
+        chargeAt: stripeDate(chargeAtSeconds),
         invoiceDefault: asId(invoice.default_payment_method),
         subscription: asId(invoice.parent?.subscription_details?.subscription),
       };
@@ -548,7 +545,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
         customerId,
         customerEmail: null,
         customerName: null,
-        chargeAt: new Date(subscription.trial_end * 1000),
+        chargeAt: stripeDate(subscription.trial_end),
         invoiceDefault: null,
         subscription: { default_payment_method: asId(subscription.default_payment_method) },
       };

@@ -1,9 +1,5 @@
-import {
-  DISPUTE_FEE_BPS,
-  DISPUTE_FEE_CAP_CENTS,
-  RECOVERY_FEE_BPS,
-  RECOVERY_MATURITY_DAYS,
-} from "~/lib/constants";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
+import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import {
   DECLINE_CATEGORY_COUNT_WORD,
   DECLINE_CATEGORY_LIST_AND,
@@ -16,7 +12,7 @@ import {
   STRIPE_RECOVERY_RATE_PERCENT,
   STRIPE_UNRECOVERED_RATE_PERCENT,
 } from "~/lib/marketing/statistics";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { ProductKey } from "./products";
 
@@ -36,11 +32,10 @@ import type { ProductKey } from "./products";
 // Where Recova's sentence states something Foxhound's engine does not do, the
 // fix is named beside the string. Each is listed under Needs Dustin in the PR.
 
-const pct = (bps: number) => `${bps / 100}%`;
 const usd = (cents: number) => formatMoneyShort(cents, "usd");
 
-export const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
-const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
+export const RECOVERY_FEE = `${RECOVERY_FEE_PERCENT}%`;
+const DISPUTE_FEE = `${DISPUTE_FEE_PERCENT}%`;
 const DISPUTE_CAP = usd(DISPUTE_FEE_CAP_CENTS);
 export const MATURITY_DAYS = RECOVERY_MATURITY_DAYS;
 export const SEQUENCE_DAYS = RECOVERY_SEQUENCE_DAYS;

@@ -5,7 +5,6 @@ import {
   accounts,
   aiCalls,
   aiCallsMonthly,
-  cronRunHistory,
   customerContext,
   emailSends,
   engagementEvents,
@@ -13,7 +12,7 @@ import {
   socialLeads,
   webhookEvents,
 } from "~/db/schema";
-import { D1_MAX_BOUND_PARAMS, DELETE_ID_BATCH_SIZE } from "~/lib/constants";
+import { D1_MAX_BOUND_PARAMS } from "@dustinedwards/site-runtime/d1";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -37,7 +36,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 //
 // COVERAGE BOUND (246): this proves no retention statement exceeds the ceiling
 // and that the sweeps still delete the right rows. It does NOT exercise D1
-// itself; the live proof is a real production run recorded in cron_run_history,
+// itself; the live proof is a real production run recorded in cron_run_log,
 // which is a separate step and cannot be done from here.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
@@ -190,27 +189,6 @@ const SWEEPERS: Record<string, SweeperCase> = {
       );
     },
   },
-  sweepCronRunHistory: {
-    fn: retention.sweepCronRunHistory,
-    seed: (db, n, when) =>
-      insertMany(
-        db,
-        cronRunHistory,
-        rowsOf(
-          n,
-          (i) => ({
-            id: `crh_${when.getTime()}_${i}`,
-            cronName: "recovery-tick",
-            startedAt: when,
-            finishedAt: when,
-            status: "success",
-            rowsProcessed: 0,
-            createdAt: when,
-          }),
-          when,
-        ),
-      ),
-  },
   sweepSocialLeads: {
     fn: retention.sweepSocialLeads,
     seed: (db, n, when) =>
@@ -270,7 +248,7 @@ describe("317: the guard covers every sweeper, in both directions", () => {
       .filter((k) => k.startsWith("sweep"))
       .sort();
     expect(Object.keys(SWEEPERS).sort()).toEqual(exported);
-    expect(exported.length).toBe(7);
+    expect(exported.length).toBe(6);
   });
 });
 
@@ -304,15 +282,15 @@ describe(`317: no retention statement exceeds D1's ${D1_MAX_BOUND_PARAMS} bound 
 describe("317: the predicate sites carry NO id list at all", () => {
   const predicateSites = Object.entries(SWEEPERS).filter(([, s]) => !s.batched);
 
-  it("covers six of the seven sweepers, the seventh being the batched one", () => {
-    expect(predicateSites).toHaveLength(6);
+  it("covers five of the six sweepers, the sixth being the batched one", () => {
+    expect(predicateSites).toHaveLength(5);
   });
 });
 
-describe("317: sweepAiCalls keeps its id list, and batches it", () => {
+describe("317: sweepAiCalls keeps its id list as one bound parameter", () => {
   it("still aggregates into monthly buckets and removes every aged row", async () => {
-    // The atomicity contract survives the chunking: aggregate and delete are one
-    // batch, so a partial chunk set can never leave rows counted but undeleted.
+    // The atomicity contract holds: aggregate and delete are one batch, so a
+    // partial delete can never leave rows counted but undeleted.
     const { db } = createInMemoryDb();
     harness.db = db;
     await SWEEPERS.sweepAiCalls.seed(db, N, AGED);
@@ -349,7 +327,6 @@ describe("317: the subquery predicate deletes the aged rows and spares fresh one
 describe("317: the ceiling, and the harness gap that hid it", () => {
   it("the documented D1 ceiling is pinned at 100 with a margin below it", () => {
     expect(D1_MAX_BOUND_PARAMS).toBe(100);
-    expect(DELETE_ID_BATCH_SIZE).toBeLessThan(D1_MAX_BOUND_PARAMS);
   });
 
   it("HARNESS GAP: better-sqlite3 accepts far more parameters than D1, so behavior alone proves nothing", () => {
@@ -362,15 +339,5 @@ describe("317: the ceiling, and the harness gap that hid it", () => {
     const sql = `select 1 where 'x' in (${ids.map(() => "?").join(",")})`;
     expect(() => sqlite.prepare(sql).all(...ids)).not.toThrow();
     expect(ids.length).toBeGreaterThan(D1_MAX_BOUND_PARAMS);
-  });
-
-  it("chunkIds handles the boundaries: empty, exactly one chunk, one over", () => {
-    expect(retention.chunkIds([])).toEqual([]);
-    expect(
-      retention.chunkIds(Array.from({ length: DELETE_ID_BATCH_SIZE }, (_, i) => i)),
-    ).toHaveLength(1);
-    expect(
-      retention.chunkIds(Array.from({ length: DELETE_ID_BATCH_SIZE + 1 }, (_, i) => i)),
-    ).toHaveLength(2);
   });
 });

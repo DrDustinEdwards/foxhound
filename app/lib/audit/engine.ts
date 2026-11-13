@@ -1,3 +1,4 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import type Stripe from "stripe";
 
 import {
@@ -6,9 +7,12 @@ import {
   type DeclineCategory,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
 } from "~/lib/constants";
+import { monthlyEquivalentCents, type BillingInterval } from "~/lib/intelligence/signals";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import { byCurrencyCode } from "~/lib/money-format";
+import { byCurrencyCode } from "~/lib/money/totals";
 import { classifyDecline } from "~/lib/recovery/decline";
+import { monthKey } from "@dustinedwards/site-runtime/time";
+import { stripeMs } from "~/lib/stripe/time";
 
 // The audit engine, phase (a) of the port ruled by 362. Legacy's
 // `lib/audit-engine.ts` (blob `040912f895b556163d1a08d8af1974bd6af9b2ed`,
@@ -191,9 +195,11 @@ export function extractDeclineCode(invoice: AuditInvoice): string | null {
 }
 
 /**
- * A subscription's recurring amount normalized to monthly cents. Legacy's
- * `monthlyPlanCents`, arithmetic for arithmetic: a day interval times 30, a week
- * times 4, a year divided by 12.
+ * A subscription's recurring amount normalized to monthly cents, through the
+ * same conversion Intelligence uses (signals.ts monthlyEquivalentCents), so the
+ * audit's MRR and the dashboard's agree. Recova's `monthlyPlanCents` counted a
+ * week as 4; a month holds 52/12 weeks, so that under-counted weekly plans by
+ * about 8%. Like Recova, it reads the first item's price at quantity one.
  */
 export function monthlyPlanCents(subscription: AuditSubscription): number {
   const item = subscription.items?.data?.[0];
@@ -205,13 +211,10 @@ export function monthlyPlanCents(subscription: AuditSubscription): number {
   if (!amount || !interval) return 0;
   switch (interval) {
     case "day":
-      return Math.round((amount / intervalCount) * 30);
     case "week":
-      return Math.round((amount / intervalCount) * 4);
     case "month":
-      return Math.round(amount / intervalCount);
     case "year":
-      return Math.round(amount / intervalCount / 12);
+      return monthlyEquivalentCents(amount, 1, interval as BillingInterval, intervalCount);
     default:
       return 0;
   }
@@ -230,8 +233,7 @@ export function buildCardUpdaterAdvisory(
 ): string | null {
   if (eventsInWindow > 0) return null;
   if (expiredCardDeclinesInWindow < MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY) return null;
-  const plural = expiredCardDeclinesInWindow === 1 ? "" : "s";
-  return `Stripe Account Updater is not firing for your cards. ${expiredCardDeclinesInWindow} expired-card decline${plural} hit your account in the last ${CAU_EVENT_RETENTION_DAYS} days, and Stripe updated none of them automatically. Common causes: cards held as raw numbers rather than attached to Stripe Customers, issuers that do not participate, and regional limits.`;
+  return `Stripe Account Updater is not firing for your cards. ${plural(expiredCardDeclinesInWindow, "expired-card decline")} hit your account in the last ${CAU_EVENT_RETENTION_DAYS} days, and Stripe updated none of them automatically. Common causes: cards held as raw numbers rather than attached to Stripe Customers, issuers that do not participate, and regional limits.`;
 }
 
 /** An empty bucket per category, so a category with no failures reads 0 rather
@@ -278,7 +280,7 @@ function resolveFailedInvoices(inputs: AuditInputs, nowMs: number): ScopeOutcome
   }
   if (!inputs.openInvoices.ok) return { ok: false, reason: inputs.openInvoices.reason };
   const overdue = inputs.openInvoices.data.filter(
-    (invoice) => typeof invoice.due_date === "number" && invoice.due_date * 1000 < nowMs,
+    (invoice) => (stripeMs(invoice.due_date) ?? Infinity) < nowMs,
   );
   return { ok: true, data: [...inputs.uncollectibleInvoices.data, ...overdue] };
 }
@@ -364,7 +366,7 @@ function computeExpiringCards(
       const bucketDate = new Date(
         Date.UTC(currentYear, currentMonth - 1 + Math.max(0, monthsAhead), 1),
       );
-      const key = `${bucketDate.getUTCFullYear()}-${String(bucketDate.getUTCMonth() + 1).padStart(2, "0")}`;
+      const key = monthKey(bucketDate);
       let bucket = buckets.get(key);
       if (!bucket) {
         bucket = new Set<string>();
@@ -495,6 +497,21 @@ export interface RunAuditInput {
 }
 
 /**
+ * The audit's two windows, in Stripe's Unix seconds: the lookback, and the card updater's, which is the shorter of the
+ * lookback and Stripe's 30-day event retention (legacy's asymmetry). collectAuditInputs reads over them and runAudit
+ * computes over the same ones.
+ */
+export function auditWindows(ranAt: Date, lookbackDays: number) {
+  const nowMs = ranAt.getTime();
+  const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
+  return {
+    lookbackStartSeconds: Math.floor((nowMs - lookbackDays * DAY_MS) / 1000),
+    cauWindowDays,
+    cauWindowStartSeconds: Math.floor((nowMs - cauWindowDays * DAY_MS) / 1000),
+  };
+}
+
+/**
  * The whole audit, from injected reads. Pure: same inputs, same output, no clock
  * and no network.
  *
@@ -503,13 +520,13 @@ export interface RunAuditInput {
  */
 export function runAudit(input: RunAuditInput): AuditResult {
   const { stripeAccountId, lookbackDays, ranAt, reads } = input;
-  const nowMs = ranAt.getTime();
-  const lookbackStartSeconds = Math.floor((nowMs - lookbackDays * DAY_MS) / 1000);
-  const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
-  const cauWindowStartSeconds = Math.floor((nowMs - cauWindowDays * DAY_MS) / 1000);
+  const { lookbackStartSeconds, cauWindowDays, cauWindowStartSeconds } = auditWindows(
+    ranAt,
+    lookbackDays,
+  );
 
   const currency = resolveCurrency(reads);
-  const failed = resolveFailedInvoices(reads, nowMs);
+  const failed = resolveFailedInvoices(reads, ranAt.getTime());
 
   const failedInvoices: ScopeOutcome<FailedInvoicesScope> = failed.ok
     ? { ok: true, data: computeFailedInvoices(failed.data, currency) }

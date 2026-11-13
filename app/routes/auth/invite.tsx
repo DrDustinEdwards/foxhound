@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { Button } from "capsomer/react/button";
 import { data, Form, redirect, useNavigation } from "react-router";
 
@@ -6,6 +7,8 @@ import { getDb } from "~/db";
 import { acceptInvite, getInviteByToken, getSession, setSessionActiveAccount } from "~/lib/auth";
 import type { Db } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { readCookie } from "@dustinedwards/site-runtime/headers";
+import { bare, setHostCookie } from "~/lib/http/cookies";
 
 import type { Route } from "./+types/invite";
 
@@ -34,27 +37,14 @@ export function meta() {
   return [{ title: "Team invite - Foxhound" }];
 }
 
-/** Recova's cookie name and its one hour. Scoped to /invite, the only reader. */
-const INVITE_COOKIE = "invite_token";
-const INVITE_COOKIE_ATTRS = "Path=/invite; HttpOnly; Secure; SameSite=Lax";
+/** The invite token, carried across sign-up for one hour. A __Host- cookie
+ *  like Foxhound's others, so no sibling host can set one; only /invite reads it. */
+const INVITE_COOKIE = "__Host-invite_token";
+const INVITE_COOKIE_SECONDS = 3600;
 const setInviteCookie = (token: string) =>
-  `${INVITE_COOKIE}=${encodeURIComponent(token)}; ${INVITE_COOKIE_ATTRS}; Max-Age=3600`;
-const clearInviteCookie = () => `${INVITE_COOKIE}=; ${INVITE_COOKIE_ATTRS}; Max-Age=0`;
-
-function readInviteCookie(request: Request): string | null {
-  const header = request.headers.get("cookie") ?? "";
-  for (const part of header.split(";")) {
-    const [name, ...rest] = part.trim().split("=");
-    if (name === INVITE_COOKIE) {
-      try {
-        return decodeURIComponent(rest.join("="));
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
-}
+  setHostCookie(INVITE_COOKIE, token, INVITE_COOKIE_SECONDS);
+const clearInviteCookie = () => setHostCookie(INVITE_COOKIE, "", 0);
+const readInviteCookie = (request: Request) => readCookie(request, bare(INVITE_COOKIE));
 
 // A signed-in caller under another address gets this same sentence. Recova
 // named the invited address there, which told anyone holding the link who it
@@ -77,6 +67,9 @@ async function accept(db: Db, token: string, session: Session, headers?: Headers
     ? data({ accountName: null, error: INVALID }, { status: 403, headers })
     : data({ accountName: null, error: INVALID }, { status: 400, headers });
 }
+
+// Drawn for one reader, and its URL holds a token: kept out of caches and Web Analytics (site-runtime PRIVATE_PAGE_HEADERS).
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

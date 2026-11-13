@@ -224,7 +224,7 @@ describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
     expect(lost).toMatchObject({
       notice: {
         body: [
-          "$50.00 was deducted from your account by the cardholder bank. Reason: A<B>&C.",
+          "$50.00 was deducted from your account by the cardholder bank. Reason: A<b>&c.",
           "No Foxhound fee. We only charge when we win.",
         ],
       },

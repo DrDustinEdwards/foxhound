@@ -10,7 +10,7 @@ import {
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import {
   getDisputeDetail,
-  listDisputes,
+  listDisputesPage,
   readDisputeAutoSubmit,
   readDisputeSettings,
   type DisputeRow,
@@ -74,6 +74,7 @@ import {
   type McpToolRegistry,
   ToolInputError,
 } from "./registry";
+import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding";
 
 // THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING.
 //
@@ -162,32 +163,21 @@ const CURSOR_PROPERTY = {
   description: "Omit for the first page. To read on, pass next_cursor from the previous answer.",
 } as const;
 
-function encodeCursor(tool: string, page: number): string {
-  return btoa(JSON.stringify({ t: tool, p: page })).replace(/=+$/, "");
-}
-
 /** The 1-based page a cursor names, or 1 when there is none. */
-function decodeCursor(tool: string, args: ToolArgs): number {
+function decodeOffsetCursor(tool: string, args: ToolArgs): number {
   const raw = args["cursor"];
   if (raw === undefined || raw === null || raw === "") return 1;
   const refusal = new ToolInputError(
     `That cursor was not issued by ${tool}. Omit cursor to start from the first page.`,
   );
-  if (typeof raw !== "string") throw refusal;
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(atob(raw));
-  } catch {
-    throw refusal;
-  }
-  const { t, p } = (parsed ?? {}) as { t?: unknown; p?: unknown };
-  if (t !== tool || typeof p !== "number" || !Number.isInteger(p) || p < 1) throw refusal;
+  const p = typeof raw === "string" ? readPageCursor(tool, raw) : null;
+  if (p === null || p < 1) throw refusal;
   return p;
 }
 
 function pageInfo(tool: string, page: number, totalPages: number) {
   const hasMore = page < totalPages;
-  return { has_more: hasMore, next_cursor: hasMore ? encodeCursor(tool, page + 1) : null };
+  return { has_more: hasMore, next_cursor: hasMore ? pageCursor(tool, page + 1) : null };
 }
 
 /** One page of an in-memory list the helper already scoped to the account. */
@@ -400,7 +390,7 @@ const READ_TOOLS: McpTool[] = [
     scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_payments";
-      const page = decodeCursor(tool, args);
+      const page = decodeOffsetCursor(tool, args);
       const pageSize = paymentPageSize(args);
       const result = await listFilteredFailedPayments(ctx.db, ctx.accountId, {
         search: null,
@@ -474,7 +464,7 @@ const READ_TOOLS: McpTool[] = [
     scope: "read",
     execute: async (ctx, args) => {
       const tool = "foxhound_list_customers";
-      const page = decodeCursor(tool, args);
+      const page = decodeOffsetCursor(tool, args);
       const [result, tiers] = await Promise.all([
         // NO SEARCH, on purpose: the directory's search matches customer names,
         // so a search argument would let an agent confirm a guessed name the
@@ -569,7 +559,7 @@ const READ_TOOLS: McpTool[] = [
       const tool = "foxhound_get_intelligence";
       const view = stringArg(args, "view") ?? "churn";
       if (view === "recommendations") {
-        const page = decodeCursor(tool, args);
+        const page = decodeOffsetCursor(tool, args);
         const { rows, totalCount } = await listActionableRecommendations(
           ctx.db,
           ctx.accountId,
@@ -638,7 +628,7 @@ const READ_TOOLS: McpTool[] = [
       if (view === "summary") {
         return { stats: await getRecoveryStats(ctx.db, ctx.accountId, ctx.now.getTime()) };
       }
-      const page = decodeCursor(tool, args);
+      const page = decodeOffsetCursor(tool, args);
       if (view === "winback") {
         const rows = await listWinbackSequences(ctx.db, ctx.accountId);
         const { items, ...rest } = slicePage(tool, rows, page, RECOVERY_LIST_PAGE_SIZE);
@@ -760,11 +750,19 @@ const READ_TOOLS: McpTool[] = [
           auto_submit: autoSubmitState,
         };
       }
-      const page = decodeCursor(tool, args);
-      const rows = await listDisputes(ctx.db, ctx.accountId);
-      const { items, ...rest } = slicePage(tool, rows, page, DISPUTE_PAGE_SIZE);
+      const page = decodeOffsetCursor(tool, args);
+      const { rows, total } = await listDisputesPage(
+        ctx.db,
+        ctx.accountId,
+        page,
+        DISPUTE_PAGE_SIZE,
+      );
+      const rest = {
+        total,
+        ...pageInfo(tool, page, Math.max(1, Math.ceil(total / DISPUTE_PAGE_SIZE))),
+      };
       return {
-        disputes: items.map(disputeForAgent),
+        disputes: rows.map(disputeForAgent),
         settings,
         auto_submit: autoSubmitState,
         ...rest,
@@ -803,7 +801,7 @@ const READ_TOOLS: McpTool[] = [
         }
         return { run: toStoredAuditRun(row) };
       }
-      const page = decodeCursor(tool, args);
+      const page = decodeOffsetCursor(tool, args);
       const [settings, rows] = await Promise.all([
         readAccountAuditSettings(ctx.db, ctx.accountId),
         listAuditRuns(ctx.db, ctx.accountId, AUDIT_RUN_HISTORY_LIMIT),
@@ -1056,6 +1054,7 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
   notifications: async (ctx, s) =>
     withoutWebhookUrl(
       await applyNotificationSettings(
+        ctx.env,
         ctx.db,
         ctx.accountId,
         {

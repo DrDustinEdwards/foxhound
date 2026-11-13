@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { eq } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -61,6 +62,7 @@ import { buildTestEmailJob } from "~/lib/settings/test-email.server";
 
 import type { Rendered } from "capsomer/email";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // SEND OR PREVIEW ANY EMAIL, for the owner only (admin API routes /emails,
 // /emails/preview and /emails/send). Dustin approved it on 2026-10-15, message
 // cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ, answering "ok" to:
@@ -470,7 +472,7 @@ export interface PrepareInput {
  */
 export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<PreparedEmail> {
   const { type, to, merchant, now } = input;
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
   const standIn = `${baseUrl}${ADMIN_EMAIL_STAND_IN_PATH}`;
   const senderName = merchant?.senderName ?? null;
 
@@ -808,7 +810,6 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       {
         cronName: "retention-sweep",
         lastRunAt: new Date(now.getTime() - 3 * 86_400_000),
-        reason: "overdue",
         schedule: CRON_SCHEDULE_DAILY,
       },
       now,
@@ -849,7 +850,7 @@ export function previewAdminEmail(
 ): EmailPreview {
   const message =
     prepared.channel === "job"
-      ? buildEmailMessage({ ...prepared.job }, env.BETTER_AUTH_URL ?? "")
+      ? buildEmailMessage({ ...prepared.job }, appOrigin(env))
       : prepared.channel === "rendered"
         ? buildRenderedTransactionalMessage({ to: prepared.to, rendered: prepared.rendered })
         : buildTransactionalMessage(prepared);
@@ -911,6 +912,6 @@ export async function sendAdminEmail(
       ? done("sent", outcome.providerMessageId)
       : done("failed", null, outcome.error ?? outcome.reason);
   } catch (err) {
-    return done("failed", null, err instanceof Error ? err.message : String(err));
+    return done("failed", null, errorMessage(err));
   }
 }

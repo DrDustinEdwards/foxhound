@@ -1,4 +1,6 @@
-import { and, eq, isNull, lte, or, sql } from "drizzle-orm";
+import { appOrigin } from "~/lib/app-origin";
+import { primaryConnectionValue } from "~/lib/stripe/connections.server";
+import { and, eq, isNull, lte, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, getDb, stripeConnections, winBackSequences, winBackSteps } from "~/db";
@@ -22,6 +24,7 @@ import type { Block } from "capsomer/email";
 import { linksTo, storedCopyCarriesResubscribeLink } from "~/lib/recovery/update-link";
 import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
 import { HOUR_MS } from "~/lib/constants";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // THE WIN-BACK SEND CRON. Ported from legacy's
 // app/api/cron/process-winback/route.ts (blob `18f20de9`, 24,184 bytes).
@@ -112,34 +115,22 @@ async function queryDueWinbackSteps(
       scheduledAt: winBackSteps.scheduledAt,
       sequenceCreatedAt: winBackSequences.createdAt,
       notificationsEnabled: accounts.winbackNotificationsEnabled,
-      brandVoice: sql<string | null>`(
-        select ${stripeConnections.brandVoice} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
-      brandVoiceSamples: sql<string | null>`(
-        select ${stripeConnections.brandVoiceSamples} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
-      senderName: sql<string | null>`(
-        select ${stripeConnections.senderName} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
-      replyToEmail: sql<string | null>`(
-        select ${stripeConnections.replyToEmail} from ${stripeConnections}
-        where ${stripeConnections.accountId} = ${winBackSequences.accountId}
-          and ${stripeConnections.isPrimary} = 1
-          and ${stripeConnections.disconnectedAt} is null
-        limit 1
-      )`,
+      brandVoice: primaryConnectionValue<string>(
+        stripeConnections.brandVoice,
+        winBackSequences.accountId,
+      ),
+      brandVoiceSamples: primaryConnectionValue<string>(
+        stripeConnections.brandVoiceSamples,
+        winBackSequences.accountId,
+      ),
+      senderName: primaryConnectionValue<string>(
+        stripeConnections.senderName,
+        winBackSequences.accountId,
+      ),
+      replyToEmail: primaryConnectionValue<string>(
+        stripeConnections.replyToEmail,
+        winBackSequences.accountId,
+      ),
     })
     .from(winBackSteps)
     .innerJoin(winBackSequences, eq(winBackSequences.id, winBackSteps.winBackSequenceId))
@@ -181,10 +172,7 @@ export async function claimStepSent(
   now: Date,
   result: string = "email_sent_fallback",
 ): Promise<boolean> {
-  await db
-    .update(winBackSteps)
-    .set({ executedAt: now, result })
-    .where(and(eq(winBackSteps.id, stepId), isNull(winBackSteps.executedAt)));
+  await stampStep(db, stepId, result, now);
   const rows = await db
     .select({ executedAt: winBackSteps.executedAt })
     .from(winBackSteps)
@@ -276,7 +264,7 @@ export async function resolveWinbackCopy(
   // step's copy, reuse it rather than paying for another Claude call".
   if (step.cachedSubject && step.cachedBodyHtml) {
     const carries = await storedCopyCarriesResubscribeLink(env, step.cachedBodyHtml, {
-      baseUrl: env.BETTER_AUTH_URL ?? "",
+      baseUrl: appOrigin(env),
       mintedUrl: resubscribeUrl,
       sequenceId: step.sequenceId,
       stepNumber: step.stepNumber,
@@ -321,10 +309,7 @@ export async function resolveWinbackCopy(
   } catch (err) {
     // Legacy's rule, quoted in its own source: "AI failure must never block an
     // email, fall through to template".
-    console.error(
-      `winback generation failed for step ${step.stepId}:`,
-      err instanceof Error ? err.message : err,
-    );
+    console.error(`winback generation failed for step ${step.stepId}:`, errorMessage(err));
     return template();
   }
 }
@@ -350,7 +335,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
         winBackStepNumber: step.stepNumber,
         accountId: step.accountId,
       });
-      const resubscribeUrl = `${env.BETTER_AUTH_URL ?? ""}/p/${token}`;
+      const resubscribeUrl = `${appOrigin(env)}/p/${token}`;
       const copy = await resolveWinbackCopy(env, db, step, resubscribeUrl);
       const outcome = await processEmailJob(
         env,
@@ -427,10 +412,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
       }
       result.sent += 1;
     } catch (err) {
-      console.error(
-        `winback send failed for step ${step.stepId}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`winback send failed for step ${step.stepId}:`, errorMessage(err));
       result.skipped += 1;
     }
   }

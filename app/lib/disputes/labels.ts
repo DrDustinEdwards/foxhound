@@ -1,3 +1,4 @@
+import { humanize } from "@drdustinedwards/site-helpers/text";
 import type { DisputeState } from "~/lib/constants";
 import type { Tone } from "~/lib/recovery/labels";
 import { DAY_MS } from "~/lib/constants";
@@ -5,7 +6,7 @@ import { DAY_MS } from "~/lib/constants";
 // Human-readable labels + status-taxonomy tones for the disputes surfaces
 // (Phase 5 slice 5c). Pure and unit-tested, mirroring app/lib/recovery/labels.ts.
 // Tone is shared from the recovery module rather than redefined (same 3-value
-// subset of Badge's BadgeTone); resolved_won is the only success, resolved_lost
+// subset of BadgeTone); resolved_won is the only success, resolved_lost
 // the only failure, everything pre-resolution is neutral (the brand accent is reserved,
 // DESIGN.md, and a dispute mid-review is not itself a success or a failure).
 
@@ -153,9 +154,7 @@ export function humanizeDisputeReason(reason: string | null): string {
   if (!reason) return "Unknown";
   const mapped = DISPUTE_REASON_LABELS[reason];
   if (mapped) return mapped;
-  const spaced = reason.replace(/_/g, " ").trim();
-  if (!spaced) return "Unknown";
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+  return humanize(reason) || "Unknown";
 }
 
 /** Whole days until `deadline`, rounded up. Null passes through so a dispute

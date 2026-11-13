@@ -3,12 +3,12 @@ import type { LucideIcon } from "lucide-react";
 import { Pill } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
+import { FaqList } from "~/components/faq-list";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-import "capsomer/disclosure.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part
 // below reads. The site header loads the same file; importing it here keeps
 // the page whole under any layout.
@@ -94,7 +94,7 @@ export function ProductHero({
           >
             {secondaryCTA.label}{" "}
             <ArrowRight
-              className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+              className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
               size={13}
               strokeWidth={1.5}
               aria-hidden
@@ -275,18 +275,7 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
         <h2 className="mb-8 text-center text-micro font-medium uppercase tracking-widest text-text-tertiary">
           Questions
         </h2>
-        <ul className="m-0 flex list-none flex-col gap-3 p-0">
-          {faqs.map((faq) => (
-            <li key={faq.q}>
-              <details className="cap-disclosure" data-variant="card" name={name}>
-                <summary>{faq.q}</summary>
-                <div className="cap-disclosure-body">
-                  <p className="m-0 text-copy leading-relaxed text-text-secondary">{faq.a}</p>
-                </div>
-              </details>
-            </li>
-          ))}
-        </ul>
+        <FaqList name={name} faqs={faqs} />
       </div>
     </section>
   );

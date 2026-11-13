@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ScanSearch } from "lucide-react";
 
 import { AISummaryPreview, AuditHistoryPreview, AuditScopeCard } from "~/components/audit-previews";
@@ -116,3 +117,5 @@ export default function AuditProductPage() {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

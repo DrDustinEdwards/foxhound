@@ -1,5 +1,6 @@
-import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS, RECOVERY_FEE_BPS } from "~/lib/constants";
-import { formatMoneyShort } from "~/lib/money-format";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { ProductKey } from "./products";
 
@@ -27,8 +28,6 @@ import type { ProductKey } from "./products";
 // - Intelligence: Recova reads "$199/mo", but Intelligence is free on every
 //   account (Dustin, 2026-10-29), so it says "Free".
 
-const pct = (bps: number) => `${bps / 100}%`;
-
 export interface HubCardCopy {
   description: string;
   price: string;
@@ -41,11 +40,11 @@ export const HUB_COPY: Record<ProductKey, HubCardCopy> = {
   },
   recovery: {
     description: "Failed payment recovery for Stripe merchants",
-    price: `${pct(RECOVERY_FEE_BPS)} of Foxhound-attributed recoveries`,
+    price: `${RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries`,
   },
   disputes: {
     description: "Chargeback response and recovery. Pay only on success.",
-    price: `${pct(DISPUTE_FEE_BPS)} on wins, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`,
+    price: `${DISPUTE_FEE_PERCENT}% on wins, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`,
   },
   intelligence: {
     description: "MRR analytics, churn prediction, customer health scoring, monthly narrative",

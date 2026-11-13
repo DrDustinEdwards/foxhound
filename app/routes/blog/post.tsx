@@ -1,13 +1,27 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { formatDate } from "capsomer/behavior/time";
 import { ArrowLeft, ArrowRight } from "lucide-react";
+import { titleCase } from "@drdustinedwards/site-helpers/text";
+import { CARD_MD, CTA_BUTTON } from "~/components/marketing-card";
 import { Link } from "capsomer/react/link";
+import { RelatedLinks } from "capsomer/react/related-links";
+import "capsomer/related-links.css";
+import "~/blog-prose.css";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 import { goneResponse } from "@dustinedwards/site-runtime/url";
-import { CoverPicture } from "~/components/blog/cover-picture";
+import { Picture } from "capsomer/react/picture";
+import "capsomer/picture.css";
 import { SectionTrail } from "~/components/section-trail";
-import { ReadingProgressBar } from "~/components/blog/reading-progress-bar";
-import { ShareRow } from "~/components/blog/share-row";
-import { TableOfContents } from "~/components/blog/table-of-contents";
+import { CopyButton } from "capsomer/react/copy";
+import { ShareRow } from "capsomer/react/share-row";
+import { Toc } from "capsomer/react/toc";
+import "capsomer/button.css";
+import "capsomer/panel.css";
+import "capsomer/status.css";
+import "capsomer/copy.css";
+import "capsomer/share-row.css";
+import "capsomer/toc.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
@@ -17,21 +31,15 @@ import {
   getPostLinks,
   getPreviousPost,
 } from "~/lib/blog/queries.server";
-import {
-  articleJsonLd,
-  faqPageJsonLd,
-  organizationJsonLd,
-  personJsonLd,
-  siteUrl,
-} from "~/lib/seo/jsonld";
+import { articleJsonLd, organizationJsonLd, personJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { faqPage, jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { formatDateShort } from "~/lib/date-format";
 import { MarketingError } from "~/components/error-view";
+import { markup } from "capsomer/behavior/trusted-html";
 
 // Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
 // (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
@@ -172,7 +180,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
         authorName: post.author,
       }),
     ),
-    ...(loaderData.faq.length > 0 ? [jsonLd(faqPageJsonLd(loaderData.faq))] : []),
+    ...(loaderData.faq.length > 0 ? [jsonLd(faqPage(loaderData.faq))] : []),
   ];
 }
 
@@ -190,7 +198,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
-      <ReadingProgressBar targetId="blog-post-article" />
+      <div className="cap-reading-progress" aria-hidden="true" />
 
       <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} />
 
@@ -198,22 +206,33 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         {/* h-entry and e-content name the post's own text for site-api's
             webmention hook, which sends to the links inside it only (not the
             share row's). No style reads either class. */}
-        <article id="blog-post-article" className="h-entry">
+        <article id="blog-post-article" className="h-entry" data-cap-reading>
           {cover ? (
             <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
-              <CoverPicture cover={cover} className="h-full w-full object-cover" />
+              <Picture
+                attrs={cover.picture}
+                alt={cover.alt}
+                priority
+                className="h-full w-full object-cover"
+              />
             </div>
           ) : null}
 
           {post.tags.length > 0 ? (
-            <div className="mb-3 flex flex-wrap items-center gap-1.5">
+            // Capsomer's outline pill as a link, as on /blog's cards, in the amber family.
+            <div
+              className="fh-cap mb-3 flex flex-wrap items-center gap-1.5"
+              data-cap-site="foxhound"
+              data-family="amber"
+            >
               {post.tags.map((t) => (
                 <Link
                   key={t}
                   to={`/blog/tag/${encodeURIComponent(t)}`}
-                  className="rounded-full border border-border bg-surface px-2 py-0.5 font-mono text-micro text-text-tertiary transition-colors hover:border-brand hover:text-text"
+                  className="cap-pill"
+                  data-variant="outline"
                 >
-                  {t}
+                  {titleCase(t)}
                 </Link>
               ))}
             </div>
@@ -222,7 +241,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-label text-text-tertiary">
             {showPublished ? (
               <time dateTime={post.publishedAt!.toISOString()}>
-                {formatDateShort(post.publishedAt)}
+                {formatDate(post.publishedAt, { style: "medium" }) ?? ""}
               </time>
             ) : null}
             {showPublished && showUpdated ? <span aria-hidden="true"> &middot; </span> : null}
@@ -230,7 +249,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               <>
                 Updated{" "}
                 <time dateTime={post.updatedAt!.toISOString()}>
-                  {formatDateShort(post.updatedAt)}
+                  {formatDate(post.updatedAt, { style: "medium" }) ?? ""}
                 </time>
               </>
             ) : null}
@@ -253,49 +272,39 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             {post.excerpt}
           </p>
 
-          <ShareRow url={canonical} title={post.title} />
+          <ShareRow url={canonical} title={post.title}>
+            <CopyButton
+              size="xs"
+              {...{ command: "--copy", commandfor: "share-url" }}
+              data-island="copy"
+              text={canonical}
+            >
+              Copy link
+            </CopyButton>
+            <data id="share-url" value={canonical} hidden>
+              {canonical}
+            </data>
+          </ShareRow>
 
-          <TableOfContents items={toc} variant="inline" />
+          <Toc items={toc} variant="inline" />
 
           <div
             className="blog-prose e-content"
+            data-context="prose"
             data-render-version={version}
             data-island={html.includes("embed-link") ? "embeds" : undefined}
-            dangerouslySetInnerHTML={{ __html: html }}
+            dangerouslySetInnerHTML={markup(html)}
           />
         </article>
 
-        <TableOfContents items={toc} variant="sidebar" />
+        <Toc items={toc} variant="sidebar" />
       </div>
 
-      {related.length > 0 ? (
-        <section
-          aria-label="Further reading"
-          className="mt-12 max-w-[680px] border-t border-border pt-8"
-        >
-          <p className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-            Further reading
-          </p>
-          <ul className="m-0 flex list-none flex-col gap-2 p-0">
-            {related.map((r) => (
-              <li key={r.id}>
-                <Link
-                  to={`/blog/${r.slug}`}
-                  className="group inline-flex items-center gap-1.5 text-item-title text-text transition-colors hover:text-brand-text"
-                >
-                  {r.title}
-                  <ArrowRight
-                    className="opacity-0 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:opacity-100"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden
-                  />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+      <RelatedLinks
+        kind="internal"
+        title="Further reading"
+        items={related.map((r) => ({ href: `/blog/${r.slug}`, title: r.title }))}
+      />
 
       <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
         <img
@@ -323,44 +332,50 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       {previous || next ? (
         <nav
           aria-label="Adjacent posts"
-          className="mx-auto mt-16 grid max-w-[1100px] grid-cols-1 gap-4 border-t border-border pt-8 sm:grid-cols-2"
+          className="fh-cap mx-auto mt-16 grid max-w-[1100px] grid-cols-1 gap-4 border-t border-border pt-8 sm:grid-cols-2"
+          data-cap-site="foxhound"
+          data-family="amber"
         >
           {previous ? (
-            <Link
-              to={`/blog/${previous.slug}`}
-              className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-i"
-            >
-              <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-                <ArrowLeft
-                  className="transition-transform group-hover:-translate-x-0.5"
-                  size={13}
-                  strokeWidth={1.5}
-                  aria-hidden
-                />
-                Previous post
-              </div>
-              <div className="text-item-title font-medium leading-snug text-text">
-                {previous.title}
+            <Link to={`/blog/${previous.slug}`} className={`${CARD_MD} group`}>
+              <div className="cap-panel-body">
+                <div>
+                  <div className="mb-1 inline-flex items-center gap-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+                    <ArrowLeft
+                      className="motion-safe:transition-transform group-hover:-translate-x-0.5"
+                      size={13}
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
+                    Previous post
+                  </div>
+                  <div className="text-item-title font-medium leading-snug text-text">
+                    {previous.title}
+                  </div>
+                </div>
               </div>
             </Link>
           ) : (
             <span />
           )}
           {next ? (
-            <Link
-              to={`/blog/${next.slug}`}
-              className="group block rounded-lg border border-border bg-surface p-5 transition-colors hover:border-border-i sm:text-right"
-            >
-              <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-                Next post{" "}
-                <ArrowRight
-                  className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                  size={13}
-                  strokeWidth={1.5}
-                  aria-hidden
-                />
+            <Link to={`/blog/${next.slug}`} className={`${CARD_MD} group sm:text-right`}>
+              <div className="cap-panel-body">
+                <div>
+                  <div className="mb-1 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
+                    Next post{" "}
+                    <ArrowRight
+                      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
+                      size={13}
+                      strokeWidth={1.5}
+                      aria-hidden
+                    />
+                  </div>
+                  <div className="text-item-title font-medium leading-snug text-text">
+                    {next.title}
+                  </div>
+                </div>
               </div>
-              <div className="text-item-title font-medium leading-snug text-text">{next.title}</div>
             </Link>
           ) : (
             <span />
@@ -368,20 +383,21 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         </nav>
       ) : null}
 
-      <div className="mx-auto mt-16 max-w-[760px] border-t border-border pt-12 text-center">
+      <div
+        className="fh-cap mx-auto mt-16 max-w-[760px] border-t border-border pt-12 text-center"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
         <h2 className="mb-2 text-feature-title font-medium text-text">
           Run your free Stripe audit
         </h2>
         <p className="mx-auto mb-6 max-w-[480px] text-item-title leading-relaxed text-text-secondary">
           See exactly what your account is leaking. Free, no account required.
         </p>
-        <Link
-          to="/audit"
-          className="btn-primary group inline-block rounded-md px-6 py-3 text-item-title font-semibold text-on-brand"
-        >
+        <Link to="/audit" className={`${CTA_BUTTON} group`} data-variant="primary" data-size="lg">
           Start free audit{" "}
           <ArrowRight
-            className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+            className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
             size={13}
             strokeWidth={1.5}
             aria-hidden
@@ -405,3 +421,5 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   return <MarketingError error={error} />;
 }
+
+export const headers = () => publicPageHeaders();

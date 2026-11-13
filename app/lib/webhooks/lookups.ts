@@ -30,6 +30,7 @@ import type { RecoveredChargeFee } from "~/lib/recovery/record-recovery";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 /** Map a connected Stripe account id to our account id AND the specific
  *  stripe_connections row it resolved through (Phase 5 review MEDIUM fix
@@ -255,14 +256,9 @@ export async function resolveConnectedCustomer(
   stripeCustomerId: string,
 ): Promise<{ email: string | null; name: string | null } | null> {
   try {
-    const [connection] = await getDb(env)
-      .select({ accessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(eq(stripeConnections.id, connectionId))
-      .limit(1);
-    if (!connection?.accessToken) return null;
-    const token = await decryptToken(env, connection.accessToken);
-    const customer = await getConnectedStripe(token).customers.retrieve(stripeCustomerId);
+    const stripe = await connectedStripeFor(env, connectionId);
+    if (!stripe) return null;
+    const customer = await stripe.customers.retrieve(stripeCustomerId);
     if (customer.deleted) return null;
     return { email: customer.email ?? null, name: customer.name ?? null };
   } catch {
@@ -292,17 +288,8 @@ async function resolveInvoiceIdForPaymentIntent(
   connectionId: string,
   paymentIntentId: string,
 ): Promise<string | null> {
-  const db = getDb(env);
-  const [connection] = await db
-    .select({ accessToken: stripeConnections.stripeAccessToken })
-    .from(stripeConnections)
-    .where(eq(stripeConnections.id, connectionId))
-    .limit(1);
-  if (!connection?.accessToken) {
-    throw new Error("no stored access token for connection");
-  }
-  const token = await decryptToken(env, connection.accessToken);
-  const stripe = getConnectedStripe(token);
+  const stripe = await connectedStripeFor(env, connectionId);
+  if (!stripe) throw new Error("no stored access token for connection");
   const results = await stripe.invoicePayments.list({
     payment: { type: "payment_intent", payment_intent: paymentIntentId },
     limit: 1,
@@ -523,14 +510,8 @@ export async function resolveExpiringCard(
   if (intent.card) return intent.card;
   if (!intent.paymentMethodId) return null;
   try {
-    const rows = await getDb(env)
-      .select({ token: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(eq(stripeConnections.id, connectionId))
-      .limit(1);
-    const encrypted = rows[0]?.token;
-    if (!encrypted) return null;
-    const stripe = getConnectedStripe(await decryptToken(env, encrypted));
+    const stripe = await connectedStripeFor(env, connectionId);
+    if (!stripe) return null;
     const pm = await stripe.paymentMethods.retrieve(intent.paymentMethodId);
     if (!pm.card?.exp_month || !pm.card?.exp_year) return null;
     return {
@@ -542,10 +523,7 @@ export async function resolveExpiringCard(
   } catch (err) {
     // A Stripe failure here loses one candidate; the nightly scan finds the
     // same card again. Never fail the webhook for it.
-    console.error(
-      "expiring-card payment method lookup failed:",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("expiring-card payment method lookup failed:", errorMessage(err));
     return null;
   }
 }
@@ -731,13 +709,8 @@ export async function tryWinbackReactivationFromInvoice(
 
   let sequenceId: string | null = null;
   try {
-    const [connection] = await db
-      .select({ accessToken: stripeConnections.stripeAccessToken })
-      .from(stripeConnections)
-      .where(eq(stripeConnections.id, input.connectionId))
-      .limit(1);
-    if (!connection?.accessToken) return;
-    const stripe = getConnectedStripe(await decryptToken(env, connection.accessToken));
+    const stripe = await connectedStripeFor(env, input.connectionId);
+    if (!stripe) return;
     const subscription = await stripe.subscriptions.retrieve(input.subscriptionId);
     sequenceId = readWinbackSequenceId(subscription.metadata);
   } catch {

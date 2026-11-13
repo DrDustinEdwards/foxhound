@@ -30,6 +30,8 @@ import {
   type PlatformInvoiceLineInput,
 } from "./stripe-invoice";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
+import { monthKey } from "@dustinedwards/site-runtime/time";
 // The monthly billing run (PRICING.md billing mechanics + SCHEMA.md billing).
 // One invoice per account per currency, its line items FK-linked to their
 // evidence (recovered payment / dispute), committed as ONE atomic money-write
@@ -63,11 +65,8 @@ export function computeBillingPeriod(nowMs: number): BillingPeriod {
   const m = now.getUTCMonth(); // 0-11, current month
   const startY = m === 0 ? y - 1 : y;
   const startM = m === 0 ? 11 : m - 1;
-  return {
-    periodStart: new Date(Date.UTC(startY, startM, 1)),
-    periodEnd: new Date(Date.UTC(y, m, 1)),
-    periodKey: `${startY}-${String(startM + 1).padStart(2, "0")}`,
-  };
+  const periodStart = new Date(Date.UTC(startY, startM, 1));
+  return { periodStart, periodEnd: new Date(Date.UTC(y, m, 1)), periodKey: monthKey(periodStart) };
 }
 
 interface BillableRecoveryLite {
@@ -282,7 +281,7 @@ type SweepRunStatus = "completed" | "aborted";
  * gate, so an unknown number of stranded invoices were never looked at at all.
  *
  * Those two states used to be indistinguishable from outside. The sweep's tally
- * was a console.log and the abort was a console.error, so a cron_run_history row
+ * was a console.log and the abort was a console.error, so a cron_run_log row
  * reading "3 accounts, 2 invoices" meant either "nothing was stranded" or "we
  * never found out", and an operator had no way to tell which (gate review 7.4).
  */
@@ -300,7 +299,7 @@ export interface MonthlyBillingResult {
   sweep: SweepRunSummary;
 }
 
-/** The sweep clause of the cron_run_history message. Pure, so the wording an
+/** The sweep clause of the cron_run_log message. Pure, so the wording an
  *  operator actually reads is asserted in a test rather than eyeballed after a
  *  deploy. ABORTED is shouted because it is the one value that means a silence
  *  is not evidence of nothing to do. */
@@ -470,7 +469,7 @@ export async function runAccountBilling(
       } catch (err) {
         console.error(
           `platform customer create failed for account ${accountId} invoice ${invoiceId}:`,
-          err instanceof Error ? err.message : err,
+          errorMessage(err),
         );
       }
     }
@@ -507,7 +506,7 @@ export async function runAccountBilling(
         // reruns or rolls back the invoice, it stays 'draft' for retry/Phase 8.
         console.error(
           `platform charge failed for account ${accountId} invoice ${invoiceId}:`,
-          err instanceof Error ? err.message : err,
+          errorMessage(err),
         );
       }
     }
@@ -606,13 +605,10 @@ export async function runMonthlyBilling(
       results.push({
         accountId: id,
         invoices: [],
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessage(err),
       });
       // Surface the failure without aborting the run; the cron logs the aggregate.
-      console.error(
-        `billing run failed for account ${id}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`billing run failed for account ${id}:`, errorMessage(err));
     }
   }
   return { accounts: results, sweep };

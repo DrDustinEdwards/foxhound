@@ -8,20 +8,21 @@
 //     SHA-256 keys an admin_impersonations row, which names the admin, the
 //     account and when it ends.
 //   - It lasts 30 minutes, and is honored only while the admin who started it
-//     still passes Cloudflare Access (getAdminSession) on the same request.
+//     still passes Cloudflare Access (accessAdmin) on the same request.
 //   - It is read-only: appShellMiddleware refuses every non-GET/HEAD with 405
 //     while the cookie is present, before any session, membership or database
 //     work, the demo firewall's approach.
 //   - Start, Stop and expiry each write admin_audit_log (impersonation_start /
 //     impersonation_stop, Recova's codes), naming the admin and the account.
 
+import { accessAdmin } from "@dustinedwards/site-runtime/access";
 import { base64url, sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accountMembers, accounts, adminImpersonations, user } from "~/db";
-import { getAdminSession } from "~/lib/auth/access.server";
-import { setHostCookie } from "~/lib/http/cookies";
+import { readCookie } from "@dustinedwards/site-runtime/headers";
+import { bare, setHostCookie } from "~/lib/http/cookies";
 import type { Membership } from "~/lib/auth/account";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
@@ -34,15 +35,7 @@ export const IMPERSONATION_READ_ONLY_MESSAGE =
   "You are viewing this merchant read-only. Nothing can be changed while viewing as a merchant.";
 
 function readToken(request: Request): string | null {
-  const header = request.headers.get("cookie") ?? "";
-  for (const part of header.split(";")) {
-    const [key, ...rest] = part.trim().split("=");
-    if (key === IMPERSONATION_COOKIE) {
-      const value = rest.join("=");
-      return value.length > 0 ? value : null;
-    }
-  }
-  return null;
+  return readCookie(request, bare(IMPERSONATION_COOKIE)) || null;
 }
 
 /** Cookie presence only, no database: what the read-only gate keys on. */
@@ -56,10 +49,6 @@ function setImpersonationCookieHeader(token: string): string {
 
 export function clearImpersonationCookieHeader(): string {
   return setHostCookie(IMPERSONATION_COOKIE, "", 0);
-}
-
-function hashToken(token: string): Promise<string> {
-  return sha256Hex(token);
 }
 
 function newToken(): string {
@@ -97,7 +86,7 @@ export async function startImpersonation(
   await db.batch([
     db.insert(adminImpersonations).values({
       id,
-      tokenHash: await hashToken(token),
+      tokenHash: await sha256Hex(token),
       adminEmail: input.adminEmail,
       accountId: input.accountId,
       startedAt: input.now,
@@ -135,7 +124,7 @@ async function findByToken(db: Db, token: string) {
   const [row] = await db
     .select()
     .from(adminImpersonations)
-    .where(eq(adminImpersonations.tokenHash, await hashToken(token)))
+    .where(eq(adminImpersonations.tokenHash, await sha256Hex(token)))
     .limit(1);
   return row ?? null;
 }
@@ -187,7 +176,7 @@ export async function resolveImpersonation(
     return null;
   }
 
-  const admin = await getAdminSession(env, request);
+  const admin = await accessAdmin(request, env);
   if (!admin || admin.email !== row.adminEmail) return null;
 
   const [member] = await db

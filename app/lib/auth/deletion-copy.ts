@@ -6,6 +6,7 @@
 // share it.
 
 import { MEMBER_ROLE } from "./roles";
+import { listText } from "capsomer/behavior/hooks";
 
 /** The names of the accounts a deletion clears: the person's active
  *  memberships (the session's, the list the switcher shows) where they are the
@@ -26,11 +27,6 @@ function label(name: string | null): string {
   return trimmed ? trimmed : "an unnamed account";
 }
 
-function list(names: string[]): string {
-  if (names.length <= 1) return names.join("");
-  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-}
-
 export function deletionConsequence(ownedAccountNames: Array<string | null>): string {
   const n = ownedAccountNames.length;
   if (n === 0) {
@@ -42,6 +38,6 @@ export function deletionConsequence(ownedAccountNames: Array<string | null>): st
   if (n === 1) {
     return `This will ${what} clear the account you own, ${label(ownedAccountNames[0] ?? null)}, ${clears} ${KEPT} ${FINAL}`;
   }
-  const names = list(ownedAccountNames.map(label));
+  const names = listText(ownedAccountNames.map(label));
   return `This will ${what} clear all ${n} accounts you own (${names}), not only the one you are viewing, ${clears} ${KEPT} ${FINAL}`;
 }

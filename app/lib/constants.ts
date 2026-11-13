@@ -67,6 +67,10 @@ export const FEE_INVOICE_MAX_RETRY_AGE_DAYS = 90;
  */
 export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
 
+const MINUTE_MS = 60 * 1000;
+export const HOUR_MS = 60 * MINUTE_MS;
+export const DAY_MS = 24 * HOUR_MS;
+
 // ---- Maturity window (PRICING.md maturity-window billing) ----
 /** A recovery is billable only once it is at least this old (refund window absorption). */
 /**
@@ -86,10 +90,10 @@ export const DEMO_ACCOUNT_ID_PREFIX = "demo_";
  * records, as `stripe_baseline`, free.
  */
 export const EMAIL_ENGAGEMENT_WINDOW_DAYS = 14;
-export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * 24 * 60 * 60 * 1000;
+export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * DAY_MS;
 
 export const RECOVERY_MATURITY_DAYS = 30;
-export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * 24 * 60 * 60 * 1000;
+export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * DAY_MS;
 
 // ---- failed_payments lifecycle ----
 /** The in-recovery status: a sequence is running and manual actions apply.
@@ -511,9 +515,6 @@ export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
 // ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
 // Triggers; retention crons live before any table they govern takes writes) ----
-export const MINUTE_MS = 60 * 1000;
-export const HOUR_MS = 60 * MINUTE_MS;
-export const DAY_MS = 24 * HOUR_MS;
 /** Max age of a /p/:token card-update link before it is treated as expired
  *  (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays
  *  valid for the full life of the sequence that carries it). */
@@ -639,7 +640,7 @@ export const CRON_TICKER_INSTANCE_NAME = "five-minute-ticker";
  *   1-2 the step-state write, plus attribution reads on a retry
  *   ------
  *   ~4-5 per step, so 100 steps is ~400-500 plus the selection query, the
- *        exhausted sweep and one cron_run_history write.
+ *        exhausted sweep and one cron_run_log write.
  *
  * At 500 that arithmetic lands around 2000-2500 and the tick could not have
  * completed a full batch. The old value only ever looked safe because a full
@@ -714,7 +715,7 @@ export const RETENTION_ENGAGEMENT_DAYS = 180;
 export const RETENTION_EMAIL_SENDS_DAYS = 180;
 export const RETENTION_WEBHOOK_EVENTS_DAYS = 90;
 export const RETENTION_HEALTH_SCORE_DAYS = 90;
-export const RETENTION_CRON_HISTORY_DAYS = 90;
+export const RETENTION_CRON_LOG_DAYS = 90;
 export const RETENTION_AI_CALLS_DAYS = 90;
 export const RETENTION_SOCIAL_LEADS_DAYS = 180;
 /** The 404 counts: 90 days, the family default (pruneNotFound's own), which the admin report's 30-day view sits well inside. */
@@ -722,25 +723,6 @@ export const RETENTION_PAGE_404_DAILY_DAYS = 90;
 /** Max raw rows a single retention tick sweeps per table (keeps a tick bounded;
  *  a large backlog drains over successive ticks). */
 export const RETENTION_SWEEP_LIMIT = 5_000;
-
-/** D1's DOCUMENTED ceiling on bound parameters in ONE query.
- *
- *  Measured from Cloudflare's own limits page (developers.cloudflare.com/d1/
- *  platform/limits/, "Maximum bound parameters per query"), not from memory,
- *  because a remembered number is what let this ship. Recorded next to the
- *  OBSERVED figure that broke: retention-health-score built a DELETE with
- *  **417** placeholders, one per aged row, and failed every day for 29 days
- *  (2026-07-22 to 2026-08-19) with rows_processed 0.
- *
- *  A query whose parameter count scales with ROW COUNT is the bug class. Prefer
- *  a set-based predicate that needs no id list at all; batch under this ceiling
- *  only where the id list is semantically required. */
-export const D1_MAX_BOUND_PARAMS = 100;
-
-/** Ids per DELETE where an id list is unavoidable. Ten percent under the
- *  documented ceiling, so a caller that adds one incidental bound parameter to
- *  the same statement does not silently cross it. */
-export const DELETE_ID_BATCH_SIZE = 90;
 
 // ---- Audit product (Phase 6 Pass 3: full-audit lift-band data/query layer) ----
 /** Trailing window the audit scans for failed/recovered invoices (legacy parity). */
@@ -770,7 +752,7 @@ export const MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY = 3;
  *  persists which customers were already seen), so an account over this count
  *  rescans the same newest-first set every run rather than eventually covering
  *  everyone; app/lib/intelligence/sync.server.ts's AccountSyncResult.truncated
- *  flag surfaces this in cron_run_history so it is visible, not silent. */
+ *  flag surfaces this in cron_run_log so it is visible, not silent. */
 export const INTELLIGENCE_MAX_CUSTOMERS_SCANNED = 2000;
 /** Bounded invoice history read per customer when reconstructing billing-terms
  *  observations and payment-latency drift. */
@@ -783,6 +765,10 @@ export const INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER = 100;
  *  healthier). Drives MRR-at-risk exposure, the narrative's top-N selection,
  *  and the /intelligence UI. */
 export const HEALTH_SCORE_AT_RISK_THRESHOLD = 40;
+
+/** Recova's high-risk ceiling (health_score <= 33): the high-risk count and
+ *  MRR that health alerts watch, and the critical customers check. */
+export const CRITICAL_HEALTH_SCORE_MAX = 33;
 /** How far out a logged prediction claims to look. Grading (filling
  *  realizedOutcome once this elapses) is a later backtest pass. */
 export const PREDICTION_HORIZON_DAYS = 30;
@@ -938,10 +924,6 @@ export const RATE_LIMIT_MCP = { max: 120, windowMs: 60 * 1000 } as const;
  */
 export const RATE_LIMIT_MCP_ANON = { max: 20, windowMs: 60 * 1000 } as const;
 
-/** The CSP report sink's per-IP bucket (/csp-report), bounding Workers
- *  Logs lines from one misbehaving browser or a flood. */
-export const RATE_LIMIT_CSP_REPORT = { max: 20, windowMs: 60 * 1000 } as const;
-
 // ============================================================================
 // OAuth provider for external agents
 // ============================================================================
@@ -952,12 +934,12 @@ export const OAUTH_ACCESS_TOKEN_TTL_SECONDS = 3600;
 
 /** A refresh token lives 30 days from its last rotation, as Recova's comment
  *  on its token route said ("rotates refresh tokens (30d) on every refresh"). */
-export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * DAY_MS;
 
 /** An authorization code lives ten minutes, the ceiling RFC 6749 section 4.1.2
  *  recommends. Recova's lifetime was a Supabase column default outside its
  *  repo, so it could not be read; this is Foxhound's own. */
-export const OAUTH_CODE_TTL_MS = 10 * 60 * 1000;
+export const OAUTH_CODE_TTL_MS = 10 * MINUTE_MS;
 
 /** Recova's four OAuth limits (lib/constants.ts lines 116 to 119), unchanged:
  *  approve is per signed-in user, the other three per IP. */

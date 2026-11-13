@@ -1,6 +1,8 @@
+import { plural } from "@drdustinedwards/site-helpers/text";
 import type Stripe from "stripe";
 
 import type { EmailNotice } from "~/lib/email/templates";
+import { stripeDate } from "~/lib/stripe/time";
 
 // THE CONNECTED STRIPE ACCOUNT'S OWN HEALTH, read from account.updated. Stripe
 // sends that event to the Connect endpoint for the connected account itself
@@ -33,7 +35,7 @@ export function readAccountHealth(account: Stripe.Account): AccountHealth {
     payoutsEnabled: typeof account.payouts_enabled === "boolean" ? account.payouts_enabled : null,
     disabledReason: requirements?.disabled_reason ?? null,
     pastDueCount: requirements?.past_due ? requirements.past_due.length : null,
-    currentDeadline: deadline ? new Date(deadline * 1000) : null,
+    currentDeadline: stripeDate(deadline),
   };
 }
 
@@ -99,7 +101,7 @@ export function healthProblemLines(problems: HealthProblem[], health: AccountHea
   if (problems.includes("past_due")) {
     const count = health.pastDueCount ?? 0;
     lines.push(
-      `Stripe lists ${count} past-due ${count === 1 ? "requirement" : "requirements"} on this account. ` +
+      `Stripe lists ${plural(count, "past-due requirement")} on this account. ` +
         "Stripe can turn off charges or payouts until they are provided.",
     );
   }

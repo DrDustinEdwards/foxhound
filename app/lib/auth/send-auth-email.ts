@@ -3,6 +3,7 @@ import {
   SIGN_IN_EXPIRES_IN_WORDS,
   type NoticeDetail,
 } from "@dustinedwards/site-runtime/sign-in";
+import { EMAIL_CHANGE_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-words";
 import type { Rendered } from "capsomer/email";
 
 import { sendRenderedTransactionalEmail, type TransactionalSendOutcome } from "~/lib/email/send";
@@ -89,11 +90,6 @@ export async function sendSecurityNoticeEmail(
     );
   }
 }
-
-/** How long each email-change link works: Better Auth's emailVerification
- *  expiresIn, and the words the mails say. */
-export const EMAIL_CHANGE_EXPIRES_IN_SECONDS = 60 * 60;
-export const EMAIL_CHANGE_EXPIRES_IN_WORDS = "1 hour";
 
 /**
  * Mail the CURRENT address to confirm a change to `newEmail` (E1). Better

@@ -1,6 +1,9 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
+
 // The home page's recovery calculator's math (components/recovery-calculator.tsx), Recova's multipliers,
 // shared with the calculator island (islands/calculator.ts) that runs it on a page that does not hydrate.
-// No imports: the island is bundled on its own, and the constants come in as arguments.
+// The island is bundled on its own, so the one import is Prelum's dependency-free ./text, and the constants come in
+// as arguments.
 
 export interface CalculatorInputs {
   mrr: number;
@@ -37,10 +40,5 @@ export function calculatorFigures({
 }
 
 export function fmt(n: number): string {
-  return "$" + n.toLocaleString();
-}
-
-/** Capsomer's Range fill: how far along its track the thumb is. */
-export function rangeFill(value: number, min: number, max: number): string {
-  return `${(max > min ? ((value - min) / (max - min)) * 100 : 0).toFixed(2)}%`;
+  return "$" + formatCount(n);
 }

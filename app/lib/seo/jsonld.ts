@@ -1,4 +1,12 @@
-import { article, faqPage, itemList, thing, website } from "@drdustinedwards/site-helpers/schema";
+import {
+  article,
+  itemList,
+  organization,
+  person,
+  softwareApplication,
+  thing,
+  website,
+} from "@drdustinedwards/site-helpers/schema";
 
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 
@@ -36,18 +44,14 @@ export const SUPPORT_EMAIL = "support@foxhoundapp.com";
 export const GOVERNING_LAW_JURISDICTION = "Texas";
 
 export function organizationJsonLd(url: string) {
-  return thing("Organization", {
-    "@id": `${url}/#organization`,
+  return organization({
+    id: `${url}/#organization`,
     name: "Foxhound",
     url,
     logo: `${url}/favicon.svg`,
     description:
       "Pay-on-lift recovery, review-and-sign disputes, and free MRR intelligence for Stripe merchants.",
-    contactPoint: {
-      "@type": "ContactPoint",
-      email: SUPPORT_EMAIL,
-      contactType: "customer support",
-    },
+    email: SUPPORT_EMAIL,
     knowsAbout: [
       "Failed payment recovery",
       "Stripe dunning",
@@ -61,8 +65,8 @@ export function organizationJsonLd(url: string) {
 }
 
 export function softwareApplicationJsonLd(url: string) {
-  return thing("SoftwareApplication", {
-    "@id": `${url}/#software`,
+  return softwareApplication({
+    id: `${url}/#software`,
     name: "Foxhound",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
@@ -89,15 +93,6 @@ export function softwareApplicationJsonLd(url: string) {
     // The day a fixed-price plan exists with a checkout behind it, an Offer here
     // becomes both truthful and worth having.
   });
-}
-
-export interface JsonLdFaq {
-  question: string;
-  answer: string;
-}
-
-export function faqPageJsonLd(faqs: JsonLdFaq[]) {
-  return faqPage(faqs);
 }
 
 /** The speakable parts of a page, on Prelum's WebPage node (marketingMeta) by its `@id`, so the page is one node. */
@@ -135,9 +130,9 @@ export function personJsonLd(
   url: string,
   opts: { name: string; jobTitle: string; description: string; sameAs?: string[] },
 ) {
-  // thing() drops an empty sameAs: an empty list claims links the page does not have.
-  return thing("Person", {
-    "@id": `${url}/about#person`,
+  // Prelum drops an empty sameAs: an empty list claims links the page does not have.
+  return person({
+    id: `${url}/about#person`,
     name: opts.name,
     jobTitle: opts.jobTitle,
     description: opts.description,

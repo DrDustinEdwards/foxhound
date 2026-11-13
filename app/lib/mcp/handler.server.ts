@@ -1,4 +1,10 @@
-import { logEvent, OWASP_EVENTS, requestFields } from "@dustinedwards/site-runtime/log";
+import { clientIp, jsonResponse } from "@dustinedwards/site-runtime/http";
+import {
+  errorMessage,
+  logEvent,
+  OWASP_EVENTS,
+  requestFields,
+} from "@dustinedwards/site-runtime/log";
 import { readCapped } from "@dustinedwards/site-runtime/body";
 import { recordAudit } from "@dustinedwards/site-runtime/audit-log";
 import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
@@ -76,15 +82,6 @@ function mcpErrorBody(id: string | number | null, code: number, message: string)
 /** The server as the shared log names it. */
 const AUDIT_SERVER = { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
 
-/** The registry as the list-only test key sees it: the read tools only, as a read grant would see them. */
-function readToolsOnly(registry: McpToolRegistry): McpToolRegistry {
-  const read = (name: string) => {
-    const tool = registry.get(name);
-    return tool?.scope === "read" ? tool : null;
-  };
-  return { list: () => registry.list().filter((tool) => read(tool.name)), get: read };
-}
-
 /** What the endpoint resolved before dispatching. */
 interface McpAuthContext {
   keyId: string;
@@ -96,34 +93,20 @@ interface McpAuthContext {
 
 /** The 429, with the limiter's Retry-After. */
 function tooMany(retryAfter: number): Response {
-  return jsonResponse(429, mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "Too many requests"), {
+  return jsonResponse(mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "Too many requests"), 429, {
     "Retry-After": String(retryAfter),
   });
 }
 
 const UNAUTHORIZED_MESSAGE = "Unauthorized";
 
-function jsonResponse(status: number, body: unknown, extra: Record<string, string> = {}): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: {
-      "Content-Type": "application/json",
-      // Belt and braces with the worker's own cache policy, which classifies
-      // /mcp private by default. An answer carrying a merchant's data must
-      // never be stored by an intermediary.
-      "Cache-Control": "private, no-store",
-      ...extra,
-    },
-  });
-}
-
-function errorResponse(
+function rpcErrorResponse(
   status: number,
   id: string | number | null,
   code: number,
   message: string,
 ): Response {
-  return jsonResponse(status, mcpErrorBody(id, code, message));
+  return jsonResponse(mcpErrorBody(id, code, message), status);
 }
 
 /** The one 401. Identical for every authentication failure. */
@@ -132,7 +115,7 @@ function unauthorized(origin: string): Response {
     resource: mcpResource(origin),
     scope: [MERCHANT_SCOPES.read],
   });
-  return jsonResponse(401, mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, UNAUTHORIZED_MESSAGE), {
+  return jsonResponse(mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, UNAUTHORIZED_MESSAGE), 401, {
     "WWW-Authenticate": challenge.headers.get("www-authenticate") ?? "",
   });
 }
@@ -157,7 +140,7 @@ async function authenticate(
   request: Request,
   env: Env,
 ): Promise<{ ok: true; auth: McpAuthContext } | { ok: false; response: Response }> {
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
+  const ip = clientIp(request);
   const refuse = async (reason: string) => {
     // site-runtime's checkRateLimit, which fails closed: a limiter that cannot
     // answer is a 429, never a free guess.
@@ -236,8 +219,8 @@ export async function handleMcpRequest(
   // supports exactly one method.
   if (request.method !== "POST") {
     return jsonResponse(
-      405,
       mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "The MCP endpoint accepts POST only"),
+      405,
       { Allow: "POST" },
     );
   }
@@ -266,7 +249,7 @@ export async function handleMcpRequest(
       const now = new Date();
       return serveMcp(
         req,
-        readToolsOnly(registry),
+        registry,
         {
           env,
           db: getDb(env),
@@ -321,7 +304,7 @@ export async function handleMcpRequest(
   // A body that is not JSON holds no call; the SDK answers it with a parse error.
   const text = await readCapped(request, BODY_MAX_BYTES);
   if (text === null)
-    return errorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
+    return rpcErrorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
   let body: unknown = null;
   try {
     body = JSON.parse(text);
@@ -342,11 +325,11 @@ export async function handleMcpRequest(
         ...requestFields(request),
         door: "mcp",
         reason: "tool-call log unavailable",
-        detail: err instanceof Error ? err.message : String(err),
+        detail: errorMessage(err),
       },
       { level: "error" },
     );
-    return errorResponse(
+    return rpcErrorResponse(
       503,
       null,
       INTERNAL_ERROR,

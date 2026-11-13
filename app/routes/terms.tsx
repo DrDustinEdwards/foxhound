@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import {
   LegalBody,
   LegalContents,
@@ -16,7 +17,7 @@ import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { GOVERNING_LAW_JURISDICTION, siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -700,3 +701,5 @@ export default function TermsPage() {
     </>
   );
 }
+
+export const headers = () => publicPageHeaders();

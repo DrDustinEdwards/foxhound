@@ -9,14 +9,13 @@ import {
   CRON_SCHEDULE_WEEKLY,
   EXPIRING_CARD_DAYS_AHEAD,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
-  RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
   SEND_MAX_ATTEMPTS,
   SEND_RETRY_BACKOFF_MINUTES,
   WINBACK_UNFLAGGED_STEP1_HOURS,
 } from "~/lib/constants";
 import { cronWeekdayIndex } from "~/lib/admin/crons";
-import { ordinal } from "~/lib/billing/page";
+import { RECOVERY_FEE_PERCENT, ordinal } from "~/lib/billing/page";
 import { recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
 import { DEMO_BUSINESSES } from "~/lib/demo/constants";
@@ -29,6 +28,8 @@ import {
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { WIN_BACK_SCHEDULE } from "~/lib/recovery/schedule";
 import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
+import { capitalize, plural } from "@drdustinedwards/site-helpers/text";
+import { listText } from "capsomer/behavior/hooks";
 
 // /features content. Recova's spec is
 // app/(marketing)/features/features-data.ts (blob a0a5dd20), read whole.
@@ -114,10 +115,6 @@ function cronWhen(expr: string): string {
   return cadence;
 }
 
-function capitalize(word: string): string {
-  return word.charAt(0).toUpperCase() + word.slice(1);
-}
-
 /** The day of the month of a monthly "M H D * *" schedule. */
 function cronMonthDay(expr: string): number {
   const m = /^\d+ \d+ (\d+) \* \*$/.exec(expr);
@@ -135,10 +132,6 @@ function cronWeekday(expr: string): string {
   return WEEKDAYS[day];
 }
 
-function plural(n: number, unit: string): string {
-  return `${n} ${unit}${n === 1 ? "" : "s"}`;
-}
-
 /** 15 -> "15 minutes", 60 -> "1 hour", 720 -> "12 hours". */
 function minutesText(minutes: number): string {
   return minutes % 60 === 0 ? plural(minutes / 60, "hour") : plural(minutes, "minute");
@@ -147,11 +140,6 @@ function minutesText(minutes: number): string {
 /** 1 -> "1 hour", 96 -> "4 days". */
 function hoursText(hours: number): string {
   return hours >= 24 && hours % 24 === 0 ? plural(hours / 24, "day") : plural(hours, "hour");
-}
-
-function listText(items: readonly string[], last = "or"): string {
-  if (items.length <= 1) return items.join("");
-  return `${items.slice(0, -1).join(", ")} ${last} ${items[items.length - 1]}`;
 }
 
 /** The recovery-rate bands, found by asking recoveryRateTone itself. */
@@ -206,11 +194,11 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
   const monthly = cronCadence(CRON_SCHEDULE_MONTHLY);
   const Monthly = capitalize(monthly);
   const auditCadence = cronCadence(CRON_SCHEDULE_MONTHLY_AUDIT);
-  const fee = `${RECOVERY_FEE_BPS / 100}%`;
+  const fee = `${RECOVERY_FEE_PERCENT}%`;
   const { redMax, cautionMax } = recoveryRateBands();
   const [winStep1, winStep2, winStep3] = WIN_BACK_SCHEDULE.map((s) => s.offsetHours);
-  const backoff = listText(SEND_RETRY_BACKOFF_MINUTES.map(minutesText), "and");
-  const lookbacks = listText(LOOKBACK_OPTIONS.map(String));
+  const backoff = listText(SEND_RETRY_BACKOFF_MINUTES.map(minutesText));
+  const lookbacks = listText(LOOKBACK_OPTIONS.map(String), "or");
   const ranges = RECOVERY_RANGES.join(" / ");
 
   return [

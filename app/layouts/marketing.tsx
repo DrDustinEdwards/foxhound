@@ -4,7 +4,7 @@ import { getDb } from "~/db";
 import { Footer } from "~/components/footer";
 import { Header } from "~/components/header";
 import { listMemberships, resolveActiveMembershipFrom } from "~/lib/auth/account";
-import { isAdminEmail } from "~/lib/auth/roles";
+import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getSession } from "~/lib/auth/session";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";

@@ -1,3 +1,4 @@
+import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { and, eq } from "drizzle-orm";
@@ -24,7 +25,7 @@ import {
 import { verifyCardUpdateToken } from "~/lib/card-update/token";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { isWinbackResubscribable } from "~/lib/recovery/winback";
 import { listActiveConnections } from "~/lib/stripe/connections.server";
 import { decryptToken } from "~/lib/stripe/encryption";
@@ -39,9 +40,7 @@ export const handle = { hydrate: true };
 // intermediary (Dustin, 2026-08-04). See the same note on unsubscribe.tsx:
 // neither side sent a directive, and the e/o pixel was the only one of the four
 // tokenised routes that did.
-export function headers() {
-  return { "Cache-Control": "no-store, no-cache, must-revalidate, private" };
-}
+export const headers = () => PRIVATE_PAGE_HEADERS;
 
 export function meta() {
   return [{ title: "Update payment method - Foxhound" }];

@@ -505,6 +505,55 @@
       "when": 1794012123631,
       "tag": "0075_page_dates",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1794390604135,
+      "tag": "0076_mrr_snapshot_day_and_key_hash_unique",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1794417366638,
+      "tag": "0077_alerts_sent",
+      "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "6",
+      "when": 1794422917144,
+      "tag": "0078_drop_cron_alerts",
+      "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "6",
+      "when": 1794436976137,
+      "tag": "0079_account_id_not_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "6",
+      "when": 1794457351508,
+      "tag": "0080_shared_media_store",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "6",
+      "when": 1794480911903,
+      "tag": "0081_cron_run_log",
+      "breakpoints": true
+    },
+    {
+      "idx": 78,
+      "version": "6",
+      "when": 1794480932147,
+      "tag": "0082_drop_cron_run_history",
+      "breakpoints": true
     }
   ]
 }

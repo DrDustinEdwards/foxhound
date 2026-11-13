@@ -1,5 +1,6 @@
 import type { DeclineCategory } from "~/lib/constants";
 import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { listText } from "capsomer/behavior/hooks";
 
 // THE DECLINE-CATEGORY COUNT AND NAMES, FOR MARKETING COPY, DERIVED FROM THE
 // ENGINE.
@@ -92,23 +93,14 @@ export const DECLINE_CATEGORY_COUNT_WORD_LOWER = DECLINE_CATEGORY_COUNT_WORD.toL
  * sentence a customer reads and the table the engine dispatches on are in the
  * same order.
  */
-export const DECLINE_CATEGORY_PHRASE = (() => {
-  const words = (Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map(
-    (key) => MARKETING_CATEGORY_WORDS[key],
-  );
-  if (words.length <= 1) return words.join("");
-  return `${words.slice(0, -1).join(", ")}, or ${words[words.length - 1]}`;
-})();
+const CATEGORY_WORDS = (Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map(
+  (key) => MARKETING_CATEGORY_WORDS[key],
+);
+export const DECLINE_CATEGORY_PHRASE = listText(CATEGORY_WORDS, "or");
 
 /**
  * The same categories joined with "and", for a sentence that lists what the
  * engine classifies (Recova's home comparison row: "soft decline, insufficient
  * funds, and expired card") rather than which one a payment falls in.
  */
-export const DECLINE_CATEGORY_LIST_AND = (() => {
-  const words = (Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map(
-    (key) => MARKETING_CATEGORY_WORDS[key],
-  );
-  if (words.length <= 1) return words.join("");
-  return `${words.slice(0, -1).join(", ")}, and ${words[words.length - 1]}`;
-})();
+export const DECLINE_CATEGORY_LIST_AND = listText(CATEGORY_WORDS);

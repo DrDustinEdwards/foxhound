@@ -12,6 +12,7 @@ import {
   type HealthProblem,
 } from "./account-health";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE STRIPE ACCOUNT HEALTH NOTICE: one merchant email and one Slack line when
 // account.updated shows a NEW problem on a connected account (the handler in
 // app/lib/webhooks/account-handlers.ts decides what is new). Legacy had no such
@@ -99,7 +100,7 @@ export async function sendAccountHealthNotice(
     );
     return { kind: "sent", email, slack };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     console.error(`stripe account health notice failed for account ${ctx.accountId}:`, message);
     return { kind: "error", message };
   }

@@ -150,12 +150,7 @@ export const MARKETING_PILL_ITEMS: MarketingPillItem[] = [
 ];
 
 export function isProductKey(value: string | null | undefined): value is ProductKey {
-  return (
-    value === "dashboard" ||
-    value === "recovery" ||
-    value === "disputes" ||
-    value === "intelligence"
-  );
+  return PRODUCT_ORDER.includes(value as ProductKey);
 }
 
 /** Which product a URL belongs to, or null for a platform/admin page. */

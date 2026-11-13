@@ -119,7 +119,7 @@ describe("F2: the confirmation says what will happen to this person", () => {
 
   it("an owner of several accounts is told every one goes, by name", () => {
     const copy = deletionConsequence(["Acme", "Beta Co", null]);
-    expect(copy).toContain("all 3 accounts you own (Acme, Beta Co and an unnamed account)");
+    expect(copy).toContain("all 3 accounts you own (Acme, Beta Co, and an unnamed account)");
     expect(copy).toContain("not only the one you are viewing");
   });
 });

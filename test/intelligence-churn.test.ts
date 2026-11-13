@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { accounts, customerContext, mrrSnapshots } from "~/db";
-import { churnBandSharePct } from "~/lib/intelligence/churn";
+import { percent } from "capsomer/behavior/meter";
 import { getChurnView } from "~/lib/intelligence/trends.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -78,7 +78,7 @@ describe("getChurnView bands", () => {
     const view = await getChurnView(db, ACCOUNT_ID, NOW);
     expect(view.scoredMrrCents).toBe(10_000);
     expect(view.scoredCustomerCount).toBe(2);
-    const shares = view.bands.map((b) => churnBandSharePct(b.mrrCents, view.scoredMrrCents));
+    const shares = view.bands.map((b) => percent(b.mrrCents, view.scoredMrrCents));
     expect(shares.reduce((a, b) => a + b, 0)).toBe(100);
   });
 
@@ -87,7 +87,6 @@ describe("getChurnView bands", () => {
     const view = await getChurnView(db, ACCOUNT_ID, NOW);
     expect(view.scoredCustomerCount).toBe(0);
     expect(view.topHighRisk).toEqual([]);
-    expect(churnBandSharePct(0, 0)).toBe(0);
   });
 });
 

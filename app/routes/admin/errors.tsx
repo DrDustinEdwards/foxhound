@@ -4,12 +4,11 @@ import { ExternalLink } from "lucide-react";
 import { Banner } from "capsomer/react/banner";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Spinner } from "capsomer/react/skeleton";
 import { Status, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/table.css";
 
-import { AdminTime } from "~/components/admin-time";
+import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import {
   auditActor,
@@ -24,12 +23,13 @@ import {
   type SentryIssue,
   type SentryState,
 } from "~/lib/admin/errors.server";
-import { plural } from "~/lib/admin/overview";
+import { capitalize, formatCount, plural } from "@drdustinedwards/site-helpers/text";
 import { pagePending, type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/errors";
 import { NOINDEX } from "~/lib/seo/meta";
+import { listText } from "capsomer/behavior/hooks";
 
 export const handle: AdminHandle = { page: "Errors" };
 
@@ -73,12 +73,10 @@ function levelOf(level: string): { tone: StatusTone; word: string } {
   return (
     LEVELS[level] ?? {
       tone: "nodata",
-      word: level ? level[0].toUpperCase() + level.slice(1) : "Unknown",
+      word: level ? capitalize(level) : "Unknown",
     }
   );
 }
-
-const figure = (n: number) => n.toLocaleString("en-US");
 
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
 // and his review of 2026-10-11: one page name (the shell's "Errors"), tables in
@@ -92,17 +90,16 @@ const figure = (n: number) => n.toLocaleString("en-US");
 export default function AdminErrors({ loaderData }: Route.ComponentProps) {
   const { sentry, failed } = loaderData;
   const pending = pagePending(useNavigation(), useRevalidator().state, ERRORS_PATH);
-  const spinner = pending ? <Spinner size="sm" label="Reading again" /> : undefined;
 
   return (
-    <div className="grid grid-cols-1 gap-6" aria-busy={pending || undefined}>
+    <div className="grid grid-cols-1 gap-6">
       <SentryNotice sentry={sentry} />
 
       {sentry.state === "ready" || sentry.state === "failed" ? (
         <Panel
           title="Unresolved errors"
           headingId={ISSUES_HEADING_ID}
-          src={spinner}
+          reading={pending}
           description={
             sentry.state === "ready" && sentry.issues.length > 0
               ? `${plural(sentry.issues.length, "unresolved error", "unresolved errors")} seen in the last 14 days, most recent first.`
@@ -125,7 +122,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
       <Panel
         title="Failed actions"
         headingId={FAILED_HEADING_ID}
-        src={spinner}
+        reading={pending}
         description={
           failed.length === 0
             ? "From the audit log."
@@ -164,7 +161,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
                 {failed.map((e) => (
                   <tr key={e.id}>
                     <td>
-                      <AdminTime at={e.createdAt} />
+                      <Time at={e.createdAt} empty="never" tip />
                     </td>
                     <td data-label="Action">{e.action}</td>
                     <td data-label="Actor" className="break-all">
@@ -211,7 +208,7 @@ function SentryNotice({ sentry }: { sentry: SentryState }) {
   if (sentry.state === "no-reader") {
     return (
       <Banner tone="info" title="Errors are sent to Sentry, but this page cannot read them yet.">
-        Set {sentry.missing.join(" and ")} to list them here.
+        Set {listText(sentry.missing)} to list them here.
       </Banner>
     );
   }
@@ -273,16 +270,16 @@ function IssuesTable({ issues }: { issues: SentryIssue[] }) {
                   <Status tone={level.tone}>{level.word}</Status>
                 </td>
                 <td data-label="Events" className="tabular-nums">
-                  {figure(issue.count)}
+                  {formatCount(issue.count)}
                 </td>
                 <td data-label="Users" className="tabular-nums">
-                  {figure(issue.userCount)}
+                  {formatCount(issue.userCount)}
                 </td>
                 <td data-label="Last seen">
-                  <AdminTime at={issue.lastSeen} empty="Not known" />
+                  <Time at={issue.lastSeen} empty="Not known" tip />
                 </td>
                 <td data-label="First seen">
-                  <AdminTime at={issue.firstSeen} empty="Not known" />
+                  <Time at={issue.firstSeen} empty="Not known" tip />
                 </td>
               </tr>
             );

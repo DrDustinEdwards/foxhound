@@ -1,9 +1,10 @@
+import { formatCount } from "@drdustinedwards/site-helpers/text";
+import { formatDate } from "capsomer/behavior/time";
 import { areaChart } from "enarratio/lite/area";
 import type { ChartFit } from "capsomer/react/chart-frame";
 
-import { formatDateMonthDay, formatDateShort } from "~/lib/date-format";
 import { DISPUTE_STATE_LABELS } from "~/lib/disputes/labels";
-import { formatAmounts } from "~/lib/money-format";
+import { formatAmounts } from "~/lib/money/totals";
 
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
 import { DAY_MS } from "~/lib/constants";
@@ -71,8 +72,7 @@ export interface SignalField {
   value: string;
 }
 
-const count = (n: number) => n.toLocaleString("en-US");
-const date = (d: Date | null) => (d ? formatDateShort(d) : "-");
+const date = (d: Date | null) => (d ? (formatDate(d, { style: "medium" }) ?? "") : "-");
 
 /** Recova's "Recovery signals" card. Null is its empty state, "No recovery
  *  events". Recova showed the active recovery's raw database id (RULES.md
@@ -80,8 +80,8 @@ const date = (d: Date | null) => (d ? formatDateShort(d) : "-");
 export function recoverySignalFields(r: CustomerActivity["recovery"]): SignalField[] | null {
   if (r.failedPaymentCount === 0) return null;
   return [
-    { label: "Failed payments", value: count(r.failedPaymentCount) },
-    { label: "Recovered", value: count(r.recoveredCount) },
+    { label: "Failed payments", value: formatCount(r.failedPaymentCount) },
+    { label: "Recovered", value: formatCount(r.recoveredCount) },
     { label: "Recovered amount", value: formatAmounts(r.recoveredAmounts) },
     { label: "Last failed", value: date(r.lastFailedAt) },
     { label: "Last recovered", value: date(r.lastRecoveredAt) },
@@ -94,9 +94,9 @@ export function recoverySignalFields(r: CustomerActivity["recovery"]): SignalFie
 export function disputeSignalFields(d: CustomerActivity["disputes"]): SignalField[] | null {
   if (d.count === 0) return null;
   return [
-    { label: "Open", value: count(d.openCount) },
-    { label: "Won", value: count(d.wonCount) },
-    { label: "Lost", value: count(d.lostCount) },
+    { label: "Open", value: formatCount(d.openCount) },
+    { label: "Won", value: formatCount(d.wonCount) },
+    { label: "Lost", value: formatCount(d.lostCount) },
     { label: "Total disputed", value: formatAmounts(d.totalDisputed) },
     { label: "Last dispute", value: date(d.lastDisputeAt) },
     { label: "Last outcome", value: d.lastOutcome ? DISPUTE_STATE_LABELS[d.lastOutcome] : "-" },
@@ -108,8 +108,8 @@ export function disputeSignalFields(d: CustomerActivity["disputes"]): SignalFiel
 export function engagementSignalFields(e: CustomerActivity["engagement"]): SignalField[] | null {
   if (!e.everEngaged) return null;
   return [
-    { label: "Opens (30d)", value: count(e.opens30d) },
-    { label: "Clicks (30d)", value: count(e.clicks30d) },
+    { label: "Opens (30d)", value: formatCount(e.opens30d) },
+    { label: "Clicks (30d)", value: formatCount(e.clicks30d) },
     { label: "Last open", value: date(e.lastOpenAt) },
   ];
 }
@@ -126,8 +126,8 @@ function healthHistoryAlt(readings: readonly HealthReading[]): string {
   if (!first || !last) return "Health score: no readings yet.";
   const scores = readings.map((r) => r.healthScore);
   return (
-    `Health score over ${readings.length} readings, from ${first.healthScore} on ${formatDateMonthDay(first.recordedAt)} ` +
-    `to ${last.healthScore} on ${formatDateMonthDay(last.recordedAt)}; lowest ${Math.min(...scores)}, highest ${Math.max(...scores)}.`
+    `Health score over ${readings.length} readings, from ${first.healthScore} on ${formatDate(first.recordedAt, { style: "monthDay" }) ?? ""} ` +
+    `to ${last.healthScore} on ${formatDate(last.recordedAt, { style: "monthDay" }) ?? ""}; lowest ${Math.min(...scores)}, highest ${Math.max(...scores)}.`
   );
 }
 
@@ -160,7 +160,7 @@ export function drawHealthHistory(
     xLabel: null,
     yLabel,
     colors: { [yLabel]: BAND_COLOR[healthScoreBand(latest)] },
-    formatX: (v) => formatDateMonthDay(new Date(v)),
+    formatX: (v) => formatDate(new Date(v), { style: "monthDay" }) ?? "",
     alt: healthHistoryAlt(readings),
     hoverTitles: false,
     width,

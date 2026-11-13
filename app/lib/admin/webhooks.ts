@@ -7,7 +7,9 @@
 // a case-insensitive event-type filter, an errors-only toggle and 50 events a
 // page. Pending only is Foxhound's own, the list behind its Unprocessed figure.
 
-import { plural } from "~/lib/admin/overview";
+import { parsePage } from "capsomer/behavior/pagination";
+
+import { plural } from "@drdustinedwards/site-helpers/text";
 
 export const WEBHOOK_PAGE_SIZE = 50;
 export const WEBHOOKS_PATH = "/admin/platform/webhooks";
@@ -25,29 +27,16 @@ export interface WebhookFilters {
 }
 
 export function parseWebhookFilters(params: URLSearchParams): WebhookFilters {
-  const pageText = params.get("page") ?? "";
-  const page = /^\d+$/.test(pageText) ? Number(pageText) : 1;
   return {
     type: (params.get("type") ?? "").trim().slice(0, TYPE_MAX),
     errorsOnly: params.get("errors") === "1",
     pendingOnly: params.get("pending") === "1",
-    page: page >= 1 && Number.isSafeInteger(page) ? page : 1,
+    page: parsePage(params.get("page")),
   };
 }
 
 export function isFiltered(f: WebhookFilters): boolean {
   return f.type !== "" || f.errorsOnly || f.pendingOnly;
-}
-
-/** The address of one page of the list with these filters, defaults left out. */
-export function webhookListHref(f: WebhookFilters, page: number): string {
-  const params = new URLSearchParams();
-  if (f.type) params.set("type", f.type);
-  if (f.errorsOnly) params.set("errors", "1");
-  if (f.pendingOnly) params.set("pending", "1");
-  if (page > 1) params.set("page", String(page));
-  const query = params.toString();
-  return query ? `${WEBHOOKS_PATH}?${query}` : WEBHOOKS_PATH;
 }
 
 /** "120 events", "1 event": the whole log, or what the filter left. */

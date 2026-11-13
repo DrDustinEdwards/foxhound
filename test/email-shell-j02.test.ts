@@ -400,7 +400,7 @@ describe("transactional mail carries both parts and never the footer", () => {
       rendered: renderFoxhoundAlertEmail({ to, ...failure }),
     });
     const stale = buildStaleAlertEmail(
-      { cronName: "digest", reason: "never_run", lastRunAt: null, schedule: "0 8 * * MON" },
+      { cronName: "digest", lastRunAt: null, schedule: "0 8 * * MON" },
       now,
     );
     await sendRenderedTransactionalEmail(env, {

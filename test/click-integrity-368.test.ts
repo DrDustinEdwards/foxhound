@@ -1,9 +1,13 @@
+import {
+  AI_SEARCH_BOTS,
+  AI_TRAINING_BOTS,
+  SEARCH_ENGINE_BOTS,
+} from "@drdustinedwards/site-helpers/robots";
 import { eq } from "drizzle-orm";
 import { describe, expect, it, vi } from "vitest";
 
 import { accounts, engagementEvents, failedPayments, recoverySteps } from "~/db/schema";
 import { AUTOMATED_AGENT_TOKENS, isAutomatedUserAgent } from "~/lib/engagement/agents";
-import { ALLOWED_BOTS } from "~/routes/files/robots";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
@@ -133,11 +137,11 @@ describe("PLANT 1: every listed agent is refused the write", () => {
 
   it("THE GUARD LIST COVERS EVERY BOT ROBOTS.TXT NAMES, without being derived from it", () => {
     // The two lists answer different questions and must stay free to diverge:
-    // robots.ts is "who do we want crawling public content", this is "who must
+    // robots.txt is "who do we want crawling public content", this is "who must
     // not write money data". Tying them by SUPERSET keeps them honest without
     // welding them, so adding a crawler to the allow list cannot quietly grant
     // it write access to the billable signal.
-    for (const bot of ALLOWED_BOTS) {
+    for (const bot of [...SEARCH_ENGINE_BOTS, ...AI_SEARCH_BOTS, ...AI_TRAINING_BOTS]) {
       expect(isAutomatedUserAgent(bot), `${bot} may write engagement`).toBe(true);
     }
   });

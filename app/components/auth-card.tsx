@@ -3,6 +3,7 @@ import { signalPasskeys, signInWithPasskey } from "@dustinedwards/site-runtime/s
 import { mountTurnstile } from "@dustinedwards/site-runtime/turnstile";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { Panel } from "capsomer/react/panel";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Form } from "react-router";
 import { Link } from "capsomer/react/link";
@@ -48,11 +49,9 @@ export function AuthCard({ children }: { children: ReactNode }) {
         data-auth-card=""
       >
         {/* Recova's card: p-12, its fields 42px tall (py-2.5 at 14px). */}
-        <section className="cap-panel [--gap:0px] [--pad-card:0px]">
-          <div className="cap-panel-body">
-            <div className="p-12">{children}</div>
-          </div>
-        </section>
+        <Panel className="[--gap:0px] [--pad-card:0px]">
+          <div className="p-12">{children}</div>
+        </Panel>
       </div>
     </div>
   );
@@ -169,7 +168,7 @@ export function PasskeyContinue({ next }: { next: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function passkeySignIn(autoFill: boolean) {
+  async function continueWithPasskey(autoFill: boolean) {
     // site-runtime's wrapper: on a passkey the site no longer has, it tells the
     // browser (WebAuthn's signalUnknownCredential) so it stops offering it.
     const res = await signInWithPasskey(authClient, { autoFill });
@@ -194,7 +193,7 @@ export function PasskeyContinue({ next }: { next: string }) {
 
   // An effect event reads the latest `next` without making the effect rerun.
   const offerAutofill = useEffectEvent(() => {
-    void passkeySignIn(true);
+    void continueWithPasskey(true);
   });
 
   // Once per page: the browser holds one pending autofill request.
@@ -216,7 +215,7 @@ export function PasskeyContinue({ next }: { next: string }) {
           void (async () => {
             setBusy(true);
             setError(null);
-            await passkeySignIn(false);
+            await continueWithPasskey(false);
             setBusy(false);
           })()
         }
@@ -354,9 +353,9 @@ export function SignInLinkForm({
   );
 }
 
-/** The query a code form posts with, so an action knows a typed code from a
- *  link request before it reads the form (signup spends its hourly bucket only
- *  on a link). */
+/** The query a code form posts with, so /signup knows a typed code from a
+ *  link request before it reads the form (it spends its hourly bucket only on
+ *  a link). The form's own `intent=code` is what signInFormAction reads. */
 export const SIGN_IN_CODE_QUERY = "code";
 
 /**
@@ -386,6 +385,8 @@ export function SignInLinkSent({
         {SIGN_IN_EXPIRES_IN_WORDS}.
       </Banner>
       <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="mt-6">
+        {/* site-runtime ./sign-in-form SIGN_IN_INTENT: signInFormAction reads a typed code by it. */}
+        <input type="hidden" name="intent" value="code" />
         <input type="hidden" name="email" value={email} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
         <div className="cap-field mb-4">

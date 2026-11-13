@@ -11,7 +11,7 @@ import { data } from "react-router";
 
 import { AuthCard, AuthFootnote, AuthHeading, AuthLink } from "~/components/auth-card";
 import { getAuth } from "~/lib/auth";
-import { EMAIL_CHANGE_EXPIRES_IN_WORDS } from "~/lib/auth/send-auth-email";
+import { EMAIL_CHANGE_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-words";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -29,9 +29,6 @@ import type { Route } from "./+types/email-confirm";
 export function meta() {
   return [{ title: "Confirm your email change - Foxhound" }, NOINDEX];
 }
-
-// The page's URL holds the token.
-export const headers = () => ({ "Cache-Control": "no-store" });
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const result = emailLinkResult(request.url);

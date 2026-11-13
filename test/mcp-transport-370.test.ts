@@ -2,14 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 
 import { accounts, apiKeys } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
-import { classifyPath } from "~/lib/http/cache-policy";
 import {
   DENIED_TOOL_FRAGMENTS,
   defineToolRegistry,
   isDeniedToolName,
   type McpTool,
 } from "~/lib/mcp/registry";
-import { DISALLOW_PATHS } from "~/routes/files/robots";
+import { DISALLOW_PATHS } from "~/lib/seo/files";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { mcpRequest, readMcp, type McpCallInit, toolCallLogStub } from "./helpers/mcp-client";
@@ -34,7 +33,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 
 const ACCOUNT = "acct_alpha";
 const DEMO_ACCOUNT = "demo_teamflow";
@@ -63,7 +62,7 @@ async function seed() {
     await db.insert(apiKeys).values({
       id: `key_${token}`,
       accountId,
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "test",
       scope,
       createdAt: NOW,
@@ -290,11 +289,7 @@ describe("PLANT 5: the posture", () => {
   });
 
   it("/mcp IS PRIVATE, and no public directive can reach it", async () => {
-    // The cache policy classifies anything unmatched as private, and /mcp is
-    // unmatched deliberately. Asserted through the real classifier rather than
-    // by reading the match list.
-    expect(classifyPath("/mcp")).toBe("private");
-    // And the handler sets it on the response itself, belt and braces.
+    // The handler sets it on the response itself, whatever the SDK set.
     const { good } = await seed();
     const { res } = await call({ token: good });
     expect(res.headers.get("Cache-Control")).toBe("private, no-store");

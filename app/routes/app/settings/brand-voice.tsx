@@ -1,9 +1,10 @@
+import { capitalize } from "@drdustinedwards/site-helpers/text";
 import { useId, useState } from "react";
 import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
+import { SaveBar } from "capsomer/react/save-bar";
 import { Panel } from "capsomer/react/panel";
 import { Select } from "capsomer/react/select";
-import { Status } from "capsomer/react/status";
+import "capsomer/save-bar.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -156,7 +157,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
 const PRESET_OPTIONS = [
   { value: "", label: "Same as main voice" },
-  ...BRAND_VOICE_PRESETS.map((p) => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) })),
+  ...BRAND_VOICE_PRESETS.map((p) => ({ value: p, label: capitalize(p) })),
   { value: CUSTOM_PRESET, label: "Custom..." },
 ];
 
@@ -274,17 +275,13 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
         </div>
 
         {/* Recova's SaveBar: right-aligned, the result beside the button. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <p role="status" className="text-label">
-            {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
-            {result?.ok === false ? (
-              <Status tone="crit">{result.error ?? "Failed to save. Please try again."}</Status>
-            ) : null}
-          </p>
-          <Button type="submit" variant="primary" pending={saving}>
-            Save changes
-          </Button>
-        </div>
+        <SaveBar
+          pending={saving}
+          saved={result?.ok === true}
+          error={
+            result?.ok === false ? (result.error ?? "Failed to save. Please try again.") : null
+          }
+        />
       </ReadOnlyForm>
     </SettingsLayout>
   );

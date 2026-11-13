@@ -1,3 +1,4 @@
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { ArrowRight, Check } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
@@ -11,7 +12,7 @@ import {
   PRICING_META_DESCRIPTION,
 } from "~/lib/marketing/pricing-copy";
 import { PRODUCTS } from "~/lib/marketing/products";
-import { faqPageJsonLd, siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
+import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
@@ -22,7 +23,7 @@ import "capsomer/button.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/pricing";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { faqPage, jsonLd } from "@drdustinedwards/site-helpers/schema";
 
 // /pricing. Recova's spec is app/(marketing)/pricing/page.tsx
 // (blob 8e91e160), read whole.
@@ -63,7 +64,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     }),
     ...(loaderData
       ? [
-          jsonLd(faqPageJsonLd(PRICING_FAQS)),
+          jsonLd(faqPage(PRICING_FAQS)),
           jsonLd(
             speakableWebPageJsonLd(loaderData.siteUrl, {
               path: "/pricing",
@@ -155,7 +156,7 @@ export default function PricingPage() {
                       >
                         Learn more<span className="sr-only"> about {card.name}</span>{" "}
                         <ArrowRight
-                          className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
+                          className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
                           size={13}
                           strokeWidth={1.5}
                           aria-hidden
@@ -238,3 +239,5 @@ export default function PricingPage() {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

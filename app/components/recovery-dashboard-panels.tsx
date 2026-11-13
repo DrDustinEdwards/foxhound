@@ -1,8 +1,9 @@
 // The recovery dashboard's panels (routes/app/recovery/index.tsx split): range
-// selector, onboarding checklist, stat cards, ROI, win-back, queue,
+// selector, onboarding steps, stat cards, ROI, win-back, queue,
 // deliverability and the payments table. Presentational.
 
-import type { ComponentType, ReactNode } from "react";
+import { relative, toMs, until } from "capsomer/behavior/time";
+import type { ComponentType } from "react";
 import {
   Activity,
   AlertCircle,
@@ -14,15 +15,16 @@ import {
   Tag,
   TrendingUp,
 } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
-import { Pill, Status, type Tone as StatusTone } from "capsomer/react/status";
+import { Row } from "capsomer/react/row-list";
+import type { SetupStep } from "capsomer/react/setup-checklist";
+import { Pill, type Tone as StatusTone } from "capsomer/react/status";
 import { TabLink, TabsNav } from "capsomer/react/tabs";
 import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import {
-  formatRelativeTime,
   RECOVERY_RANGES,
   type RecoveryRange,
   type WebhookHealthTone,
@@ -39,8 +41,7 @@ import {
   type RoiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
 import { recoveryRateBand, recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
-import { formatRelativeFuture, formatTimestamp } from "~/lib/date-format";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
 import {
   DECLINE_CATEGORY_LABELS,
@@ -59,11 +60,7 @@ export const WEBHOOK_TONE: Record<WebhookHealthTone, StatusTone> = {
 
 export function RangeSelector({ range }: { range: RecoveryRange }) {
   return (
-    <TabsNav
-      aria-label="Date range"
-      size="sm"
-      renderLink={({ href, ...props }) => <Link to={href} {...props} />}
-    >
+    <TabsNav aria-label="Date range" size="sm" renderLink={routerRenderLink}>
       {RECOVERY_RANGES.map((r) => (
         <TabLink key={r} href={`/recovery/dashboard?range=${r}`} current={range === r}>
           {r}
@@ -75,99 +72,62 @@ export function RangeSelector({ range }: { range: RecoveryRange }) {
 
 // ---- Banners above the head (Recova's hasBanners block) ----
 
-/** One row of a list that is read, not opened: Capsomer's row look without a
- *  link or button inside, because Capsomer's Row is always interactive (gap
- *  named in the J74 pull request). */
-export function StaticRow({
-  title,
-  detail,
-  status,
-  meta,
-  actions,
-}: {
-  title: ReactNode;
-  detail?: ReactNode;
-  status?: ReactNode;
-  meta?: ReactNode;
-  actions?: ReactNode;
-}) {
-  return (
-    <li className="cap-row" data-variant="outline">
-      {status != null ? <span className="cap-row-status">{status}</span> : null}
-      <div className="cap-row-title">{title}</div>
-      {detail != null ? <p className="cap-row-detail">{detail}</p> : null}
-      {meta != null ? <span className="cap-row-meta">{meta}</span> : null}
-      {actions != null ? <div className="cap-row-actions">{actions}</div> : null}
-    </li>
-  );
-}
-
-export function ChecklistStatus({ done }: { done: boolean }) {
-  return done ? <Status tone="ok">Done</Status> : <Status tone="nodata">To do</Status>;
-}
-
-export function OnboardingChecklist({
+/** Recova's OnboardingChecklist steps, for Capsomer's setup checklist: each
+ *  one Done or To do, with its one way to do it until it is done. */
+export function onboardingSteps({
   connected,
   senderNameSet,
   alertAddressSet,
-}: OnboardingChecklistState) {
-  const allDone = connected && senderNameSet && alertAddressSet;
-  return (
-    <Panel title="Getting started">
-      <ul className="cap-rows" role="list" data-gap="sm">
-        <StaticRow
-          status={<ChecklistStatus done={connected} />}
-          title="Connect Stripe"
-          detail="Link your Stripe account so Foxhound can detect failed payments"
-          actions={
-            connected ? null : (
-              <Link to="/connect" className="cap-btn" data-variant="primary" data-size="sm">
-                Connect
-              </Link>
-            )
-          }
-        />
-        <StaticRow
-          status={<ChecklistStatus done={senderNameSet} />}
-          title="Set your sender name"
-          detail="Customers will see this name in recovery emails"
-          actions={
-            senderNameSet ? null : (
-              <Link to="/settings" className="cap-btn" data-size="sm">
-                Go to settings
-              </Link>
-            )
-          }
-        />
-        <StaticRow
-          status={<ChecklistStatus done={alertAddressSet} />}
-          title="Set your notification email"
-          detail="We'll send you an alert when a payment is recovered."
-          actions={
-            alertAddressSet ? null : (
-              <Link to="/settings" className="cap-btn" data-size="sm">
-                Go to settings
-              </Link>
-            )
-          }
-        />
-        <StaticRow
-          status={<ChecklistStatus done={allDone} />}
-          title="You're ready"
-          detail="Foxhound will automatically detect and recover failed payments"
-        />
-      </ul>
-    </Panel>
-  );
+}: OnboardingChecklistState): SetupStep[] {
+  return [
+    {
+      id: "connect",
+      title: "Connect Stripe",
+      detail: "Link your Stripe account so Foxhound can detect failed payments",
+      done: connected,
+      action: (
+        <Link to="/connect" className="cap-btn" data-variant="primary" data-size="sm">
+          Connect
+        </Link>
+      ),
+    },
+    {
+      id: "sender",
+      title: "Set your sender name",
+      detail: "Customers will see this name in recovery emails",
+      done: senderNameSet,
+      action: (
+        <Link to="/settings" className="cap-btn" data-size="sm">
+          Go to settings
+        </Link>
+      ),
+    },
+    {
+      id: "alerts",
+      title: "Set your notification email",
+      detail: "We'll send you an alert when a payment is recovered.",
+      done: alertAddressSet,
+      action: (
+        <Link to="/settings" className="cap-btn" data-size="sm">
+          Go to settings
+        </Link>
+      ),
+    },
+  ];
 }
 
-// ---- Stat cards ----
+export const ONBOARDING_READY = {
+  title: "You're ready",
+  detail: "Foxhound will automatically detect and recover failed payments",
+};
 
-type Icon = ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>;
+// ---- Stat cards ----
 
 /** Recova's PrimaryCard and SecondaryCard: an icon, the label, the figure and
  *  an optional line under it, here as a small Capsomer panel (Capsomer's stat
  *  tile is always a link or a button, and Recova's cards lead nowhere). */
+type Icon = ComponentType<{ className?: string; strokeWidth?: number; "aria-hidden"?: boolean }>;
+
 function StatCard({
   icon: IconComponent,
   label,
@@ -393,13 +353,14 @@ export function RecoveryQueue({
     <Panel title={`Recovery queue · next ${hours}h`}>
       <ul className="cap-rows" role="list" data-gap="xs">
         {w.upcomingSteps.map((s) => (
-          <StaticRow
+          <Row
+            variant="outline"
             key={s.id}
             title={s.customerName ?? s.customerEmail}
             detail={`${formatStepType(s.stepType)} · ${formatMoney(s.amountCents, s.currency)}`}
             meta={
               <span className="font-mono text-micro text-brand-text">
-                {formatRelativeFuture(s.scheduledAt, nowMs) ?? formatTimestamp(s.scheduledAt)}
+                {until(toMs(s.scheduledAt), nowMs)}
               </span>
             }
           />
@@ -510,7 +471,8 @@ export function PaymentsTable({
           {/* Recova's phone layout: one card per payment. */}
           <ul className="cap-rows sm:hidden" role="list">
             {payments.map((p) => (
-              <StaticRow
+              <Row
+                variant="outline"
                 key={p.id}
                 title={p.customerName ?? p.customerEmail}
                 detail={
@@ -616,7 +578,9 @@ export function PaymentsTable({
                           data-label="Detected"
                           className="whitespace-nowrap text-micro text-text-subtle"
                         >
-                          <span className="block">{formatRelativeTime(p.detectedAt, nowMs)}</span>
+                          <span className="block">
+                            {relative(toMs(p.detectedAt), nowMs, "UTC", { granularity: "day" })}
+                          </span>
                           <span className="block">{formatLongDate(p.detectedAt)}</span>
                         </td>
                         <td data-label="Actions">

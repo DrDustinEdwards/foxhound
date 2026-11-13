@@ -22,7 +22,7 @@ import {
 
 import { listMemberships, resolveActiveMembershipFrom } from "./account";
 import { authContext } from "./context";
-import { isAdminEmail } from "./roles";
+import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 import { getSession } from "./session";
 
 // Server middleware (runs on the server for initial loads AND client-navigation

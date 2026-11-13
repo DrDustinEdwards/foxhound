@@ -22,6 +22,7 @@ import { disputeNoticeFooterNote } from "./notices";
 import { appUrl, type DisputeNoticeOutcome, send } from "./notices.server";
 import { getConnectionAccessToken } from "./queries.server";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // EARLY FRAUD WARNINGS, the reads and writes (the words are ./fraud-warnings.ts).
 //
 // THE REFUND is the merchant's choice on the disputes dashboard, guarded like
@@ -159,7 +160,7 @@ export async function sendEarlyFraudWarningNotice(
       null,
     );
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     console.error(
       `early fraud warning notice failed for account ${ctx.accountId} warning ${ctx.warningId}:`,
       message,

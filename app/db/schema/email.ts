@@ -3,7 +3,7 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 
 import { id, ts } from "./columns";
 import { recoverySteps, winBackSteps } from "./recovery";
-import { accounts } from "./tenancy";
+import { optionalAccountRef } from "./tenancy";
 
 // ============================================================================
 // Email dispatch and first-party engagement (redesigned off Email Service)
@@ -13,7 +13,7 @@ export const emailSends = sqliteTable(
   "email_sends",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     recoveryStepId: text("recovery_step_id").references(() => recoverySteps.id),
     winBackStepId: text("win_back_step_id").references(() => winBackSteps.id),
     queueMessageId: text("queue_message_id"),
@@ -24,15 +24,15 @@ export const emailSends = sqliteTable(
     error: text("error"),
     sentAt: ts("sent_at"),
     /** The cron run that produced this send. Ruling 311 measured that a
-     *  send could not be attributed to its run: nothing joined email_sends to
-     *  cron_run_history, so "which run sent this" meant correlating timestamps.
+     *  send could not be attributed to its run, so "which run sent this" meant
+     *  correlating timestamps. This is the run's id (cronRunId in
+     *  app/lib/admin/crons.ts: its job and start, the key of its cron_run_log
+     *  row).
      *
-     *  NULLABLE, and deliberately NOT a foreign key. The retention windows
-     *  DISAGREE: email_sends is kept 180 days (RETENTION_EMAIL_SENDS_DAYS) and
-     *  cron_run_history 90 (RETENTION_CRON_HISTORY_DAYS), so between days 90 and
-     *  180 a send legitimately outlives its run and an FK would make the
-     *  cron-history retention sweeper fail on exactly those rows. This column
-     *  records provenance; it is not a live relation. */
+     *  NULLABLE, and deliberately NOT a foreign key: email_sends is kept 180
+     *  days (RETENTION_EMAIL_SENDS_DAYS) and cron_run_log 90
+     *  (RETENTION_CRON_LOG_DAYS), so a send legitimately outlives its run. This
+     *  column records provenance; it is not a live relation. */
     cronRunId: text("cron_run_id"),
     /** THE SEND CLAIM. `EmailJob.idempotencyKey` existed from the start and
      *  was read by NOTHING, which 376 item 15 recorded: the type promised a
@@ -86,33 +86,14 @@ export const emailDeadLetters = sqliteTable(
   (t) => [index("email_dead_letters_account_idx").on(t.accountId)],
 );
 
-/** One row per alert actually sent, which is ALSO the dedupe key: the
- *  unique index on (cron_name, kind, alerted_on) means a second alert for the
- *  same cron, same kind, same UTC day is refused by the DATABASE rather than by
- *  application logic that two concurrent cron invocations could race.
- *
- *  A D1 row rather than a new binding, per 313: the cheapest primitive already
- *  present wins. */
-export const cronAlerts = sqliteTable(
-  "cron_alerts",
-  {
-    id: id(),
-    cronName: text("cron_name").notNull(),
-    /** "failure" | "stale" | "dead_letter" */
-    kind: text("kind").notNull(),
-    /** UTC date, YYYY-MM-DD. The day-granularity half of the dedupe key. */
-    alertedOn: text("alerted_on").notNull(),
-    detail: text("detail"),
-    createdAt: ts("created_at").notNull(),
-  },
-  (t) => [uniqueIndex("cron_alerts_dedupe_uq").on(t.cronName, t.kind, t.alertedOn)],
-);
+// site-runtime ./cron-alert's ALERTS_SQL, written and read only by alertOnce and cronAlert.
+export { alertsSent } from "@dustinedwards/site-runtime/drizzle";
 
 export const engagementEvents = sqliteTable(
   "engagement_events",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     emailSendId: text("email_send_id").references(() => emailSends.id),
     recoveryStepId: text("recovery_step_id").references(() => recoverySteps.id),
     // click is the billable engagement standard; open feeds Intelligence only (PRICING.md)
@@ -139,7 +120,7 @@ export const emailSuppressions = sqliteTable(
     email: text("email").notNull(),
     token: text("token").notNull(),
     suppressedAt: ts("suppressed_at"),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     reason: text("reason"),
   },
   (t) => [

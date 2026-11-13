@@ -1,7 +1,12 @@
-import { ArrowRight } from "lucide-react";
+import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
+import { Pill } from "capsomer/react/status";
+import "capsomer/status.css";
 import { Link } from "capsomer/react/link";
+import "capsomer/panel.css";
 
-import { Badge } from "~/components/badge";
+import { BADGE_PILL } from "~/lib/recovery/labels";
+import { CARD_SM } from "~/components/marketing-card";
+import { Arrow } from "~/components/home-parts";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
@@ -51,34 +56,40 @@ export default function DeclineCodesIndex() {
         subtext="What each code means, why it happens, and how it gets recovered. No invented recovery-rate numbers, no platform history exists yet to project one from."
       />
 
-      <div className="mx-auto max-w-5xl px-4 pb-16 sm:px-8">
+      {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
+          the cards' accent edge and the focus ring read the family. */}
+      <div
+        className="fh-cap mx-auto max-w-5xl px-4 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        data-cap-site="foxhound"
+        data-family="amber"
+      >
         {byCategory.map((group) => (
           <section key={group.category} className="border-b border-border-sub py-8 last:border-0">
             <div className="mb-4 flex items-center gap-2">
               <h2 className="text-title font-medium text-text">{CATEGORY_LABEL[group.category]}</h2>
-              <Badge tone={categoryBadgeTone(group.category)}>
+              <Pill {...BADGE_PILL[categoryBadgeTone(group.category)]}>
                 {CATEGORY_STATUS_LABEL[group.category]}
-              </Badge>
+              </Pill>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {group.codes.map((code) => (
                 <Link
                   key={code.code}
                   to={`/decline-codes/${code.code}`}
-                  className="group block rounded-lg border border-border bg-surface p-4 hover:border-border-i"
+                  className={`${CARD_SM} group`}
                 >
-                  <div className="mb-2 font-mono text-label font-medium text-text">
-                    {code.displayName}
-                  </div>
-                  <div className="mb-3 font-mono text-micro text-text-tertiary">{code.code}</div>
-                  <div className="text-label text-brand-text">
-                    Read more{" "}
-                    <ArrowRight
-                      className="inline-block transition-transform duration-150 group-hover:translate-x-0.5"
-                      size={13}
-                      strokeWidth={1.5}
-                      aria-hidden
-                    />
+                  <div className="cap-panel-body">
+                    <div>
+                      <div className="mb-2 font-mono text-label font-medium text-text">
+                        {code.displayName}
+                      </div>
+                      <div className="mb-3 font-mono text-micro text-text-tertiary">
+                        {code.code}
+                      </div>
+                      <div className="text-label text-brand-text">
+                        Read more <Arrow />
+                      </div>
+                    </div>
                   </div>
                 </Link>
               ))}
@@ -89,3 +100,5 @@ export default function DeclineCodesIndex() {
     </div>
   );
 }
+
+export const headers = () => publicPageHeaders();

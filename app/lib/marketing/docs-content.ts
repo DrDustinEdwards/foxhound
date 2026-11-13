@@ -12,6 +12,8 @@
 // windows, the bands and the schedules.
 
 import type { DocWidgetName } from "~/components/docs/doc-widgets";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
+import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import {
   AUDIT_LOOKBACK_DAYS,
@@ -19,14 +21,13 @@ import {
   BULK_ACTION_MAX_PER_SUBMISSION,
   CAU_EVENT_RETENTION_DAYS,
   CLICK_SUSPECT_MIN_SECONDS,
-  DISPUTE_FEE_BPS,
+  CRITICAL_HEALTH_SCORE_MAX,
   DISPUTE_FEE_CAP_CENTS,
   EMAIL_ENGAGEMENT_WINDOW_DAYS,
   EXPIRING_CARD_DAYS_AHEAD,
   HEALTH_SCORE_AT_RISK_THRESHOLD,
   INTELLIGENCE_REPORT_HOURLY_LIMIT,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
-  RECOVERY_FEE_BPS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
 import { RECOVERY_RANGES } from "~/lib/dashboard/recovery-window";
@@ -40,6 +41,7 @@ import {
   AUDIT_GRANT_MINUTES,
 } from "~/lib/marketing/audit-access";
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
+import { listText } from "capsomer/behavior/hooks";
 
 // THE BLOCK VOCABULARY, Recova's own.
 //
@@ -96,10 +98,8 @@ export interface DocGuide {
 /** The date every guide in DOC_GUIDES first shipped. */
 export const DOCS_FIRST_PUBLISHED = "2026-07-19";
 
-const pct = (bps: number) => `${bps / 100}%`;
-const dollars = (cents: number) => `$${(cents / 100).toLocaleString("en-US")}`;
-const RECOVERY_FEE = pct(RECOVERY_FEE_BPS);
-const DISPUTE_FEE = pct(DISPUTE_FEE_BPS);
+const RECOVERY_FEE = `${RECOVERY_FEE_PERCENT}%`;
+const DISPUTE_FEE = `${DISPUTE_FEE_PERCENT}%`;
 const NETWORK_FIRST = RECOVERY_SCHEDULES.network[0]!;
 const EXPIRED_RETRY_DAY =
   RECOVERY_SCHEDULES.expired.find((s) => s.stepType === "retry_day21")!.offsetHours / 24;
@@ -372,7 +372,7 @@ export const DOC_GUIDES: DocGuide[] = [
           { kind: "h3", text: "Roles" },
           "Each person on an account is its Owner or a Member. The owner invites and removes members and cannot be removed. Otherwise settings, billing and the Stripe connections are open to every member. Only the owner can cancel the account.",
           { kind: "h3", text: "Billing and subscription" },
-          `Each monthly run bills the prior month's matured recoveries, meaning recoveries held for ${RECOVERY_MATURITY_DAYS} or more days, at ${RECOVERY_FEE}. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at ${DISPUTE_FEE} of wins only, capped at ${dollars(DISPUTE_FEE_CAP_CENTS)} per dispute. Intelligence and the audit are always free.`,
+          `Each monthly run bills the prior month's matured recoveries, meaning recoveries held for ${RECOVERY_MATURITY_DAYS} or more days, at ${RECOVERY_FEE}. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at ${DISPUTE_FEE} of wins only, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute. Intelligence and the audit are always free.`,
           "A payment method goes on file once, under Billing. Invoices and the full evidence ledger are visible there at any time.",
           { kind: "h3", text: "Cancellation" },
           "Cancel account under Danger zone in Settings and My account stops the work. Only the account's owner sees it. Every Stripe connection on the account is disconnected, no further sequence runs, and the recoveries Foxhound already attributed still invoice. Your billing history and the evidence behind it are left intact.",
@@ -656,7 +656,7 @@ export const DOC_GUIDES: DocGuide[] = [
             ],
           },
           { kind: "h3", text: "Date range filter" },
-          `The ${RECOVERY_RANGES.slice(0, -1).join(", ")} and ${RECOVERY_RANGES.at(-1)} buttons in the dashboard header change the window the trend charts, the decline breakdown, the win-back panel and the payments preview read from. The recovery timing chart stays on the last 30 days, as the stat cards do. The range starts at 30 days.`,
+          `The ${listText(RECOVERY_RANGES)} buttons in the dashboard header change the window the trend charts, the decline breakdown, the win-back panel and the payments preview read from. The recovery timing chart stays on the last 30 days, as the stat cards do. The range starts at 30 days.`,
           "The recovery queue always shows the steps due in the next 48 hours, whatever the range.",
           "The email deliverability panel, under the stat cards, follows the range: the share of the emails Foxhound sent that bounced or were reported as spam. Foxhound records each bounce and spam report against the account that sent the email, and when there are none in the range the panel says so. It shows no delivered rate, because Foxhound does not record delivery.",
           { kind: "h3", text: "ROI widget" },
@@ -894,7 +894,7 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Billing",
         body: [
-          `${DISPUTE_FEE} of disputes Foxhound wins, capped at ${dollars(DISPUTE_FEE_CAP_CENTS)} per dispute. Nothing on disputes you lose or accept.`,
+          `${DISPUTE_FEE} of disputes Foxhound wins, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute. Nothing on disputes you lose or accept.`,
           "Nothing is charged on a dispute you lose, a dispute you accept, or a dispute you handled yourself outside Foxhound. The Fees owed card on the disputes dashboard shows what is still owed.",
         ],
       },
@@ -1026,7 +1026,7 @@ export const DOC_GUIDES: DocGuide[] = [
         heading: "Settings",
         body: [
           { kind: "h3", text: "Health alert" },
-          "The Alerts section of Settings and Notifications lets you set a threshold on the number of high-risk customers, those with a health score of 33 or below, or on the MRR they carry, firing when the metric drops below or rises above your number. Foxhound checks after each recovery run, records each breach under Recent triggers on that page, and sends it by email or to Slack, no more than once a day for each alert. It does not alert on one customer's score.",
+          `The Alerts section of Settings and Notifications lets you set a threshold on the number of high-risk customers, those with a health score of ${CRITICAL_HEALTH_SCORE_MAX} or below, or on the MRR they carry, firing when the metric drops below or rises above your number. Foxhound checks after each recovery run, records each breach under Recent triggers on that page, and sends it by email or to Slack, no more than once a day for each alert. It does not alert on one customer's score.`,
         ],
       },
     ],

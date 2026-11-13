@@ -1,17 +1,7 @@
+import { appOrigin } from "~/lib/app-origin";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import {
-  and,
-  count,
-  desc,
-  eq,
-  gte,
-  inArray,
-  isNull,
-  isNotNull,
-  like,
-  notInArray,
-  sql,
-} from "drizzle-orm";
+import { and, count, desc, eq, gte, isNull, isNotNull, notInArray, sql } from "drizzle-orm";
+import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import {
@@ -39,6 +29,7 @@ import {
   resolveDigestCurrency,
   type DigestNumbers,
 } from "~/lib/recovery/digest-email";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // THE WEEKLY DIGEST CRON. Ported from legacy's
 // app/api/cron/weekly-digest/route.ts (blob `b6ff2a8c`, 22,247 bytes).
@@ -151,7 +142,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
     .from(stripeConnections)
     .where(
       and(
-        inArray(
+        inList(
           stripeConnections.accountId,
           withEmail.map((a) => a.accountId),
         ),
@@ -260,7 +251,7 @@ export async function collectDigestNumbers(
             eq(recoverySteps.accountId, accountId),
             isNull(recoverySteps.deletedAt),
             isNotNull(recoverySteps.executedAt),
-            like(recoverySteps.stepType, "email_%"),
+            likeStartsWith(recoverySteps.stepType, "email_"),
             gte(recoverySteps.executedAt, windowStart),
           ),
         ),
@@ -374,7 +365,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
   // run started, falls OUTSIDE it and this week's digest is not skipped by its
   // own predecessor.
   const claimWindowStart = new Date(now.getTime() - DIGEST_CLAIM_WINDOW_MS);
-  const baseUrl = env.BETTER_AUTH_URL ?? "";
+  const baseUrl = appOrigin(env);
 
   for (const account of await queryDigestAccounts(db)) {
     try {
@@ -434,10 +425,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
 
       record(account.accountId, outcome.status);
     } catch (err) {
-      console.error(
-        `weekly digest failed for account ${account.accountId}:`,
-        err instanceof Error ? err.message : err,
-      );
+      console.error(`weekly digest failed for account ${account.accountId}:`, errorMessage(err));
       record(account.accountId, "error");
     }
   }

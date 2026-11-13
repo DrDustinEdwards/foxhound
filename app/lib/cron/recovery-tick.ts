@@ -1,4 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import { type Db, accounts, cronConfig, disputes, failedPayments, getDb } from "~/db";
 import {
   FAILED_PAYMENT_STATUS_UNRECOVERED,
@@ -29,6 +30,7 @@ import {
   toEmailContext,
 } from "./due-steps";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 /** What the loop re-checks before EACH step. */
 export interface TickGuards {
   /** recovery-tick's cron_config flag. A missing row means enabled (gotcha #44). */
@@ -167,10 +169,7 @@ async function hasLostDispute(
       .limit(1);
     return rows.length > 0;
   } catch (err) {
-    console.error(
-      "lost-dispute check failed, retry proceeds:",
-      err instanceof Error ? err.message : err,
-    );
+    console.error("lost-dispute check failed, retry proceeds:", errorMessage(err));
     return false;
   }
 }
@@ -344,15 +343,11 @@ export async function retryOnUpdatedCard(
         const result = await runGuardedRetry(env, row, now, io);
         if (typeof result === "object") attempted += 1;
       } catch (err) {
-        console.error(
-          "card updater retry failed:",
-          row.stepId,
-          err instanceof Error ? err.message : err,
-        );
+        console.error("card updater retry failed:", row.stepId, errorMessage(err));
       }
     }
   } catch (err) {
-    console.error("card updater retry lookup failed:", err instanceof Error ? err.message : err);
+    console.error("card updater retry lookup failed:", errorMessage(err));
   }
   return attempted;
 }
@@ -408,7 +403,7 @@ function readClaimedSequences(db: Db, ids: string[], now: Date): Promise<Claimed
     .from(failedPayments)
     .where(
       and(
-        inArray(failedPayments.id, ids),
+        inList(failedPayments.id, ids),
         eq(failedPayments.status, FAILED_PAYMENT_STATUS_UNRECOVERED),
         eq(failedPayments.resolvedAt, now),
       ),
@@ -537,7 +532,7 @@ export async function runRecoveryTick(
         failedPaymentId: row.failedPaymentId,
         stepType: row.stepType,
         errorClass: err instanceof Error ? err.constructor.name : typeof err,
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       });
       console.error("recovery step failed:", JSON.stringify(failedSteps[failedSteps.length - 1]));
     }
@@ -547,7 +542,7 @@ export async function runRecoveryTick(
   // "steps that failed", and folding a bookkeeping sweep into it would make the
   // number mean two things. Never silent, though: the note is on the recorded
   // run message, so a sweep that is quietly always failing is visible in
-  // cron_run_history rather than looking like a tick with nothing to flip.
+  // cron_run_log rather than looking like a tick with nothing to flip.
   let sweepNote = "";
   if (tally.halted) {
     // An operator disabled the tick mid-run. "Disabled" should mean the tick
@@ -569,14 +564,14 @@ export async function runRecoveryTick(
       }
     } catch (err) {
       sweepNote = ", exhausted-sweep FAILED";
-      console.error("exhausted-sequence sweep failed:", err instanceof Error ? err.message : err);
+      console.error("exhausted-sequence sweep failed:", errorMessage(err));
     }
   }
 
   const executed = tally.retries + tally.emails;
   // THE FAILING STEPS, NAMED IN THE RUN'S OWN RECORD. `console.error` above
   // reaches wrangler tail, which is a live stream nobody is watching at 03:00;
-  // cron_run_history is what somebody actually reads the next morning, and a row
+  // cron_run_log is what somebody actually reads the next morning, and a row
   // saying "3 failed" with no ids sends them back to the logs they no longer
   // have.
   //
@@ -596,7 +591,7 @@ export async function runRecoveryTick(
       }`
     : "";
   const backlogNote = tally.backlog ? ", BACKLOG (tick hit RECOVERY_TICK_LIMIT)" : "";
-  // Both stop conditions are named in the run message, so cron_run_history shows
+  // Both stop conditions are named in the run message, so cron_run_log shows
   // a deliberate halt as a halt rather than as a quiet short run.
   const haltedNote = tally.halted ? ", HALTED (tick disabled mid-run)" : "";
   const pausedNote =

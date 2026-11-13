@@ -1,7 +1,7 @@
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_OAUTH_REGISTER } from "~/lib/constants";
-import { isWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { oauthResponse, registerClient, registrationCallbacks } from "~/lib/oauth/provider.server";
 
 import type { Route } from "./+types/oauth-register";
@@ -19,16 +19,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return oauthResponse({ status: 405, body: { error: "invalid_request" } }, { Allow: "POST" });
   }
   const { env } = context.get(cloudflareContext);
-  const ip = request.headers.get("cf-connecting-ip") ?? "unknown";
-  if (
-    !(await isWithinRateLimit(
-      env,
-      "oauth-register",
-      ip,
-      RATE_LIMIT_OAUTH_REGISTER.max,
-      RATE_LIMIT_OAUTH_REGISTER.windowMs,
-    ))
-  ) {
+  if (!(await isIpWithinRateLimit(env, request, "oauth-register", RATE_LIMIT_OAUTH_REGISTER))) {
     return oauthResponse({ status: 429, body: { error: "rate_limited" } });
   }
   let body: unknown;

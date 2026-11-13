@@ -1,3 +1,4 @@
+import { appOrigin } from "~/lib/app-origin";
 import { and, eq } from "drizzle-orm";
 
 import { accounts, failedPayments, getDb } from "~/db";
@@ -11,6 +12,7 @@ import {
   type RecoveryNotificationOutcome,
 } from "./merchant-notification.server";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE SEQUENCE-COMPLETE NOTIFICATION. Ported from legacy's
 // app/api/cron/process-recovery/route.ts (blob `7015998c`, 19,935 bytes), the
 // "Notify merchant - sequence complete, unrecovered" block.
@@ -182,7 +184,7 @@ export async function sendSequenceCompleteNotification(
     const data = await loadSequenceCompleteData(db, ctx);
     if ("skipped" in data) return { kind: "skipped", reason: data.skipped };
 
-    const baseUrl = env.BETTER_AUTH_URL ?? "";
+    const baseUrl = appOrigin(env);
     const result = await processEmailJob(
       env,
       {
@@ -204,7 +206,7 @@ export async function sendSequenceCompleteNotification(
     );
     return { kind: "sent", result };
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
+    const message = errorMessage(err);
     console.error(
       `sequence-complete notification failed for account ${ctx.accountId} payment ${ctx.failedPaymentId}:`,
       message,

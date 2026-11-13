@@ -1,13 +1,16 @@
+import { isEmail } from "@dustinedwards/site-runtime/email";
 import { useState } from "react";
 import { data, Form, redirect, useNavigation, useSearchParams } from "react-router";
 import { eq } from "drizzle-orm";
 import { applyTheme } from "capsomer/behavior/theme-switch";
+import { SaveBar } from "capsomer/react/save-bar";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { Field, InputGroup, InputGroupAddon, TextField } from "capsomer/react/field";
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
 import { Status } from "capsomer/react/status";
+import "capsomer/save-bar.css";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
@@ -32,7 +35,7 @@ import {
   signInMethods,
 } from "@dustinedwards/site-runtime/sign-in";
 import { isAPIError } from "better-auth/api";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 
 import { ReadOnlyForm } from "capsomer/react/read-only-form";
 import { useDemoConfirmForm, useDemoGuard } from "~/lib/demo/use-demo-guard";
@@ -57,12 +60,13 @@ import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import type { AuthContext } from "~/lib/auth/context";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
-import { isDisposableEmail } from "~/lib/auth/disposable-emails";
+import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { chooseTheme } from "~/lib/settings/theme-choice";
-import { DEFAULT_THEME, isTheme, THEMES, type Theme } from "~/lib/theme";
+import { isThemeChoice } from "capsomer/theme-server";
+import { DEFAULT_THEME, THEMES, type Theme } from "~/lib/theme";
 
 import type { Route } from "./+types/account";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -142,7 +146,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     // The theme this account stores, which is the one the root drew the page
     // in: accounts.theme is NOT NULL, so for a signed-in merchant
     // resolveThemePreference always takes it (lib/theme.ts).
-    theme: isTheme(account.theme) ? account.theme : DEFAULT_THEME,
+    theme: isThemeChoice(account.theme) ? account.theme : DEFAULT_THEME,
     // Only the owner may cancel the account; the action enforces it, this
     // only decides whether to draw the control (team.tsx does the same).
     isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
@@ -232,9 +236,6 @@ interface ActionResult {
   /** change-email: the current address the first link went to. */
   sentTo?: string;
 }
-
-/** Enough of an address's shape to refuse a typo before Better Auth's own check. */
-const EMAIL_SHAPE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** The session when it was made in the last 10 minutes (site-runtime
  *  requireFreshSession), else null, which the page answers by asking for a
@@ -404,7 +405,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         .toLowerCase();
       const refuse = (error: string) =>
         data<ActionResult>({ action: intent, ok: false, error }, { status: 400 });
-      if (!EMAIL_SHAPE.test(newEmail)) return refuse("Enter an email address.");
+      if (!isEmail(newEmail)) return refuse("Enter an email address.");
       if (newEmail === fresh.user.email.toLowerCase())
         return refuse("That is already your address.");
       if (isDisposableEmail(newEmail)) return refuse("Disposable email addresses are not allowed.");
@@ -424,11 +425,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") {
           return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
         }
-        logEvent(
-          "email_change_failed",
-          { error: error instanceof Error ? error.message : String(error) },
-          { level: "error" },
-        );
+        logEvent("email_change_failed", { error: errorMessage(error) }, { level: "error" });
         return data<ActionResult>(
           { action: intent, ok: false, error: "The email was not sent. Try again in a minute." },
           { status: 500 },
@@ -522,11 +519,11 @@ function ProfileForm({
         <div className="cap-panel-body">
           {/* Recova puts help under the control. */}
           <TextField
+            announce
             label="Account name"
             help="Your business or product name"
             helpPlacement="after"
             error={fieldError("name")}
-            announce
             name="name"
             defaultValue={account.name ?? ""}
             placeholder="e.g. Acme Inc"
@@ -539,7 +536,7 @@ function ProfileForm({
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
-              <Field label="Industry">
+              <Field announce label="Industry">
                 {(p) => (
                   <Select
                     {...p}
@@ -572,11 +569,11 @@ function ProfileForm({
             </div>
 
             <Field
+              announce
               label="Monthly Recurring Revenue"
               help="Used to personalize recovery emails."
               helpPlacement="after"
               error={fieldError("merchantMrrSelfReported")}
-              announce
             >
               {(p) => (
                 <InputGroup>
@@ -601,15 +598,11 @@ function ProfileForm({
       </div>
 
       {/* Recova's SaveBar: right-aligned, the result beside the button. */}
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-        <p role="status" className="text-label">
-          {result?.ok === true ? <Status tone="ok">Saved</Status> : null}
-          {barFailed ? <Status tone="crit">Failed to save. Please try again.</Status> : null}
-        </p>
-        <Button type="submit" variant="primary" pending={saving}>
-          Save changes
-        </Button>
-      </div>
+      <SaveBar
+        pending={saving}
+        saved={result?.ok === true}
+        error={barFailed ? "Failed to save. Please try again." : null}
+      />
     </ReadOnlyForm>
   );
 }
@@ -625,8 +618,6 @@ const THEME_LABEL: Record<Theme, string> = { dark: "Dark", light: "Light" };
  *
  * Once the save lands, Capsomer's applyTheme remembers the choice in this
  * browser and tells the header's theme button, so the two never disagree.
- * The header's listener (useThemeMemory) then saves the same value once more;
- * the write is idempotent, and leaving it in place keeps the header unchanged.
  */
 function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   const [theme, setTheme] = useState<Theme>(initial);

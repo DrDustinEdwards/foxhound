@@ -1,6 +1,7 @@
 import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
-import { plainMajorAmount } from "~/lib/money-format";
+import { moneyInputValue } from "@dustinedwards/site-runtime/money";
 import { PLAIN_WRITING_PROMPT } from "~/lib/ai/plain-writing";
+import { listText } from "capsomer/behavior/hooks";
 
 // Phase (c) of the audit port. Legacy's `generateAiSummary`
 // (`lib/audit-engine.ts` blob `040912f8`), split into a PURE prompt builder here
@@ -25,8 +26,8 @@ import { PLAIN_WRITING_PROMPT } from "~/lib/ai/plain-writing";
  *  too small and in the wrong currency. */
 function amountIn(currency: string): (minor: number) => string {
   const code = currency.toLowerCase();
-  if (code === "usd") return (minor) => `$${plainMajorAmount(minor, "usd")}`;
-  return (minor) => `${plainMajorAmount(minor, code)} ${code.toUpperCase()}`;
+  if (code === "usd") return (minor) => `$${moneyInputValue(minor, "usd")}`;
+  return (minor) => `${moneyInputValue(minor, code)} ${code.toUpperCase()}`;
 }
 
 /**
@@ -39,7 +40,7 @@ function amountsIn(currency: string): (totals: MoneyTotals) => string {
   return (totals) =>
     totals.length === 0
       ? amountIn(currency)(0)
-      : totals.map((t) => amountIn(t.currency)(t.cents)).join(" and ");
+      : listText(totals.map((t) => amountIn(t.currency)(t.cents)));
 }
 
 /** A scope's line, or the honest absence. */

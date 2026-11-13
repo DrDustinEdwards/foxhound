@@ -1,5 +1,6 @@
+import { capitalize } from "@drdustinedwards/site-helpers/text";
 import type { ReactNode } from "react";
-import { Link } from "capsomer/react/link";
+import { routerRenderLink } from "capsomer/react/link";
 import { ArrowUpRight } from "lucide-react";
 import { Button } from "capsomer/react/button";
 import { Panel } from "capsomer/react/panel";
@@ -22,7 +23,6 @@ import {
   subscriptionDetail,
   subscriptionStatusLabel,
   subscriptionStatusTone,
-  titleCase,
   type DisputeFeeRow,
   type FeeStatusTone,
   type RecoveryHistoryRow,
@@ -35,7 +35,7 @@ import {
   DISPUTE_FEE_CAP_CENTS,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // /billing's five sections, in Recova's order and with Recova's
 // content (app/(app)/billing/page.tsx at blob 34e56833, components/
@@ -127,12 +127,6 @@ function StatusPill({ label, tone }: { label: string; tone: FeeStatusTone }) {
     <Pill tone={tone}>{label}</Pill>
   );
 }
-
-const routerLink = ({ href, children, ...rest }: RowLinkProps) => (
-  <Link to={href} {...rest}>
-    {children}
-  </Link>
-);
 
 /** Recova's "View invoice" (Stripe's hosted invoice, new tab), or the bare
  *  invoice id in mono when there is no hosted page. */
@@ -234,7 +228,7 @@ export function RecoverySection({
               variant="outline"
               title={r.periodLabel}
               href={`/billing/invoices/${r.invoiceId}`}
-              renderLink={routerLink}
+              renderLink={routerRenderLink}
               detail={`Recovered: ${formatMoneyShort(r.recoveredCents, r.currency)} · Fee: ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
                 <span className="flex flex-wrap items-center gap-3">
@@ -292,7 +286,7 @@ export function DisputeFeesSection({
               variant="outline"
               title={`Dispute won: ${formatMoneyShort(r.disputeAmountCents, r.currency)}`}
               href={`/disputes/${r.disputeId}`}
-              renderLink={routerLink}
+              renderLink={routerRenderLink}
               detail={`Fee (${r.feeCapped ? "capped" : `${DISPUTE_FEE_PERCENT}%`}): ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
               actions={
                 <span className="flex flex-wrap items-center gap-3">
@@ -337,7 +331,7 @@ export function SubscriptionsSection({ subscriptions }: { subscriptions: Subscri
               variant="outline"
               title={productDisplayName(s.product)}
               href={PRODUCT_HREF[s.product] ?? ""}
-              renderLink={PRODUCT_HREF[s.product] ? routerLink : plainTitle}
+              renderLink={PRODUCT_HREF[s.product] ? routerRenderLink : plainTitle}
               detail={
                 detail ? (
                   <span className={detail.warn ? "text-accent-text" : undefined}>
@@ -367,7 +361,7 @@ export function PaymentMethodSection({ card, busy }: { card: CardSummary | null;
         {card ? (
           <div>
             <p className="text-label text-text">
-              {titleCase(card.brand)} ending {card.last4}
+              {capitalize(card.brand)} ending {card.last4}
             </p>
             <p className="mt-1 text-micro text-text-subtle">
               Expires {String(card.expMonth).padStart(2, "0")}/{card.expYear}

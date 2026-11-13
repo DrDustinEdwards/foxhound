@@ -105,13 +105,20 @@ export const accounts = sqliteTable("accounts", {
   theme: text("theme").notNull().default("dark"),
 });
 
+/** The tenant column every account-scoped table carries (hard rule 8): the owning
+ *  account, required. */
+export const accountRef = () =>
+  text("account_id")
+    .notNull()
+    .references(() => accounts.id);
+/** The same column on a table whose row may belong to no account. */
+export const optionalAccountRef = () => text("account_id").references(() => accounts.id);
+
 export const accountMembers = sqliteTable(
   "account_members",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     // soft ref to Better Auth user.id; no enforced FK yet
     userId: text("user_id"),
     role: text("role").notNull(),
@@ -168,9 +175,7 @@ export const accountFirstCreations = sqliteTable(
   {
     id: id(),
     userId: text("user_id").notNull(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
@@ -183,9 +188,7 @@ export const stripeConnections = sqliteTable(
   "stripe_connections",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     stripeUserId: text("stripe_user_id").notNull(),
     // encrypted at rest by app code; never logged (ARCHITECTURE.md non-negotiable #5)
     stripeAccessToken: text("stripe_access_token"),
@@ -253,9 +256,7 @@ export const accountSubscriptions = sqliteTable(
   "account_subscriptions",
   {
     id: id(),
-    accountId: text("account_id")
-      .notNull()
-      .references(() => accounts.id),
+    accountId: accountRef(),
     product: text("product").notNull(),
     stripeSubscriptionId: text("stripe_subscription_id"),
     stripePriceId: text("stripe_price_id"),
@@ -278,7 +279,7 @@ export const apiKeys = sqliteTable(
   "api_keys",
   {
     id: id(),
-    accountId: text("account_id").references(() => accounts.id),
+    accountId: optionalAccountRef(),
     keyHash: text("key_hash").notNull(),
     label: text("label"),
     scope: text("scope").notNull(),
@@ -296,7 +297,11 @@ export const apiKeys = sqliteTable(
   },
   (t) => [
     index("api_keys_account_idx").on(t.accountId),
-    // Every bearer-token request looks its key up by hash (auth/mcp-tokens.ts).
+    // Every bearer-token request looks its key up by hash (auth/mcp-tokens.ts),
+    // and a hash must name one key, so the lookup can never pick between two.
+    // The unique index came in 0076 as an addition; the plain one it makes
+    // redundant goes in a later contract migration (a drop is hand-run).
     index("api_keys_key_hash_idx").on(t.keyHash),
+    uniqueIndex("api_keys_key_hash_uq").on(t.keyHash),
   ],
 );

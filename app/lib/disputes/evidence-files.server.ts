@@ -37,6 +37,12 @@ import {
 /** The bucket slice this module uses, so tests can pass a fake. */
 export type EvidenceBucket = Pick<R2Bucket, "put" | "get" | "delete">;
 
+/** The type an object was stored with, or a download for anything outside the allowed set. */
+function storedContentType(object: { httpMetadata?: { contentType?: string } }): string {
+  const declared = object.httpMetadata?.contentType ?? "";
+  return isEvidenceFileType(declared) ? declared : "application/octet-stream";
+}
+
 /** True while the evidence may still change: no approval row for the dispute,
  *  and the dispute is not submitted or resolved. Joined into each write. */
 function evidenceOpen(db: Db, accountId: string, disputeId: string) {
@@ -212,11 +218,10 @@ export async function readEvidenceFile(
   if (!row) return { outcome: "not_found" };
   const object = await bucket.get(row.key);
   if (!object) return { outcome: "not_found" };
-  const declared = object.httpMetadata?.contentType ?? "";
   return {
     outcome: "ok",
     body: (object as { body?: ReadableStream | null }).body ?? null,
-    contentType: isEvidenceFileType(declared) ? declared : "application/octet-stream",
+    contentType: storedContentType(object),
     name: fileNameFromPath(row.key),
   };
 }
@@ -246,10 +251,9 @@ export async function readEvidenceFilesForSubmission(
         console.error("dispute evidence file missing from the bucket", { key });
         continue;
       }
-      const declared = object.httpMetadata?.contentType ?? "";
       files.push({
         name: fileNameFromPath(key),
-        contentType: isEvidenceFileType(declared) ? declared : "application/octet-stream",
+        contentType: storedContentType(object),
         bytes: new Uint8Array(await object.arrayBuffer()),
         slot,
       });

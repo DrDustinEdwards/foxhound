@@ -55,8 +55,7 @@ deleted the old password rows.
 ## Two role axes (kept separate)
 
 - **Platform role** - admin vs merchant. `/admin/*` sits behind Cloudflare
-  Access (app "foxhound-login"); `getAdminSession` in
-  `app/lib/auth/access.server.ts` verifies the Access JWT and then requires the
+  Access (app "foxhound-login"); site-runtime's `accessAdmin` verifies the Access JWT and then requires the
   email to be on the `ADMIN_EMAIL` allowlist (`isAdminEmail`). Not stored per
   account, and independent of the merchant session.
 - **Account role** - owner vs member, stored on `account_members.role`. Governs

@@ -6,7 +6,9 @@ import { byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
 import { failedPayments, mrrSnapshots, recoveredPayments } from "~/db";
 import { recoveryFeeCents } from "~/lib/billing/fees";
+import { DAY_MS } from "~/lib/constants";
 import { rollUpByMonth } from "~/lib/intelligence/mrr";
+import { percent } from "capsomer/behavior/meter";
 
 // Dashboard read models (Phase 5 slice 5a). Every query is account-scoped and
 // read-only. "Fee owed" previews what the next billing run would invoice: it
@@ -52,8 +54,7 @@ export async function getRecoveryStats(
   const totalFailedCount = countable.length;
   const activeFailedCount = countable.filter((f) => f.status === "active").length;
   const recoveredCount = countable.filter((f) => f.status === "recovered").length;
-  const recoveryRatePct =
-    totalFailedCount > 0 ? Math.round((recoveredCount / totalFailedCount) * 100) : null;
+  const recoveryRatePct = totalFailedCount > 0 ? percent(recoveredCount, totalFailedCount) : null;
 
   const feeRows = billable.map((r) => ({
     currency: r.currency,
@@ -105,7 +106,7 @@ export async function getMrrAnalytics(
     .where(
       and(
         eq(mrrSnapshots.accountId, accountId),
-        gte(mrrSnapshots.snapshotDate, new Date(from.getTime() - 86_400_000 * 2)),
+        gte(mrrSnapshots.snapshotDate, new Date(from.getTime() - DAY_MS * 2)),
       ),
     )
     .orderBy(asc(mrrSnapshots.snapshotDate));

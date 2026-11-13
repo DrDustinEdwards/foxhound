@@ -1,4 +1,4 @@
-import { groupSumByCurrency } from "~/lib/money/totals";
+import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import {
   DAY_MS,
   DECLINE_CATEGORIES,
@@ -8,29 +8,23 @@ import {
 } from "~/lib/constants";
 import { recoveryFeeCents } from "~/lib/billing/fees";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
-import { formatMoney, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
+import { formatMoney, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import { dayKey, type DailyRatePoint, type RecoveryTimingBucket } from "./recovery-window";
+import { percent } from "capsomer/behavior/meter";
 
 // The /recovery/dashboard page's display arithmetic: pure, no
 // database, safe in the browser bundle. Recova is the spec for what each panel
 // shows (app/(app)/recovery/dashboard at the blob shas named in the route);
 // every number here is computed from Foxhound's own read model and constants.
 
-/** A money total in one currency. Mirrors stats.server.ts's CurrencyAmount
- *  without importing a server module into the browser bundle. */
-export interface CurrencyCents {
-  currency: string;
-  cents: number;
-}
-
 /** The recovery fee as Foxhound's pricing constant prints it ("20%"). */
 export const RECOVERY_FEE_LABEL = `${RECOVERY_FEE_BPS / 100}%`;
 
 export interface RoiColumn {
-  recovered: CurrencyCents[];
-  fee: CurrencyCents[];
-  kept: CurrencyCents[];
+  recovered: CurrencyAmount[];
+  fee: CurrencyAmount[];
+  kept: CurrencyAmount[];
 }
 
 /**
@@ -61,7 +55,7 @@ export function roiColumn(rows: readonly { amountCents: number; currency: string
 }
 
 /** Totals side by side, each in its own currency; none at all reads as zero. */
-export function formatCurrencyTotals(rows: readonly CurrencyCents[]): string {
+export function formatCurrencyTotals(rows: readonly CurrencyAmount[]): string {
   if (rows.length === 0) return formatMoney(0, "usd");
   return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");
 }
@@ -73,7 +67,7 @@ export function formatCurrencyTotals(rows: readonly CurrencyCents[]): string {
  * across currencies is meaningless.
  */
 export function atRiskPctOfMrr(
-  atRisk: readonly CurrencyCents[],
+  atRisk: readonly CurrencyAmount[],
   mrrEstimateCents: number | null,
 ): number | null {
   if (!mrrEstimateCents || mrrEstimateCents <= 0 || atRisk.length !== 1) return null;
@@ -251,10 +245,9 @@ export function declineRows(input: {
       category,
       label: DECLINE_CATEGORY_LABELS[category],
       count,
-      pct: input.totalFailedCount > 0 ? Math.round((count / input.totalFailedCount) * 100) : 0,
+      pct: percent(count, input.totalFailedCount),
       // Recova's own rule: a rate only once a category has two failures.
-      recoveredPct:
-        stats && stats.total >= 2 ? Math.round((stats.recovered / stats.total) * 100) : null,
+      recoveredPct: stats && stats.total >= 2 ? percent(stats.recovered, stats.total) : null,
       spark: (input.categorySparkline[category] ?? []).map((p) => p.count),
     };
   });
@@ -374,7 +367,7 @@ export function deliverabilityFigures(c: {
   complaints: number;
 }): DeliverabilityFigures | null {
   if (c.bounced + c.complaints === 0) return null;
-  const pct = (n: number) => (c.sent > 0 ? Math.round((n / c.sent) * 100) : null);
+  const pct = (n: number) => (c.sent > 0 ? percent(n, c.sent) : null);
   return {
     sent: c.sent,
     bounced: c.bounced,

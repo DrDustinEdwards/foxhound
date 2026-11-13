@@ -47,7 +47,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
-const { hashMcpToken } = await import("~/lib/auth/mcp-tokens");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
 const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
 
 const ROOT = new URL("../", import.meta.url);
@@ -105,7 +105,7 @@ async function seed(extraPayments = 0) {
     await db.insert(apiKeys).values({
       id: `key_${account}`,
       accountId: account,
-      keyHash: await hashMcpToken(token),
+      keyHash: await sha256Hex(token),
       label: "agent",
       scope: MCP_TOKEN_SCOPE.MERCHANT,
       createdAt: NOW,
@@ -306,7 +306,7 @@ describe("PLANT 7: the tool module holds no money writer", () => {
     const imports = [...tools.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
     for (const path of imports) {
       expect(path, `${path} is not a read or the settings apply module`).toMatch(
-        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|stats\.server|recommendations\.server|disputes\/approval|recovery\/expiring-card|recovery\/voice-samples|\.\/redact|\/render|settings\/apply\.server|\.\/confirm\.server|\.\/registry)$/,
+        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|stats\.server|recommendations\.server|disputes\/approval|recovery\/expiring-card|recovery\/voice-samples|\.\/redact|\/render|settings\/apply\.server|\.\/confirm\.server|\.\/registry|site-runtime\/encoding)$/,
       );
     }
     // persist.server holds a writer too (saveAuditRun, above); only its two

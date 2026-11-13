@@ -1,7 +1,7 @@
-import { data, useNavigation } from "react-router";
-import { Button } from "capsomer/react/button";
+import { SaveBar } from "capsomer/react/save-bar";
 import { TextField } from "capsomer/react/field";
-import { Status } from "capsomer/react/status";
+import { data, useNavigation } from "react-router";
+import "capsomer/save-bar.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -31,6 +31,7 @@ import {
   type AlertActionResult,
 } from "~/lib/settings/alerts-section.server";
 import { applyNotificationSettings } from "~/lib/settings/apply.server";
+import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { SLACK_WEBHOOK_ERROR, SLACK_WEBHOOK_PLACEHOLDER } from "~/lib/settings/slack-webhook";
 
 import type { Route } from "./+types/notifications";
@@ -61,9 +62,8 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // one card holding the notification email, the Slack webhook URL, then four
 // toggles (Slack notifications, Weekly digest, Payment recovered notification,
 // Sequence complete notification), and under the card, right-aligned, Saved or
-// the failure sentence beside Save changes. Each field's help sits under its
-// input, as Recova's does, so the field is composed from Capsomer's field
-// classes rather than its <Field>, which puts help above the control.
+// the failure sentence beside Save changes. Each field is Capsomer's TextField,
+// its help under the input.
 //
 // The win-back and expiring-card toggles are NOT here: legacy renders them on
 // its features page (S34).
@@ -109,7 +109,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
-  const alertsSection = loadAlertsSection(db, auth.membership.accountId);
+  const alertsSection = loadAlertsSection(env, db, auth.membership.accountId);
   const [row] = await db
     .select({
       notificationEmail: accounts.notificationEmail,
@@ -128,7 +128,8 @@ export async function loader({ context }: Route.LoaderArgs) {
     // signed-in email IN the box, so the first Save stores it. The box is
     // truthful because Save writes what it shows.
     notificationEmail: row?.notificationEmail ?? auth.email,
-    slackWebhookUrl: row?.slackWebhookUrl ?? "",
+    // Opened for the merchant's own form only; the column holds it sealed.
+    slackWebhookUrl: (await openSlackWebhook(env, row?.slackWebhookUrl ?? null)) ?? "",
     slackNotificationsEnabled: row?.slackNotificationsEnabled ?? NULL_IS_OFF,
     digestEnabled: row?.digestEnabled ?? NULL_IS_OFF,
     recoveryNotificationsEnabled: row?.recoveryNotificationsEnabled ?? NULL_IS_ON,
@@ -183,7 +184,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       .from(accounts)
       .where(eq(accounts.id, auth.membership.accountId))
       .limit(1);
-    result = await applyNotificationSettings(db, auth.membership.accountId, {
+    result = await applyNotificationSettings(env, db, auth.membership.accountId, {
       notificationEmail: form.get("notificationEmail"),
       slackWebhookUrl: String(form.get("slackWebhookUrl") ?? ""),
       slackNotificationsEnabled: checked(form, "slackNotificationsEnabled"),
@@ -300,18 +301,8 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
           </div>
         </section>
 
-        {/* Legacy's SaveBar: right-aligned under the card, the result beside
-            the button. The live region is on the page from the start, so the
-            result is announced when it arrives. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <span role="status">
-            {result?.ok ? <Status tone="ok">Saved</Status> : null}
-            {otherError ? <Status tone="crit">{otherError}</Status> : null}
-          </span>
-          <Button type="submit" variant="primary" pending={busy}>
-            Save changes
-          </Button>
-        </div>
+        {/* Legacy's SaveBar: right-aligned under the card, the result beside the button. */}
+        <SaveBar pending={busy} saved={result?.ok === true} error={otherError} />
       </ReadOnlyForm>
 
       <AlertsSection data={loaderData.alerts} result={alertResult} />

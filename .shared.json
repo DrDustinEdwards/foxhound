@@ -17,6 +17,8 @@
     "skip": ["drizzle/migrations/**", "docs/research/kill-matrix.json"]
   },
   "tokens": {
+    "--page-gutter": "Recova's 32px side margin from 768px up, so the audit results page starts under the header's logo",
+    "--fs-page": "Foxhound's body text is 16px; Capsomer's page class would make it 17px",
     "--surface": "Foxhound keeps Recova's amber look on its own domain (Dustin 2026-10-25/26); its public tokens are Recova's",
     "--sunken": "same: Recova's palette",
     "--text": "same: Recova's palette"

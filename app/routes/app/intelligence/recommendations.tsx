@@ -1,6 +1,7 @@
 import { Check } from "lucide-react";
-import { Link } from "capsomer/react/link";
+import { Link, routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
+import { Pagination } from "capsomer/react/pagination";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
 import "capsomer/empty.css";
@@ -24,7 +25,7 @@ import {
   RECOMMENDATIONS_PAGE_SIZE,
   type RecommendationRow,
 } from "~/lib/intelligence/recommendations.server";
-import { formatMoney } from "~/lib/money-format";
+import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/recommendations";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -111,7 +112,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
   // the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="mx-auto max-w-[1280px] px-4 py-8 md:px-8">
+    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8" data-width="page">
       <div className="mb-6">
         <PageHead title="Recommendations" lead="Customers that need your attention right now." />
       </div>
@@ -128,7 +129,19 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
         </div>
       )}
 
-      {totalPages > 1 ? <Pager page={page} totalPages={totalPages} /> : null}
+      {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form). */}
+      {totalPages > 1 ? (
+        <div className="mt-4">
+          <Pagination
+            form="steps"
+            page={page}
+            pageCount={totalPages}
+            hrefFor={pageHref}
+            renderLink={routerRenderLink}
+            label="Recommendation pages"
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -230,35 +243,5 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
         </table>
       </div>
     </Panel>
-  );
-}
-
-/** Recova's pager: "Page N of M" on the left, Previous and Next on the right,
- *  each only when it leads somewhere, as /intelligence/customers draws it. */
-function Pager({ page, totalPages }: { page: number; totalPages: number }) {
-  return (
-    <div className="mt-4">
-      <nav className="cap-pagination" aria-label="Recommendation pages">
-        <p className="cap-pagination-status">
-          Page {page} of {totalPages}
-        </p>
-        <ul className="cap-pagination-list">
-          {page > 1 ? (
-            <li>
-              <Link className="cap-page" data-kind="prev" to={pageHref(page - 1)} rel="prev">
-                Previous
-              </Link>
-            </li>
-          ) : null}
-          {page < totalPages ? (
-            <li>
-              <Link className="cap-page" data-kind="next" to={pageHref(page + 1)} rel="next">
-                Next
-              </Link>
-            </li>
-          ) : null}
-        </ul>
-      </nav>
-    </div>
   );
 }

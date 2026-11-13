@@ -17,7 +17,8 @@ import {
   SIGN_IN_LIMITED,
   SIGN_UP_LIMITED,
 } from "~/lib/auth/rate-limit.server";
-import { DEFAULT_NEXT_PATH, safeNextPath } from "~/lib/auth/next-path";
+import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
+import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
 import { answerSignInForm } from "~/lib/auth/sign-in-link.server";
@@ -62,7 +63,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // a signed-out "Accept invite" here with next=/invite/:token, as Recova's
   // sent it to /signup?invite=true, so the invite is accepted on the way back.
   // Validated the way /login validates it (app/lib/auth/next-path.ts).
-  const next = safeNextPath(new URL(request.url).searchParams.get("next"));
+  const next = safeNextPath(new URL(request.url).searchParams.get("next"), {
+    fallback: DEFAULT_NEXT_PATH,
+  });
   const session = await getSession(env, request);
   if (session) throw redirect(await signedInLanding(env, session, next));
   return { next, methods: signInMethods(env, { social: true }) };
@@ -82,10 +85,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES), {
-    isCode,
-    limited: SIGN_UP_LIMITED,
-  });
+  return answerSignInForm(env, request, await readForm(request, BODY_MAX_BYTES));
 }
 
 export default function Signup({ loaderData, actionData }: Route.ComponentProps) {

@@ -8,6 +8,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { createCreditNote, creditNoteIdempotencyKey } from "./stripe-invoice";
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 // POST-BILLING CLAWBACK (ruling 377(5), PRICING.md rev 5 item 1, reversing rev
 // 2's "no automatic credit after billing").
 //
@@ -190,7 +191,7 @@ export async function issueCreditNoteForEvidence(
     console.error(
       "credit note failed for",
       "recoveredPaymentId" in evidence ? evidence.recoveredPaymentId : evidence.disputeId,
-      err instanceof Error ? err.message : err,
+      errorMessage(err),
     );
     return { credited: false, reason: "credit_note_failed" };
   }
@@ -335,7 +336,7 @@ export async function creditOwedFeeLines(env: Env, now: Date): Promise<CreditSwe
     } catch (err) {
       result.failed.push({
         lineItemId: line.lineItemId,
-        error: err instanceof Error ? err.message : String(err),
+        error: errorMessage(err),
       });
     }
   }

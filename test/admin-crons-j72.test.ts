@@ -32,39 +32,42 @@ const DAY = 24 * HOUR;
 
 type Sqlite = ReturnType<typeof createInMemoryDb>["sqlite"];
 
+/** One run as runJobs writes it: its cron_run_log row and its cron_runs record. */
 function insertRun(
   sqlite: Sqlite,
-  id: string,
   cronName: string,
-  status: string,
+  outcome: "ok" | "failed",
   at: number,
-  message: string | null = null,
+  reason = "",
 ) {
   sqlite
     .prepare(
-      "insert into cron_run_history (id, cron_name, started_at, finished_at, status, rows_processed, message, created_at) values (?, ?, ?, ?, ?, 0, ?, ?)",
+      "insert into cron_run_log (name, started_at, finished_at, outcome, reason) values (?, ?, ?, ?, ?)",
     )
-    .run(id, cronName, at - 1000, at, status, message, at);
+    .run(cronName, at - 1000, at, outcome, reason);
+  sqlite
+    .prepare(
+      `insert into cron_runs (name, every_minutes, ${outcome === "ok" ? "last_ok_at" : "last_failed_at"}) values (?, 1440, ?)
+       on conflict (name) do update set ${outcome === "ok" ? "last_ok_at" : "last_failed_at"} = excluded.${outcome === "ok" ? "last_ok_at" : "last_failed_at"}`,
+    )
+    .run(cronName, at);
 }
 
-describe("listCronRows reads each cron's own history", () => {
+describe("listCronRows reads each cron's own runs", () => {
   it("says when each cron last succeeded, apart from its last run", async () => {
     const { db, sqlite } = createInMemoryDb();
-    insertRun(sqlite, "ok-old", "weekly-digest", "success", NOW - 8 * DAY);
-    insertRun(sqlite, "ok-new", "weekly-digest", "success", NOW - 7 * DAY);
-    insertRun(
-      sqlite,
-      "bad",
-      "weekly-digest",
-      "failed",
-      NOW - 2 * HOUR,
-      "Email binding unavailable",
-    );
-    insertRun(sqlite, "bad-only", "d1-backup", "failed", NOW - 3 * HOUR, "R2 down");
+    insertRun(sqlite, "weekly-digest", "ok", NOW - 8 * DAY);
+    insertRun(sqlite, "weekly-digest", "ok", NOW - 7 * DAY);
+    insertRun(sqlite, "weekly-digest", "failed", NOW - 2 * HOUR, "Email binding unavailable");
+    insertRun(sqlite, "d1-backup", "failed", NOW - 3 * HOUR, "R2 down");
 
     const rows = await listCronRows(db, NOW);
     const digest = rows.find((r) => r.name === "weekly-digest");
-    expect(digest?.lastRun?.status).toBe("failed");
+    expect(digest?.lastRun).toMatchObject({
+      status: "failed",
+      message: "Email binding unavailable",
+    });
+    expect(digest?.recentFailures).toHaveLength(1);
     expect(digest?.lastSucceededAt).toEqual(new Date(NOW - 7 * DAY));
     expect(rows.find((r) => r.name === "d1-backup")?.lastSucceededAt).toBeNull();
     expect(rows.find((r) => r.name === "expiring-cards")?.lastSucceededAt).toBeNull();

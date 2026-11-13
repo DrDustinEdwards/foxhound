@@ -1,4 +1,5 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { chunked } from "@dustinedwards/site-runtime/d1";
+import { and, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
@@ -35,7 +36,7 @@ import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billa
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { CRON_LOCK_LEASE_MS, DAY_MS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import { formatMoneyShort } from "~/lib/money-format";
+import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import {
   BOLT_DEMO,
@@ -61,6 +62,7 @@ import {
 } from "./intelligence-seed";
 import { buildNarrativeSeed } from "./narratives-seed";
 import { buildRecoverySeed } from "./recovery-seed";
+import { resolveDemoMemberships } from "./session";
 
 // The demo seeder. Builds the demo businesses as real accounts (Teamflow and
 // Bolt Analytics, legacy's two: app/api/cron/reset-demo/route.ts, blob
@@ -87,16 +89,9 @@ import { buildRecoverySeed } from "./recovery-seed";
 // Money is integer cents. Timestamps are relative to the passed-in `now`, so the
 // data always looks recent no matter when the reset cron last ran.
 
-/** Split an array into fixed-size chunks (keeps D1 statement/param counts bounded). */
-function chunk<T>(xs: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < xs.length; i += size) out.push(xs.slice(i, i + size));
-  return out;
-}
-
 /** Run a list of write statements as batched transactions (<=50 per batch). */
 async function runBatched(db: Db, statements: BatchItem<"sqlite">[]): Promise<void> {
-  for (const group of chunk(statements, 50)) {
+  for (const group of chunked(statements, 50)) {
     if (group.length === 0) continue;
     await db.batch(group as [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]]);
   }
@@ -449,16 +444,7 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
 /** Every demo business has its account row (the reset seeds them in order, so
  *  the last one landing means the whole set is there). */
 async function demoAccountExists(db: Db): Promise<boolean> {
-  const existing = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(
-      inArray(
-        accounts.id,
-        DEMO_BUSINESSES.map((b) => b.accountId),
-      ),
-    );
-  return existing.length === DEMO_BUSINESSES.length;
+  return (await resolveDemoMemberships(db)).length === DEMO_BUSINESSES.length;
 }
 
 interface DemoResetLock {

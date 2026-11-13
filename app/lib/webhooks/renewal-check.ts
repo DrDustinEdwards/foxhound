@@ -28,7 +28,13 @@ import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
 import { buildClaimOnlyBatch } from "./batches";
-import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
+import {
+  claimOnly,
+  type IntentOf,
+  type WebhookContext,
+  type WebhookOutcome,
+} from "./handler-context";
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 type RenewalIntent = IntentOf<"renewal_card_check">;
 
@@ -153,18 +159,13 @@ export async function handleRenewalCardCheck(
     // As customer.updated's lookup: a Stripe failure loses one check and never
     // fails the webhook. A card case is found again by the nightly scan once
     // it is inside the lead window.
-    console.error("renewal card check lookup failed:", err instanceof Error ? err.message : err);
+    console.error("renewal card check lookup failed:", errorMessage(err));
     charge = { kind: "skip", reason: "stripe_read_failed" };
   }
 
   const decision = candidateFor(intent, charge, receivedAt);
   if (!("candidate" in decision)) {
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      idempotencyKey,
-      build: (db) => buildClaimOnlyBatch(db, claim),
-    });
-    return applied ? { status: "ignored", reason: decision.reason } : { status: "duplicate" };
+    return claimOnly(ctx, decision.reason);
   }
 
   // The claim and the upsert ride one batch, as customer.updated's do, so a

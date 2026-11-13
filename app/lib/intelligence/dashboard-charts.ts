@@ -1,10 +1,10 @@
+import { formatDate } from "capsomer/behavior/time";
 import { areaChart } from "enarratio/lite/area";
 import type { ChartFit } from "capsomer/react/chart-frame";
 import { barChart } from "enarratio/lite/bar";
 import { lineChart } from "enarratio/lite/line";
 
-import { formatDateMonthDay } from "~/lib/date-format";
-import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "~/lib/money-format";
+import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import {
   formatPct,
@@ -61,7 +61,7 @@ export function drawMrrTrend(
     yLabel,
     colors: { [yLabel]: "var(--brand-ui)" },
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
-    formatX: (v) => formatDateMonthDay(new Date(v)),
+    formatX: (v) => formatDate(new Date(v), { style: "monthDay" }) ?? "",
     alt: mrrTrendAlt(points, currency),
     hoverTitles: false,
     width,
@@ -93,7 +93,7 @@ export function drawNrr(points: readonly NrrPoint[], width: number, fit: ChartFi
     points: false,
     references: [{ y: 100, label: "100%" }],
     formatValue: formatPct,
-    formatX: (v) => formatDateMonthDay(new Date(v)),
+    formatX: (v) => formatDate(new Date(v), { style: "monthDay" }) ?? "",
     alt: nrrAlt(points),
     hoverTitles: false,
     width,
@@ -146,7 +146,7 @@ export function drawMovement(
     // One bar per week (weeklyMovements), named by its Monday.
     xType: "time",
     interval: "week",
-    formatX: (start) => formatDateMonthDay(start),
+    formatX: (start) => formatDate(start, { style: "monthDay" }) ?? "",
     y: "amount",
     series: "series",
     seriesDomain: [...MOVEMENT_SERIES],
@@ -210,7 +210,8 @@ const HEALTH_COLORS: Record<(typeof HEALTH_SERIES)[number], string> = {
 };
 
 export function drawHealth(days: readonly HealthDay[], width: number, fit: ChartFit = {}): string {
-  const label = (d: HealthDay) => formatDateMonthDay(new Date(`${d.date}T00:00:00Z`));
+  const label = (d: HealthDay) =>
+    formatDate(new Date(`${d.date}T00:00:00Z`), { style: "monthDay" }) ?? "";
   return barChart({
     title: "Customer health distribution",
     data: days.flatMap((d) => [

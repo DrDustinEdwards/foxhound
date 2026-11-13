@@ -20,7 +20,9 @@
 // currencies is meaningless, and every money total goes through
 // groupSumByCurrency, which the loader applies.
 
+import type { CurrencyAmount } from "~/lib/money/totals";
 import { SUBMITTED_EXTERNALLY, isDisputeResolved } from "./labels";
+import { percent } from "capsomer/behavior/meter";
 
 export interface DisputeStatsInput {
   state: string;
@@ -30,16 +32,11 @@ export interface DisputeStatsInput {
   submittedBy: string | null;
 }
 
-export interface MoneyPart {
-  currency: string;
-  cents: number;
-}
-
 export interface DisputeStats {
   /** Disputes not yet resolved either way. */
   openCount: number;
   /** The disputed amount of each open dispute, in its own currency. */
-  atStakeParts: MoneyPart[];
+  atStakeParts: CurrencyAmount[];
   /**
    * Every dispute whose evidence Foxhound submitted, in any state, lifetime
    * (Recova's card is a lifetime count too). submitted_at is written only once
@@ -56,7 +53,7 @@ export interface DisputeStats {
 
 export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
   let openCount = 0;
-  const atStakeParts: MoneyPart[] = [];
+  const atStakeParts: CurrencyAmount[] = [];
   let submittedByFoxhoundCount = 0;
   let wonCount = 0;
   let lostCount = 0;
@@ -80,7 +77,7 @@ export function computeDisputeStats(rows: DisputeStatsInput[]): DisputeStats {
     submittedByFoxhoundCount,
     wonCount,
     lostCount,
-    winRatePct: resolvedCount > 0 ? Math.round((wonCount / resolvedCount) * 100) : null,
+    winRatePct: resolvedCount > 0 ? percent(wonCount, resolvedCount) : null,
   };
 }
 

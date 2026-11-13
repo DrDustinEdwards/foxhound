@@ -1,6 +1,7 @@
 // Parts of the dispute detail page (routes/app/disputes/detail.tsx split): the
 // approve button, field rows and the evidence file forms.
 
+import { formatDate } from "capsomer/behavior/time";
 import {
   DISPUTE_EVIDENCE_ALLOWED_TYPES,
   DISPUTE_EVIDENCE_MAX_FILES,
@@ -21,7 +22,6 @@ import {
   fileNameFromPath,
 } from "~/lib/disputes/evidence-files";
 import { confirmSubmit } from "capsomer/behavior/confirm-dialog";
-import { formatDateShort } from "~/lib/date-format";
 import type { action } from "~/routes/app/disputes/detail";
 
 /**
@@ -133,7 +133,7 @@ export function EvidenceFiles({
           id: f.id,
           name: fileNameFromPath(f.fieldValue),
           href: available ? evidenceFileHref(disputeId, f.id) : undefined,
-          meta: formatDateShort(f.createdAt),
+          meta: formatDate(f.createdAt, { style: "medium" }) ?? "",
         }))}
         form={EVIDENCE_UPLOAD_FORM_ID}
         accept={DISPUTE_EVIDENCE_ALLOWED_TYPES.join(",")}

@@ -1,5 +1,6 @@
 import type { DeclineCategory } from "~/lib/constants";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";
+import { percent } from "capsomer/behavior/meter";
 
 // Pure aggregation math for the Recovery dashboard's windowed read model
 // (TASK-foxhound-recovery-surface-parity.md Phase 1, legacy's
@@ -126,8 +127,7 @@ export function cumulativeRecoveryRateDaily(
     const key = dayKey(new Date(nowMs - i * DAY_MS));
     cumulativeRecovered += recoveredByDay.get(key) ?? 0;
     cumulativeFailed += failedByDay.get(key) ?? 0;
-    const rate =
-      cumulativeFailed === 0 ? null : Math.round((cumulativeRecovered / cumulativeFailed) * 100);
+    const rate = cumulativeFailed === 0 ? null : percent(cumulativeRecovered, cumulativeFailed);
     points.push({ date: key, rate });
   }
   return points;
@@ -180,7 +180,7 @@ export function recoveryTimingBuckets(recoveryDays: number[]): RecoveryTimingBuc
   return (Object.entries(buckets) as [string, number][]).map(([dayBucket, count]) => ({
     dayBucket,
     count,
-    percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+    percentage: percent(count, total),
   }));
 }
 
@@ -208,7 +208,7 @@ export function bestCategory(
       cat,
       total: v.total,
       recovered: v.recovered,
-      rate: Math.round((v.recovered / v.total) * 100),
+      rate: percent(v.recovered, v.total),
     }),
   );
   const strictWinner = withRates
@@ -241,16 +241,4 @@ export function classifyWebhookHealth(lastWebhookAt: Date | null, nowMs: number)
   if (ageMs <= WEBHOOK_QUIET_WITHIN_MS)
     return { tone: "neutral", label: "No webhook in the last day" };
   return { tone: "failure", label: "No webhook in over 3 days" };
-}
-
-/** "Today" / "Yesterday" / "Nd ago" / "Nmo ago". Pure, small, and scoped to
- *  this module rather than reused across product areas. */
-export function formatRelativeTime(date: Date | null, nowMs: number): string | null {
-  if (!date) return null;
-  const days = Math.floor((nowMs - date.getTime()) / DAY_MS);
-  if (days <= 0) return "Today";
-  if (days === 1) return "Yesterday";
-  if (days < 30) return `${days}d ago`;
-  const months = Math.floor(days / 30);
-  return months === 1 ? "1mo ago" : `${months}mo ago`;
 }

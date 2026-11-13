@@ -61,7 +61,7 @@ second database to confuse it with. Every `--remote` command naming `foxhound`
 writes to production.
 
 `npm run db:migrate` therefore defaults to the local database and refuses the
-remote one unless you pass `--remote-confirm`. See `scripts/db-migrate.mjs`.
+remote one unless you pass `--remote-confirm`. See devkit's `devkit-db-migrate`.
 CI applies migrations after `verify` and before the deploy, so schema always
 precedes code, with devkit's `devkit-migrations --apply`: it applies only the
 pending migrations that add, and refuses a drop, rename or row delete (a table

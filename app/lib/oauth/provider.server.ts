@@ -1,6 +1,6 @@
 import { and, eq, isNull } from "drizzle-orm";
 import { safeEqual } from "@dustinedwards/site-runtime/compare";
-import { base64url } from "@dustinedwards/site-runtime/encoding";
+import { base64url, sha256, sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import {
   allowedRedirects,
   DCR_CALLBACKS,
@@ -12,7 +12,6 @@ import { findActiveMembership } from "~/lib/auth/account";
 import { apiKeys, oauthAuthorizationCodes, oauthClients, oauthGrants } from "~/db";
 import {
   generateSecret,
-  hashMcpToken,
   MCP_TOKEN_PREFIX,
   MCP_TOKEN_SCOPE,
   mintMcpTokenValue,
@@ -134,8 +133,7 @@ export async function parseOAuthBody(request: Request): Promise<URLSearchParams 
  *  does not depend on where they first differ. */
 async function verifyPkceS256(verifier: string, challenge: string): Promise<boolean> {
   if (!VERIFIER_SHAPE.test(verifier)) return false;
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
-  return safeEqual(base64url(digest), challenge);
+  return safeEqual(base64url(await sha256(verifier)), challenge);
 }
 
 // ============================================================================
@@ -378,7 +376,7 @@ export async function issueAuthorizationCode(
   }
   await db.insert(oauthAuthorizationCodes).values({
     id: crypto.randomUUID(),
-    codeHash: await hashMcpToken(code),
+    codeHash: await sha256Hex(code),
     clientId: input.clientId,
     accountId: input.accountId,
     userId: input.userId,
@@ -456,7 +454,7 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
   const [row] = await db
     .select()
     .from(oauthAuthorizationCodes)
-    .where(eq(oauthAuthorizationCodes.codeHash, await hashMcpToken(code)))
+    .where(eq(oauthAuthorizationCodes.codeHash, await sha256Hex(code)))
     .limit(1);
   if (!row) return oauthError(400, "invalid_grant");
 
@@ -513,7 +511,7 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
     db.insert(apiKeys).values({
       id: keyId,
       accountId: row.accountId,
-      keyHash: await hashMcpToken(access),
+      keyHash: await sha256Hex(access),
       // The name the client registered, which is the name the person saw on
       // the consent page, so they can find this connection in Settings.
       label: `${client?.clientName ?? DEFAULT_CLIENT_NAME} (OAuth)`,
@@ -529,7 +527,7 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
       apiKeyId: keyId,
       userId: row.userId,
       codeId: row.id,
-      refreshHash: await hashMcpToken(refresh),
+      refreshHash: await sha256Hex(refresh),
       refreshExpiresAt: plusMs(now, OAUTH_REFRESH_TOKEN_TTL_MS),
       createdAt: now,
     }),
@@ -543,7 +541,7 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
   if (!refresh || !clientId)
     return oauthError(400, "invalid_request", "Missing required parameter");
 
-  const presented = await hashMcpToken(refresh);
+  const presented = await sha256Hex(refresh);
   const [grant] = await db
     .select()
     .from(oauthGrants)
@@ -595,7 +593,7 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
   const rotated = await db
     .update(oauthGrants)
     .set({
-      refreshHash: await hashMcpToken(nextRefresh),
+      refreshHash: await sha256Hex(nextRefresh),
       previousRefreshHash: presented,
       refreshExpiresAt: plusMs(now, OAUTH_REFRESH_TOKEN_TTL_MS),
     })
@@ -612,7 +610,7 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
   const rekeyed = await db
     .update(apiKeys)
     .set({
-      keyHash: await hashMcpToken(access),
+      keyHash: await sha256Hex(access),
       expiresAt: plusMs(now, OAUTH_ACCESS_TOKEN_TTL_SECONDS * 1000),
     })
     .where(and(eq(apiKeys.id, key.id), isNull(apiKeys.revokedAt)))
@@ -648,7 +646,7 @@ export async function exchangeToken(
  */
 export async function revokeOAuthToken(db: Db, token: string | null, now: Date): Promise<void> {
   if (!token || token.length > MAX_FIELD) return;
-  const hash = await hashMcpToken(token);
+  const hash = await sha256Hex(token);
   let grant: Pick<GrantRow, "id" | "apiKeyId"> | undefined;
   if (token.startsWith(OAUTH_REFRESH_TOKEN_PREFIX)) {
     [grant] = await db

@@ -49,21 +49,3 @@ export function showingCountFor(counts: StatusCountsShape, status: string): numb
   if (status === "failed_unrecovered") return counts.failedUnrecovered;
   return counts.all;
 }
-
-/**
- * Legacy's thresholded color for the "Recovery rate" card value:
- *
- *   colorClass: recoveryRate >= 36 ? 'text-green'
- *             : recoveryRate >= 21 ? (legacy's accent text color)
- *             : 'text-red'
- *
- * The two cutoffs are legacy's own numbers, read from source rather than
- * inferred, and both boundaries are inclusive. The middle band is a caution
- * state, so it takes the caution token (app/app.css), named by meaning; the
- * other two classes exist in Foxhound's token set under legacy's names.
- */
-export function recoveryRateValueClass(ratePct: number): string {
-  if (ratePct >= 36) return "text-green";
-  if (ratePct >= 21) return "text-caution";
-  return "text-red";
-}

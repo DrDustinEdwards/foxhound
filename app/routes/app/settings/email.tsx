@@ -1,8 +1,9 @@
-import { useEffect, useState } from "react";
+import { SaveBar } from "capsomer/react/save-bar";
+import { useShownFor } from "capsomer/react/hooks";
+import { TextField } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
-import { TextField } from "capsomer/react/field";
-import { Status } from "capsomer/react/status";
+import "capsomer/save-bar.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";
@@ -79,9 +80,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // here and in what order: the phone-only back link, the title and its line, one
 // card holding Sender name, Reply-to email and the Send test email button, and
 // under the card, right-aligned, Saved or the failure sentence beside Save
-// changes. Each field's help sits under its input, as Recova's does, so the
-// field is composed from Capsomer's field classes rather than its <Field>,
-// which puts help above the control (as /settings/notifications does).
+// changes. Each field is Capsomer's TextField, its help under the input as Recova's is.
 //
 // THE TEST BUTTON SITS IN THE CARD BUT POSTS ITS OWN FORM, through the HTML
 // `form` attribute. Recova's is a type="button" inside the save form that
@@ -247,18 +246,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   );
 }
 
-/** The test email's last outcome, held for legacy's four seconds and then
- *  dropped, so the button goes back to "Send test email". */
-function useShownTestResult(result: ActionResult | undefined): ActionResult | undefined {
-  const [dismissed, setDismissed] = useState<ActionResult | undefined>(undefined);
-  useEffect(() => {
-    if (!result) return;
-    const timer = setTimeout(() => setDismissed(result), TEST_RESULT_MS);
-    return () => clearTimeout(timer);
-  }, [result]);
-  return result && result !== dismissed ? result : undefined;
-}
-
 function testOutcome(result: ActionResult | undefined): string | null {
   if (!result) return null;
   if (result.ok) return TEST_SENT;
@@ -275,7 +262,12 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
     navigation.state === "idle" ? null : String(navigation.formData?.get("_action") ?? "");
   const saveResult = result?.action === "sender" ? result : undefined;
   const featuresResult = result?.action === "features" ? result : undefined;
-  const testResult = useShownTestResult(result?.action === "test-email" ? result : undefined);
+  // The test email's last outcome, held for legacy's four seconds and then
+  // dropped, so the button goes back to "Send test email".
+  const [testResult] = useShownFor(
+    result?.action === "test-email" ? result : undefined,
+    TEST_RESULT_MS,
+  );
   const outcome = pendingAction === "test-email" ? null : testOutcome(testResult);
 
   const fieldError = (field: SenderField) =>
@@ -347,15 +339,11 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
 
         {/* Legacy's SaveBar: right-aligned under the card, the result beside
             the button. The live region is on the page from the start. */}
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <span role="status">
-            {saveResult?.ok ? <Status tone="ok">Saved</Status> : null}
-            {barError ? <Status tone="crit">{barError}</Status> : null}
-          </span>
-          <Button type="submit" variant="primary" pending={pendingAction === "sender"}>
-            Save changes
-          </Button>
-        </div>
+        <SaveBar
+          pending={pendingAction === "sender"}
+          saved={saveResult?.ok === true}
+          error={barError}
+        />
       </ReadOnlyForm>
 
       {/* The recovery emails card, once /settings/features. */}
@@ -378,17 +366,11 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             />
           </div>
         </section>
-        <div className="mt-6 flex flex-wrap items-center justify-end gap-3">
-          <span role="status">
-            {featuresResult?.ok ? <Status tone="ok">Saved</Status> : null}
-            {featuresResult && !featuresResult.ok ? (
-              <Status tone="crit">{SAVE_FAILED}</Status>
-            ) : null}
-          </span>
-          <Button type="submit" variant="primary" pending={pendingAction === "features"}>
-            Save changes
-          </Button>
-        </div>
+        <SaveBar
+          pending={pendingAction === "features"}
+          saved={featuresResult?.ok === true}
+          error={featuresResult && !featuresResult.ok ? SAVE_FAILED : null}
+        />
       </ReadOnlyForm>
 
       {/* The test email's own form: nothing typed, only the intent. */}

@@ -1,9 +1,10 @@
+import { plural, titleCase } from "@drdustinedwards/site-helpers/text";
 import { isoDay } from "@drdustinedwards/site-helpers/xml";
 
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { CRON_SCHEDULE_MONTHLY, DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
-import { formatMoney, formatMoneyShort } from "~/lib/money-format";
+import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // THE MERCHANT'S DISPUTE NOTICES: the words and the
 // pure rules, no database and no send. Recova is the spec, read whole:
@@ -47,11 +48,6 @@ export const DISPUTE_AUTO_SUBMITTED_TEMPLATE = "merchant_dispute_auto_submitted"
 /** The platform's From name, as on the recovery notification. Recova sent
  *  these from its own disputes address under the platform name. */
 export const DISPUTE_NOTICE_FROM_NAME = "Foxhound";
-
-/** Recova's titleCaseReason: "product_not_received" to "Product Not Received". */
-function titleCaseReason(reason: string): string {
-  return reason.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-}
 
 /** Recova's `customer_name || customer_email || 'Unknown customer'`. */
 export function noticeCustomerLabel(name: string | null, email: string | null): string {
@@ -165,7 +161,7 @@ export function createdNotice(input: CreatedNoticeInput): NoticeMail {
     notice: {
       title: "New dispute.",
       body: [
-        `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
+        `${input.customerLabel} disputed ${amount} for reason: ${titleCase(input.reason)}.`,
         deadlineLine,
         ...(triageLine(input.triage) ? [triageLine(input.triage) as string] : []),
         input.autoSubmit
@@ -209,13 +205,13 @@ const REMINDER_APPROVED_LINE =
 /** Recova's sendDisputeDeadlineReminderEmail. */
 export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
-  const plural = input.daysLeft === 1 ? "day" : "days";
+  const due = plural(input.daysLeft, "day");
   return {
-    subject: `URGENT: Dispute response due in ${input.daysLeft} ${plural}`,
+    subject: `URGENT: Dispute response due in ${due}`,
     notice: {
-      title: `Dispute response due in ${input.daysLeft} ${plural}.`,
+      title: `Dispute response due in ${due}.`,
       body: [
-        `${input.customerLabel} disputed ${amount} for reason: ${titleCaseReason(input.reason)}.`,
+        `${input.customerLabel} disputed ${amount} for reason: ${titleCase(input.reason)}.`,
         "Current status: needs response.",
         input.approved
           ? REMINDER_APPROVED_LINE
@@ -245,7 +241,7 @@ export function autoSubmittedNotice(input: AutoSubmittedNoticeInput): NoticeMail
     notice: {
       title: "Dispute response submitted.",
       body: [
-        `We submitted evidence to Stripe for the ${amount} dispute from ${input.customerLabel} (reason: ${titleCaseReason(input.reason)}).`,
+        `We submitted evidence to Stripe for the ${amount} dispute from ${input.customerLabel} (reason: ${titleCase(input.reason)}).`,
         "What we included: transaction context, card verification (AVS, CVV, 3DS, Radar), prior charge history, subscription tenure where applicable, and recovery email engagement.",
         // Recova's sentence went on "unless you want to add more evidence", but
         // Stripe takes no more evidence once a response is submitted, and the
@@ -292,7 +288,7 @@ function wonFeeTerms(amountCents: number, feeCents: number): string {
  *  with "View dispute" to the disputes list (Recova's APP_URL/disputes). */
 export function outcomeNotice(input: OutcomeNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
-  const reason = titleCaseReason(input.reason);
+  const reason = titleCase(input.reason);
   const action = { label: "View dispute", url: input.listUrl };
 
   if (!input.won) {

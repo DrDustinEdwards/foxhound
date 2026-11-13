@@ -1,5 +1,5 @@
 import { fromBase64 } from "@dustinedwards/site-runtime/encoding";
-import { cardText, shareCardResponse } from "@dustinedwards/site-runtime/share-card";
+import { cardText, shareCardResponse, titleFontSize } from "@dustinedwards/site-runtime/share-card";
 import { ImageResponse } from "workers-og";
 
 // Satori (workers-og's layout engine) parses fonts with opentype.js, which:
@@ -116,10 +116,14 @@ function defaultCardHtml(): string {
 // pairing the host with an amber pill. Foxhound had dropped the excerpt
 // entirely, replaced the pill with a tag chip, and shrunk the title; all four
 // were unratified. Branding only is Foxhound's: "Foxhound Blog", "FOXHOUND".
+const BLOG_TITLE_SIZES = [
+  { maxChars: 50, fontSize: 56 },
+  { maxChars: Infinity, fontSize: 48 },
+];
 function blogCardHtml(title: string, description: string, host: string): string {
   const safeTitle = cardText(title);
   const safeDescription = cardText(description);
-  const titleFontSize = title.length > 50 ? 48 : 56;
+  const fontSize = titleFontSize(title, BLOG_TITLE_SIZES);
   const descriptionHtml = safeDescription
     ? `\n      <div style="display:flex;font-size:22px;color:${COLOR_TEXT_SECONDARY};line-height:1.5;max-width:800px;">${safeDescription}</div>`
     : "";
@@ -129,7 +133,7 @@ function blogCardHtml(title: string, description: string, host: string): string 
       <div style="display:flex;font-size:18px;font-weight:500;color:${COLOR_BRAND};letter-spacing:-0.02em;">Foxhound Blog</div>
     </div>
     <div style="display:flex;flex-direction:column;">
-      <div style="display:flex;font-size:${titleFontSize}px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;color:${COLOR_TEXT};max-width:900px;${safeDescription ? "margin-bottom:24px;" : ""}">${safeTitle}</div>${descriptionHtml}
+      <div style="display:flex;font-size:${fontSize}px;font-weight:600;line-height:1.15;letter-spacing:-0.03em;color:${COLOR_TEXT};max-width:900px;${safeDescription ? "margin-bottom:24px;" : ""}">${safeTitle}</div>${descriptionHtml}
     </div>
     <div style="display:flex;align-items:center;justify-content:space-between;">
       <div style="display:flex;font-size:18px;color:${COLOR_TEXT_TERTIARY};">${cardText(host)}</div>
