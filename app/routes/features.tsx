@@ -1,5 +1,7 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { useMemo, useState } from "react";
+import { AnchorBar } from "capsomer/react/anchor-bar";
+import { FeatureGrid } from "capsomer/react/feature";
 import { Link } from "capsomer/react/link";
 
 import { HealthScoreBadge } from "~/components/docs/health-score-badge";
@@ -15,13 +17,14 @@ import {
   featureSections,
   healthBandExampleScores,
   healthBandSentence,
-  type Feature,
   type FeatureFilterValue,
 } from "~/lib/marketing/features-content";
 import { readFeatureFacts } from "~/lib/marketing/features-facts.server";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
+import "capsomer/anchor-bar.css";
+import "capsomer/feature.css";
 import "capsomer/panel.css";
 import "capsomer/chips.css";
 import "capsomer/status.css";
@@ -58,24 +61,6 @@ import "~/features.css";
 // its own 26.6% and $6,884. Those are Recova's figures, so the tiles are not
 // drawn; which numbers, if any, Foxhound shows there is
 // left open for a ruling.
-
-function FeatureCard({ feature }: { feature: Feature }) {
-  return (
-    // data-product is what FEATURE_FILTER_CSS reads to hide a card.
-    // Recova's feature card: p-4 and 8px corners.
-    <div className="fh-features-block cap-panel" data-product={feature.product}>
-      <div className="cap-panel-body">
-        <div>
-          <div className="fh-mk-card-top">
-            <span className="fh-copy fh-medium fh-text">{feature.name}</span>
-            <ProductTag product={feature.product} />
-          </div>
-          <p className="fh-small fh-relaxed fh-soft">{feature.description}</p>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Recova's inline examples, keyed by section id. The automation timeline reads
 // RECOVERY_SCHEDULES and the badges read healthScoreBand; the
@@ -154,22 +139,15 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           />
 
           <div className="fh-features-grid">
-            {/* Recova's sticky section nav. Capsomer's anchor bar is a
-                horizontal bar with an "On this page" label, so this stays
-                Recova's vertical list in Foxhound utilities with the amber
-                accent on hover; a vertical anchor bar is a Capsomer gap. */}
+            {/* Recova's sticky section nav: Capsomer's vertical anchor bar,
+                listed on the server so it shows without a script. */}
             <aside className="fh-features-aside">
-              <nav aria-label="Sections" className="fh-features-nav">
-                {sections.map((s) => (
-                  <a
-                    key={s.id}
-                    href={`#${s.id}`}
-                    className="fh-features-link fh-line fh-small fh-soft"
-                  >
-                    {s.label}
-                  </a>
-                ))}
-              </nav>
+              <AnchorBar
+                always
+                orientation="vertical"
+                label="Sections"
+                sections={sections.map((s) => ({ id: s.id, label: s.label }))}
+              />
             </aside>
 
             {/* Recova wraps this column in <main>; Foxhound renders one main
@@ -183,11 +161,17 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
                     <p className="fh-copy fh-relaxed fh-soft">{s.intro}</p>
                   </div>
                   <SectionInlineExample id={s.id} />
-                  <div className="fh-features-grid-2">
-                    {s.features.map((f) => (
-                      <FeatureCard key={f.name} feature={f} />
-                    ))}
-                  </div>
+                  {/* Capsomer's feature cards; data-product is what
+                      FEATURE_FILTER_CSS reads to hide a card. */}
+                  <FeatureGrid
+                    items={s.features.map((f) => ({
+                      id: f.name,
+                      title: f.name,
+                      text: f.description,
+                      tag: <ProductTag product={f.product} />,
+                      attributes: { "data-product": f.product },
+                    }))}
+                  />
                 </section>
               ))}
             </div>

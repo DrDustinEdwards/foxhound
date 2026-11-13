@@ -1,6 +1,7 @@
-import { Icon, iconArrowRight, iconCheck } from "capsomer/react/icons";
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { Link } from "capsomer/react/link";
+import { PriceCard, PriceGrid } from "capsomer/react/price-card";
 
 import { CARD, CTA_BUTTON } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
@@ -17,6 +18,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
+import "capsomer/price-card.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the
 // button, the accent text and the focus ring read. The site header loads the
 // same file; importing it here keeps the page whole under any layout.
@@ -94,64 +96,38 @@ export default function PricingPage() {
           constant, which is why ruling 60 says check it per surface rather than
           bulk-replacing max-w-5xl everywhere.
 
-          Each card is Capsomer's panel at Recova's p-6 and 12px corners, with
-          Recova's card shadow from Foxhound's site layer. The id and Recova's
-          60px scroll margin sit on a wrapper so the panel carries no Foxhound
-          class; the wrapper is a one-cell grid so the panel fills the row. */}
+          Each card is Capsomer's price card at Recova's p-6 and sizes (pricing.css
+          sets them through the card's own variables). A card with no price label
+          keeps a blank line there, as Recova's does, so the descriptions line up. */}
       <section className="fh-pricing-band speakable-pricing-cards">
         <div className="fh-pricing-wrap">
-          <div className="fh-mk-cards-4">
+          <PriceGrid label="Plans">
             {PRICING_CARDS.map((card) => (
-              <div key={card.id} id={card.id} className="fh-pricing-grid">
-                <div className={CARD}>
-                  <div className="cap-panel-body">
-                    {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
-                    <div className="fh-mk-column">
-                      <h2 className="fh-pricing-title fh-card-title fh-medium fh-text">
-                        {card.name}
-                      </h2>
-                      <div className="fh-pricing-block-2">
-                        <span className="fh-pricing-label fh-mono fh-price fh-medium fh-tight fh-accent">
-                          {card.price}
-                        </span>
-                      </div>
-                      {card.priceLabel ? (
-                        <div className="fh-pricing-title fh-mono fh-caption fh-quiet">
-                          {card.priceLabel}
-                        </div>
-                      ) : (
-                        <div className="fh-pricing-title">&nbsp;</div>
-                      )}
-                      <p className="fh-pricing-text fh-small fh-soft">{card.description}</p>
-                      <ul className="fh-pricing-list fh-small fh-soft">
-                        {card.features.map((feature) => (
-                          <li key={feature} className="fh-mk-point">
-                            <Icon
-                              d={iconCheck}
-                              className="fh-icon-14 fh-icon-heavy fh-pricing-block-3 fh-accent"
-                            />
-                            <span>{feature}</span>
-                          </li>
-                        ))}
-                      </ul>
-                      {/* The destination is products.ts's, the one place J09 moves
-                          the spokes to Recova's /product/*. The hidden words give
-                          each of the four links its own name; the visible "Learn
-                          more" leads it, so label-in-name holds. leading-6 makes
-                          the link a 24px target. */}
-                      <Link
-                        to={PRODUCTS[card.id].href}
-                        className="fh-pricing-link fh-hover-group fh-small fh-accent"
-                      >
-                        Learn more<span className="cap-sr-only"> about {card.name}</span>{" "}
-                        <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
-                      </Link>
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <PriceCard
+                key={card.id}
+                id={card.id}
+                headingLevel="h2"
+                name={card.name}
+                price={card.price}
+                label={card.priceLabel || "\u00a0"}
+                text={card.description}
+                points={card.features}
+                action={
+                  // The destination is products.ts's, the one place J09 moves
+                  // the spokes to Recova's /product/*. The hidden words give
+                  // each of the four links its own name; the visible "Learn
+                  // more" leads it, so label-in-name holds.
+                  <Link
+                    to={PRODUCTS[card.id].href}
+                    className="fh-pricing-link fh-hover-group fh-small fh-accent"
+                  >
+                    Learn more<span className="cap-sr-only"> about {card.name}</span>{" "}
+                    <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
+                  </Link>
+                }
+              />
             ))}
-          </div>
+          </PriceGrid>
         </div>
       </section>
 

@@ -4,12 +4,14 @@ import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
+import "capsomer/eyebrow.css";
 import "capsomer/source-line.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here
 // keeps the page whole under any layout.
 import "~/site-header.css";
 import { faqPage } from "@drdustinedwards/site-helpers/schema";
+import { Eyebrow } from "capsomer/react/eyebrow";
 import { Link } from "capsomer/react/link";
 import { SourceLine } from "capsomer/react/source-line";
 import { EmailSamples } from "~/components/email-samples";
@@ -293,9 +295,9 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="fh-home-band-3">
         <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <p className="fh-home-text-4 fh-center fh-mono fh-tiny fh-faint fh-caps-wide">
+            <Eyebrow variant="mono" className="fh-home-text-4 fh-center">
               The gap Stripe leaves open
-            </p>
+            </Eyebrow>
             <h2 className="fh-home-title-2 fh-center fh-statement fh-semibold fh-text">
               {STRIPE_GAP} of failed payments
               <br />
