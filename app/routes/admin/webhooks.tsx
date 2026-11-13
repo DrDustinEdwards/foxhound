@@ -54,7 +54,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 const HEADING_ID = "admin-webhooks-heading";
 const COLUMNS = 5;
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK = "inline-block min-h-6 leading-6";
+const LINK = "fh-row-link";
 
 // The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
 // and his review of 2026-10-11: one page name (the shell's "Webhooks"), the
@@ -72,7 +72,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
   const typeId = useId();
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       <StatTiles label="Webhook health">
         <StatTile
           href={WEBHOOKS_PATH}
@@ -115,9 +115,9 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
           key={JSON.stringify(filters)}
           method="get"
           action={WEBHOOKS_PATH}
-          className="flex flex-wrap items-end gap-x-4 gap-y-3 border-b border-border px-4 py-3"
+          className="fh-filter-bar"
         >
-          <div className="cap-field min-w-56 grow sm:w-80 sm:grow-0">
+          <div className="cap-field fh-filter-search">
             <label className="cap-field-label" htmlFor={typeId}>
               Event type
             </label>
@@ -132,15 +132,15 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
               spellCheck={false}
             />
           </div>
-          <label className="cap-check min-h-6">
+          <label className="cap-check fh-check-row">
             <input type="checkbox" name="errors" value="1" defaultChecked={filters.errorsOnly} />{" "}
             Errors only
           </label>
-          <label className="cap-check min-h-6">
+          <label className="cap-check fh-check-row">
             <input type="checkbox" name="pending" value="1" defaultChecked={filters.pendingOnly} />{" "}
             Pending only
           </label>
-          <div className="flex items-center gap-3">
+          <div className="cap-cluster" data-gap="4">
             <button type="submit" className="cap-btn">
               Filter
             </button>
@@ -200,7 +200,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
         )}
 
         {list.pageCount > 1 ? (
-          <div className="border-t border-border px-4 py-3">
+          <div className="fh-panel-foot">
             <Pagination
               page={list.page}
               pageCount={list.pageCount}
@@ -229,24 +229,24 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
 function EventRows({ event }: { event: WebhookEventRow }) {
   return (
     <ExpandRows
-      name={<span className="break-all font-mono text-micro">{event.eventType}</span>}
+      name={<span className="fh-break fh-mono fh-tiny">{event.eventType}</span>}
       toggleSuffix="payload"
       columns={COLUMNS}
       row={(toggle) => (
         <>
-          <th scope="row" className="font-normal">
+          <th scope="row" className="fh-regular">
             {toggle}
           </th>
           <td data-label="Account">
             {event.accountId ? (
               <Link
                 to={merchantHref(event.accountId)}
-                className={`${LINK} font-mono text-micro break-all`}
+                className={`${LINK} fh-mono fh-tiny fh-break`}
               >
                 {event.accountId}
               </Link>
             ) : (
-              <span className="text-text-tertiary">No account</span>
+              <span className="fh-quiet">No account</span>
             )}
           </td>
           <td data-label="Status">
@@ -275,7 +275,7 @@ function EventRows({ event }: { event: WebhookEventRow }) {
           // oxlint-disable-next-line jsx-a11y/no-noninteractive-tabindex -- a scrollable region takes focus so a keyboard can scroll it (axe scrollable-region-focusable)
           tabIndex={0}
           aria-label={`${event.eventType} payload`}
-          className="m-0 max-h-96 overflow-auto rounded-md border border-border bg-sunken p-3 font-mono text-micro text-text"
+          className="fh-payload fh-mono fh-tiny fh-text"
         >
           {JSON.stringify(event.payload, null, 2)}
         </pre>

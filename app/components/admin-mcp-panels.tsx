@@ -16,7 +16,7 @@ const KEYS_HEADING_ID = "admin-mcps-keys-heading";
 const TOOLS_HEADING_ID = "admin-mcps-tools-heading";
 const CALLS_HEADING_ID = "admin-mcps-calls-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
-const LINK = "inline-block min-h-6 leading-6";
+const LINK = "fh-row-link";
 
 // The MCP part of /admin/operations. It was its own page, /admin/mcps,
 // with no row in the admin menu; Dustin had it folded into Operations on
@@ -40,7 +40,7 @@ export function AdminMcpPanels({
   const writes = tools.filter((t) => t.writes).length;
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       <StatTiles label="MCP use">
         <StatTile
           label="API keys"
@@ -61,7 +61,7 @@ export function AdminMcpPanels({
         />
       </StatTiles>
 
-      <div className="grid grid-cols-1 gap-6">
+      <div className="cap-stack" data-gap="6">
         <TablePanel
           title="API keys"
           headingId={KEYS_HEADING_ID}
@@ -118,7 +118,7 @@ export function AdminMcpPanels({
             <tbody>
               {tools.map((t) => (
                 <tr key={t.name}>
-                  <th scope="row" className="font-mono text-micro font-normal break-all">
+                  <th scope="row" className="fh-mono fh-tiny fh-regular fh-break">
                     {t.name}
                   </th>
                   <td data-label="What it does" data-wrap="">
@@ -176,7 +176,7 @@ export function AdminMcpPanels({
 
 function AccountLink({ id, name }: { id: string; name: string | null }) {
   return (
-    <Link to={merchantHref(id)} className={name ? LINK : `${LINK} font-mono text-micro break-all`}>
+    <Link to={merchantHref(id)} className={name ? LINK : `${LINK} fh-mono fh-tiny fh-break`}>
       {name ?? id}
     </Link>
   );
@@ -185,15 +185,15 @@ function AccountLink({ id, name }: { id: string; name: string | null }) {
 function KeyRow({ apiKey: k }: { apiKey: AdminApiKeyRow }) {
   return (
     <tr>
-      <th scope="row" className="font-normal">
-        {k.label ?? <span className="text-text-tertiary">Unlabelled</span>}
+      <th scope="row" className="fh-regular">
+        {k.label ?? <span className="fh-quiet">Unlabelled</span>}
       </th>
       <td data-label="Scope">{scopeWords(k.scope)}</td>
       <td data-label="Account">
         {k.accountId ? (
           <AccountLink id={k.accountId} name={k.accountName} />
         ) : (
-          <span className="text-text-secondary">
+          <span className="fh-soft">
             {k.scope === MCP_TOKEN_SCOPE.ADMIN ? "Platform" : "No account"}
           </span>
         )}
@@ -214,15 +214,15 @@ function KeyRow({ apiKey: k }: { apiKey: AdminApiKeyRow }) {
 function CallRow({ call: c }: { call: AdminMcpCallRow }) {
   return (
     <tr>
-      <th scope="row" className="font-mono text-micro font-normal break-all">
-        {c.tool || <span className="text-text-tertiary">No tool named</span>}
+      <th scope="row" className="fh-mono fh-tiny fh-regular fh-break">
+        {c.tool || <span className="fh-quiet">No tool named</span>}
       </th>
       <td data-label="Account">
         <AccountLink id={c.accountId} name={c.accountName} />
       </td>
       <td data-label="Key">
         {c.keyLabel ?? (
-          <span className="text-text-tertiary">{c.keyFound ? "Unlabelled" : "Removed key"}</span>
+          <span className="fh-quiet">{c.keyFound ? "Unlabelled" : "Removed key"}</span>
         )}
       </td>
       <td data-label="Outcome">

@@ -8,8 +8,11 @@
    (app/site-header.css), below everything else: the site header and the
    dashboard shell read them, and where a Capsomer token shares a name with
    one of Tailwind's (--radius-xl, --ease-out) Tailwind's still wins, so no
-   page's own look moves. */
-@layer capbase, theme, base, cap, components, utilities;
+   page's own look moves.
+
+   site holds Foxhound's own classes, which replace Tailwind's utilities page by page (the move off
+   Tailwind, 2026-11-13): above Capsomer's parts, as the utilities were. */
+@layer capbase, theme, base, cap, components, utilities, site;
 @import "tailwindcss";
 @import "capsomer/site-foxhound.css";
 /* Capsomer's utility classes alone (.cap-sr-only and its siblings), without
@@ -713,4 +716,67 @@ body {
 }
 .fh-app-page {
   flex: 1 0 auto;
+}
+
+/* Foxhound's type and color roles: its type scale (Recova's sizes), its four text grays, the status
+   text colors and its faces, one class each, read by every page. Each page's own parts sit beside
+   it (admin.css for the admin). */
+@layer site {
+  .fh-display {
+    font-size: 1.75rem;
+  }
+  .fh-title {
+    font-size: 1.25rem;
+  }
+  .fh-body {
+    font-size: 1rem;
+  }
+  .fh-small {
+    font-size: 0.8125rem;
+  }
+  .fh-tiny {
+    font-size: 0.6875rem;
+  }
+  .fh-text {
+    color: var(--text);
+  }
+  .fh-soft {
+    color: var(--text-secondary);
+  }
+  .fh-quiet {
+    color: var(--text-tertiary);
+  }
+  .fh-faint {
+    color: var(--text-subtle);
+  }
+  .fh-error {
+    color: var(--error-text);
+  }
+  .fh-success {
+    color: var(--success-text);
+  }
+  .fh-brand {
+    color: var(--brand-text);
+  }
+  .fh-mono {
+    font-family: var(--font-dm-mono);
+  }
+  .fh-regular {
+    font-weight: 400;
+  }
+  .fh-medium {
+    font-weight: 500;
+  }
+  .fh-semibold {
+    font-weight: 600;
+  }
+  .fh-break {
+    word-break: break-all;
+  }
+  .fh-line {
+    display: block;
+  }
+  .fh-nowrap {
+    white-space: nowrap;
+  }
 }
