@@ -191,12 +191,6 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     }
   }
 
-  if (intent === "accept_confirm") {
-    // Accept's first step without script: the page shows the confirmation.
-    // With script the button opens it in place and never posts this.
-    return data({ acceptConfirm: true as const, intent: "accept_confirm" as const });
-  }
-
   if (intent === "accept") {
     // Recova's /api/disputes/accept: refuse a dispute that is no longer open,
     // close it at Stripe, then write the accepted state and its outcome.

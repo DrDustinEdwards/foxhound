@@ -6,7 +6,7 @@ import { AUDIT_ACCESS_CHIP } from "~/lib/marketing/audit-access";
 import { calculatorFigures, fmt } from "~/lib/marketing/calculator-math";
 import { STAT_AS_OF, STRIPE_RECOVERY_RATE_PERCENT } from "~/lib/marketing/statistics";
 
-import { Range } from "capsomer/react/field";
+import { RangeField } from "capsomer/react/field";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
@@ -24,14 +24,17 @@ const DEFAULT_ASSUMED_RECOVERY_SHARE = 52;
  *  so the first render's figures are unchanged. */
 const DEFAULT_ASSUMED_FAILURE_SHARE = 8;
 
+const percent = (value: number) => `${value}%`;
+
 // Recova's components/marketing/RecoveryCalculator.tsx (blob 1a4374f5), read
 // whole: pure client math, unchanged multipliers, Recova's rows in Recova's
 // order. The changes: the second slider (approved 2026-08-26 and 2026-09-19),
 // the attribution and maturity labels (sanctioned, M3 divergences 31 and 32),
 // and the look, which is Capsomer's: the card is a panel and the call to
 // action its primary button, at Recova's sizes and padding (p-6, p-8 from sm).
-// The sliders are Capsomer's Range: a 4px track filled in amber up to a round
-// amber thumb, as Recova's were.
+// The sliders are Capsomer's RangeField: its Range (a 4px track filled in amber
+// up to a round amber thumb, as Recova's were), the value read out at the end of
+// the label's line and the words under each end, in Recova's label and end type.
 export function RecoveryCalculator() {
   const [mrr, setMrr] = useState(25000);
   // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM.
@@ -74,47 +77,72 @@ export function RecoveryCalculator() {
     >
       <div className="cap-panel-body">
         <div>
-          <SliderRow
-            id="mrr-slider"
-            label="Monthly recurring revenue"
-            calc="mrr"
-            shown={fmt(mrr)}
-            min={1000}
-            max={500000}
-            step={1000}
-            value={mrr}
-            onChange={setMrr}
-            minLabel="$1k"
-            maxLabel="$500k"
-          />
+          <div className="mb-6">
+            <RangeField
+              id="mrr-slider"
+              label={
+                <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+                  Monthly recurring revenue
+                </span>
+              }
+              min={1000}
+              max={500000}
+              step={1000}
+              value={mrr}
+              onChange={setMrr}
+              format={fmt}
+              minLabel={<span className="font-mono text-source text-text-subtle">$1k</span>}
+              maxLabel={<span className="font-mono text-source text-text-subtle">$500k</span>}
+              // React itself injects a client-only style.caretColor on controlled
+              // range inputs during hydration (a Firefox thumb-rendering
+              // workaround baked into react-dom, not app markup), which is absent
+              // from the SSR HTML and otherwise logs a false-positive hydration
+              // mismatch warning on every load of this page.
+              suppressHydrationWarning
+            />
+          </div>
 
-          <SliderRow
-            id="failure-share-slider"
-            label="Assumed share of MRR that fails"
-            calc="failureShare"
-            shown={`${failureShare}%`}
-            min={0}
-            max={20}
-            step={1}
-            value={failureShare}
-            onChange={setFailureShare}
-            minLabel="0%"
-            maxLabel="20%"
-          />
+          <div className="mb-6">
+            <RangeField
+              id="failure-share-slider"
+              label={
+                <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+                  Assumed share of MRR that fails
+                </span>
+              }
+              min={0}
+              max={20}
+              step={1}
+              value={failureShare}
+              onChange={setFailureShare}
+              format={percent}
+              minLabel={<span className="font-mono text-source text-text-subtle">0%</span>}
+              maxLabel={<span className="font-mono text-source text-text-subtle">20%</span>}
+              // Same react-dom hydration workaround as the slider above.
+              suppressHydrationWarning
+            />
+          </div>
 
-          <SliderRow
-            id="recovery-share-slider"
-            label="Assumed recovery of the remainder"
-            calc="recoveryShare"
-            shown={`${recoveryShare}%`}
-            min={0}
-            max={100}
-            step={1}
-            value={recoveryShare}
-            onChange={setRecoveryShare}
-            minLabel="0%"
-            maxLabel="100%"
-          />
+          <div className="mb-6">
+            <RangeField
+              id="recovery-share-slider"
+              label={
+                <span className="font-mono text-micro uppercase tracking-widest text-text-tertiary">
+                  Assumed recovery of the remainder
+                </span>
+              }
+              min={0}
+              max={100}
+              step={1}
+              value={recoveryShare}
+              onChange={setRecoveryShare}
+              format={percent}
+              minLabel={<span className="font-mono text-source text-text-subtle">0%</span>}
+              maxLabel={<span className="font-mono text-source text-text-subtle">100%</span>}
+              // Same react-dom hydration workaround as the slider above.
+              suppressHydrationWarning
+            />
+          </div>
 
           <div className="mb-6 flex flex-col gap-3">
             <Row
@@ -198,72 +226,6 @@ export function RecoveryCalculator() {
             Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
           </p>
         </div>
-      </div>
-    </div>
-  );
-}
-
-/** One assumption slider: its label, the figure it sets (data-calc, for the calculator island),
- *  the range and its two end labels. */
-function SliderRow({
-  id,
-  label,
-  calc,
-  shown,
-  min,
-  max,
-  step,
-  value,
-  onChange,
-  minLabel,
-  maxLabel,
-}: {
-  id: string;
-  label: string;
-  calc: string;
-  shown: string;
-  min: number;
-  max: number;
-  step: number;
-  value: number;
-  onChange: (value: number) => void;
-  minLabel: string;
-  maxLabel: string;
-}) {
-  return (
-    <div className="mb-6">
-      <div className="mb-2 flex items-center justify-between">
-        <label
-          htmlFor={id}
-          className="font-mono text-micro uppercase tracking-widest text-text-tertiary"
-        >
-          {label}
-        </label>
-        <span className="font-mono text-body font-medium text-text" data-calc={calc}>
-          {shown}
-        </span>
-      </div>
-      <Range
-        id={id}
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        aria-valuemin={min}
-        aria-valuemax={max}
-        aria-valuenow={value}
-        aria-valuetext={shown}
-        // React itself injects a client-only style.caretColor on controlled
-        // range inputs during hydration (a Firefox thumb-rendering
-        // workaround baked into react-dom, not app markup), which is absent
-        // from the SSR HTML and otherwise logs a false-positive hydration
-        // mismatch warning on every load of this page.
-        suppressHydrationWarning
-      />
-      <div className="mt-1 flex justify-between">
-        <span className="font-mono text-source text-text-subtle">{minLabel}</span>
-        <span className="font-mono text-source text-text-subtle">{maxLabel}</span>
       </div>
     </div>
   );

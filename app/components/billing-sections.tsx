@@ -11,7 +11,7 @@ import "capsomer/panel.css";
 import "capsomer/row-list.css";
 import "capsomer/status.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
 import type { CardSummary } from "~/lib/billing/platform-customer";
 import {
   DISPUTE_FEE_PERCENT,
@@ -377,12 +377,12 @@ export function PaymentMethodSection({ card, busy }: { card: CardSummary | null;
             </p>
           </div>
         )}
-        <DemoGuardedForm method="post">
+        <DemoForm method="post">
           <input type="hidden" name="intent" value="setup_billing" />
           <Button type="submit" variant={card ? "default" : "primary"} pending={busy}>
             {card ? "Update payment method" : "Add payment method"}
           </Button>
-        </DemoGuardedForm>
+        </DemoForm>
       </div>
     </Panel>
   );

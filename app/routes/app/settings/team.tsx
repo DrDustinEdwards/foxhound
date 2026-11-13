@@ -2,15 +2,14 @@ import { useEffect, useRef } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { Alert, Banner } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
+import { TextField } from "capsomer/react/field";
 import { Pill } from "capsomer/react/status";
 import "capsomer/banner.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/panel.css";
-import "capsomer/status.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { DemoForm, useDemoConfirmForm } from "~/lib/demo/use-demo-guard";
+import { InlineConfirm } from "capsomer/react/inline-confirm";
+import "capsomer/inline-confirm.css";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import {
   authContext,
@@ -230,6 +229,7 @@ function displayName(m: {
 // Foxhound's share link beside the invite email (E2), and when the email did
 // not go an alert says so, where Recova would still say "Invite sent to".
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
+  const confirmForm = useDemoConfirmForm();
   const navigation = useNavigation();
   // Pending belongs to the form that was sent: a remove marks its row, an
   // invite the invite button.
@@ -242,22 +242,13 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
 
   // Clear the field only after an invite that worked; a remove result or a
   // refused invite leaves a half-typed address alone.
-  const inviteInput = useRef<HTMLInputElement>(null);
+  const inviteForm = useRef<HTMLFormElement>(null);
   useEffect(() => {
-    if (shouldClearInvite(actionData) && inviteInput.current) inviteInput.current.value = "";
+    if (shouldClearInvite(actionData)) inviteForm.current?.reset();
   }, [actionData]);
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Recova's PageHeader: h1 text-title medium, the line in text-label.
-          Composed on the five sizes, because Capsomer's page head computes
-          22px at weight 800, off them. */}
-      <div className="mb-8">
-        <h1 className="mb-1 text-title font-medium text-text">Team</h1>
-        <p className="text-label text-text-subtle">Members and pending invites for this account.</p>
-      </div>
-
+    <SettingsPage title="Team" lead="Members and pending invites for this account.">
       <section className="cap-panel">
         <div className="cap-panel-body">
           {removeResult && !removeResult.error ? (
@@ -269,10 +260,9 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
               breaking a long address anywhere rather than overflowing, then
               the action and pills together, pushed right by ml-auto so a
               wrapped line lines up with the rows that fit. A confirming row
-              keeps its pills beside the name and gives the question and its
-              two buttons a line of their own, until the card is wide enough
-              (the @xl container) to hold them all in one line. */}
-          <ul className="@container flex flex-col" aria-label="Members">
+              puts the question and its two buttons before the pills, and
+              wraps them under the name when the card is too narrow. */}
+          <ul className="flex flex-col" aria-label="Members">
             {loaderData.members.map((m) => {
               const name = displayName(m);
               const confirming = m.removable && confirmingId === m.id;
@@ -283,43 +273,26 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                 >
                   <span className="min-w-0 wrap-anywhere text-label text-text">{name}</span>
                   {/* `removable` is legacy's three refusals, resolved in the
-                      loader. The server enforces them again. */}
-                  {confirming ? (
-                    <DemoGuardedForm
-                      method="post"
-                      className="order-last flex basis-full flex-wrap items-center justify-end gap-x-2 gap-y-1 @xl:order-none @xl:ml-auto @xl:basis-auto"
-                    >
-                      <input type="hidden" name="_action" value="remove" />
-                      <input type="hidden" name="memberId" value={m.id} />
-                      <span className="text-micro text-text-subtle">Remove {name}?</span>
-                      <span className="flex items-center gap-1.5">
-                        <Button
-                          type="submit"
-                          variant="danger"
-                          size="sm"
-                          pending={pending.removing === m.id}
-                        >
-                          {pending.removing === m.id ? "Removing..." : "Yes, remove member"}
-                        </Button>
-                        <a href="?" className="cap-btn" data-variant="quiet" data-size="sm">
-                          Cancel
-                        </a>
-                      </span>
-                    </DemoGuardedForm>
-                  ) : null}
-                  <span
-                    className={`ml-auto flex items-center gap-2${confirming ? " @xl:ml-0" : ""}`}
-                  >
-                    {m.removable && !confirming ? (
-                      <a
-                        href={"?confirm=" + m.id}
-                        className="cap-btn"
-                        data-variant="quiet"
-                        data-size="sm"
+                      loader. The server enforces them again. The two steps work
+                      without script: the first is a link to ?confirm=<id>. */}
+                  <span className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                    {m.removable ? (
+                      <InlineConfirm
+                        key={confirming ? "open" : "closed"}
+                        form={confirmForm}
+                        label="Remove member"
+                        labelDetail={" " + name}
+                        question={`Remove ${name}?`}
+                        confirmLabel="Yes, remove member"
+                        openHref={"?confirm=" + m.id}
+                        closeHref="?"
+                        defaultOpen={confirming}
+                        pending={pending.removing === m.id}
+                        pendingLabel="Removing..."
                       >
-                        Remove member
-                        <span className="sr-only">{" " + name}</span>
-                      </a>
+                        <input type="hidden" name="_action" value="remove" />
+                        <input type="hidden" name="memberId" value={m.id} />
+                      </InlineConfirm>
                     ) : null}
                     <Pill variant={m.isOwnerRole ? "default" : "secondary"}>
                       {m.isOwnerRole ? "Owner" : "Member"}
@@ -334,44 +307,26 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
           </ul>
 
           {loaderData.isOwner ? (
-            <DemoGuardedForm method="post" className="border-t border-border pt-5">
+            <DemoForm ref={inviteForm} method="post" className="border-t border-border pt-5">
               <input type="hidden" name="_action" value="invite" />
-              {/* Capsomer's field through its HTML contract, with the aria
-                    wiring its React Field would add. The React Field takes one
-                    control, so the button cannot share the input's row as
-                    Recova has it, and its required prop prints a "Required"
-                    marker Recova never had: a Capsomer gap. */}
-              <div className="cap-field" data-invalid={inviteResult?.error ? "true" : undefined}>
-                <label className="cap-field-label" htmlFor="invite_email">
-                  Invite a team member
-                </label>
-                <div className="flex gap-2">
-                  <div className="min-w-0 flex-1">
-                    <input
-                      ref={inviteInput}
-                      id="invite_email"
-                      className="cap-input"
-                      type="email"
-                      name="email"
-                      autoComplete="email"
-                      placeholder="colleague@company.com"
-                      required
-                      aria-invalid={inviteResult?.error ? true : undefined}
-                      aria-describedby={inviteResult?.error ? "invite_email-error" : undefined}
-                    />
-                  </div>
+              {/* Recova's invite row: the input and its button on one line,
+                  with no "Required" marker, as Recova has it. */}
+              <TextField
+                id="invite_email"
+                label="Invite a team member"
+                type="email"
+                name="email"
+                autoComplete="email"
+                placeholder="colleague@company.com"
+                required
+                showRequired={false}
+                error={inviteResult?.error}
+                action={
                   <Button type="submit" variant="primary" pending={pending.invite}>
                     {pending.invite ? "Sending\u2026" : "Send invite"}
                   </Button>
-                </div>
-                <p
-                  className="cap-field-error"
-                  id="invite_email-error"
-                  hidden={!inviteResult?.error}
-                >
-                  {inviteResult?.error ?? null}
-                </p>
-              </div>
+                }
+              />
               {/* A refused remove, where Recova's TeamSection shows it: its
                     one error line under the invite row. An alert, and not
                     the field's error, since the address is not what was
@@ -394,10 +349,10 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                   <Alert tone="crit">{inviteResult.emailError}</Alert>
                 </div>
               ) : null}
-            </DemoGuardedForm>
+            </DemoForm>
           ) : null}
         </div>
       </section>
-    </>
+    </SettingsPage>
   );
 }

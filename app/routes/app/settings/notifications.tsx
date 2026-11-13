@@ -1,23 +1,11 @@
 import { SaveBar } from "capsomer/react/save-bar";
-import { Field } from "capsomer/react/field";
+import { TextField } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
-import { PageHead } from "capsomer/react/page-head";
-import "capsomer/save-bar.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-import "capsomer/status.css";
-import "capsomer/switch.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/api-keys does.
-import "~/site-header.css";
 
 import { AlertsSection } from "~/components/alerts-section";
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { ToggleRow } from "~/components/settings-toggle-row";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SwitchRow } from "capsomer/react/settings-row";
+import { SettingsPage } from "~/components/settings-page";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -61,8 +49,8 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // one card holding the notification email, the Slack webhook URL, then four
 // toggles (Slack notifications, Weekly digest, Payment recovered notification,
 // Sequence complete notification), and under the card, right-aligned, Saved or
-// the failure sentence beside Save changes. Each field is Capsomer's Field, with
-// its help above the control.
+// the failure sentence beside Save changes. Each field is Capsomer's TextField,
+// its help under the input.
 //
 // The win-back and expiring-card toggles are NOT here: legacy renders them on
 // its features page (S34).
@@ -235,71 +223,61 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
     result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="Notifications"
-          lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
-        />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsPage
+      title="Notifications"
+      lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
+    >
+      <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
-              <Field
+              {/* Recova puts help under the control. */}
+              <TextField
+                helpPlacement="after"
                 announce
+                name="notificationEmail"
+                type="email"
                 label="Notification email"
                 help="Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. Leave it blank and no notification emails are sent."
-              >
-                <input
-                  name="notificationEmail"
-                  type="email"
-                  defaultValue={loaderData.notificationEmail}
-                  className="cap-input"
-                />
-              </Field>
+                defaultValue={loaderData.notificationEmail}
+              />
             </div>
 
-            <div className="mb-5 border-t border-border pt-4">
-              <Field
+            {/* The rule under the webhook field stands above the first switch row. */}
+            <div className="border-y border-border pt-4 pb-5">
+              {/* Recova puts help under the control. */}
+              <TextField
+                helpPlacement="after"
                 announce
+                name="slackWebhookUrl"
+                type="text"
                 label="Slack webhook URL"
                 help="Get notified in Slack when payments are recovered"
+                defaultValue={loaderData.slackWebhookUrl}
+                placeholder={SLACK_WEBHOOK_PLACEHOLDER}
                 error={webhookError}
-              >
-                <input
-                  name="slackWebhookUrl"
-                  type="text"
-                  defaultValue={loaderData.slackWebhookUrl}
-                  placeholder={SLACK_WEBHOOK_PLACEHOLDER}
-                  className="cap-input"
-                />
-              </Field>
+              />
             </div>
 
-            <ToggleRow
+            <SwitchRow
               name="slackNotificationsEnabled"
               label="Slack notifications"
               help="Notify when a payment is recovered or an email is sent"
               defaultChecked={loaderData.slackNotificationsEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="digestEnabled"
               label="Weekly digest"
               help="Monday summary of recovered revenue and active sequences"
               defaultChecked={loaderData.digestEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="recoveryNotificationsEnabled"
               label="Payment recovered notification"
               help="Email me when a payment is successfully recovered"
               defaultChecked={loaderData.recoveryNotificationsEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="sequenceCompleteNotificationsEnabled"
               label="Sequence complete notification"
               help="Email me when a recovery sequence ends without recovering the payment"
@@ -310,9 +288,9 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
 
         {/* Legacy's SaveBar: right-aligned under the card, the result beside the button. */}
         <SaveBar pending={busy} saved={result?.ok === true} error={otherError} />
-      </DemoGuardedForm>
+      </DemoForm>
 
       <AlertsSection data={loaderData.alerts} result={alertResult} />
-    </>
+    </SettingsPage>
   );
 }

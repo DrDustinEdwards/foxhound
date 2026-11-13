@@ -1,24 +1,12 @@
 import { SaveBar } from "capsomer/react/save-bar";
 import { useShownFor } from "capsomer/react/hooks";
-import { Field } from "capsomer/react/field";
+import { TextField } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
-import { PageHead } from "capsomer/react/page-head";
-import "capsomer/save-bar.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-import "capsomer/status.css";
-import "capsomer/switch.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/notifications does.
-import "~/site-header.css";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
-import { ToggleRow } from "~/components/settings-toggle-row";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SwitchRow } from "capsomer/react/settings-row";
+import { SettingsPage } from "~/components/settings-page";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -79,13 +67,13 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // here and in what order: the phone-only back link, the title and its line, one
 // card holding Sender name, Reply-to email and the Send test email button, and
 // under the card, right-aligned, Saved or the failure sentence beside Save
-// changes. Each field is Capsomer's Field, with its help above the control.
+// changes. Each field is Capsomer's TextField, its help under the input as Recova's is.
 //
 // THE TEST BUTTON SITS IN THE CARD BUT POSTS ITS OWN FORM, through the HTML
 // `form` attribute. Recova's is a type="button" inside the save form that
 // fetches its own route; a submit button owned by the save form would be the
 // one an Enter key in the sender name presses, and would send mail. Owned by
-// its own DemoGuardedForm it keeps the demo refusal and works without script.
+// its own ReadOnlyForm it keeps the demo refusal and works without script.
 
 // THE RECOVERY EMAILS CARD was /settings/features (S34, J38): Recova's two
 // switches, win-back sequences and expiring card alerts. Dustin had the page
@@ -276,56 +264,45 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       : undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead
-          title="Email"
-          lead="Configure how recovery emails appear to your customers, and which ones are sent."
-        />
-      </div>
-
-      <DemoGuardedForm method="post">
+    <SettingsPage
+      title="Email"
+      lead="Configure how recovery emails appear to your customers, and which ones are sent."
+    >
+      <DemoForm method="post">
         <input type="hidden" name="_action" value="sender" />
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
-              <Field
+              {/* Recova puts help under the control. */}
+              <TextField
+                helpPlacement="after"
                 announce
+                name="senderName"
+                type="text"
                 label="Sender name"
                 help="Name that appears in the From field of recovery emails"
+                defaultValue={senderName}
+                placeholder="e.g. Alex from Acme"
+                maxLength={SENDER_NAME_MAX_LENGTH}
                 error={fieldError("senderName")}
-              >
-                <input
-                  name="senderName"
-                  type="text"
-                  defaultValue={senderName}
-                  placeholder="e.g. Alex from Acme"
-                  maxLength={SENDER_NAME_MAX_LENGTH}
-                  className="cap-input"
-                />
-              </Field>
+              />
             </div>
 
             <div className="mb-6">
-              <Field
+              {/* Recova puts help under the control. */}
+              <TextField
+                helpPlacement="after"
                 announce
+                name="replyToEmail"
+                type="email"
                 label="Reply-to email"
                 help="Customer replies go here. Use your support inbox."
+                defaultValue={replyToEmail}
+                placeholder="support@yourapp.com"
+                maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
                 error={fieldError("replyToEmail")}
-              >
-                <input
-                  name="replyToEmail"
-                  type="email"
-                  defaultValue={replyToEmail}
-                  placeholder="support@yourapp.com"
-                  maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
-                  className="cap-input"
-                />
-              </Field>
+              />
             </div>
 
             {/* Legacy's test button, last in the card, at its own width,
@@ -352,22 +329,21 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
           saved={saveResult?.ok === true}
           error={barError}
         />
-      </DemoGuardedForm>
+      </DemoForm>
 
       {/* The recovery emails card, once /settings/features. */}
-      <DemoGuardedForm method="post" className="mt-10">
+      <DemoForm method="post" className="mt-10">
         <input type="hidden" name="_action" value="features" />
         <h2 className="m-0 mb-3 text-heading font-semibold text-text">Recovery emails</h2>
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <ToggleRow
-              first
+            <SwitchRow
               name="winbackNotificationsEnabled"
               label="Win-back sequences"
               help="Send re-engagement emails to customers who cancel their subscription"
               defaultChecked={loaderData.winbackNotificationsEnabled}
             />
-            <ToggleRow
+            <SwitchRow
               name="expiringCardNotificationsEnabled"
               label="Expiring card alerts"
               help="Email customers before their card expires to prevent future failures"
@@ -380,12 +356,12 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
           saved={featuresResult?.ok === true}
           error={featuresResult && !featuresResult.ok ? SAVE_FAILED : null}
         />
-      </DemoGuardedForm>
+      </DemoForm>
 
       {/* The test email's own form: nothing typed, only the intent. */}
-      <DemoGuardedForm method="post" id={TEST_FORM_ID}>
+      <DemoForm method="post" id={TEST_FORM_ID}>
         <input type="hidden" name="_action" value="test-email" />
-      </DemoGuardedForm>
-    </>
+      </DemoForm>
+    </SettingsPage>
   );
 }

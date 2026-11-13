@@ -1,29 +1,18 @@
 import { isEmail } from "@dustinedwards/site-runtime/email";
-import { useEffect, useId, useRef, useState } from "react";
-import { data, Form, redirect, useNavigation } from "react-router";
+import { useState } from "react";
+import { data, Form, redirect, useNavigation, useSearchParams } from "react-router";
 import { eq } from "drizzle-orm";
 import { applyTheme } from "capsomer/behavior/theme-switch";
 import { SaveBar } from "capsomer/react/save-bar";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { Field, InputGroup, InputGroupAddon } from "capsomer/react/field";
-import { PageHead } from "capsomer/react/page-head";
+import { Field, InputGroup, InputGroupAddon, TextField } from "capsomer/react/field";
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
 import { Status } from "capsomer/react/status";
-import "capsomer/save-bar.css";
 import "capsomer/banner.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
-import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/features does.
-import "~/site-header.css";
 
 import {
   accountSessions,
@@ -38,13 +27,15 @@ import {
 import { isAPIError } from "better-auth/api";
 import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 
-import { DemoGuardedForm } from "~/components/demo-guarded-form";
+import { DemoForm, useDemoConfirmForm } from "~/lib/demo/use-demo-guard";
+import { InlineConfirm } from "capsomer/react/inline-confirm";
+import "capsomer/inline-confirm.css";
 import {
   SignInMethodsPanel,
   type SignedInDevices,
   type SignInSettings,
 } from "~/components/sign-in-settings";
-import { SettingsBackLink } from "~/components/settings-back-link";
+import { SettingsPage } from "~/components/settings-page";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
 import { authContext } from "~/lib/auth/context";
@@ -506,29 +497,23 @@ function ProfileForm({
   const barFailed = result && !result.ok && !result.field;
 
   return (
-    <DemoGuardedForm method="post">
+    <DemoForm method="post">
       <input type="hidden" name="_action" value="profile" />
 
       {/* AccountNameSection */}
       <section className="cap-panel">
         <div className="cap-panel-body">
-          <Field
+          {/* Recova puts help under the control. */}
+          <TextField
             announce
             label="Account name"
             help="Your business or product name"
+            helpPlacement="after"
             error={fieldError("name")}
-          >
-            {(p) => (
-              <input
-                {...p}
-                type="text"
-                name="name"
-                className="cap-input"
-                defaultValue={account.name ?? ""}
-                placeholder="e.g. Acme Inc"
-              />
-            )}
-          </Field>
+            name="name"
+            defaultValue={account.name ?? ""}
+            placeholder="e.g. Acme Inc"
+          />
         </div>
       </section>
 
@@ -573,6 +558,7 @@ function ProfileForm({
               announce
               label="Monthly Recurring Revenue"
               help="Used to personalize recovery emails."
+              helpPlacement="after"
               error={fieldError("merchantMrrSelfReported")}
             >
               {(p) => (
@@ -603,7 +589,7 @@ function ProfileForm({
         saved={result?.ok === true}
         error={barFailed ? "Failed to save. Please try again." : null}
       />
-    </DemoGuardedForm>
+    </DemoForm>
   );
 }
 
@@ -629,7 +615,7 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
     if (next === theme || pending) return;
     setError(null);
     if (isDemo) {
-      // The demo's read-only refusal, as DemoGuardedForm gives every other
+      // The demo's read-only refusal, as ReadOnlyForm gives every other
       // write: nothing changes and nothing is sent.
       setRefused(true);
       return;
@@ -704,7 +690,6 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
   const sending =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
   const [open, setOpen] = useState(false);
-  const fieldId = useId();
   const mine = result?.action === "change-email" ? result : undefined;
   const stale = mine?.error === "stale";
   const refused = mine && !mine.ok && !stale ? mine.error : undefined;
@@ -732,35 +717,24 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
         </Alert>
       ) : null}
       {showForm ? (
-        <DemoGuardedForm method="post" className="flex flex-wrap items-end gap-2.5">
+        <DemoForm method="post">
           <input type="hidden" name="_action" value="change-email" />
-          <div className="cap-field grow" data-invalid={refused ? "true" : undefined}>
-            <label className="cap-field-label" htmlFor={fieldId}>
-              New email address
-            </label>
-            <input
-              id={fieldId}
-              name="newEmail"
-              type="email"
-              required
-              autoComplete="email"
-              className="cap-input"
-              aria-invalid={refused ? true : undefined}
-              aria-describedby={refused ? `${fieldId}-error` : undefined}
-            />
-            <p
-              className="cap-field-error"
-              id={`${fieldId}-error`}
-              role={refused ? "alert" : undefined}
-              hidden={!refused}
-            >
-              {refused ?? null}
-            </p>
-          </div>
-          <Button type="submit" variant="primary" pending={sending}>
-            {sending ? "Sending..." : "Send confirmation"}
-          </Button>
-        </DemoGuardedForm>
+          <TextField
+            label="New email address"
+            name="newEmail"
+            type="email"
+            required
+            showRequired={false}
+            autoComplete="email"
+            error={refused}
+            announce
+            action={
+              <Button type="submit" variant="primary" pending={sending}>
+                {sending ? "Sending..." : "Send confirmation"}
+              </Button>
+            }
+          />
+        </DemoForm>
       ) : mine?.ok ? null : (
         <div>
           <Button size="sm" onClick={() => setOpen(true)}>
@@ -775,22 +749,21 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
 const CANCEL_CONSEQUENCE =
   "This stops all recovery processing and disconnects every Stripe account here. Fees on recoveries Foxhound has already attributed remain owed and are still invoiced.";
 
-type Confirming = "cancel-account" | "delete-account" | null;
-
 /** Log in again and come back here (lib/auth/client.ts's signInAgain, as a link). */
 const SIGN_IN_AGAIN_HREF = `/login?${REAUTH_PARAM}&next=${encodeURIComponent("/settings/account")}`;
 
 /**
  * AccountSection's Danger zone (blob a154ac8f), below a rule in the account
- * card: the label, the controls at the right, and on a press Recova's
- * "Are you sure?" callout with the confirm and "Keep my account" under it;
- * while it runs, the confirm says so and Keep is withdrawn.
+ * card: the label, the controls at the right, and on a press the question
+ * with the confirm and "Keep my account" in its place; while it runs, the
+ * confirm says so and Keep is withdrawn.
  *
  * TWO CONTROLS. "Cancel account" (S37) stops processing and keeps the
  * account and its billing records; "Delete account" (S40) is Recova's, and
- * deletes the person while keeping the fee evidence. Both take Recova's
- * two-step confirmation. Focus moves to "Keep my account" when a confirmation
- * opens and back to the control that opened it when it closes.
+ * deletes the person while keeping the fee evidence. Each is its own
+ * InlineConfirm, so focus moves to "Keep my account" when a confirmation opens
+ * and back to the control that opened it when it closes. Without script the
+ * first step is a link to ?confirm=<action>.
  */
 function DangerZone({
   cancelledAt,
@@ -803,39 +776,28 @@ function DangerZone({
   ownedAccountNames: Array<string | null>;
   result?: ActionResult;
 }) {
+  const confirmForm = useDemoConfirmForm();
   const navigation = useNavigation();
   const running =
     navigation.state !== "idle" ? String(navigation.formData?.get("_action") ?? "") : "";
-  const [confirming, setConfirming] = useState<Confirming>(null);
-  const opener = useRef<Confirming>(null);
-  const moved = useRef(false);
-  const ids = useId();
-  const keepId = `${ids}-keep`;
-  const openerId = (which: Exclude<Confirming, null>) => `${ids}-${which}`;
+  const confirming = useSearchParams()[0].get("confirm");
 
-  useEffect(() => {
-    if (!moved.current) return;
-    const target = confirming ? `${ids}-keep` : opener.current ? `${ids}-${opener.current}` : null;
-    if (target) document.getElementById(target)?.focus();
-  }, [confirming, ids]);
-
-  const open = (which: Confirming) => {
-    moved.current = true;
-    if (which) opener.current = which;
-    setConfirming(which);
-  };
-
-  const keep = (
-    <Button id={keepId} onClick={() => open(null)}>
-      Keep my account
-    </Button>
-  );
   const deleteStale = result?.action === "delete-account" && result.error === "stale";
   const deleteFailed =
     result?.action === "delete-account" && !result.ok && !deleteStale ? result.error : undefined;
   const cancelWarning = result?.action === "cancel-account" ? result.warning : undefined;
   const cancelRefused =
     result?.action === "cancel-account" && !result.ok ? result.error : undefined;
+
+  const step = (action: "cancel-account" | "delete-account") => ({
+    form: confirmForm,
+    size: "default" as const,
+    cancelLabel: "Keep my account",
+    openHref: `?confirm=${action}`,
+    closeHref: "?",
+    defaultOpen: confirming === action,
+    pending: running === action,
+  });
 
   return (
     <div className="mt-5 border-t border-border pt-5">
@@ -865,54 +827,38 @@ function DangerZone({
         ) : null}
         {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
 
-        {confirming === "cancel-account" ? (
-          <DemoGuardedForm method="post" className="flex flex-col gap-3">
-            <input type="hidden" name="_action" value="cancel-account" />
-            <Alert tone="crit" title="Are you sure?">
-              {CANCEL_CONSEQUENCE}
-            </Alert>
-            <div className="flex flex-wrap gap-2.5">
-              <Button type="submit" variant="danger" pending={running === "cancel-account"}>
-                {running === "cancel-account" ? "Canceling..." : "Cancel my account"}
-              </Button>
-              {running === "cancel-account" ? null : keep}
-            </div>
-          </DemoGuardedForm>
-        ) : confirming === "delete-account" ? (
-          <DemoGuardedForm method="post" className="flex flex-col gap-3">
-            <input type="hidden" name="_action" value="delete-account" />
-            <Alert tone="crit" title="Are you sure?">
-              {deletionConsequence(ownedAccountNames)}
-            </Alert>
-            <div className="flex flex-wrap gap-2.5">
-              <Button type="submit" variant="danger" pending={running === "delete-account"}>
-                {running === "delete-account" ? "Deleting..." : "Delete my account"}
-              </Button>
-              {running === "delete-account" ? null : keep}
-            </div>
-          </DemoGuardedForm>
-        ) : (
-          <div className="flex flex-wrap items-center justify-end gap-2.5">
-            {/* The owner's control only: a member cannot cancel (the action
-                refuses with a 403), so a member is not offered it. */}
-            {cancelledAt || !isOwner ? null : (
-              <Button
-                id={openerId("cancel-account")}
-                variant="danger"
-                onClick={() => open("cancel-account")}
-              >
-                Cancel account
-              </Button>
-            )}
-            <Button
-              id={openerId("delete-account")}
-              variant="danger"
-              onClick={() => open("delete-account")}
+        <div className="flex flex-col items-end gap-3">
+          {/* The owner's control only: a member cannot cancel (the action
+              refuses with a 403), so a member is not offered it. */}
+          {cancelledAt || !isOwner ? null : (
+            <InlineConfirm
+              {...step("cancel-account")}
+              label="Cancel account"
+              question={
+                <>
+                  <strong>Are you sure?</strong> {CANCEL_CONSEQUENCE}
+                </>
+              }
+              confirmLabel="Cancel my account"
+              pendingLabel="Canceling..."
             >
-              Delete account
-            </Button>
-          </div>
-        )}
+              <input type="hidden" name="_action" value="cancel-account" />
+            </InlineConfirm>
+          )}
+          <InlineConfirm
+            {...step("delete-account")}
+            label="Delete account"
+            question={
+              <>
+                <strong>Are you sure?</strong> {deletionConsequence(ownedAccountNames)}
+              </>
+            }
+            confirmLabel="Delete my account"
+            pendingLabel="Deleting..."
+          >
+            <input type="hidden" name="_action" value="delete-account" />
+          </InlineConfirm>
+        </div>
       </div>
     </div>
   );
@@ -923,14 +869,7 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
   const result = actionData as ActionResult | undefined;
 
   return (
-    <>
-      <SettingsBackLink />
-      {/* Legacy's PageHeader leaves 32px under the head (mb-8); the wrapper
-          keeps that space without styling Capsomer's head. */}
-      <div className="mb-8">
-        <PageHead title="My account" lead="Profile, appearance, and account controls." />
-      </div>
-
+    <SettingsPage title="My account" lead="Profile, appearance, and account controls.">
       {/* Recova's mb-10 under the form. */}
       <div className="mb-10">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
@@ -957,6 +896,6 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
       </div>
-    </>
+    </SettingsPage>
   );
 }
