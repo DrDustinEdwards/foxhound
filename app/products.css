@@ -82,10 +82,6 @@
       padding-inline: 2rem;
     }
   }
-  .fh-product-wrap {
-    margin-inline: auto;
-    max-width: 680px;
-  }
   .fh-product-block {
     margin-bottom: 1.5rem;
   }
@@ -94,25 +90,8 @@
     block-size: 0.75rem;
     flex-shrink: 0;
   }
-  .fh-product-title {
-    margin-bottom: 1rem;
-    line-height: 1.1;
-    letter-spacing: -0.025em;
-  }
-  .fh-product-wrap-2 {
-    margin-inline: auto;
-    margin-bottom: 0.75rem;
-    max-width: 520px;
-  }
   .fh-product-text {
     margin-bottom: 2rem;
-  }
-  .fh-product-row {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: center;
-    gap: 1rem;
   }
   .fh-product-band-2 {
     border-bottom: 1px solid var(--line);
@@ -203,17 +182,6 @@
   .fh-product-wrap-4 {
     margin-inline: auto;
     max-width: 620px;
-  }
-  .fh-product-band-4 {
-    padding: 5rem 1.25rem;
-  }
-  @media (width >= 40rem) {
-    .fh-product-band-4 {
-      padding-inline: 2rem;
-    }
-  }
-  .fh-product-text-2 {
-    margin-top: 0.75rem;
   }
   .fh-demos-wrap {
     margin-inline: auto;

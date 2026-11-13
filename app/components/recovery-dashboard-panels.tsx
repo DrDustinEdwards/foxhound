@@ -2,6 +2,7 @@
 // selector, onboarding steps, stat cards, ROI, win-back, queue,
 // deliverability and the payments table. Presentational.
 
+import { Table } from "capsomer/react/table";
 import { relative, toMs, until } from "capsomer/behavior/time";
 import {
   Icon,
@@ -15,7 +16,7 @@ import {
   iconTag,
   iconTrendingUp,
 } from "capsomer/react/icons";
-import { Link, routerRenderLink } from "capsomer/react/link";
+import { ButtonLink, Link, routerRenderLink } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
 import { Panel } from "capsomer/react/panel";
 import { Row } from "capsomer/react/row-list";
@@ -86,9 +87,9 @@ export function onboardingSteps({
       detail: "Link your Stripe account so Foxhound can detect failed payments",
       done: connected,
       action: (
-        <Link to="/connect" className="cap-btn" data-variant="primary" data-size="sm">
+        <ButtonLink to="/connect" variant="primary" size="sm">
           Connect
-        </Link>
+        </ButtonLink>
       ),
     },
     {
@@ -97,9 +98,9 @@ export function onboardingSteps({
       detail: "Customers will see this name in recovery emails",
       done: senderNameSet,
       action: (
-        <Link to="/settings" className="cap-btn" data-size="sm">
+        <ButtonLink to="/settings" size="sm">
           Go to settings
-        </Link>
+        </ButtonLink>
       ),
     },
     {
@@ -108,9 +109,9 @@ export function onboardingSteps({
       detail: "We'll send you an alert when a payment is recovered.",
       done: alertAddressSet,
       action: (
-        <Link to="/settings" className="cap-btn" data-size="sm">
+        <ButtonLink to="/settings" size="sm">
           Go to settings
-        </Link>
+        </ButtonLink>
       ),
     },
   ];
@@ -493,99 +494,86 @@ export function PaymentsTable({
           </ul>
 
           <div className="fh-wide-list">
-            <div
-              className="cap-table-wrap"
-              data-reflow="medium"
-              data-cap="table"
-              role="region"
-              aria-label="Failed payments"
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Customer</th>
-                    <th scope="col">Amount</th>
-                    <th scope="col">Decline</th>
-                    <th scope="col">Steps</th>
-                    <th scope="col">Status</th>
-                    <th scope="col">Detected</th>
-                    <th scope="col">
-                      <span className="cap-sr-only">Actions</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {payments.map((p) => {
-                    const prior = priorFailureCount(w.previousFailureCounts[p.stripeCustomerId]);
-                    const s = steps[p.id] ?? { completed: 0, total: 0, next: null };
-                    return (
-                      <tr key={p.id}>
-                        <th scope="row">
-                          <span className="cap-cluster" data-gap="3">
-                            <span className="fh-medium fh-text">
-                              {p.customerName ?? p.customerEmail}
-                            </span>
-                            {prior > 0 ? <Pill tone="warn">{prior + 1}x failure</Pill> : null}
+            <Table caption="Failed payments" captionHidden reflow="medium">
+              <thead>
+                <tr>
+                  <th scope="col">Customer</th>
+                  <th scope="col">Amount</th>
+                  <th scope="col">Decline</th>
+                  <th scope="col">Steps</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Detected</th>
+                  <th scope="col">
+                    <span className="cap-sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p) => {
+                  const prior = priorFailureCount(w.previousFailureCounts[p.stripeCustomerId]);
+                  const s = steps[p.id] ?? { completed: 0, total: 0, next: null };
+                  return (
+                    <tr key={p.id}>
+                      <th scope="row">
+                        <span className="cap-cluster" data-gap="3">
+                          <span className="fh-medium fh-text">
+                            {p.customerName ?? p.customerEmail}
                           </span>
-                          {p.customerName ? (
-                            <span className="fh-line fh-tiny fh-regular fh-faint">
-                              {p.customerEmail}
-                            </span>
-                          ) : null}
-                          {p.planName ? (
-                            <span className="fh-line fh-tiny fh-regular fh-faint">
-                              {p.planName}
-                            </span>
-                          ) : null}
-                        </th>
-                        <td data-label="Amount" className="fh-nowrap fh-mono">
-                          {formatMoney(p.amountCents, p.currency)}
-                        </td>
-                        <td data-label="Decline">
-                          <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
-                          {p.declineCode ? (
-                            <span className="fh-line fh-mono fh-tiny fh-faint">
-                              {p.declineCode}
-                            </span>
-                          ) : null}
-                        </td>
-                        <td data-label="Steps">
-                          <span
-                            className={`fh-mono fh-tiny ${s.completed > 0 ? "fh-text" : "fh-faint"}`}
-                          >
-                            {s.completed}/{s.total}
+                          {prior > 0 ? <Pill tone="warn">{prior + 1}x failure</Pill> : null}
+                        </span>
+                        {p.customerName ? (
+                          <span className="fh-line fh-tiny fh-regular fh-faint">
+                            {p.customerEmail}
                           </span>
-                          {s.next ? (
-                            <span className="fh-line fh-tiny fh-brand">Next: {s.next}</span>
-                          ) : null}
-                        </td>
-                        <td data-label="Status">
-                          <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
-                            {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
-                          </Pill>
-                        </td>
-                        <td data-label="Detected" className="fh-nowrap fh-tiny fh-faint">
-                          <span className="fh-line">
-                            {relative(toMs(p.detectedAt), nowMs, "UTC", { granularity: "day" })}
-                          </span>
-                          <span className="fh-line">{formatLongDate(p.detectedAt)}</span>
-                        </td>
-                        <td data-label="Actions">
-                          <Link
-                            to={`/recovery/payments/${p.id}`}
-                            aria-label={`View payment from ${p.customerName ?? p.customerEmail}`}
-                            className="fh-nowrap fh-tiny fh-brand"
-                          >
-                            View
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                        ) : null}
+                        {p.planName ? (
+                          <span className="fh-line fh-tiny fh-regular fh-faint">{p.planName}</span>
+                        ) : null}
+                      </th>
+                      <td data-label="Amount" className="fh-nowrap fh-mono">
+                        {formatMoney(p.amountCents, p.currency)}
+                      </td>
+                      <td data-label="Decline">
+                        <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
+                        {p.declineCode ? (
+                          <span className="fh-line fh-mono fh-tiny fh-faint">{p.declineCode}</span>
+                        ) : null}
+                      </td>
+                      <td data-label="Steps">
+                        <span
+                          className={`fh-mono fh-tiny ${s.completed > 0 ? "fh-text" : "fh-faint"}`}
+                        >
+                          {s.completed}/{s.total}
+                        </span>
+                        {s.next ? (
+                          <span className="fh-line fh-tiny fh-brand">Next: {s.next}</span>
+                        ) : null}
+                      </td>
+                      <td data-label="Status">
+                        <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
+                          {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
+                        </Pill>
+                      </td>
+                      <td data-label="Detected" className="fh-nowrap fh-tiny fh-faint">
+                        <span className="fh-line">
+                          {relative(toMs(p.detectedAt), nowMs, "UTC", { granularity: "day" })}
+                        </span>
+                        <span className="fh-line">{formatLongDate(p.detectedAt)}</span>
+                      </td>
+                      <td data-label="Actions">
+                        <Link
+                          to={`/recovery/payments/${p.id}`}
+                          aria-label={`View payment from ${p.customerName ?? p.customerEmail}`}
+                          className="fh-nowrap fh-tiny fh-brand"
+                        >
+                          View
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           </div>
         </>
       )}

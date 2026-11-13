@@ -1,7 +1,8 @@
+import { marketingMeta } from "~/lib/seo/meta";
 import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
-import { Link } from "capsomer/react/link";
+import { Link, ButtonLink } from "capsomer/react/link";
 
 import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
 import { Picture } from "capsomer/react/picture";
@@ -20,7 +21,6 @@ import {
 import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
 import { BLOG_COVER_FALLBACK_CSS } from "~/lib/http/inline-styles";
 import { siteUrl } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
@@ -186,19 +186,14 @@ function BlogHero({
           {/* Wrapped so the spacing above is the page's, not a class on the button. */}
           <div className="fh-blog-block-4">
             {/* "group" carries no style; it drives Recova's arrow nudge on hover. */}
-            <Link
-              to={`/blog/${post.slug}`}
-              className="cap-btn fh-hover-group"
-              data-variant="primary"
-              data-size="lg"
-            >
+            <ButtonLink to={`/blog/${post.slug}`} className="group" variant="primary" size="lg">
               Read the guide
               <Icon
                 d={iconArrowRight}
                 className="fh-icon-13 fh-icon-fine fh-mk-arrow"
                 data-icon="end"
               />
-            </Link>
+            </ButtonLink>
           </div>
         </div>
         {cover ? (

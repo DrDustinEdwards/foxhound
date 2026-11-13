@@ -1,6 +1,7 @@
 import type { DeclineCategory } from "~/lib/constants";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";
 import { percent } from "capsomer/behavior/meter";
+import { dayKey } from "@dustinedwards/site-runtime/time";
 
 // Pure aggregation math for the Recovery dashboard's windowed read model
 // (TASK-foxhound-recovery-surface-parity.md Phase 1, legacy's
@@ -36,11 +37,6 @@ export function resolveRangeCutoff(range: RecoveryRange, nowMs: number): RangeRe
   if (range === "90d") return { cutoffMs: nowMs - 90 * DAY_MS, rangeDays: 90, rangeLabel: "90d" };
   if (range === "all") return { cutoffMs: null, rangeDays: 90, rangeLabel: "all time" };
   return { cutoffMs: nowMs - 30 * DAY_MS, rangeDays: 30, rangeLabel: "30d" };
-}
-
-/** "YYYY-MM-DD" in UTC, the day-bucket key used throughout. Pure. */
-export function dayKey(date: Date): string {
-  return date.toISOString().slice(0, 10);
 }
 
 /** Count occurrences per UTC day. Pure. */

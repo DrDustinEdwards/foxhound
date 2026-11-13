@@ -1,6 +1,7 @@
+import { marketingMeta } from "~/lib/seo/meta";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { Link } from "capsomer/react/link";
-
+import { Table } from "capsomer/react/table";
+import { ButtonLink } from "capsomer/react/link";
 import { CARD, CARD_MD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
@@ -8,7 +9,6 @@ import { COMPETITORS } from "~/lib/compare/competitors";
 import { RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/competitor";
 import "capsomer/table.css";
@@ -64,39 +64,35 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
       />
 
       <div className="fh-rival-wrap">
-        <div
-          className="fh-rival-block-2 cap-table-wrap"
-          data-cap="table"
-          data-reflow=""
-          role="region"
-          aria-label={`Foxhound vs ${competitor.name}`}
-          tabIndex={0}
+        <Table
+          caption={`Foxhound vs ${competitor.name}`}
+          captionHidden
+          reflow
+          className="fh-rival-block-2"
         >
-          <table className="cap-table">
-            <thead>
-              <tr>
-                <th scope="col">Dimension</th>
-                <th scope="col">Foxhound</th>
-                <th scope="col">{competitor.name}</th>
+          <thead>
+            <tr>
+              <th scope="col">Dimension</th>
+              <th scope="col">Foxhound</th>
+              <th scope="col">{competitor.name}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {competitor.rows.map((row) => (
+              <tr key={row.dimension}>
+                <th scope="row" className="fh-rival-th fh-medium fh-text">
+                  {row.dimension}
+                </th>
+                <td data-label="Foxhound" className="fh-rival-th fh-relaxed fh-soft">
+                  {row.foxhound}
+                </td>
+                <td data-label={competitor.name} className="fh-rival-th fh-relaxed fh-soft">
+                  {row.competitor}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {competitor.rows.map((row) => (
-                <tr key={row.dimension}>
-                  <th scope="row" className="fh-rival-th fh-medium fh-text">
-                    {row.dimension}
-                  </th>
-                  <td data-label="Foxhound" className="fh-rival-th fh-relaxed fh-soft">
-                    {row.foxhound}
-                  </td>
-                  <td data-label={competitor.name} className="fh-rival-th fh-relaxed fh-soft">
-                    {row.competitor}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+            ))}
+          </tbody>
+        </Table>
 
         <section className={`fh-rival-band ${CARD_MD}`}>
           <div className="cap-panel-body">
@@ -141,9 +137,9 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
                 won disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
                 {RECOVERY_MATURITY_DAYS} days.
               </p>
-              <Link to="/pricing" className="cap-btn" data-variant="primary">
+              <ButtonLink to="/pricing" variant="primary">
                 View pricing
-              </Link>
+              </ButtonLink>
             </div>
           </div>
         </div>

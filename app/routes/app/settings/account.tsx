@@ -1,3 +1,4 @@
+import { ButtonLink } from "capsomer/react/link";
 import { isEmail } from "@dustinedwards/site-runtime/email";
 import { useState } from "react";
 import { data, Form, redirect, useNavigation, useSearchParams } from "react-router";
@@ -120,7 +121,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
       // The address the passkey providers are told (the Signal API), only on
       // this person's own page: an admin's view names someone else's passkeys.
-      signalAs: auth.isDemo || auth.viewingAs ? null : auth.email,
+      signalAs: auth.isDemo || auth.viewingAs ? null : { id: auth.userId, email: auth.email },
     },
     account,
     cancelledAt: account.cancelledAt,
@@ -708,9 +709,9 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
         <Alert
           tone="warn"
           action={
-            <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
+            <ButtonLink href={SIGN_IN_AGAIN_HREF} size="sm">
               Sign in again
-            </a>
+            </ButtonLink>
           }
         >
           Changing your email needs a sign-in from the last 10 minutes. Sign in again, then change
@@ -817,9 +818,9 @@ function DangerZone({
           <Alert
             tone="warn"
             action={
-              <a href={SIGN_IN_AGAIN_HREF} className="cap-btn" data-size="sm">
+              <ButtonLink href={SIGN_IN_AGAIN_HREF} size="sm">
                 Sign in again
-              </a>
+              </ButtonLink>
             }
           >
             Deleting your account needs a sign-in from the last 10 minutes. Sign in again, then

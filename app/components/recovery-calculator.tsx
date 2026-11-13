@@ -1,6 +1,5 @@
 import { useState } from "react";
-import { Link } from "capsomer/react/link";
-
+import { ButtonLink } from "capsomer/react/link";
 import { RECOVERY_FEE_BPS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { AUDIT_ACCESS_CHIP } from "~/lib/marketing/audit-access";
 import { calculatorFigures, fmt } from "~/lib/marketing/calculator-math";
@@ -209,14 +208,14 @@ export function RecoveryCalculator() {
           </p>
 
           <div className="fh-mk-centered">
-            <Link
+            <ButtonLink
               to="/audit"
-              className="fh-calc-link cap-btn fh-semibold"
-              data-variant="primary"
-              data-size="lg"
+              className="fh-calc-link fh-semibold"
+              variant="primary"
+              size="lg"
             >
               Get your actual numbers free
-            </Link>
+            </ButtonLink>
           </div>
           {/* Recova's line, with its third chip made true: Recova said "Read-only
           Stripe access", but Stripe gives read_only only to Extensions

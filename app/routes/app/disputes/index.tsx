@@ -1,3 +1,4 @@
+import { Table } from "capsomer/react/table";
 import { data } from "react-router";
 import { Link } from "capsomer/react/link";
 import { Empty } from "capsomer/react/empty";
@@ -21,7 +22,7 @@ import { SYNC_RESULT_MESSAGES, SyncDisputeLink } from "~/components/sync-dispute
 import { StaticStatTile, StatTiles } from "capsomer/react/stat-tile";
 import "capsomer/stat-tile.css";
 import { getDb } from "~/db";
-import { groupSumByCurrency } from "~/lib/money/totals";
+import { formatAmounts, groupSumByCurrency } from "~/lib/money/totals";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -51,7 +52,6 @@ import { computeDisputeStatsFromGroups, winRateCard } from "~/lib/disputes/stats
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import type { Tone } from "~/lib/recovery/labels";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
-import { formatAmounts } from "~/lib/money/totals";
 
 import type { Route } from "./+types/index";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -262,86 +262,77 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">
-            <div
-              className="cap-table-wrap"
-              data-reflow="medium"
-              data-cap="table"
-              role="region"
-              aria-label="Disputes"
-              tabIndex={0}
-            >
-              <table className="cap-table">
-                <thead>
-                  <tr>
-                    <th scope="col">Customer</th>
-                    <th scope="col" data-num="">
-                      Amount
-                    </th>
-                    <th scope="col">Reason</th>
-                    <th scope="col">Foxhound status</th>
-                    <th scope="col">Deadline</th>
-                    <th scope="col">
-                      <span className="cap-sr-only">View</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {disputes.map((d) => {
-                    const resolved = isDisputeResolved(d.state);
-                    const days = daysUntilDeadline(d.evidenceDeadline, nowMs);
-                    const status = disputeListStatus({
-                      state: d.state,
-                      submittedBy: d.submittedBy,
-                      hasEvidence: hasEvidence.has(d.id),
-                      stripeStatus: d.status,
-                    });
-                    const name = d.customerName || "Unknown";
-                    const score = d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;
-                    return (
-                      <tr key={d.id} data-dispute={d.id}>
-                        <td>
-                          <div className="fh-small fh-text">
-                            {name}
-                            {score === undefined ? null : (
-                              <span
-                                className={`fh-disputes-score fh-mono fh-tiny ${healthScoreClassName(score)}`}
-                              >
-                                <span className="cap-sr-only">Intelligence health score </span>
-                                {score}
-                              </span>
-                            )}
-                          </div>
-                          <div className="fh-tiny fh-faint">{d.customerEmail || ""}</div>
-                        </td>
-                        <td data-label="Amount" data-num="">
-                          {formatMoney(d.amountCents, d.currency)}
-                        </td>
-                        <td data-label="Reason" className="fh-small fh-soft">
-                          {humanizeDisputeReason(d.reason)}
-                        </td>
-                        <td data-label="Foxhound status">
-                          <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
-                        </td>
-                        <td
-                          data-label="Deadline"
-                          className={`fh-mono fh-small ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
+            <Table caption="Disputes" captionHidden reflow="medium">
+              <thead>
+                <tr>
+                  <th scope="col">Customer</th>
+                  <th scope="col" data-num="">
+                    Amount
+                  </th>
+                  <th scope="col">Reason</th>
+                  <th scope="col">Foxhound status</th>
+                  <th scope="col">Deadline</th>
+                  <th scope="col">
+                    <span className="cap-sr-only">View</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {disputes.map((d) => {
+                  const resolved = isDisputeResolved(d.state);
+                  const days = daysUntilDeadline(d.evidenceDeadline, nowMs);
+                  const status = disputeListStatus({
+                    state: d.state,
+                    submittedBy: d.submittedBy,
+                    hasEvidence: hasEvidence.has(d.id),
+                    stripeStatus: d.status,
+                  });
+                  const name = d.customerName || "Unknown";
+                  const score = d.stripeCustomerId ? health[d.stripeCustomerId] : undefined;
+                  return (
+                    <tr key={d.id} data-dispute={d.id}>
+                      <td>
+                        <div className="fh-small fh-text">
+                          {name}
+                          {score === undefined ? null : (
+                            <span
+                              className={`fh-disputes-score fh-mono fh-tiny ${healthScoreClassName(score)}`}
+                            >
+                              <span className="cap-sr-only">Intelligence health score </span>
+                              {score}
+                            </span>
+                          )}
+                        </div>
+                        <div className="fh-tiny fh-faint">{d.customerEmail || ""}</div>
+                      </td>
+                      <td data-label="Amount" data-num="">
+                        {formatMoney(d.amountCents, d.currency)}
+                      </td>
+                      <td data-label="Reason" className="fh-small fh-soft">
+                        {humanizeDisputeReason(d.reason)}
+                      </td>
+                      <td data-label="Foxhound status">
+                        <Pill tone={PILL_TONE[status.tone]}>{status.label}</Pill>
+                      </td>
+                      <td
+                        data-label="Deadline"
+                        className={`fh-mono fh-small ${resolved ? "" : deadlineClassName(deadlineUrgency(days))}`}
+                      >
+                        {deadlineShort(days, resolved)}
+                      </td>
+                      <td data-label="View">
+                        <Link
+                          to={`/disputes/${d.id}`}
+                          className="fh-disputes-link fh-small fh-brand"
                         >
-                          {deadlineShort(days, resolved)}
-                        </td>
-                        <td data-label="View">
-                          <Link
-                            to={`/disputes/${d.id}`}
-                            className="fh-disputes-link fh-small fh-brand"
-                          >
-                            View<span className="cap-sr-only"> the dispute from {name}</span>
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                          View<span className="cap-sr-only"> the dispute from {name}</span>
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
           </div>
         </div>
       )}

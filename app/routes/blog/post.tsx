@@ -3,7 +3,7 @@ import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { formatDate } from "capsomer/behavior/time";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { CARD_MD, CTA_BUTTON } from "~/components/marketing-card";
-import { Link } from "capsomer/react/link";
+import { ButtonLink, Link } from "capsomer/react/link";
 import { RelatedLinks } from "capsomer/react/related-links";
 import "capsomer/related-links.css";
 import "~/blog-prose.css";
@@ -365,15 +365,15 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         <p className="fh-post-wrap-2 fh-item-title fh-relaxed fh-soft">
           See exactly what your account is leaking. Free, no account required.
         </p>
-        <Link
+        <ButtonLink
           to="/audit"
           className={`${CTA_BUTTON} fh-hover-group`}
-          data-variant="primary"
-          data-size="lg"
+          variant="primary"
+          size="lg"
         >
           Start free audit{" "}
           <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
-        </Link>
+        </ButtonLink>
       </div>
 
       {/* organizationJsonLd (and personJsonLd below, when applicable) render
