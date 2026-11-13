@@ -136,14 +136,8 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
   const shown = filter === "All" ? all.length : all.filter((f) => f.product === filter).length;
 
   return (
-    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
-    // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div
-      className="fh-cap fh-features [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    // Capsomer's amber family with Foxhound's neutrals.
+    <div className="fh-cap fh-features" data-cap-site="foxhound" data-family="amber">
       <style>{FEATURE_FILTER_CSS}</style>
       <MarketingPageHeader eyebrow="Platform" title="Features" subtext={FEATURES_SUBTEXT} />
 

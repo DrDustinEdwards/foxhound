@@ -42,7 +42,7 @@ export function AuthCard({ children }: { children: ReactNode }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg">
       <div
-        className="fh-cap w-full max-w-[400px] [--border-focus:var(--ring)] [--control:2.625rem] [&_.cap-btn]:[--cap-btn-fs:var(--text-subhead)] [&_.cap-btn]:[--cap-btn-h:2.9375rem] [&_.cap-btn]:font-semibold"
+        className="fh-cap w-full max-w-[400px] [--control:2.625rem] [&_.cap-btn]:[--cap-btn-fs:var(--text-subhead)] [&_.cap-btn]:[--cap-btn-h:2.9375rem] [&_.cap-btn]:font-semibold"
         data-cap-site="foxhound"
         data-family="amber"
         data-auth-card=""

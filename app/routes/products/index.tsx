@@ -69,7 +69,7 @@ export default function ProductsIndexPage() {
           neutrals (.fh-cap, as the site header and the legal pages); the focus
           ring reads the family's amber ring here, as in Capsomer's own parts. */}
       <div
-        className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8 [--border-focus:var(--ring)]"
+        className="fh-cap mx-auto max-w-[720px] px-5 pb-16 sm:px-8"
         data-cap-site="foxhound"
         data-family="amber"
       >

@@ -85,14 +85,8 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
   const { categories, dashboard, payments } = RECOVERY_BLOCKS;
 
   return (
-    // Capsomer's amber family with Foxhound's neutrals. Foxhound's global focus
-    // ring reads --border-focus (app.css); inside this page it reads the
-    // family's --ring, so a keyboard user sees amber as in Capsomer's own parts.
-    <div
-      className="fh-cap [--border-focus:var(--ring)]"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    // Capsomer's amber family with Foxhound's neutrals.
+    <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
         productName="Recovery"
         Icon={RefreshCw}

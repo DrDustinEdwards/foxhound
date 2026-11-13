@@ -84,8 +84,7 @@ export default function DemosPage() {
       {/* Recova's 1200px column (px-4, md:px-8, pb-16), in Capsomer's amber
           family with Foxhound's own neutrals (.fh-cap, as /pricing and the
           /products hub). The buttons are the only focusable parts here; their
-          amber ring is Capsomer's own, handed back by app.css
-          (.fh-cap .cap-btn:focus-visible). */}
+          amber ring is Capsomer's own. */}
       <div
         className="fh-cap mx-auto max-w-[1200px] px-4 pb-16 md:px-8"
         data-cap-site="foxhound"
