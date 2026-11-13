@@ -33,5 +33,5 @@ export const BLOG_COVER_FALLBACK_CSS = `
 
 export const INLINE_STYLE_HASHES: readonly string[] = [
   "sha256-kauF8mYaRsSeQ+zliDpLHTpyel4lJpD4YfS8YtTBTp4=", // FEATURE_FILTER_CSS
-  "sha256-jhMI5icJZb23S3t6rnr6WoUj4k7g5rjXoiGq1e8iGvA=", // BLOG_COVER_FALLBACK_CSS
+  "sha256-phAeQDMUpa4Ct4tjvuNbN5/kiRQcape0nOTzY4LQjKE=", // BLOG_COVER_FALLBACK_CSS
 ];
