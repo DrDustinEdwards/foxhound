@@ -1,7 +1,7 @@
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useCallback, useMemo } from "react";
-import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import { Breadcrumb } from "capsomer/react/breadcrumb";
 import { type ChartFit, ChartFrame } from "capsomer/react/chart-frame";
@@ -136,8 +136,8 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
   // Recova's main: max-w-[1080px] mx-auto px-4 md:px-8 py-8. The shell owns
   // the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="mx-auto max-w-[1080px] px-4 py-8 md:px-8">
-      <div className="mb-4">
+    <div className="fh-customer">
+      <div className="fh-customer-back">
         <Breadcrumb
           items={[
             { label: "Customers", href: "/intelligence/customers" },
@@ -151,34 +151,23 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
         />
       </div>
 
-      <div className="mb-5 flex flex-wrap items-center gap-4 fh-small">
+      <div className="cap-cluster fh-customer-links fh-small" data-gap="5">
         {/* Recova computes `account.name ?? 'Customers'`, so an account with no
             name read "All Customers customers"; with no name this reads "All
             customers". */}
-        <Link
-          to="/intelligence/customers"
-          className="inline-flex min-h-6 items-center fh-mono text-accent-text no-underline hover:text-accent-hover"
-        >
+        <Link to="/intelligence/customers" className="fh-customer-id-link fh-mono fh-accent">
           <span aria-hidden="true">←&nbsp;</span>
           {accountName ? `All ${accountName} customers` : "All customers"}
         </Link>
         {recoveryCount > 0 ? (
-          <Link
-            to="/recovery/payments"
-            className="group inline-flex min-h-6 items-center gap-1 text-accent-text no-underline hover:text-accent-hover"
-          >
+          <Link to="/recovery/payments" className="fh-customer-stripe-link fh-accent">
             {plural(recoveryCount, "recovery payment")}
-            <ArrowRight
-              aria-hidden="true"
-              size={13}
-              strokeWidth={1.5}
-              className="motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-            />
+            <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-customer-arrow" />
           </Link>
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-5">
+      <div className="fh-intel-stack">
         <HeaderCard customer={customer} lastSeenAt={activity.lastActivityAt} nowMs={nowMs} />
 
         {/* Recova's IntegrityLayerBanner, customers/[id]/page.tsx 133. */}
@@ -189,7 +178,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
           className=""
         />
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <div className="fh-customer-panels">
           <SignalCard
             title="Recovery signals"
             fields={recoverySignalFields(activity.recovery)}
@@ -217,7 +206,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
           <Panel title="Why this customer needs attention">
             <p className="fh-body fh-relaxed fh-text">{customer.aiAssessment}</p>
             {customer.aiAssessmentGeneratedAt ? (
-              <p className="mt-3 fh-mono fh-tiny fh-faint">
+              <p className="fh-customer-note fh-mono fh-tiny fh-faint">
                 Updated {formatDate(customer.aiAssessmentGeneratedAt, { style: "medium" }) ?? ""}
               </p>
             ) : null}
@@ -226,16 +215,13 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
       </div>
 
       {recoveryCount > 0 || hasDisputeHistory ? (
-        <p className="mt-5 mb-2 fh-center fh-tiny fh-faint">
+        <p className="fh-customer-scope fh-center fh-tiny fh-faint">
           This customer&apos;s data is shared across Recovery, Disputes, and Intelligence.
           {recoveryCount > 0 ? (
             <>
               {" "}
               View their recovery history in{" "}
-              <Link
-                to="/recovery/payments"
-                className="text-accent-text no-underline hover:text-accent-hover"
-              >
+              <Link to="/recovery/payments" className="fh-customer-link fh-accent">
                 Recovery
               </Link>
               .
@@ -245,10 +231,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             <>
               {" "}
               View their disputes in{" "}
-              <Link
-                to="/disputes/dashboard"
-                className="text-accent-text no-underline hover:text-accent-hover"
-              >
+              <Link to="/disputes/dashboard" className="fh-customer-link fh-accent">
                 Disputes
               </Link>
               .
@@ -304,15 +287,15 @@ function HeaderCard({
   return (
     <div className="cap-panel">
       <div className="cap-panel-body">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
+        <div className="fh-customer-top">
+          <div className="cap-shrink">
             <h1 className="fh-title fh-semibold fh-text">{customer.customerName ?? "(no name)"}</h1>
-            <p className="mt-1 fh-break fh-mono fh-small fh-faint">
+            <p className="fh-customer-sub fh-break fh-mono fh-small fh-faint">
               {customer.customerEmail ?? "-"} ·{" "}
               <span className="fh-quiet">{customer.stripeCustomerId}</span>
             </p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="fh-customer-score-row">
             {/* Capsomer's pill markup rather than its Pill component, which
                 adds a status glyph to any toned pill; a plan is not a status
                 (the customers page's choice, J30). Recova shows the plan's name
@@ -332,13 +315,13 @@ function HeaderCard({
         {/* A planned change or cancellation from the customer's Stripe
             subscription schedule or cancel_at, beside what they pay now. */}
         {customer.scheduled ? (
-          <p className="mt-3 text-right fh-small fh-soft">{customer.scheduled}</p>
+          <p className="fh-customer-note fh-right fh-small fh-soft">{customer.scheduled}</p>
         ) : null}
-        <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-border-sub pt-4 md:grid-cols-4">
+        <dl className="fh-customer-stats">
           {stats.map((s) => (
             <div key={s.label}>
               <dt className="fh-tiny fh-quiet fh-caps">{s.label}</dt>
-              <dd className="mt-1 fh-mono fh-small fh-text">{s.value}</dd>
+              <dd className="fh-customer-sub fh-mono fh-small fh-text">{s.value}</dd>
             </div>
           ))}
         </dl>
@@ -361,13 +344,13 @@ function SignalCard({
   return (
     <Panel title={title} size="sm">
       {fields === null ? (
-        <p className="fh-small italic fh-faint">{empty}</p>
+        <p className="fh-small fh-italic fh-faint">{empty}</p>
       ) : (
-        <dl className="flex flex-col gap-2 fh-small">
+        <dl className="cap-stack fh-small" data-gap="3">
           {fields.map((f) => (
-            <div key={f.label} className="flex items-baseline justify-between gap-3">
+            <div key={f.label} className="fh-customer-fact">
               <dt className="fh-soft">{f.label}</dt>
-              <dd className="text-right fh-mono fh-text">{f.value}</dd>
+              <dd className="fh-right fh-mono fh-text">{f.value}</dd>
             </div>
           ))}
         </dl>
@@ -386,10 +369,10 @@ function HealthScoreCard({ score, history }: { score: number | null; history: He
   );
   return (
     <Panel title="Health score">
-      <p className="flex items-baseline justify-end gap-3">
+      <p className="fh-customer-score">
         <span
-          className={`fh-mono fh-display fh-semibold leading-none ${
-            score === null ? "text-text-tertiary" : healthScoreClassName(score)
+          className={`fh-mono fh-display fh-semibold fh-tight ${
+            score === null ? "fh-quiet" : healthScoreClassName(score)
           }`}
         >
           {score ?? "-"}
@@ -407,22 +390,19 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
   const factors = customer.healthFactors;
   return (
     <>
-      <section className="mt-8">
+      <section className="fh-customer-section">
         <p className="fh-mono fh-tiny fh-quiet fh-caps">Factors</p>
         {factors.length === 0 ? (
-          <p className="mt-2 fh-body fh-quiet">
+          <p className="fh-customer-section-lede fh-body fh-quiet">
             No factors moved this score away from the baseline.
           </p>
         ) : (
-          <ul className="mt-3 flex flex-col gap-2">
+          <ul className="cap-stack fh-customer-list" data-gap="3">
             {factors.map((f) => (
-              <li
-                key={f.signal}
-                className="flex items-center justify-between gap-4 rounded-lg border border-border bg-surface p-3"
-              >
+              <li key={f.signal} className="fh-customer-factor">
                 <span className="fh-small fh-text">{f.detail}</span>
                 <span
-                  className={`fh-mono fh-small ${f.deltaPoints < 0 ? "text-error-text" : "text-success-text"}`}
+                  className={`fh-mono fh-small ${f.deltaPoints < 0 ? "fh-error" : "fh-success"}`}
                 >
                   {f.deltaPoints > 0 ? "+" : ""}
                   {f.deltaPoints}
@@ -434,10 +414,10 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
       </section>
 
       {customer.predictions.length > 0 ? (
-        <section className="mt-8">
+        <section className="fh-customer-section">
           <p className="fh-mono fh-tiny fh-quiet fh-caps">Predictions</p>
           <div
-            className="mt-3 cap-table-wrap rounded-lg border border-border"
+            className="fh-customer-table cap-table-wrap"
             data-cap="table"
             data-reflow=""
             role="region"

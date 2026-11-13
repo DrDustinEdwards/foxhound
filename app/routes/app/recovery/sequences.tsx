@@ -88,7 +88,7 @@ function StatCard({
 }) {
   return (
     <Panel size="sm" title={label}>
-      <p className={`fh-mono fh-title fh-semibold cap-num ${valueClassName ?? "text-text"}`}>
+      <p className={`fh-mono fh-title fh-semibold cap-num ${valueClassName ?? "fh-text"}`}>
         {value}
       </p>
       {sub ? <p className="fh-tiny fh-faint">{sub}</p> : null}
@@ -98,7 +98,7 @@ function StatCard({
 
 function StatRow({ performance }: { performance: StepPerformanceSummary }) {
   return (
-    <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-4">
+    <div className="fh-sequence-tiles">
       <StatCard label="Emails sent" value={formatCount(performance.totalSent)} />
       <StatCard
         label="Avg open rate"
@@ -152,8 +152,8 @@ function Figure({
   className?: string;
 }) {
   return (
-    <div className="text-right">
-      <p className={`fh-mono fh-body fh-semibold cap-num ${className ?? "text-text"}`}>{value}</p>
+    <div className="fh-right">
+      <p className={`fh-mono fh-body fh-semibold cap-num ${className ?? "fh-text"}`}>{value}</p>
       <p className="fh-tiny fh-quiet fh-caps">{label}</p>
     </div>
   );
@@ -165,7 +165,7 @@ function StepFigures({ card }: { card: StepCard }) {
       return <span className="fh-tiny fh-faint">No data yet</span>;
     }
     return (
-      <div className="text-right">
+      <div className="fh-right">
         <p
           className={`fh-mono fh-body fh-semibold cap-num ${sequenceRateClassName(card.successRatePct, "click")}`}
         >
@@ -181,7 +181,7 @@ function StepFigures({ card }: { card: StepCard }) {
     return <span className="fh-tiny fh-faint">No data yet</span>;
   }
   return (
-    <div className="flex gap-5">
+    <div className="fh-sequence-steps">
       <Figure value={card.sent} label="sent" />
       <Figure
         value={`${card.openRatePct}%`}
@@ -213,15 +213,15 @@ function StepCardView({ card }: { card: StepCard }) {
     <Panel
       level={3}
       title={
-        <span className="inline-flex flex-wrap items-center gap-2.5">
+        <span className="fh-sequence-meta">
           {card.label}
           {card.timingLabel ? <Pill variant="secondary">{card.timingLabel}</Pill> : null}
         </span>
       }
     >
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <p className="min-w-0 flex-1 truncate fh-tiny fh-faint">{line}</p>
-        <div className="shrink-0">
+      <div className="fh-sequence-step-top">
+        <p className="cap-grow fh-truncate fh-tiny fh-faint">{line}</p>
+        <div className="cap-keep">
           <StepFigures card={card} />
         </div>
       </div>
@@ -230,7 +230,7 @@ function StepCardView({ card }: { card: StepCard }) {
           {/* latestBodyHtml is sanitized server-side in the loader before it
               ever reaches this component (email-preview.server.ts). */}
           <div
-            className="overflow-x-auto fh-small fh-relaxed fh-faint"
+            className="fh-sequence-body fh-small fh-relaxed fh-faint"
             dangerouslySetInnerHTML={markup(preview)}
           />
         </Disclosure>
@@ -243,11 +243,13 @@ function CategorySectionView({ section }: { section: CategorySection }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId} className="mb-1.5">
+      <h2 id={headingId} className="fh-sequence-title">
         <Pill variant="outline">{SEQUENCE_CATEGORY_NAMES[section.category]}</Pill>
       </h2>
-      <p className="mb-3 fh-small fh-faint">{SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}</p>
-      <div className="flex flex-col gap-3">
+      <p className="fh-sequence-desc fh-small fh-faint">
+        {SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}
+      </p>
+      <div className="cap-stack" data-gap="4">
         {section.stepCards.map((card) => (
           <StepCardView key={card.stepType} card={card} />
         ))}
@@ -261,8 +263,8 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
 
   return (
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10.
-    <div className="cap-admin-page gap-0 px-4 py-10 md:px-8" data-width="page">
-      <div className="mb-6">
+    <div className="fh-sequence cap-admin-page" data-width="page">
+      <div className="fh-sequence-head">
         <PageHead
           title="Recovery sequence"
           lead="Live performance data from your recovery emails"
@@ -277,11 +279,11 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
         <StatRow performance={performance} />
       )}
 
-      <div className="mt-6">
+      <div className="fh-sequence-banner">
         <StepPerformanceChart chart={performance.chart} />
       </div>
 
-      <div className="mt-10 flex flex-col gap-8">
+      <div className="cap-stack fh-sequence-list" data-gap="7">
         {sections.map((section) => (
           <CategorySectionView key={section.category} section={section} />
         ))}

@@ -233,15 +233,15 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
   const hasEvidence = new Set(withEvidence);
 
   return (
-    <div className="cap-admin-page gap-0 px-4 md:px-8 py-8 md:py-10" data-width="page">
-      <div className="mb-8">
+    <div className="fh-disputes cap-admin-page" data-width="page">
+      <div className="fh-disputes-head">
         <PageHead title="Dashboard" />
       </div>
 
       {/* Recova's grid, five across from md, in Recova's order. Win rate takes
           the place of Recova's "Saved vs Smart Disputes", which is not built
           (Dustin, PR #75 questions 2 and 4; see stats.ts). */}
-      <div className="mb-8 [--tiles-columns:repeat(2,minmax(0,1fr))] md:[--tiles-columns:repeat(5,minmax(0,1fr))]">
+      <div className="fh-disputes-tiles">
         <StatTiles layout="grid" label="Dispute figures">
           <StaticStatTile size="lg" label="Open disputes" figure={String(stats.openCount)} />
           <StaticStatTile size="lg" label="At stake" figure={formatAmounts(stats.atStake)} />
@@ -304,7 +304,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                             {name}
                             {score === undefined ? null : (
                               <span
-                                className={`ml-1.5 fh-mono fh-tiny ${healthScoreClassName(score)}`}
+                                className={`fh-disputes-score fh-mono fh-tiny ${healthScoreClassName(score)}`}
                               >
                                 <span className="cap-sr-only">Intelligence health score </span>
                                 {score}
@@ -331,7 +331,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                         <td data-label="View">
                           <Link
                             to={`/disputes/${d.id}`}
-                            className="inline-flex min-h-6 items-center fh-small fh-brand no-underline hover:text-brand-text-hover"
+                            className="fh-disputes-link fh-small fh-brand"
                           >
                             View<span className="cap-sr-only"> the dispute from {name}</span>
                           </Link>

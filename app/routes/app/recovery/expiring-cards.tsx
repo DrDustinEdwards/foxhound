@@ -31,22 +31,20 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
   const now = new Date(nowMs);
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="fh-list-page">
       <div>
         <h1 className="fh-title fh-medium fh-text">Expiring cards</h1>
-        <p className="mt-1 fh-small fh-quiet">
+        <p className="fh-list-page-sub fh-small fh-quiet">
           Foxhound flags cards before they expire, so the payment never has to fail in the first
           place.
         </p>
       </div>
 
       {alerts.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-border p-6 fh-body fh-quiet">
-          No expiring cards detected yet.
-        </p>
+        <p className="fh-empty-box fh-body fh-quiet">No expiring cards detected yet.</p>
       ) : (
         <div
-          className="mt-6 cap-table-wrap rounded-lg border border-border"
+          className="fh-list-table cap-table-wrap"
           data-cap="table"
           data-reflow=""
           role="region"

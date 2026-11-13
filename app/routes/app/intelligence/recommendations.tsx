@@ -1,4 +1,4 @@
-import { Check } from "lucide-react";
+import { Icon, iconCheck } from "capsomer/react/icons";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
 import { Pagination, pageCountOf, pageHref, parsePage } from "capsomer/react/pagination";
@@ -109,15 +109,15 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
   // the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8" data-width="page">
-      <div className="mb-6">
+    <div className="fh-intel-page cap-admin-page" data-width="page">
+      <div className="fh-intel-head">
         <PageHead title="Recommendations" lead="Customers that need your attention right now." />
       </div>
 
       {totalCount === 0 ? (
         <NothingToDo />
       ) : (
-        <div className="flex flex-col gap-6">
+        <div className="cap-stack" data-gap="6">
           {SECTIONS.map((section) => {
             const sectionRows = rows.filter((r) => section.actions.includes(r.recommendedAction));
             if (sectionRows.length === 0) return null;
@@ -128,7 +128,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
 
       {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form). */}
       {totalPages > 1 ? (
-        <div className="mt-4">
+        <div className="fh-recs-more">
           <Pagination
             form="steps"
             page={page}
@@ -153,7 +153,7 @@ function NothingToDo() {
       <div className="cap-panel-body">
         <div className="cap-empty" data-kind="all-clear" data-flush="">
           <div className="cap-empty-media" aria-hidden="true">
-            <Check width={40} height={40} strokeWidth={2} className="fh-success" />
+            <Icon d={iconCheck} className="fh-icon-40 fh-success" />
           </div>
           <div className="cap-empty-header">
             <h2 className="cap-empty-title">No action needed right now.</h2>

@@ -42,17 +42,17 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
   const { sequences } = loaderData;
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-8">
+    <div className="fh-list-page">
       <h1 className="fh-title fh-medium fh-text">Win-back</h1>
 
       {sequences.length === 0 ? (
-        <p className="mt-6 rounded-lg border border-dashed border-border p-6 fh-body fh-quiet">
+        <p className="fh-empty-box fh-body fh-quiet">
           No cancellations yet. Foxhound reaches out to every customer who cancels, and lists them
           here.
         </p>
       ) : (
         <div
-          className="mt-6 cap-table-wrap rounded-lg border border-border"
+          className="fh-list-table cap-table-wrap"
           data-cap="table"
           data-reflow=""
           role="region"
@@ -78,7 +78,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                   <td data-label="Plan" className="fh-quiet">
                     {seq.planName ?? "-"}
                     {seq.amountCents != null && seq.currency ? (
-                      <span className="ml-2 fh-mono fh-text">
+                      <span className="fh-payments-gap fh-mono fh-text">
                         {formatMoney(seq.amountCents, seq.currency)}
                       </span>
                     ) : null}
@@ -87,7 +87,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                     {formatDate(seq.createdAt, { style: "medium" }) ?? ""}
                   </td>
                   <td data-label="Status">
-                    <div className="flex flex-col items-start gap-1">
+                    <div className="fh-winback-cell">
                       <Pill {...BADGE_PILL[statusTone(seq.status)]}>
                         {STATUS_LABEL[seq.status] ?? seq.status}
                       </Pill>

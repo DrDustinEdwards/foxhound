@@ -84,8 +84,8 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
   // the page's one <main>, so this is a plain wrapper.
   return (
-    <div className="cap-admin-page gap-0 px-4 py-8 md:px-8" data-width="page">
-      <div className="mb-6">
+    <div className="fh-intel-page cap-admin-page" data-width="page">
+      <div className="fh-intel-head">
         <PageHead title="Churn Risk" lead="MRR at risk by customer health band." />
       </div>
 
@@ -95,7 +95,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
           for an unrelated reason. Recova's window and sentence: 90 days of the
           daily snapshots, every 7th kept (getChurnView). */}
       {hasRateData ? (
-        <div className="mb-6">
+        <div className="fh-intel-head">
           <Panel
             title="Churn rate over time"
             description="Involuntary churn (payment failures) vs voluntary churn (cancellations), last 90 days"
@@ -115,7 +115,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
         </Panel>
       ) : (
         <>
-          <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <div className="fh-churn-bands">
             {BAND_ORDER.map((band) => {
               const row = byBand.get(band) ?? { band, customerCount: 0, mrrCents: 0 };
               return (

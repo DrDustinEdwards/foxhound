@@ -78,13 +78,9 @@ export function EarlyFraudWarnings({
   const shown = confirming ?? lastConfirm;
 
   return (
-    <section
-      id={EARLY_FRAUD_WARNINGS_ANCHOR}
-      className="mt-8 scroll-mt-24"
-      aria-labelledby="efw-heading"
-    >
+    <section id={EARLY_FRAUD_WARNINGS_ANCHOR} className="fh-warnings" aria-labelledby="efw-heading">
       {result && result !== dismissedResult ? (
-        <div className="mb-4">
+        <div className="fh-warnings-head">
           <Banner tone={result.ok ? "ok" : "crit"} onDismiss={() => setDismissedResult(result)}>
             {result.message}
           </Banner>
@@ -92,7 +88,7 @@ export function EarlyFraudWarnings({
       ) : null}
 
       {pageConfirm ? (
-        <div className="mb-4">
+        <div className="fh-warnings-head">
           <ConfirmPage
             hidden={{ intent: "refund_warning", warning_id: pageConfirm.id }}
             title={`Refund ${formatMoney(pageConfirm.amountCents, pageConfirm.currency)} to ${warningCustomerLabel(pageConfirm)}?`}
@@ -111,7 +107,7 @@ export function EarlyFraudWarnings({
         flush
       >
         {warnings.length === 0 ? (
-          <p className="px-4 py-6 fh-small fh-soft">No open early fraud warnings.</p>
+          <p className="fh-warnings-empty fh-small fh-soft">No open early fraud warnings.</p>
         ) : (
           <div
             className="cap-table-wrap"
@@ -159,9 +155,9 @@ export function EarlyFraudWarnings({
                       <td data-label="Charge" className="fh-mono fh-tiny fh-break fh-soft">
                         {w.stripeChargeId}
                       </td>
-                      <td data-label="Actions" className="[grid-column:1/-1]">
+                      <td data-label="Actions" className="fh-warnings-actions-cell">
                         {readOnly ? (
-                          <div className="flex flex-wrap justify-end gap-2">
+                          <div className="fh-warnings-actions">
                             <button
                               type="button"
                               className="cap-btn"
@@ -186,7 +182,7 @@ export function EarlyFraudWarnings({
                             </button>
                           </div>
                         ) : (
-                          <div className="flex flex-wrap justify-end gap-2">
+                          <div className="fh-warnings-actions">
                             {canRefund ? (
                               <Form method="post">
                                 <input type="hidden" name="intent" value="refund_warning_confirm" />
@@ -207,7 +203,7 @@ export function EarlyFraudWarnings({
                                 </button>
                               </Form>
                             ) : (
-                              <span className="self-center fh-tiny fh-faint">
+                              <span className="fh-warnings-note fh-tiny fh-faint">
                                 Only the account owner can refund.
                               </span>
                             )}
@@ -239,7 +235,7 @@ export function EarlyFraudWarnings({
           </div>
         )}
         {readOnly && warnings.length > 0 ? (
-          <p className="px-4 pb-4">
+          <p className="fh-warnings-foot">
             <span className="cap-btn-reason" id={DEMO_REASON_ID}>
               The demo is read-only, so Refund and Dismiss do nothing here.
             </span>

@@ -211,7 +211,7 @@ function Amount({ totals, currency }: { totals: TrendSide["totals"]; currency: s
   const lines = formatTotals(totals, currency ?? "usd");
   if (lines.length === 1) return <>{lines[0]}</>;
   return (
-    <span className="inline-flex flex-col items-end">
+    <span className="fh-auditd-delta">
       {lines.map((line) => (
         <span key={line}>{line}</span>
       ))}
@@ -236,10 +236,10 @@ function TrendRow({
 }) {
   const lines = compareTotals(current, previous, higherIsBetter);
   return (
-    <div className="flex items-baseline justify-between gap-4 border-b border-border-sub py-2 last:border-b-0">
+    <div className="fh-auditd-line">
       <div className="fh-small fh-soft">{label}</div>
       {lines === null ? (
-        <div className="flex flex-wrap items-baseline justify-end gap-2 fh-mono fh-small">
+        <div className="fh-auditd-figures fh-mono fh-small">
           <span className="fh-text">
             <Amount totals={current.totals} currency={current.currency} />
           </span>
@@ -248,12 +248,9 @@ function TrendRow({
           </span>
         </div>
       ) : (
-        <div className="flex flex-col items-end gap-1">
+        <div className="fh-auditd-figure">
           {lines.map((line) => (
-            <div
-              key={line.currency}
-              className="flex flex-wrap items-baseline justify-end gap-2 fh-mono fh-small"
-            >
+            <div key={line.currency} className="fh-auditd-figures fh-mono fh-small">
               <span className="fh-text">{formatMoneyShort(line.currentCents, line.currency)}</span>
               <span className="fh-faint">
                 vs {formatMoneyShort(line.previousCents, line.currency)}
@@ -317,13 +314,13 @@ export function AuditSettingsForm({
   return (
     <DemoForm keepScroll method="post" ref={formRef}>
       <div aria-busy={saving || undefined}>
-        <div className="mb-5 min-w-0">
+        <div className="fh-auditd-lookback">
           {/* The visible label repeats the legend's words, which name the group
             for a screen reader, so it is hidden from one to be read once. */}
-          <div className="mb-1 fh-small fh-medium fh-text" aria-hidden="true">
+          <div className="fh-auditd-label fh-small fh-medium fh-text" aria-hidden="true">
             Lookback period
           </div>
-          <p id={lookbackHelp} className="mb-1 fh-tiny fh-faint">
+          <p id={lookbackHelp} className="fh-auditd-label fh-tiny fh-faint">
             How far back we look when calculating your audit.
           </p>
           <Segmented
@@ -343,9 +340,9 @@ export function AuditSettingsForm({
           />
         </div>
 
-        <div className="flex min-w-0 items-start justify-between gap-4 border-t border-border py-3">
-          <div className="pr-4">
-            <div id={digestLabel} className="mb-0.5 fh-small fh-text">
+        <div className="fh-auditd-digest">
+          <div className="fh-auditd-digest-text">
+            <div id={digestLabel} className="fh-auditd-digest-label fh-small fh-text">
               Monthly audit digest
             </div>
             <p id={digestHelp} className="fh-tiny fh-faint">
@@ -370,10 +367,10 @@ export function AuditSettingsForm({
         </div>
       </div>
 
-      <div role="status" className="mt-3 min-h-4 fh-tiny">
+      <div role="status" className="fh-auditd-status fh-tiny">
         {saving ? <span className="fh-faint">Saving…</span> : null}
-        {!saving && shown?.ok === true ? <span className="text-green">Saved.</span> : null}
-        {!saving && shown?.ok === false ? <span className="text-red">Save failed.</span> : null}
+        {!saving && shown?.ok === true ? <span className="fh-green">Saved.</span> : null}
+        {!saving && shown?.ok === false ? <span className="fh-red">Save failed.</span> : null}
       </div>
     </DemoForm>
   );
@@ -390,7 +387,7 @@ function SettingsPanel({
   const saving =
     navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
   return (
-    <div className="mb-5">
+    <div className="fh-auditd-block">
       <Panel title="Settings">
         <AuditSettingsForm
           defaultLookbackDays={settings.lookbackDays}
@@ -419,10 +416,10 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   // the page's one <main>, so this is a plain wrapper.
   if (runs.length === 0) {
     return (
-      <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
+      <div className="fh-auditd-page cap-admin-page" data-width="page">
         {/* Capsomer's empty state, as markup: its React part puts the title in
             a <p>, and Recova's is the page's h1 (gap named in the J43 PR). */}
-        <div className="mb-6">
+        <div className="fh-auditd-head">
           <div className="cap-empty" data-kind="nothing-yet">
             <div className="cap-empty-header">
               <h1 className="cap-empty-title">No audit runs yet</h1>
@@ -448,8 +445,8 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   });
 
   return (
-    <div className="cap-admin-page gap-0 w-full min-w-0 px-4 py-10 md:px-8" data-width="page">
-      <div className="mb-6">
+    <div className="fh-auditd-page cap-admin-page" data-width="page">
+      <div className="fh-auditd-head">
         <PageHead
           title="Audit history"
           lead={`Last run ${formatDate(last.runAt, { style: "medium" }) ?? ""}`}
@@ -460,7 +457,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
       <AuditSummary summary={last.summary} />
 
       {previous ? (
-        <div className="mb-5">
+        <div className="fh-auditd-block">
           <Panel title="Since last run">
             <TrendRow
               label="Failed invoices"
@@ -484,7 +481,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
         </div>
       ) : null}
 
-      <div className="mb-5">
+      <div className="fh-auditd-block">
         <Panel title="History" flush>
           <div
             className="cap-table-wrap"

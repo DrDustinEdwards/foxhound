@@ -91,7 +91,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
   const single = currencies.length === 1 ? currencies[0]! : null;
   const title = `Recovered revenue · ${w.rangeLabel}`;
   return (
-    <div className="grid h-full grid-cols-1 gap-3 md:grid-cols-[2fr_1fr]">
+    <div className="fh-recchart-grid">
       <Panel
         title={title}
         more={
@@ -129,7 +129,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
             })
           }
         />
-        <div className="flex justify-between fh-tiny fh-quiet">
+        <div className="fh-recchart-axis fh-tiny fh-quiet">
           <span>{days}d ago</span>
           <span>Today</span>
         </div>
@@ -139,7 +139,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
           Recova's query had no date filter (lib/dashboard-data.ts), so its
           label was untrue; here the figures are the range's, so it is true. */}
       <Panel title="Email performance">
-        <div className="flex flex-col gap-4">
+        <div className="cap-stack" data-gap="5">
           <div>
             <p className="fh-tiny fh-quiet">Emails sent ({w.rangeLabel})</p>
             <p className="fh-mono fh-title fh-semibold cap-num fh-text">
@@ -175,7 +175,7 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
       {w.totalFailedCount === 0 ? (
         <p className="fh-small fh-faint">No declined payments yet.</p>
       ) : (
-        <ul className="flex flex-col gap-3">
+        <ul className="cap-stack" data-gap="4">
           {rows.map((row) => (
             <Meter
               as="li"
@@ -185,10 +185,10 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
               value={row.pct}
               max={100}
               display={
-                <span className="inline-flex items-center gap-3">
+                <span className="fh-recchart-key">
                   {row.spark.some((v) => v > 0) ? (
                     <span
-                      className="inline-flex"
+                      className="fh-recchart-swatch"
                       // A sparkline beside a figure needs no frame (Capsomer's
                       // chart frame, "When not to"): Enarratio's inline SVG is
                       // named by its own sentence (count, first, last, lowest,

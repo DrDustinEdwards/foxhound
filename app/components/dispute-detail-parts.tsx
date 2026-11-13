@@ -40,7 +40,7 @@ export function ApproveButton({
 }) {
   const held = approving || dirty;
   return (
-    <div className="flex flex-wrap items-center gap-3">
+    <div className="cap-cluster" data-gap="4">
       <button
         type="submit"
         className="cap-btn"
@@ -66,9 +66,9 @@ export function ApproveButton({
  *  beside it. Multi-line evidence keeps its line breaks. */
 export function FieldRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex gap-4">
-      <dt className="w-[140px] shrink-0 fh-quiet">{label}</dt>
-      <dd className="flex-1 whitespace-pre-line fh-text">{value}</dd>
+    <div className="fh-dispute-fact">
+      <dt className="fh-dispute-fact-label fh-quiet">{label}</dt>
+      <dd className="fh-dispute-fact-value fh-pre-line fh-text">{value}</dd>
     </div>
   );
 }

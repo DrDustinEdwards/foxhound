@@ -1,3 +1,4 @@
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/empty.css";
@@ -8,7 +9,6 @@ import "capsomer/row-list.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
 import "capsomer/tabs.css";
-import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { PageHead } from "capsomer/react/page-head";
@@ -211,12 +211,9 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
   // its banners above it in the same column. The shell owns the page's one
   // <main>, so this is a plain wrapper.
   return (
-    <div
-      className="cap-admin-page gap-0 w-full min-w-0 px-4 pb-8 md:px-8 md:pb-10"
-      data-width="page"
-    >
+    <div className="fh-recovery cap-admin-page" data-width="page">
       {hasBanners ? (
-        <div className="mt-6">
+        <div className="fh-recovery-banner">
           {onboarding.needed ? (
             <SetupChecklist steps={onboardingSteps(onboarding)} ready={ONBOARDING_READY} />
           ) : null}
@@ -229,7 +226,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
         </div>
       ) : null}
 
-      <div className="mb-7 pt-8 md:pt-10">
+      <div className="fh-recovery-head">
         <PageHead
           title="Dashboard"
           lead={
@@ -239,7 +236,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
           }
           actions={
             data.connection ? (
-              <div className="flex flex-col items-end gap-1.5">
+              <div className="fh-recovery-head-end">
                 <RangeSelector range={range} />
                 {data.webhookHealth ? (
                   <Status tone={WEBHOOK_TONE[data.webhookHealth.tone]}>
@@ -258,49 +255,49 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
       </div>
 
       {/* ROW 1: primary stat cards, always 30 days. */}
-      <div className="mb-5">
+      <div className="fh-recovery-block">
         <StatCardsPrimary w={data30d} />
       </div>
 
       {/* ROW 2: ROI widget. */}
       {roi ? (
-        <div className="mb-5">
+        <div className="fh-recovery-block">
           <RoiWidget roi={roi} />
         </div>
       ) : null}
 
       {/* ROW 3: the time series, on the selected range. */}
-      <div className="mb-5 grid grid-cols-1 items-stretch gap-4 md:grid-cols-2">
+      <div className="fh-recovery-pair">
         <RecoveryRateChart w={data} />
         <RevenueChart w={data} nowMs={nowMs} />
       </div>
 
       {/* ROW 4: decline analysis, 3/2. */}
-      <div className="mb-5">
-        <p className="mb-3 fh-tiny fh-medium fh-quiet fh-caps">Decline analysis</p>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-          <div className="min-w-0 md:col-span-3">
+      <div className="fh-recovery-block">
+        <p className="fh-recovery-label fh-tiny fh-medium fh-quiet fh-caps">Decline analysis</p>
+        <div className="fh-recovery-declines">
+          <div className="fh-recovery-declines-main">
             <DeclineBreakdown w={data} />
           </div>
-          <div className="min-w-0 md:col-span-2">
+          <div className="fh-recovery-declines-side">
             <EmailCategoryChart w={data} />
           </div>
         </div>
       </div>
 
       {/* ROW 5: timing (always 30 days) beside win-back (the range). */}
-      <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="fh-recovery-charts">
         <RecoveryTimingChart w={data30d} />
         <WinBackCard w={data} />
       </div>
 
       {/* ROW 6: the recovery queue. */}
-      <div className="mb-5">
+      <div className="fh-recovery-block">
         <RecoveryQueue w={data} nowMs={nowMs} hours={queueHours} />
       </div>
 
       {/* ROW 7: secondary stat cards, always 30 days. */}
-      <div className="mb-5">
+      <div className="fh-recovery-block">
         <StatCardsSecondary w={data30d} />
       </div>
 
@@ -309,14 +306,14 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
 
       {/* ROW 9: failed payments. */}
       <PaymentsTable w={data} steps={paymentSteps} nowMs={nowMs} />
-      <div className="mt-3 text-right">
+      <div className="fh-recovery-more fh-right">
         <Link
           to="/recovery/payments"
           aria-label="View all failed payments"
           className="fh-small fh-brand"
         >
           View all payments{" "}
-          <ArrowRight className="inline-block" size={13} strokeWidth={1.5} aria-hidden />
+          <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-inline-icon" />
         </Link>
       </div>
     </div>

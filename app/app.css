@@ -863,6 +863,45 @@ body {
     text-align: center;
   }
   /* Icon sizes and the finer stroke some icons were drawn at (lucide-react's size and strokeWidth). */
+  .fh-bold {
+    font-weight: 700;
+  }
+  .fh-right {
+    text-align: right;
+  }
+  .fh-left {
+    text-align: left;
+  }
+  .fh-italic {
+    font-style: italic;
+  }
+  .fh-pre-wrap {
+    white-space: pre-wrap;
+  }
+  .fh-pre-line {
+    white-space: pre-line;
+  }
+  .fh-truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .fh-green {
+    color: var(--green);
+  }
+  .fh-red {
+    color: var(--red);
+  }
+  .fh-tight {
+    line-height: 1;
+  }
+  .fh-caps-fine {
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .fh-icon-40 {
+    --icon-size: 2.5rem;
+  }
   .fh-icon-12 {
     --icon-size: 0.75rem;
   }
