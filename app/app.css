@@ -26,10 +26,11 @@
 @import "capsomer/reading-progress.css";
 @import "capsomer/reveal.css";
 
-/* Foxhound's faces, DM Sans and DM Mono, are Capsomer's (with every family face, which downloads
-   only when a page draws text in it): the same files, font-display: optional, preloaded in
-   app/lib/preloads.ts, and size-matched fallbacks for a cold visit that misses the face. */
-@import "capsomer/fonts.css";
+/* Foxhound's faces, DM Sans and DM Mono, are Capsomer's: the same files, font-display: optional,
+   preloaded in app/lib/preloads.ts, and size-matched fallbacks for a cold visit that misses the face.
+   Only these two families' files: fonts.css would carry every family's @font-face rules. */
+@import "capsomer/fonts-dm-sans.css";
+@import "capsomer/fonts-dm-mono.css";
 /* The focus ring for everything that has none of its own: Capsomer's policy (a 2px --ring outline
    for the keyboard, none for a pointer press) in cap.base, so a Capsomer part keeps its own ring and
    Tailwind's utilities still win. The forced-colors ring below stays unlayered, so it wins everywhere. */
@@ -97,43 +98,19 @@
   --color-chrome-text-tertiary: var(--chrome-text-tertiary);
   --color-chrome-brand: var(--chrome-brand);
   --color-cobalt: var(--cobalt-ui);
-  --color-cobalt-hover: var(--cobalt-hover);
-  --color-cobalt-active: var(--cobalt-active);
-  --color-cobalt-subtle: var(--cobalt-subtle);
-  --color-cobalt-bg: var(--cobalt-bg);
-  --color-cobalt-border: var(--cobalt-border);
-  --color-cobalt-border-interactive: var(--cobalt-border-interactive);
   --color-cobalt-text: var(--cobalt-text);
   --color-green: var(--green);
   --color-green-bg: var(--green-bg);
   --color-success-text: var(--success-text);
-  --color-success-border: var(--success-border);
-  --color-success-border-interactive: var(--success-border-interactive);
   --color-red: var(--red);
-  --color-red-dark: var(--red-dark);
   --color-red-bg: var(--red-bg);
   --color-error-text: var(--error-text);
-  --color-error-border: var(--error-border);
-  --color-error-border-interactive: var(--error-border-interactive);
   --color-orange: var(--orange);
-  --color-orange-bg: var(--orange-bg);
   --color-warning-text: var(--warning-text);
-  --color-warning-border: var(--warning-border);
-  --color-warning-border-interactive: var(--warning-border-interactive);
   --color-blue: var(--blue);
-  --color-blue-bg: var(--blue-bg);
-  --color-info-border: var(--info-border);
-  --color-info-border-interactive: var(--info-border-interactive);
   --color-purple: var(--purple);
   --color-purple-bg: var(--purple-bg);
-  --color-purple-border: var(--purple-border);
-  --color-purple-border-interactive: var(--purple-border-interactive);
   --color-violet: var(--violet-ui);
-  --color-violet-vivid: var(--violet-vivid);
-  --color-violet-muted: var(--violet-muted);
-  --color-violet-subtle: var(--violet-subtle);
-  --color-violet-bg: var(--violet-bg);
-  --color-violet-border: var(--violet-border);
   --color-presence-online: var(--presence-online);
   --color-presence-away: var(--presence-away);
   --color-presence-offline: var(--presence-offline);
@@ -343,12 +320,6 @@
   /* Cobalt: reinstated secondary (exact complement, H:221.9). Superseded
      the Phase 6 removal per TASK-foxhound-design-system-port.md. */
   --cobalt-ui: #366ae2;
-  --cobalt-hover: #5581e7;
-  --cobalt-active: #3a66d4;
-  --cobalt-subtle: #8fb0f4;
-  --cobalt-bg: #0e1b39;
-  --cobalt-border: #1a2e5a;
-  --cobalt-border-interactive: #3361cc;
   --cobalt-text: #6c93ef;
 
   /* Status triads (bg/border/border-interactive/text), CVD-adjusted error.
@@ -358,40 +329,21 @@
   --green: #22c55e;
   --green-bg: #091e14;
   --success-text: #3ecf8e;
-  --success-border: #143d28;
-  --success-border-interactive: #1f7a5f;
   --red: #ef4444;
-  --red-dark: #dc2626;
   --red-bg: #200a0a;
   --error-text: #db5757;
-  --error-border: #3d1010;
-  --error-border-interactive: #b92727;
   --orange: #f97316;
-  --orange-bg: #1e1900;
   --warning-text: #f97316;
-  --warning-border: #3a3200;
-  --warning-border-interactive: #8a6f0f;
   --blue: #6c93ef;
-  --blue-bg: #0a1428;
-  --info-border: #152240;
-  --info-border-interactive: #315dc4;
 
   /* Stripe purple: reserved for Stripe signals + win-back attribution only,
      never decorative. Value intentionally NOT ported from Appendix A; see
      the file-header note above. */
   --purple: #a78bfa;
   --purple-bg: #0f091f;
-  --purple-border: #2a2660;
-  --purple-border-interactive: #6345de;
 
   /* Violet: brand/visual only, never interactive (DESIGN.md/task rule 6). */
-  --violet-vivid: #b429f0;
   --violet-ui: #bd51ec;
-  --violet-muted: #cd82ed;
-  --violet-subtle: #dcb6ed;
-  --violet-bg: #2d0c3b;
-  --violet-bg-subtle: #200a29;
-  --violet-border: #45165a;
 
   /* Borders: subtle/default/strong/interactive, distinct levels. */
   /* Legacy's #2a2b28 (394 C1). Foxhound carried #2e3028. */
@@ -404,29 +356,13 @@
   --skeleton-shimmer: #2a2c24;
   --tooltip-bg: #f0ede8;
   --tooltip-text: #111210;
-  --overlay: rgb(0 0 0 / 72%);
   --presence-online: #3ecf8e;
   --presence-away: #f3c744;
   --presence-offline: #65685e;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 24%);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 32%);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 40%);
-  --scrim-light: rgb(0 0 0 / 45%);
-  --scrim-dark: rgb(0 0 0 / 72%);
-  --scrim-violet: rgb(180 41 240 / 15%);
 
   --warning: var(--orange);
-  --warning-bg: var(--orange-bg);
   --error: var(--red);
-  --error-bg: var(--red-bg);
   --bg-surface: var(--surface);
-  --border-default: var(--border);
-  --gradient-brand: linear-gradient(135deg, var(--brand-ui), var(--brand-dark));
-  --gradient-cobalt: linear-gradient(135deg, var(--cobalt-hover), var(--cobalt-active));
-  --gradient-violet: linear-gradient(135deg, #721b98, var(--violet-vivid));
-  --gradient-brand-violet: linear-gradient(135deg, var(--chrome-brand), var(--violet-vivid));
-  --gradient-dark: linear-gradient(135deg, var(--bg), var(--surface));
-  --gradient-subtle: linear-gradient(180deg, var(--surface), var(--bg));
 }
 
 /* Light theme, full first-class mode (not plumbing-only): every value below
@@ -466,43 +402,23 @@
   --brand-bg: #fff5d6;
 
   --cobalt-ui: #2965f0;
-  --cobalt-hover: #104fe0;
-  --cobalt-active: #0a3dbf;
-  --cobalt-subtle: #5581e7;
-  --cobalt-bg: #eef2fc;
-  --cobalt-border: #c0d0f8;
-  --cobalt-border-interactive: #6989d3;
   --cobalt-text: #0d3fb5;
 
   --green: #1a7a4a;
   --green-bg: #eaf6f0;
   --success-text: #1a7a4a;
-  --success-border: #b8e0cc;
-  --success-border-interactive: #3b9b7e;
   --red: #c92020;
-  --red-dark: #a01313;
   --red-bg: #fdf0f0;
   --error-text: #b83232;
-  --error-border: #f5c8c8;
-  --error-border-interactive: #d56d6d;
   --orange: #c45c00;
-  --orange-bg: #fdf8e0;
   --warning-text: #7a5c00;
-  --warning-border: #eddfa0;
-  --warning-border-interactive: #a88c24;
   --blue: #0d3fb5;
-  --blue-bg: #eef2fc;
-  --info-border: #c0d0f8;
-  --info-border-interactive: #6989d3;
 
   /* Stripe purple: same intentional deviation as dark mode (see the purple
      family note in the file header for the full derivation). */
   --purple: #6d4ed0;
   --purple-bg: #ece6ff;
-  --purple-border: #c8c5ff;
-  --purple-border-interactive: #8875d7;
 
-  --violet-vivid: #b429f0;
   --violet-ui: #9010cc;
 
   --border: #cccbc3;
@@ -514,13 +430,9 @@
   --skeleton-shimmer: #f0efea;
   --tooltip-bg: #14150f;
   --tooltip-text: #f7f6f2;
-  --overlay: rgb(20 21 15 / 50%);
   --presence-online: #1a7a4a;
   --presence-away: #73540d;
   --presence-offline: #4f5346;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 6%);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 8%);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 12%);
 }
 
 /* Ported from legacy app/globals.css (M3 divergences 41 and 3). The STRUCTURE
