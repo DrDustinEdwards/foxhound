@@ -19,7 +19,7 @@ export function ConfirmPhraseField({
       <Field
         label={
           <>
-            Type <span className="font-mono">{phrase}</span> to confirm
+            Type <span className="fh-mono">{phrase}</span> to confirm
           </>
         }
         help={help}
@@ -28,7 +28,7 @@ export function ConfirmPhraseField({
         <input
           name="confirm"
           type="text"
-          className="cap-input font-mono"
+          className="cap-input fh-mono"
           autoComplete="off"
           spellCheck={false}
           required

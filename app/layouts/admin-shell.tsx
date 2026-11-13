@@ -1,18 +1,7 @@
 import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useMatches, useNavigate, useRouteLoaderData } from "react-router";
-import {
-  Activity,
-  Bug,
-  Clock,
-  LayoutDashboard,
-  ListChecks,
-  OctagonPause,
-  ScrollText,
-  Store,
-  Users,
-  Webhook,
-} from "lucide-react";
+import { Icon, type IconName } from "capsomer/react/icons";
 import {
   AdminShell,
   FAMILY_APPS,
@@ -72,7 +61,7 @@ export function loader({ context }: Route.LoaderArgs) {
   return { email: context.get(adminContext).email, readAt: Date.now() };
 }
 
-const icon = (Icon: typeof LayoutDashboard) => <Icon className="cap-admin-icon" aria-hidden />;
+const icon = (name: IconName) => <Icon name={name} className="cap-admin-icon" />;
 
 // The admin's pages, grouped as the menu shows them. The shell marks the
 // current one from the address (its `pathname`, the longest href winning).
@@ -83,7 +72,7 @@ const ENTRIES: AdminEntry[] = [
     id: "overview",
     label: "Overview",
     href: "/admin",
-    icon: icon(LayoutDashboard),
+    icon: icon("overview"),
     // Only /admin itself: an address below it marks its own entry or none.
     match: [/^\/admin$/],
   },
@@ -92,63 +81,63 @@ const ENTRIES: AdminEntry[] = [
     label: "Merchants",
     href: "/admin/merchants",
     group: "Customers",
-    icon: icon(Store),
+    icon: icon("store"),
   },
   {
     id: "users",
     label: "Users",
     href: "/admin/users",
     group: "Customers",
-    icon: icon(Users),
+    icon: icon("people"),
   },
   {
     id: "operations",
     label: "Operations",
     href: "/admin/operations",
     group: "Platform",
-    icon: icon(Activity),
+    icon: icon("activity"),
   },
   {
     id: "crons",
     label: "Crons",
     href: "/admin/platform/crons",
     group: "Platform",
-    icon: icon(Clock),
+    icon: icon("clock"),
   },
   {
     id: "errors",
     label: "Errors",
     href: "/admin/platform/errors",
     group: "Platform",
-    icon: icon(Bug),
+    icon: icon("bug"),
   },
   {
     id: "webhooks",
     label: "Webhooks",
     href: "/admin/platform/webhooks",
     group: "Platform",
-    icon: icon(Webhook),
+    icon: icon("webhook"),
   },
   {
     id: "brake",
     label: "Emergency brake",
     href: "/admin/brake",
     group: "Controls",
-    icon: icon(OctagonPause),
+    icon: icon("brake"),
   },
   {
     id: "staged",
     label: "Staged changes",
     href: "/admin/staged",
     group: "Controls",
-    icon: icon(ListChecks),
+    icon: icon("list-checks"),
   },
   {
     id: "audit-log",
     label: "Audit log",
     href: "/admin/platform/audit-log",
     group: "Records",
-    icon: icon(ScrollText),
+    icon: icon("scroll"),
   },
 ];
 

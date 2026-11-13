@@ -213,7 +213,7 @@ export default function AdminMerchants({ loaderData, actionData }: Route.Compone
     const refused =
       actionData && !actionData.ok && actionData.intent === "cancel" ? actionData.error : null;
     return (
-      <div className="grid grid-cols-1 gap-6">
+      <div className="cap-stack" data-gap="6">
         <ConfirmPage
           action={merchantCancelAction(confirmCancel.id, view)}
           hidden={{ intent: "cancel", accountId: confirmCancel.id }}
