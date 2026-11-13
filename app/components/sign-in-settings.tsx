@@ -122,14 +122,14 @@ export function SignInMethodsPanel({
   return (
     <section className="cap-panel">
       <div className="cap-panel-body">
-        <h2 className="mb-2 text-label font-semibold text-text">Sign-in</h2>
-        <p className="mb-4 text-label text-text-tertiary">
+        <h2 className="fh-signin-title fh-small fh-semibold fh-text">Sign-in</h2>
+        <p className="fh-signin-intro fh-small fh-quiet">
           A passkey signs you in with your face, fingerprint or device PIN. It only works on
           Foxhound, so it cannot be phished. You can always sign in with an email link too.
         </p>
 
         {initial.passkeys.length > 0 ? (
-          <ul className="mb-4 flex flex-col gap-3">
+          <ul className="fh-signin-list">
             {initial.passkeys.map((p) => (
               <PasskeyItem
                 key={p.id}
@@ -166,7 +166,7 @@ export function SignInMethodsPanel({
           </ul>
         ) : null}
         {needsSecondPasskey(initial.passkeys) ? (
-          <div className="mb-4">
+          <div className="fh-field-block">
             {/* A9: one passkey is one device; losing it leaves only the email link. */}
             <Alert tone="info" title="Add a second passkey">
               Your only passkey is on one device. Add one on another device too, such as your phone
@@ -189,10 +189,10 @@ export function SignInMethodsPanel({
         </Button>
 
         {initial.providers.length > 0 ? (
-          <ul className="mt-5 flex flex-col gap-2 border-t border-border pt-5">
+          <ul className="fh-signin-providers">
             {initial.providers.map((provider) => (
-              <li key={provider.id} className="flex items-center justify-between gap-3">
-                <span className="text-label text-text">
+              <li key={provider.id} className="fh-split-center">
+                <span className="fh-small fh-text">
                   {provider.label}: {provider.accountId ? "connected" : "not connected"}
                 </span>
                 {provider.accountId ? (
@@ -225,7 +225,7 @@ export function SignInMethodsPanel({
                       )
                     }
                   >
-                    Connect<span className="sr-only"> {provider.label}</span>
+                    Connect<span className="cap-sr-only"> {provider.label}</span>
                   </Button>
                 )}
               </li>
@@ -234,9 +234,9 @@ export function SignInMethodsPanel({
         ) : null}
 
         {initial.devices === "stale" ? (
-          <div className="mt-5 border-t border-border pt-5">
-            <h3 className="mb-2 text-label font-semibold text-text">Signed-in devices</h3>
-            <p className="mb-3 text-label text-text-tertiary">
+          <div className="fh-settings-group">
+            <h3 className="fh-signin-title fh-small fh-semibold fh-text">Signed-in devices</h3>
+            <p className="fh-signin-note fh-small fh-quiet">
               Sign in again to see where you are signed in.
             </p>
             <Button size="sm" onClick={signInAgain}>
@@ -244,15 +244,15 @@ export function SignInMethodsPanel({
             </Button>
           </div>
         ) : initial.devices ? (
-          <div className="mt-5 border-t border-border pt-5">
-            <h3 className="mb-3 text-label font-semibold text-text">Signed-in devices</h3>
-            <ul className="mb-4 flex flex-col gap-2">
+          <div className="fh-settings-group">
+            <h3 className="fh-signin-subtitle fh-small fh-semibold fh-text">Signed-in devices</h3>
+            <ul className="fh-signin-devices">
               {initial.devices.map((d) => (
-                <li key={d.id} className="flex items-center justify-between gap-3">
-                  <span className="text-label text-text">
+                <li key={d.id} className="fh-split-center">
+                  <span className="fh-small fh-text">
                     {d.device ?? "Unknown device"}
                     {d.current ? " (this device)" : null}
-                    <span className="block text-text-tertiary">
+                    <span className="fh-line fh-quiet">
                       Signed in {formatDate(d.signedInAt, { style: "medium" }) ?? ""}
                       {d.location ? ` near ${d.location}` : null}, last active{" "}
                       {formatDate(d.lastActiveAt, { style: "medium" }) ?? ""}
@@ -267,7 +267,7 @@ export function SignInMethodsPanel({
                         size="sm"
                         pending={signOut.formData?.get("session") === d.id}
                       >
-                        Sign out<span className="sr-only"> {d.device ?? "Unknown device"}</span>
+                        Sign out<span className="cap-sr-only"> {d.device ?? "Unknown device"}</span>
                       </Button>
                     </signOut.Form>
                   )}
@@ -292,16 +292,18 @@ export function SignInMethodsPanel({
         ) : null}
 
         {initial.history ? (
-          <div className="mt-5 border-t border-border pt-5">
-            <h3 className="mb-3 text-label font-semibold text-text">Recent security activity</h3>
+          <div className="fh-settings-group">
+            <h3 className="fh-signin-subtitle fh-small fh-semibold fh-text">
+              Recent security activity
+            </h3>
             {initial.history.length === 0 ? (
-              <p className="text-label text-text-tertiary">Nothing yet.</p>
+              <p className="fh-small fh-quiet">Nothing yet.</p>
             ) : (
-              <ul className="flex flex-col gap-2">
+              <ul className="cap-stack" data-gap="3">
                 {initial.history.map((h, i) => (
-                  <li key={`${h.at.toISOString()}-${i}`} className="text-label text-text">
+                  <li key={`${h.at.toISOString()}-${i}`} className="fh-small fh-text">
                     {securityHistoryWords(h)}
-                    <span className="block text-text-tertiary">
+                    <span className="fh-line fh-quiet">
                       {[formatDate(h.at, { style: "medium" }) ?? "", h.device, h.location]
                         .filter(Boolean)
                         .join(", ")}
@@ -314,7 +316,7 @@ export function SignInMethodsPanel({
         ) : null}
 
         {error || signOutFailed ? (
-          <div className="mt-4">
+          <div className="fh-signin-more">
             <Alert tone="crit">{error ?? signOutFailed}</Alert>
           </div>
         ) : null}
@@ -355,7 +357,7 @@ function PasskeyItem({
     return (
       <li>
         <form
-          className="flex flex-wrap items-end gap-2"
+          className="fh-signin-rename"
           onSubmit={(event) => {
             event.preventDefault();
             const next = name.trim();
@@ -364,7 +366,7 @@ function PasskeyItem({
             if (next !== passkey.name) onRename(next);
           }}
         >
-          <div className="cap-field grow">
+          <div className="fh-grow cap-field">
             <label className="cap-field-label" htmlFor={fieldId}>
               Passkey name
             </label>
@@ -397,21 +399,21 @@ function PasskeyItem({
   }
 
   return (
-    <li className="flex flex-wrap items-center justify-between gap-3">
-      <span className="text-label text-text">
+    <li className="fh-signin-item">
+      <span className="fh-small fh-text">
         {passkey.name}
-        <span className="block text-text-tertiary">{facts.join(", ")}</span>
+        <span className="fh-line fh-quiet">{facts.join(", ")}</span>
       </span>
-      <span className="flex gap-2">
+      <span className="fh-pair">
         <Button
           size="sm"
           pending={busy === `rename-${passkey.id}`}
           onClick={() => setRenaming(true)}
         >
-          Rename<span className="sr-only"> {passkey.name}</span>
+          Rename<span className="cap-sr-only"> {passkey.name}</span>
         </Button>
         <Button size="sm" pending={busy === passkey.id} onClick={onRemove}>
-          Remove<span className="sr-only"> {passkey.name}</span>
+          Remove<span className="cap-sr-only"> {passkey.name}</span>
         </Button>
       </span>
     </li>

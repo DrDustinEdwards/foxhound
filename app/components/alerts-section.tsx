@@ -82,12 +82,12 @@ export function AlertsSection({
   const rowError = result && !result.ok && result.action !== "create" ? result.error : undefined;
 
   return (
-    <section aria-labelledby="alerts-heading" className="mt-12">
-      <div className="mb-6">
-        <h2 id="alerts-heading" className="m-0 text-heading font-semibold text-text">
+    <section aria-labelledby="alerts-heading" className="fh-alerts">
+      <div className="fh-alerts-head">
+        <h2 id="alerts-heading" className="fh-semibold fh-text">
           Alerts
         </h2>
-        <p className="m-0 mt-1 text-label text-text-secondary">
+        <p className="fh-alerts-sub fh-small fh-soft">
           Get notified when Recovery metrics cross a threshold.
         </p>
       </div>
@@ -95,11 +95,11 @@ export function AlertsSection({
       {/* Recova's first card has no heading: a count line and a button lead
           it. Capsomer's Panel needs a title, so this is Capsomer's panel
           markup with its body only, as /intelligence/customers does. */}
-      <div className="mb-6">
+      <div className="fh-alerts-head">
         <div className="cap-panel">
           <div className="cap-panel-body">
             {rowError ? (
-              <div className="mb-4 min-w-0">
+              <div className="fh-alerts-banner">
                 <Alert tone="crit">{rowError}</Alert>
               </div>
             ) : null}
@@ -107,17 +107,17 @@ export function AlertsSection({
             {/* min-w-0 on each of the page's own blocks in Capsomer's panel
                 body, which is a grid: without it a wide table pushes the
                 card past the 800px column instead of scrolling inside it. */}
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-3 text-label">
-              <p className="m-0 text-text-secondary">
+            <div className="fh-alerts-banner-row fh-small">
+              <p className="fh-soft">
                 {plural(alerts.length, "alert")} configured
                 {notificationEmail ? (
-                  <span className="text-text-subtle"> · email goes to {notificationEmail}</span>
+                  <span className="fh-faint"> · email goes to {notificationEmail}</span>
                 ) : null}
               </p>
               {creating ? (
                 // Recova keeps the button on screen and disabled while the
                 // form is open. Capsomer's Button says why it is disabled.
-                <div className="flex flex-wrap items-center gap-2">
+                <div className="cap-cluster" data-gap="3">
                   <Button variant="primary" disabledReason="The form is open below.">
                     Create alert
                   </Button>
@@ -134,13 +134,13 @@ export function AlertsSection({
             </div>
 
             {alerts.length === 0 && !creating ? (
-              <p className="m-0 min-w-0 py-8 text-center text-label text-text-subtle">
+              <p className="fh-alerts-empty fh-center fh-small fh-faint">
                 No alerts yet. Create one to get notified when metrics need attention.
               </p>
             ) : null}
 
             {alerts.length > 0 ? (
-              <div className="mt-5 min-w-0">
+              <div className="fh-alerts-table">
                 <div
                   className="cap-table-wrap"
                   data-reflow="medium"
@@ -174,16 +174,16 @@ export function AlertsSection({
                           <tr key={a.id}>
                             <td>{a.label ?? "-"}</td>
                             <td data-label="Metric">
-                              <span className="text-text-subtle">{alertMetricLabel(a.metric)}</span>
+                              <span className="fh-faint">{alertMetricLabel(a.metric)}</span>
                             </td>
                             <td data-label="Condition">{condition}</td>
                             <td data-label="Channel">
-                              <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-subtle">
+                              <span className="fh-caps-fine fh-mono fh-tiny fh-faint">
                                 {a.channel}
                               </span>
                             </td>
                             <td data-label="Last triggered">
-                              <span className="font-mono text-text-subtle">
+                              <span className="fh-mono fh-faint">
                                 {dateOrNever(a.lastTriggeredAt)}
                               </span>
                             </td>
@@ -225,10 +225,10 @@ export function AlertsSection({
         </div>
       </div>
 
-      <div className="mb-6">
+      <div className="fh-alerts-head">
         <Panel title="Recent triggers">
           {history.length === 0 ? (
-            <p className="m-0 text-label text-text-subtle">
+            <p className="fh-small fh-faint">
               No alerts have fired yet. Triggers will appear here when a threshold crosses.
             </p>
           ) : (
@@ -255,24 +255,20 @@ export function AlertsSection({
                     <tr key={h.id}>
                       <td>{alertMetricLabel(h.metric)}</td>
                       <td data-label="Condition">
-                        <span className="text-text-subtle">
+                        <span className="fh-faint">
                           {alertShortCondition(h.direction, h.metric, h.thresholdValue)}
                         </span>
                       </td>
                       <td data-label="Actual value">
-                        <span className="font-mono">
+                        <span className="fh-mono">
                           {formatThresholdValue(h.metric, h.actualValue)}
                         </span>
                       </td>
                       <td data-label="Channel">
-                        <span className="font-mono text-micro uppercase tracking-[0.06em] text-text-subtle">
-                          {h.channel}
-                        </span>
+                        <span className="fh-caps-fine fh-mono fh-tiny fh-faint">{h.channel}</span>
                       </td>
                       <td data-label="Fired at">
-                        <span className="font-mono text-text-subtle">
-                          {formatDateTime(h.firedAt)}
-                        </span>
+                        <span className="fh-mono fh-faint">{formatDateTime(h.firedAt)}</span>
                       </td>
                     </tr>
                   ))}
@@ -311,7 +307,7 @@ function AlertSwitch({
       <input type="hidden" name="alertId" value={id} />
       <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
       <Switch
-        label={<span className="sr-only">{name} alert</span>}
+        label={<span className="cap-sr-only">{name} alert</span>}
         checked={enabled}
         busy={busy}
         onCheckedChange={() => form.current?.requestSubmit()}
@@ -348,11 +344,11 @@ function CreateAlertForm({
   const suffix = alertThresholdSuffix(metric);
 
   return (
-    <div className="mt-6 min-w-0">
+    <div className="fh-alerts-form">
       <Panel title="Create a new alert" level={3}>
-        <DemoForm method="post" className="min-w-0">
+        <DemoForm method="post" className="cap-shrink">
           <input type="hidden" name="_action" value="create" />
-          <div className="flex flex-col gap-4 text-label">
+          <div className="cap-stack fh-small" data-gap="5">
             <Field label="Metric">
               <Select
                 native
@@ -394,7 +390,7 @@ function CreateAlertForm({
             <TextField
               label={
                 <>
-                  Label <span className="text-text-subtle">(optional)</span>
+                  Label <span className="fh-faint">(optional)</span>
                 </>
               }
               name="label"
@@ -403,7 +399,7 @@ function CreateAlertForm({
 
             {/* Recova's Email or Slack. Slack waits for a webhook, as Recova's
                 button does, with its sentence saying where to add one. */}
-            <div className="min-w-0">
+            <div className="cap-shrink">
               <Segmented
                 legend="Channel"
                 name="channel"
@@ -416,7 +412,7 @@ function CreateAlertForm({
                 ]}
               />
               {!hasSlack ? (
-                <p className="m-0 mt-1 text-micro text-text-subtle">
+                <p className="fh-alerts-sub fh-tiny fh-faint">
                   Add a Slack webhook above and save it first.
                 </p>
               ) : null}
@@ -424,12 +420,12 @@ function CreateAlertForm({
           </div>
 
           {error ? (
-            <div className="mt-4">
+            <div className="fh-alerts-field">
               <Alert tone="crit">{error}</Alert>
             </div>
           ) : null}
 
-          <div className="mt-5 flex flex-wrap items-center gap-3">
+          <div className="cap-cluster fh-alerts-actions" data-gap="4">
             <Button type="submit" variant="primary" pending={busy}>
               {busy ? "Creating..." : "Create alert"}
             </Button>

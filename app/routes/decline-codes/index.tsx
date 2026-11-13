@@ -14,6 +14,7 @@ import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
+import "~/reference.css";
 
 // NEW in Phase 6 Pass 3 (net-new, no legacy equivalent): the decline-code
 // reference library hub. Cards are grouped by classification category
@@ -54,35 +55,25 @@ export default function DeclineCodesIndex() {
 
       {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
           the cards' accent edge and the focus ring read the family. */}
-      <div
-        className="fh-cap mx-auto max-w-5xl px-4 pb-16 sm:px-8"
-        data-cap-site="foxhound"
-        data-family="amber"
-      >
+      <div className="fh-mk-page fh-cap" data-cap-site="foxhound" data-family="amber">
         {byCategory.map((group) => (
-          <section key={group.category} className="border-b border-border-sub py-8 last:border-0">
-            <div className="mb-4 flex items-center gap-2">
-              <h2 className="text-title font-medium text-text">{CATEGORY_LABEL[group.category]}</h2>
+          <section key={group.category} className="fh-codes-band">
+            <div className="fh-codes-row">
+              <h2 className="fh-title fh-medium fh-text">{CATEGORY_LABEL[group.category]}</h2>
               <Pill {...BADGE_PILL[categoryBadgeTone(group.category)]}>
                 {CATEGORY_STATUS_LABEL[group.category]}
               </Pill>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="fh-mk-cards-3">
               {group.codes.map((code) => (
-                <Link
-                  key={code.code}
-                  to={`/decline-codes/${code.code}`}
-                  className={`${CARD_SM} group`}
-                >
+                <Link key={code.code} to={`/decline-codes/${code.code}`} className={`${CARD_SM}`}>
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-2 font-mono text-label font-medium text-text">
+                      <div className="fh-codes-block fh-mono fh-small fh-medium fh-text">
                         {code.displayName}
                       </div>
-                      <div className="mb-3 font-mono text-micro text-text-tertiary">
-                        {code.code}
-                      </div>
-                      <div className="text-label text-brand-text">
+                      <div className="fh-codes-block-2 fh-mono fh-tiny fh-quiet">{code.code}</div>
+                      <div className="fh-small fh-brand">
                         Read more <Arrow />
                       </div>
                     </div>

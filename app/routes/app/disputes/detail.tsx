@@ -248,7 +248,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   });
 
   const saveControls = (
-    <div className="mt-2 flex flex-wrap items-center gap-3">
+    <div className="cap-cluster fh-dispute-actions" data-gap="4">
       <button
         type="submit"
         className="cap-btn"
@@ -260,7 +260,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       >
         {saving ? "Saving…" : "Save draft"}
       </button>
-      <span role="status" className="text-micro">
+      <span role="status" className="fh-tiny">
         {saveResult && "ok" in saveResult ? (
           <Status tone="ok">Saved.</Status>
         ) : saveResult && "error" in saveResult ? (
@@ -271,39 +271,36 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   );
 
   return (
-    <div className="mx-auto max-w-[960px] px-4 py-10 md:px-8">
+    <div className="fh-dispute">
       {/* Recova's main: max-w-[960px] mx-auto px-4 md:px-8 py-10. Its pb-28
           clears the sticky action bar, which Foxhound's approve card replaces. */}
-      <Link
-        to={backLink.href}
-        className="mb-6 inline-flex min-h-6 items-center text-label text-text-tertiary no-underline hover:text-text"
-      >
+      <Link to={backLink.href} className="fh-dispute-back fh-small fh-quiet">
         {backLink.label}
       </Link>
 
       {/* 1. Recova's header: the amount large in the accent, the customer as the
           heading, the reason, and the days remaining or the outcome. */}
-      <header className="mb-6 flex flex-wrap items-start justify-between gap-4">
+      <header className="fh-dispute-header">
         <div>
-          <div className="font-mono text-display font-bold leading-none text-brand-text">
+          <div className="fh-mono fh-display fh-bold fh-tight fh-brand">
             {formatMoney(dispute.amountCents, dispute.currency)}
           </div>
-          <h1 className="m-0 mt-3 text-title font-medium text-text">
+          <h1 className="fh-dispute-title fh-title fh-medium fh-text">
             {dispute.customerName || "Unknown customer"}
           </h1>
-          <div className="mt-0.5 text-label text-text-subtle">
+          <div className="fh-dispute-reason fh-small fh-faint">
             {humanizeDisputeReason(dispute.reason)}
           </div>
         </div>
-        <div className="text-right">
+        <div className="fh-right">
           {/* An inquiry is not a chargeback; Recova did not tell them apart. */}
           {!resolved && isInquiryStatus(dispute.status) ? (
-            <div className="mb-1">
+            <div className="fh-dispute-status">
               <Pill>Inquiry</Pill>
             </div>
           ) : null}
           {!resolved ? (
-            <div className={`font-mono text-label ${deadlineClassName(deadlineUrgency(days))}`}>
+            <div className={`fh-mono fh-small ${deadlineClassName(deadlineUrgency(days))}`}>
               {deadlineRemaining(days)}
             </div>
           ) : null}
@@ -321,7 +318,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
 
       {/* 2. Recova's triage banner: fight in green, accept in the accent. */}
       {dispute.triageRecommendation ? (
-        <div className="mb-6">
+        <div className="fh-dispute-section">
           <Banner
             tone={dispute.triageRecommendation === "fight" ? "ok" : "warn"}
             title={
@@ -334,12 +331,10 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             body={
               <>
                 {dispute.triageReasoning ? (
-                  <p className="m-0 mb-1 text-label text-text">{dispute.triageReasoning}</p>
+                  <p className="fh-dispute-status fh-small fh-text">{dispute.triageReasoning}</p>
                 ) : null}
                 {typeof dispute.triageConfidence === "number" ? (
-                  <p className="m-0 text-micro text-text-tertiary">
-                    Confidence: {dispute.triageConfidence}%
-                  </p>
+                  <p className="fh-tiny fh-quiet">Confidence: {dispute.triageConfidence}%</p>
                 ) : null}
               </>
             }
@@ -352,15 +347,15 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       <RecommendationBanner prediction={prediction} surface="dispute" nowMs={nowMs} />
 
       {/* 3. Timeline. */}
-      <div className="mb-6">
+      <div className="fh-dispute-section">
         <Panel title="Timeline">
-          <ol className="m-0 list-none space-y-2 p-0">
+          <ol className="fh-dispute-timeline">
             {timeline.map((item, i) => (
-              <li key={i} className="flex items-baseline gap-4">
-                <span className="w-[140px] shrink-0 font-mono text-micro text-text-subtle">
+              <li key={i} className="fh-dispute-event">
+                <span className="fh-dispute-fact-label fh-mono fh-tiny fh-faint">
                   {item.at ? (formatDate(item.at, { style: "medium", time: true }) ?? "") : ""}
                 </span>
-                <span className="text-label text-text">{item.label}</span>
+                <span className="fh-small fh-text">{item.label}</span>
               </li>
             ))}
           </ol>
@@ -368,22 +363,20 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       </div>
 
       {/* 4. Recova's DisputeEvidenceSummary, over what Foxhound writes. */}
-      <div className="mb-6">
+      <div className="fh-dispute-section">
         <Panel title="What Foxhound found">
-          <div className="text-label">
+          <div className="fh-small">
             {findings.fraudDecline ? (
-              <p className="m-0 mb-3">
+              <p className="fh-dispute-lede">
                 <Status tone="warn">
                   Fraud decline on record ({findings.fraudDecline.code ?? "fraud category"})
                 </Status>
               </p>
             ) : null}
 
-            <div className="mb-4">
-              <h3 className="m-0 mb-2 text-micro font-medium text-text-secondary">
-                Customer context
-              </h3>
-              <dl className="m-0 space-y-1">
+            <div className="fh-dispute-group">
+              <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">Customer context</h3>
+              <dl className="fh-dispute-facts">
                 {dispute.customerName ? (
                   <FieldRow label="Name" value={dispute.customerName} />
                 ) : null}
@@ -419,31 +412,31 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             </div>
 
             {dispute.priorChargesCount !== null && dispute.priorChargesCount > 0 ? (
-              <div className="mb-4">
-                <h3 className="m-0 mb-2 text-micro font-medium text-text-secondary">
+              <div className="fh-dispute-group">
+                <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">
                   Prior charge history
                 </h3>
-                <p className="m-0 mb-2 text-text">
+                <p className="fh-dispute-group-title fh-text">
                   {plural(dispute.priorChargesCount, "prior successful charge")} totaling{" "}
                   {formatMoney(dispute.priorChargesTotal ?? 0, dispute.currency)}
                 </p>
                 {priorCharges.length > 0 ? (
-                  <table className="w-full text-micro">
+                  <table className="fh-dispute-charges fh-tiny">
                     <thead>
-                      <tr className="text-text-tertiary">
-                        <th className="py-1 text-left font-medium">Date</th>
-                        <th className="py-1 text-right font-medium">Amount</th>
-                        <th className="py-1 pl-3 text-left font-medium">Status</th>
+                      <tr className="fh-quiet">
+                        <th className="fh-dispute-cell fh-left fh-medium">Date</th>
+                        <th className="fh-dispute-cell fh-right fh-medium">Amount</th>
+                        <th className="fh-dispute-cell-pad fh-left fh-medium">Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {priorCharges.slice(0, 5).map((c, i) => (
-                        <tr key={i} className="border-t border-border-sub">
-                          <td className="py-1 text-text-tertiary">{c.date.slice(0, 10)}</td>
-                          <td className="py-1 text-right font-mono">
+                        <tr key={i} className="fh-dispute-charge">
+                          <td className="fh-dispute-cell fh-quiet">{c.date.slice(0, 10)}</td>
+                          <td className="fh-dispute-cell fh-right fh-mono">
                             {formatMoney(c.amount, c.currency)}
                           </td>
-                          <td className="py-1 pl-3 text-text-tertiary">{c.status}</td>
+                          <td className="fh-dispute-cell-pad fh-quiet">{c.status}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -453,19 +446,19 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             ) : null}
 
             {findings.recovery && findings.recovery.emails.length > 0 ? (
-              <div className="mb-4">
-                <h3 className="m-0 mb-2 text-micro font-medium text-text-secondary">
+              <div className="fh-dispute-group">
+                <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">
                   Recovery email history
                 </h3>
-                <ul className="m-0 list-none space-y-1 p-0">
+                <ul className="fh-dispute-facts">
                   {findings.recovery.emails.map((e) => (
-                    <li key={e.id} className="text-text">
-                      <span className="text-text-tertiary">
+                    <li key={e.id} className="fh-text">
+                      <span className="fh-quiet">
                         {formatDate(e.executedAt, { style: "medium" }) ?? ""}
                       </span>{" "}
                       {e.label}
                       {e.openedCount !== null && e.openedCount > 0 ? (
-                        <span className="text-text-subtle"> · opened {e.openedCount}x</span>
+                        <span className="fh-faint"> · opened {e.openedCount}x</span>
                       ) : null}
                     </li>
                   ))}
@@ -474,24 +467,24 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             ) : null}
 
             {findings.recovery ? (
-              <div className="mt-3 border-t border-border-sub pt-3">
-                <h3 className="m-0 mb-2 text-micro uppercase tracking-widest text-text-tertiary">
+              <div className="fh-dispute-context">
+                <h3 className="fh-dispute-group-title fh-tiny fh-quiet fh-caps-wide">
                   Recovery context
                 </h3>
-                <div className="space-y-1 text-text-secondary">
+                <div className="fh-dispute-facts fh-soft">
                   <div>
                     Decline category:{" "}
-                    <span className="text-text">
+                    <span className="fh-text">
                       {declineWord(findings.recovery.declineCategory)}
                     </span>
                   </div>
                   <div>
                     Steps attempted:{" "}
-                    <span className="text-text">{findings.recovery.stepsAttempted}</span>
+                    <span className="fh-text">{findings.recovery.stepsAttempted}</span>
                   </div>
                   <div>
                     Sequence outcome:{" "}
-                    <span className="text-text">
+                    <span className="fh-text">
                       {FAILED_PAYMENT_STATUS_LABELS[findings.recovery.status] ??
                         findings.recovery.status}
                     </span>
@@ -501,11 +494,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             ) : null}
 
             {subscription ? (
-              <div className="mt-4">
-                <h3 className="m-0 mb-2 text-micro font-medium text-text-secondary">
-                  Subscription
-                </h3>
-                <dl className="m-0 space-y-1">
+              <div className="fh-dispute-more">
+                <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">Subscription</h3>
+                <dl className="fh-dispute-facts">
                   <FieldRow label="Status" value={subscription.status} />
                   {subscription.start_date ? (
                     <FieldRow
@@ -542,20 +533,20 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         onSubmit={() => draftSubmitted()}
       >
         <input type="hidden" name="intent" value="save" />
-        <div className="mb-6">
+        <div className="fh-dispute-section">
           <Panel title="Staged evidence">
-            <div className="text-label">
+            <div className="fh-small">
               {drafted.length === 0 ? (
                 // Recova said "Evidence is being prepared". Foxhound drafts at
                 // intake and drafts nothing when no record grounds it
                 // (draftDisputeEvidence), so nothing is on the way.
-                <p className="m-0 text-text-subtle">
+                <p className="fh-faint">
                   Foxhound found no records for this charge to draft evidence from.
                 </p>
               ) : (
                 <>
                   {structured.length > 0 ? (
-                    <dl className="m-0 mb-4 space-y-2">
+                    <dl className="fh-dispute-evidence">
                       {structured.map((f) => (
                         <FieldRow
                           key={f.id}
@@ -569,7 +560,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     <div>
                       <label
                         htmlFor="dispute_evidence_narrative"
-                        className="mb-2 block text-micro font-medium uppercase tracking-wide text-text-tertiary"
+                        className="fh-dispute-group-title fh-line fh-tiny fh-medium fh-quiet fh-caps"
                       >
                         Evidence narrative (editable)
                       </label>
@@ -592,7 +583,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
 
         {/* 6. Recova's Evidence files. Its controls belong to the upload
             and remove forms below, through the form attribute. */}
-        <div className="mb-6">
+        <div className="fh-dispute-section">
           <EvidenceFiles
             disputeId={dispute.id}
             files={files}
@@ -602,13 +593,13 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         </div>
 
         {draftEditable ? (
-          <div className="mb-6">
+          <div className="fh-dispute-section">
             <Panel title="Additional evidence (optional)">
-              <div className="text-label">
+              <div className="fh-small">
                 <label htmlFor="dispute_customer_ip" className="cap-field-label">
                   Customer IP
                 </label>
-                <div className="mt-1">
+                <div className="fh-dispute-input">
                   <input
                     id="dispute_customer_ip"
                     name="customer_ip"
@@ -619,14 +610,14 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     aria-describedby="dispute_customer_ip_help"
                   />
                 </div>
-                <p id="dispute_customer_ip_help" className="m-0 mt-1 text-micro text-text-subtle">
+                <p id="dispute_customer_ip_help" className="fh-dispute-input fh-tiny fh-faint">
                   Only add if you have the actual IP from your own logs. Do not guess. Saved with
                   your draft and included when you submit.
                 </p>
                 {shippingEditable ? (
-                  <div className="mt-4">
+                  <div className="fh-dispute-more">
                     {/* Recova's three shipping inputs, one row of three on desktop. */}
-                    <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                    <div className="fh-dispute-fields">
                       <div className="cap-field">
                         <label htmlFor="dispute_tracking_number" className="cap-field-label">
                           Tracking number
@@ -635,7 +626,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                           id="dispute_tracking_number"
                           name={SHIPPING_TRACKING_FIELD}
                           type="text"
-                          className="cap-input font-mono"
+                          className="cap-input fh-mono"
                           defaultValue={shipping[SHIPPING_TRACKING_FIELD]}
                           aria-describedby="dispute_shipping_help"
                         />
@@ -675,7 +666,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                         />
                       </div>
                     </div>
-                    <p id="dispute_shipping_help" className="m-0 mt-2 text-micro text-text-subtle">
+                    <p id="dispute_shipping_help" className="fh-dispute-help-text fh-tiny fh-faint">
                       Saved with your draft and included when you submit.
                     </p>
                   </div>
@@ -697,26 +688,26 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           (approved 2026-08-28), and once submitted, its approval record and
           fee receipt. */}
       {editable ? (
-        <div className="mt-6">
+        <div className="fh-dispute-submit">
           <Panel title="Approve and submit">
-            <div className="text-label">
-              <p className="m-0 text-text-secondary">
+            <div className="fh-small">
+              <p className="fh-soft">
                 Submitting this evidence to Stripe approves a fee of{" "}
-                <span className="font-mono text-text">{formatMoney(fee, dispute.currency)}</span> (
+                <span className="fh-mono fh-text">{formatMoney(fee, dispute.currency)}</span> (
                 {disputeFeeTerms()}) if Foxhound wins this dispute. Merchant-fought or lost disputes
                 are never billed.
               </p>
               {approveError ? (
-                <div className="mt-3">
+                <div className="fh-dispute-gap">
                   <Banner tone="crit">{approveError}</Banner>
                 </div>
               ) : null}
               {!isOwner ? (
-                <p className="m-0 mt-4 text-text-secondary">
+                <p className="fh-dispute-more fh-soft">
                   Only the account owner can approve or accept a dispute.
                 </p>
               ) : (
-                <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="cap-cluster fh-dispute-more" data-gap="4">
                   <Form method="post">
                     <input type="hidden" name="intent" value="approve" />
                     <ApproveButton
@@ -726,7 +717,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     />
                   </Form>
                   {approval ? (
-                    <p className="m-0 text-text-secondary">{ACCEPT_UNAVAILABLE_APPROVED_LINE}</p>
+                    <p className="fh-soft">{ACCEPT_UNAVAILABLE_APPROVED_LINE}</p>
                   ) : (
                     // Recova's Accept (DisputeActionBar.tsx): "Accept dispute", then in
                     // its place the line, "Yes, accept" and "Cancel". Opening lands on
@@ -752,16 +743,16 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           </Panel>
         </div>
       ) : approval || resolved ? (
-        <div className="mt-6">
+        <div className="fh-dispute-submit">
           <Panel title="Approval">
-            <div className="text-label">
-              <p className="m-0 text-text-secondary">
+            <div className="fh-small">
+              <p className="fh-soft">
                 {approval
                   ? `Approved by ${approval.approvedByEmail} on ${formatDate(approval.approvedAt, { style: "medium", time: true }) ?? ""}`
                   : "No approval record."}
               </p>
               {resolved ? (
-                <p className="m-0 mt-2 text-text">
+                <p className="fh-dispute-help-text fh-text">
                   {state === "resolved_won"
                     ? dispute.resolvedFeeCents != null
                       ? `Won. Fee of ${formatMoney(dispute.resolvedFeeCents, dispute.resolvedFeeCurrency ?? dispute.currency)} billed at the next monthly run.`

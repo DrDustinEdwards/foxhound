@@ -1,0 +1,274 @@
+/* The parts only the product pages, their hub and the demos page use, as Recova laid them out. In the site layer
+   (app.css), after the public pages' shared parts (marketing.css). */
+@layer site {
+  .fh-auditprev-block {
+    padding: 1.25rem;
+  }
+  .fh-auditprev-label {
+    margin-top: 0.125rem;
+  }
+  .fh-auditprev-block-2 {
+    margin-bottom: 0.25rem;
+  }
+  .fh-auditprev-block-3 {
+    margin-bottom: 0.75rem;
+  }
+  .fh-auditprev-block-4 {
+    overflow: hidden;
+  }
+  .fh-auditprev-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+    background-color: var(--surface2);
+    padding: 0.75rem 1.25rem;
+  }
+  .fh-auditprev-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1.25rem;
+  }
+  .fh-dispprev-block {
+    --tiles-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fh-dispprev-block-2 {
+    padding: 1.25rem;
+  }
+  .fh-dispprev-block-3 {
+    margin-bottom: 2rem;
+  }
+  .fh-intelprev-col {
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+    padding: 1.25rem;
+  }
+  .fh-intelprev-block {
+    --tiles-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (width >= 48rem) {
+    .fh-intelprev-block {
+      --tiles-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .fh-intelprev-block-2 {
+    padding: 1.25rem;
+  }
+  .fh-intelprev-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+  @media (width >= 40rem) {
+    .fh-intelprev-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .fh-intelprev-text {
+    margin-bottom: 0.25rem;
+  }
+  .fh-intelprev-text-2 {
+    margin-top: 0.125rem;
+  }
+  .fh-product-band {
+    border-bottom: 1px solid var(--border);
+    padding: 5rem 1.25rem;
+  }
+  @media (width >= 40rem) {
+    .fh-product-band {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-product-wrap {
+    margin-inline: auto;
+    max-width: 680px;
+  }
+  .fh-product-block {
+    margin-bottom: 1.5rem;
+  }
+  .fh-product-icon {
+    inline-size: 0.75rem;
+    block-size: 0.75rem;
+    flex-shrink: 0;
+  }
+  .fh-product-title {
+    margin-bottom: 1rem;
+    line-height: 1.1;
+    letter-spacing: -0.025em;
+  }
+  .fh-product-wrap-2 {
+    margin-inline: auto;
+    margin-bottom: 0.75rem;
+    max-width: 520px;
+  }
+  .fh-product-text {
+    margin-bottom: 2rem;
+  }
+  .fh-product-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+  }
+  .fh-product-band-2 {
+    border-bottom: 1px solid var(--border);
+    padding: 4rem 1.25rem;
+  }
+  @media (width >= 40rem) {
+    .fh-product-band-2 {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-product-title-2 {
+    margin-bottom: 2.5rem;
+  }
+  .fh-product-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 2rem;
+  }
+  @media (width >= 40rem) {
+    .fh-product-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .fh-product-block-2 {
+    margin-bottom: 0.75rem;
+  }
+  .fh-product-title-3 {
+    margin-bottom: 0.5rem;
+  }
+  .fh-product-block-3 {
+    margin-bottom: 4rem;
+  }
+  :where(.fh-product-block-4 > :not(:last-child)) {
+    margin-block: 0 6rem;
+  }
+  :where(.fh-product-block-5 > :not(:last-child)) {
+    margin-block: 0 1.5rem;
+  }
+  .fh-product-wrap-3 {
+    margin-inline: auto;
+    max-width: 640px;
+  }
+  .fh-product-title-4 {
+    margin-bottom: 0.75rem;
+    line-height: 1.375;
+  }
+  .fh-product-block-6 {
+    max-height: 480px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  .fh-product-block-7 {
+    border-radius: 1rem;
+    --gap: 2rem;
+    --pad-card: 2rem;
+  }
+  .fh-product-band-3 {
+    border-bottom: 1px solid var(--border);
+    background-color: var(--surface);
+    padding: 4rem 1.25rem;
+  }
+  @media (width >= 40rem) {
+    .fh-product-band-3 {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-product-block-8 {
+    --gap: 2rem;
+    --pad-card: 2rem;
+    --surface: var(--bg);
+  }
+  .fh-product-block-9 {
+    margin-bottom: 0.25rem;
+  }
+  .fh-product-list {
+    margin-bottom: 2rem;
+  }
+  :where(.fh-product-list > :not(:last-child)) {
+    margin-block: 0 0.75rem;
+  }
+  .fh-product-label {
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+  }
+  .fh-product-grid-2 {
+    display: grid;
+  }
+  .fh-product-wrap-4 {
+    margin-inline: auto;
+    max-width: 620px;
+  }
+  .fh-product-band-4 {
+    padding: 5rem 1.25rem;
+  }
+  @media (width >= 40rem) {
+    .fh-product-band-4 {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-product-text-2 {
+    margin-top: 0.75rem;
+  }
+  .fh-demos-wrap {
+    margin-inline: auto;
+    max-width: 1200px;
+    padding-inline: 1rem;
+    padding-bottom: 4rem;
+  }
+  @media (width >= 48rem) {
+    .fh-demos-wrap {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-demos-grid {
+    display: grid;
+  }
+  .fh-demos-text {
+    margin-top: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .fh-demos-text-2 {
+    margin-top: 2rem;
+  }
+  .fh-products-wrap {
+    margin-inline: auto;
+    max-width: 720px;
+    padding-inline: 1.25rem;
+    padding-bottom: 4rem;
+  }
+  @media (width >= 40rem) {
+    .fh-products-wrap {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-mk-card {
+    border-radius: 0.5rem;
+    --gap: 1.25rem;
+    --pad-card: 1.25rem;
+  }
+  .fh-products-block {
+    margin-bottom: 0.5rem;
+  }
+  .fh-products-block-2 {
+    margin-bottom: 0.75rem;
+  }
+  .fh-products-block-3 {
+    margin-bottom: 1rem;
+  }
+  @media (width >= 48rem) {
+    .fh-dispprev-tiles-5 {
+      --tiles-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 40rem) {
+    .fh-dispprev-tiles-3 {
+      --tiles-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+}

@@ -38,11 +38,7 @@ export interface LegalSectionDef {
  */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
-    <div
-      className="fh-cap mx-auto max-w-[720px] px-6 pb-16"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-mk-article fh-cap" data-cap-site="foxhound" data-family="amber">
       {children}
     </div>
   );
@@ -57,13 +53,11 @@ export function LegalContents({
   sections: LegalSectionDef[];
 }) {
   return (
-    <section className="mb-12">
-      <h2 className="mb-3 font-mono text-micro uppercase tracking-[0.06em] text-text-tertiary">
-        {heading}
-      </h2>
-      <ol className="m-0 grid grid-cols-1 gap-x-6 gap-y-1.5 p-0 sm:grid-cols-2">
+    <section className="fh-legal-band">
+      <h2 className="fh-mk-kicker-gap fh-mono fh-tiny fh-quiet">{heading}</h2>
+      <ol className="fh-mk-grid-2">
         {sections.map((s) => (
-          <li key={s.id} className="list-none text-label">
+          <li key={s.id} className="fh-small">
             <a href={`#${s.id}`}>
               {s.number}. {s.title}
             </a>
@@ -75,10 +69,10 @@ export function LegalContents({
 }
 
 export function LegalRule() {
-  return <hr className="my-10 border-border" />;
+  return <hr className="fh-legal-block" />;
 }
 
-const LEGAL_H2 = "mb-4 mt-12 text-title font-medium text-text";
+const LEGAL_H2 = "fh-legal-heading fh-title fh-medium fh-text";
 
 export function LegalSection({
   id,
@@ -88,7 +82,7 @@ export function LegalSection({
 }: LegalSectionDef & { children: ReactNode }) {
   return (
     <section>
-      <h2 id={id} className={`${LEGAL_H2} scroll-mt-20`}>
+      <h2 id={id} className={`fh-legal-title ${LEGAL_H2}`}>
         {number}. {title}
       </h2>
       {children}
@@ -103,22 +97,18 @@ export function LegalPreambleHeading({ children }: { children: ReactNode }) {
 
 export function LegalH3({ id, children }: { id?: string; children: ReactNode }) {
   return (
-    <h3 id={id} className="mb-2 mt-6 scroll-mt-20 text-item-title font-medium text-text">
+    <h3 id={id} className="fh-legal-title-2 fh-item-title fh-medium fh-text">
       {children}
     </h3>
   );
 }
 
 export function LegalP({ children }: { children: ReactNode }) {
-  return <p className="mb-4 text-subhead leading-relaxed text-text-secondary">{children}</p>;
+  return <p className="fh-legal-text fh-subhead fh-relaxed fh-soft">{children}</p>;
 }
 
 export function LegalList({ children }: { children: ReactNode }) {
-  return (
-    <ul className="mb-4 list-disc space-y-1.5 pl-6 text-subhead leading-relaxed text-text-secondary">
-      {children}
-    </ul>
-  );
+  return <ul className="fh-legal-list fh-subhead fh-relaxed fh-soft">{children}</ul>;
 }
 
 export function LegalMailto({ email }: { email: string }) {

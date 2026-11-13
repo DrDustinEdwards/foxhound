@@ -24,31 +24,23 @@ function drawResult(out: HTMLElement, result: Result | null): void {
   if (!result) return;
   if ("error" in result) {
     out.appendChild(
-      node(
-        "div",
-        "border-t border-border-sub p-5 text-label text-error-text",
-        "Generation failed. Try again.",
-      ),
+      node("div", "fh-sample-result fh-small fh-error", "Generation failed. Try again."),
     );
     return;
   }
-  const box = node("div", "border-t border-border-sub p-5");
+  const box = node("div", "fh-sample-result");
   for (const part of [
-    node("p", "mb-3 font-mono text-source uppercase tracking-widest text-text-subtle", "Subject"),
+    node("p", "fh-sample-label fh-mono fh-source fh-caps-wide fh-faint", "Subject"),
+    node("div", "fh-sample-subject fh-copy fh-medium fh-text", result.subject),
+    node("p", "fh-sample-label-tight fh-mono fh-source fh-caps-wide fh-faint", "Body"),
     node(
       "div",
-      "mb-4 rounded-lg border border-border-sub bg-bg px-3 py-2 text-copy font-medium text-text",
-      result.subject,
-    ),
-    node("p", "mb-2 font-mono text-source uppercase tracking-widest text-text-subtle", "Body"),
-    node(
-      "div",
-      "whitespace-pre-wrap rounded-lg border border-border-sub bg-bg px-3 py-3 font-mono text-label leading-[1.7] text-text-secondary",
+      "fh-sample-body fh-pre-wrap fh-mono fh-small fh-soft",
       result.body.replace("{{update_url}}", UPDATE_URL),
     ),
     node(
       "p",
-      "mt-3 font-mono text-source text-text-subtle",
+      "fh-sample-note fh-mono fh-source fh-faint",
       "Generated in real time by AI, for a fictional customer.",
     ),
   ])

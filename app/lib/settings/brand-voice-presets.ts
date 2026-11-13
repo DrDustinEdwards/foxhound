@@ -24,8 +24,8 @@ export interface CategoryVoiceRow {
   key: "soft" | "expired" | "network" | "fraud";
   label: string;
   description: string;
-  /** Legacy's colored dot per category. */
-  dotClass: string;
+  /** Legacy's colored dot per category: a palette color name. */
+  dot: "blue" | "brand" | "orange" | "red";
 }
 
 /**
@@ -43,25 +43,25 @@ export const CATEGORY_VOICE_ROWS: readonly CategoryVoiceRow[] = [
     key: "soft",
     label: "Soft declines",
     description: "Insufficient funds, temporary holds. Most common, highest recovery rate.",
-    dotClass: "bg-blue",
+    dot: "blue",
   },
   {
     key: "expired",
     label: "Expired card",
     description: "Card expired. Customer needs to update their payment method.",
-    dotClass: "bg-brand",
+    dot: "brand",
   },
   {
     key: "network",
     label: "Network declines",
     description: "Bank or processor errors. Often resolves on retry without customer action.",
-    dotClass: "bg-orange",
+    dot: "orange",
   },
   {
     key: "fraud",
     label: "Fraud / hard declines",
     description: "Card flagged or blocked. Sensitive situation, handle carefully.",
-    dotClass: "bg-red",
+    dot: "red",
   },
 ];
 

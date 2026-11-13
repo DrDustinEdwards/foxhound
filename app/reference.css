@@ -1,0 +1,135 @@
+/* The parts only the compare and decline-code pages use, as Recova laid them out. In the site layer
+   (app.css), after the public pages' shared parts (marketing.css). */
+@layer site {
+  .fh-rival-wrap {
+    margin-inline: auto;
+    max-width: 56rem;
+    padding-inline: 1rem;
+    padding-bottom: 4rem;
+  }
+  @media (width >= 40rem) {
+    .fh-rival-wrap {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-rival-block-2 {
+    margin-bottom: 2.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--border);
+  }
+  .fh-rival-th {
+    vertical-align: top;
+  }
+  .fh-rival-band {
+    margin-bottom: 2.5rem;
+  }
+  .fh-rival-title {
+    margin-bottom: 0.75rem;
+  }
+  .fh-rival-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.625rem;
+  }
+  .fh-rival-label {
+    margin-top: 0.375rem;
+    height: 0.25rem;
+    width: 0.25rem;
+    flex-shrink: 0;
+    border-radius: calc(infinity * 1px);
+    background-color: var(--text-tertiary);
+  }
+  .fh-rival-text {
+    margin-bottom: 1rem;
+  }
+  .fh-rival-text-2 {
+    margin-bottom: 0.5rem;
+  }
+  .fh-rival-text-3 {
+    margin-bottom: 1.25rem;
+  }
+  .fh-mk-page {
+    margin-inline: auto;
+    max-width: 64rem;
+    padding-inline: 1rem;
+    padding-bottom: 4rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-page {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-mk-cards-3 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: 1rem;
+  }
+  @media (width >= 40rem) {
+    .fh-mk-cards-3 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-mk-cards-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .fh-compare-text {
+    margin-bottom: 0.25rem;
+  }
+  .fh-compare-text-2 {
+    margin-bottom: 0.5rem;
+  }
+  .fh-compare-text-3 {
+    margin-bottom: 1rem;
+  }
+  .fh-code-wrap {
+    margin-inline: auto;
+    max-width: 48rem;
+    padding-inline: 1rem;
+    padding-bottom: 4rem;
+  }
+  @media (width >= 40rem) {
+    .fh-code-wrap {
+      padding-inline: 2rem;
+    }
+  }
+  .fh-code-block-2 {
+    margin-bottom: 2rem;
+  }
+  .fh-code-band {
+    margin-bottom: 2.5rem;
+  }
+  .fh-code-title {
+    margin-bottom: 0.75rem;
+  }
+  .fh-code-title-2 {
+    margin-bottom: 1rem;
+  }
+  .fh-code-text {
+    margin-bottom: 0.5rem;
+  }
+  .fh-code-text-2 {
+    margin-bottom: 1.25rem;
+  }
+  .fh-codes-band {
+    border-bottom: 1px solid var(--border-sub);
+    padding-block: 2rem;
+  }
+  .fh-codes-band:last-child {
+    border-style: solid;
+    border-width: 0px;
+  }
+  .fh-codes-row {
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .fh-codes-block {
+    margin-bottom: 0.5rem;
+  }
+  .fh-codes-block-2 {
+    margin-bottom: 0.75rem;
+  }
+}

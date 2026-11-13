@@ -25,8 +25,8 @@
 
 import { chromium } from "playwright";
 
-// Named widths. Tailwind's breakpoints are the boundaries that matter here:
-// sm=640 (legacy's tab-bar cutoff), md=768 (Foxhound's).
+// Named widths. The layout's breakpoints are the boundaries that matter here:
+// 40rem = 640 (legacy's tab-bar cutoff), 48rem = 768 (Foxhound's).
 export const WIDTHS = {
   "mobile-320": 320,
   "mobile-375": 375,

@@ -29,10 +29,10 @@ export function FeatureFilter({
 }) {
   return (
     // Recova's mb-10 sits on a wrapper so the Capsomer group carries no Foxhound class.
-    <div className="mb-10">
+    <div className="fh-feature-filter-block">
       {/* Recova's filter: mono chips, the pressed one filled amber. */}
       <div
-        className="cap-chips [--ui:var(--mono)] [&_.cap-chip]:min-h-[30px] [&_.cap-chip]:text-caption"
+        className="fh-mk-chips cap-chips"
         data-variant="solid"
         role="group"
         aria-label="Filter features by product"
@@ -49,7 +49,7 @@ export function FeatureFilter({
             {f}
           </button>
         ))}
-        <span className="sr-only" role="status">
+        <span className="cap-sr-only" role="status">
           {active === "All"
             ? `Showing all ${totalCount} features`
             : `Showing ${shownCount} of ${totalCount} features: ${active}`}

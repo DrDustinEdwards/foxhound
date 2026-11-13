@@ -142,7 +142,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
   if (confirmEnable) {
     const phrase = cronEnableConfirmPhrase(confirmEnable);
     return (
-      <div className="grid grid-cols-1 gap-6">
+      <div className="cap-stack" data-gap="6">
         <ConfirmPage
           action={cronEnableHref(confirmEnable)}
           hidden={{ cronName: confirmEnable, nextEnabled: "true" }}
@@ -166,10 +166,10 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
   const switchedOff = crons.filter((c) => !c.enabled).length;
 
   return (
-    <div className="grid grid-cols-1 gap-6">
+    <div className="cap-stack" data-gap="6">
       {error ? <Alert>{error}</Alert> : null}
       {/* Present and empty until a change, so it is announced when filled. */}
-      <p role="status" className={done ? "text-label text-text" : "cap-sr-only"}>
+      <p role="status" className={done ? "fh-small fh-text" : "cap-sr-only"}>
         {done ? `${done.cronName} ${done.enabled ? "is on." : "is switched off."}` : null}
       </p>
 
@@ -227,22 +227,22 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
     : null;
   return (
     <tr id={cronAnchor(c.name)}>
-      <th scope="row" className="font-normal">
-        <span className="block font-mono text-text">{c.name}</span>
-        <span className="block text-text-secondary">
+      <th scope="row" className="fh-regular">
+        <span className="fh-line fh-mono fh-text">{c.name}</span>
+        <span className="fh-line fh-soft">
           {words ?? c.schedule}
-          {words ? <span className="ml-2 font-mono text-text-subtle">{c.schedule}</span> : null}
+          {words ? <span className="fh-cron-schedule fh-mono fh-faint">{c.schedule}</span> : null}
         </span>
       </th>
       <td data-label="State">
         <Status tone={c.enabled ? "ok" : "nodata"}>{c.enabled ? "On" : "Switched off"}</Status>
-        {c.configured ? null : <span className="block text-text-secondary">On by default</span>}
+        {c.configured ? null : <span className="fh-line fh-soft">On by default</span>}
       </td>
       <td data-label="Last run">
         {c.lastRun && status ? (
           <>
             <Status tone={status.tone}>{status.word}</Status>
-            <span className="block">
+            <span className="fh-line">
               <Time at={c.lastRun.finishedAt} empty="never" tip />
             </span>
           </>
@@ -250,15 +250,13 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
           <Status tone="nodata">No runs yet</Status>
         )}
         {c.recentFailures.length > 0 ? (
-          <div className="mt-2">
-            <p className="text-error-text">{failedRunsWords(c.recentFailures.length)}</p>
-            <ul className="grid gap-1">
+          <div className="fh-cron-failures">
+            <p className="fh-error">{failedRunsWords(c.recentFailures.length)}</p>
+            <ul className="cap-stack" data-gap="2">
               {c.recentFailures.map((run) => (
-                <li key={run.id} id={cronRunAnchor(run.id)} className="rounded-sm text-text">
+                <li key={run.id} id={cronRunAnchor(run.id)} className="fh-cron-run fh-text">
                   Failed <Time at={run.finishedAt} empty="never" tip />
-                  {run.message ? (
-                    <span className="text-text-secondary">: {run.message}</span>
-                  ) : null}
+                  {run.message ? <span className="fh-soft">: {run.message}</span> : null}
                 </li>
               ))}
             </ul>
@@ -271,7 +269,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
       <td
         data-label="Last message"
         data-wrap=""
-        className={c.lastRun?.message ? "text-text" : "text-text-tertiary"}
+        className={c.lastRun?.message ? "fh-text" : "fh-quiet"}
       >
         {c.lastRun?.message ?? "None"}
       </td>

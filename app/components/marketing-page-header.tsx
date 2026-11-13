@@ -25,18 +25,12 @@ export function MarketingPageHeader({
   trail?: { label: string; href?: string }[];
 }) {
   return (
-    <div className="mx-auto max-w-[1080px] px-5 pt-16 pb-10 sm:px-8">
-      {trail ? <SectionTrail items={trail} className="mb-6" /> : null}
+    <div className="fh-mkhead-wrap">
+      {trail ? <SectionTrail items={trail} className="fh-mkhead-block" /> : null}
       <div className="cap-reveal-stack">
-        <div className="mb-3 text-micro font-medium uppercase tracking-widest text-text-tertiary">
-          {eyebrow}
-        </div>
-        <h1 className="mb-3 text-page-title font-medium tracking-tight text-text">{title}</h1>
-        {subtext ? (
-          <p className="mb-0 max-w-[560px] text-subhead leading-relaxed text-text-secondary">
-            {subtext}
-          </p>
-        ) : null}
+        <div className="fh-mkhead-block-2 fh-tiny fh-medium fh-quiet fh-caps-wide">{eyebrow}</div>
+        <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">{title}</h1>
+        {subtext ? <p className="fh-mk-measure fh-subhead fh-relaxed fh-soft">{subtext}</p> : null}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { Link, routerRenderLink } from "capsomer/react/link";
 import { Panel } from "capsomer/react/panel";
 import { Pill } from "capsomer/react/status";
@@ -48,12 +48,10 @@ function HeroCard({
 }) {
   return (
     <Panel size="sm" title={label}>
-      <p
-        className={`m-0 font-mono text-display font-medium tabular-nums ${valueClassName ?? "text-text"}`}
-      >
+      <p className={`fh-mono fh-display fh-medium cap-num ${valueClassName ?? "fh-text"}`}>
         {value}
       </p>
-      <p className="m-0 mt-1 text-label text-text-subtle">{sub}</p>
+      <p className="fh-console-sub fh-small fh-faint">{sub}</p>
     </Panel>
   );
 }
@@ -64,11 +62,11 @@ const anyAboveZero = (rows: readonly { cents: number }[]) => rows.some((r) => r.
 
 export function ConsoleHeroRow({ hero }: { hero: ConsoleHero }) {
   return (
-    <div className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-3">
+    <div className="fh-console-tiles">
       <HeroCard
         label="Protected this month"
         value={formatCurrencyTotalsShort(hero.protectedThisMonth)}
-        valueClassName={anyAboveZero(hero.protectedThisMonth) ? "text-success-text" : null}
+        valueClassName={anyAboveZero(hero.protectedThisMonth) ? "fh-success" : null}
         sub={protectedSubtext(hero.recoveredAllTimeCount)}
       />
       {/* The real total of what is in recovery now, per currency. Recova shipped
@@ -94,11 +92,8 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
   const recovered = anyAboveZero(tiles.recoveredThisMonth);
   const highRisk = anyAboveZero(tiles.highRiskMrr);
   return (
-    <ul
-      className="m-0 mb-8 grid list-none grid-cols-2 gap-3 p-0 lg:grid-cols-4"
-      aria-label="Products"
-    >
-      <li className="grid">
+    <ul className="fh-console-products" aria-label="Products">
+      <li className="fh-fill">
         {tiles.stripeConnected ? (
           <StatTile
             label="Recovery"
@@ -125,7 +120,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           nothing in Foxhound writes, and dispute intake is webhook-driven with
           no switch to turn on, so the "Enable in Settings"
           state could never be true. */}
-      <li className="grid">
+      <li className="fh-fill">
         <StatTile
           label="Disputes"
           figure={String(tiles.openDisputeCount)}
@@ -135,9 +130,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           // color and the tile takes none.
           detail={
             tiles.disputesDueSoonCount > 0 ? (
-              <span className="font-medium text-error-text">
-                {tiles.disputesDueSoonCount} due in 48h
-              </span>
+              <span className="fh-medium fh-error">{tiles.disputesDueSoonCount} due in 48h</span>
             ) : undefined
           }
           href="/disputes/dashboard"
@@ -145,7 +138,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
         />
       </li>
 
-      <li className="grid">
+      <li className="fh-fill">
         <StatTile
           label="Intelligence"
           figure={formatCurrencyTotalsShort(tiles.highRiskMrr)}
@@ -165,7 +158,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
 
       {/* Always available, as in Recova. /audit/dashboard is the signed-in list
           of the account's runs, at Recova's path. */}
-      <li className="grid">
+      <li className="fh-fill">
         {tiles.lastAuditAt ? (
           <StatTile
             label="Audit"
@@ -201,29 +194,25 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
   // Recova's list has no heading of its own; the list's name gives a screen
   // reader one without adding a visible heading Recova never had.
   if (rows.length === 0) {
-    return <p className="m-0 text-label text-text-subtle">All clear. The platform is running.</p>;
+    return <p className="fh-small fh-faint">All clear. The platform is running.</p>;
   }
   return (
     <ul className="cap-rows" role="list" aria-label="Needs attention">
       {rows.map((row) => (
         <li key={row.key} className="cap-row" data-tone={ROW_TONE[row.tone]}>
           <div className="cap-row-title">
-            <span className="text-text">{row.subject}</span>{" "}
-            <span className="text-text-secondary">{row.detail}</span>
+            <span className="fh-text">{row.subject}</span>{" "}
+            <span className="fh-soft">{row.detail}</span>
             {row.emphasis ? (
               <>
                 {" "}
-                <span
-                  className={
-                    row.tone === "urgent" ? "font-medium text-error-text" : "text-text-subtle"
-                  }
-                >
+                <span className={row.tone === "urgent" ? "fh-medium fh-error" : "fh-faint"}>
                   {row.emphasis}
                 </span>
               </>
             ) : null}
             {row.mrrCents && row.mrrCurrency ? (
-              <span className="text-text-subtle">
+              <span className="fh-faint">
                 {" "}
                 ({formatMoneyShort(row.mrrCents, row.mrrCurrency)}/mo)
               </span>
@@ -242,7 +231,7 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
                 data-size="xs"
                 data-icon-only=""
               >
-                <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.5} aria-hidden="true" />
+                <Icon d={iconArrowRight} className="fh-icon-14 fh-icon-fine" />
               </Link>
             </div>
           ) : null}
