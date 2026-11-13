@@ -81,6 +81,12 @@ export async function loader({ context }: Route.LoaderArgs) {
     members: members
       .map((m) => ({
         ...m,
+        // Your own row names you from the session when your user row has no
+        // name or email: the demo's member has no user row (guards.ts names
+        // the demo session from its business), so its row was blank.
+        ...(m.userId === auth.userId
+          ? { userName: m.userName || auth.userName, userEmail: m.userEmail || auth.email }
+          : {}),
         isOwnerRole: m.role === MEMBER_ROLE.OWNER,
         removable: isOwner && m.userId !== auth.userId && m.role !== MEMBER_ROLE.OWNER,
       }))
