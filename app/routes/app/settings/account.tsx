@@ -870,7 +870,11 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
   const result = actionData as ActionResult | undefined;
 
   return (
-    <SettingsLayout renderLink={routerRenderLink} title="My account" lead="Profile, appearance, and account controls.">
+    <SettingsLayout
+      renderLink={routerRenderLink}
+      title="My account"
+      lead="Profile, appearance, and account controls."
+    >
       {/* Recova's mb-10 under the form. */}
       <div className="mb-10">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />

@@ -223,7 +223,8 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
     result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <SettingsLayout renderLink={routerRenderLink}
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Notifications"
       lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
     >

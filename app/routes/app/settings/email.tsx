@@ -264,7 +264,8 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       : undefined;
 
   return (
-    <SettingsLayout renderLink={routerRenderLink}
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Email"
       lead="Configure how recovery emails appear to your customers, and which ones are sent."
     >

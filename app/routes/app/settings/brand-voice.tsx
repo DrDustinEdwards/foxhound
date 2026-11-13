@@ -214,7 +214,8 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
   const saving = useNavigation().state === "submitting";
 
   return (
-    <SettingsLayout renderLink={routerRenderLink}
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Brand voice"
       lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
     >

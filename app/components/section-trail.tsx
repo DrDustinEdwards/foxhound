@@ -17,10 +17,7 @@ export function SectionTrail({
     <div
       className={`${className} [&_.cap-breadcrumb]:text-micro [&_.cap-breadcrumb]:text-text-tertiary [&_.cap-breadcrumb-page]:font-normal [&_.cap-breadcrumb-page]:text-text-tertiary [&_a:hover]:text-text [&_a]:text-text-tertiary [&_a]:no-underline`}
     >
-      <Breadcrumb
-        items={items}
-        renderLink={routerRenderLink}
-      />
+      <Breadcrumb items={items} renderLink={routerRenderLink} />
     </div>
   );
 }

@@ -354,7 +354,8 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
   const revokeError = result?.action === "revoke" && !result.ok ? result.error : undefined;
 
   return (
-    <SettingsLayout renderLink={routerRenderLink}
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="API Keys"
       lead={
         <>

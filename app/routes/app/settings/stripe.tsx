@@ -363,7 +363,8 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
   const result = actionData as DisconnectResult | undefined;
 
   return (
-    <SettingsLayout renderLink={routerRenderLink}
+    <SettingsLayout
+      renderLink={routerRenderLink}
       title="Stripe connections"
       lead={
         isOwner

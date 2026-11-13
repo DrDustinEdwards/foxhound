@@ -103,7 +103,11 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   const failed = actionData?.ok === false;
 
   return (
-    <SettingsLayout renderLink={routerRenderLink} title="Audit" lead="Lookback period and monthly digest options.">
+    <SettingsLayout
+      renderLink={routerRenderLink}
+      title="Audit"
+      lead="Lookback period and monthly digest options."
+    >
       <DemoForm method="post">
         {/* Recova's AuditSection card has no heading, so this is Capsomer's
             panel markup with its body only, as /settings/alerts does. */}
