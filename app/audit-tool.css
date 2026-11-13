@@ -166,8 +166,8 @@
     display: grid;
     gap: 1rem;
     border-radius: 0.5rem;
-    border: 1px solid var(--border);
-    background-color: var(--bg);
+    border: 1px solid var(--line);
+    background-color: var(--ground);
     padding: 1rem;
   }
   .fh-auditconnect-grid-2 {

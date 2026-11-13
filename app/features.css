@@ -55,7 +55,7 @@
     margin-block: 0 0.25rem;
   }
   .fh-features-link {
-    border-left: 1px solid var(--border);
+    border-left: 1px solid var(--line);
     padding-block: 0.25rem;
     padding-left: 0.75rem;
   }
@@ -89,7 +89,7 @@
   }
   .fh-features-block-6 {
     margin-top: 6rem;
-    border-top: 1px solid var(--border);
+    border-top: 1px solid var(--line);
     padding-top: 3rem;
   }
   .fh-features-wrap-2 {

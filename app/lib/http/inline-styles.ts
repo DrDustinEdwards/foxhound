@@ -27,8 +27,8 @@ export const FEATURE_FILTER_CSS = `
 
 // /blog: the classes of legacy's hand-drawn cover fallback SVG.
 export const BLOG_COVER_FALLBACK_CSS = `
-.dz-base { fill: var(--bg); }
-.dz-band { fill: var(--brand-text); }
+.dz-base { fill: var(--ground); }
+.dz-band { fill: var(--accent-text); }
 `.trim();
 
 export const INLINE_STYLE_HASHES: readonly string[] = [

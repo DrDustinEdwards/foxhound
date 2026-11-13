@@ -66,9 +66,7 @@ export function drawExpiringCardsTimeline(
     seriesDomain: series,
     // Only the series in the chart get a color: Enarratio refuses a color
     // for a series that is not there, which is every equal-months chart.
-    colors: Object.fromEntries(
-      series.map((s) => [s, s === PEAK ? "var(--red)" : "var(--brand-ui)"]),
-    ),
+    colors: Object.fromEntries(series.map((s) => [s, s === PEAK ? "var(--red)" : "var(--accent)"])),
     xLabel: null,
     yLabel: null,
     formatValue: (v) => String(v),

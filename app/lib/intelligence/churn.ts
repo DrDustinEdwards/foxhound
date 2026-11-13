@@ -97,9 +97,9 @@ export function drawChurnRate(
     seriesDomain: ["Involuntary", "Voluntary"],
     // Recova's colors, through Enarratio's own option: Involuntary on the
     // error color (Recova's var(--red)), Voluntary on tertiary text (Recova's
-    // var(--text-tertiary)). Recova also dashes Voluntary; Enarratio has no
+    // var(--dim)). Recova also dashes Voluntary; Enarratio has no
     // per-series dash (enarratio gap).
-    colors: { Involuntary: "var(--error-text)", Voluntary: "var(--text-tertiary)" },
+    colors: { Involuntary: "var(--crit)", Voluntary: "var(--dim)" },
     xLabel: null,
     // Enarratio has no tick format, so Recova's "2%" ticks read as "2"
     // under this axis label until it does (enarratio gap).
