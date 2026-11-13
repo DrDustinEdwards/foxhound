@@ -1,5 +1,7 @@
 import { Icon, iconCheck, iconClose, iconRefresh } from "capsomer/react/icons";
 import { useEffect, useState } from "react";
+import { AppFrame } from "capsomer/react/app-frame";
+import { Eyebrow } from "capsomer/react/eyebrow";
 import { usePrefersReducedMotion } from "capsomer/react/hooks";
 
 import {
@@ -16,6 +18,9 @@ import {
   stepClass,
   STEPS,
 } from "~/lib/marketing/queue-demo-frames";
+
+import "capsomer/app-frame.css";
+import "capsomer/eyebrow.css";
 
 // The home hero visual: a looping, self-running view of the recovery queue
 // working a batch of failed payments (ruling 6, adapted from legacy's animated
@@ -86,7 +91,9 @@ function Stat({
 }) {
   return (
     <div className="fh-queue-block">
-      <div className="fh-queue-block-2 fh-mono fh-tiny fh-faint fh-caps-wide">{label}</div>
+      <Eyebrow variant="mono" className="fh-queue-block-2 fh-queue-label-text">
+        {label}
+      </Eyebrow>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
@@ -125,25 +132,22 @@ export function RecoveryQueueDemo() {
 
   return (
     <div className="fh-queue-block-3" data-island="queue-demo">
-      <p className="cap-sr-only">
-        An illustration of the recovery queue working three sample failed payments. A Foxhound email
-        sequence runs, a retry is attempted, and two of the three payments are recovered.
-      </p>
-
-      <div aria-hidden="true" className="fh-queue-col">
-        <div className="fh-queue-chrome">
-          <div className="fh-queue-block-4" />
-          <div className="fh-queue-block-4" />
-          <div className="fh-queue-block-4" />
-          <div className="fh-queue-block-5">
-            <div className="fh-queue-block-6 fh-center fh-mono fh-tiny fh-faint">
-              foxhoundapp.com/recovery/dashboard
-            </div>
-          </div>
-        </div>
-
+      {/* The window is Capsomer's app frame: decorative, with the sentence a
+          screen reader hears in place of the invented rows. */}
+      <AppFrame
+        decorative
+        description="An illustration of the recovery queue working three sample failed payments. A Foxhound email sequence runs, a retry is attempted, and two of the three payments are recovered."
+        address="foxhoundapp.com/recovery/dashboard"
+        foot={
+          <Eyebrow as="span" variant="mono" className="fh-queue-label-text">
+            Sample data
+          </Eyebrow>
+        }
+      >
         <div className="fh-queue-row-2">
-          <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">Recovery queue</span>
+          <Eyebrow as="span" variant="mono">
+            Recovery queue
+          </Eyebrow>
           <div className="fh-mk-inline-wide">
             <span
               className="fh-queue-label"
@@ -201,11 +205,7 @@ export function RecoveryQueueDemo() {
           <Stat name="rate" label="Rate" value={frame.rate} />
           <Stat name="active" label="Active" value={String(frame.active)} />
         </div>
-
-        <div className="fh-queue-block-9">
-          <span className="fh-mono fh-tiny fh-faint fh-caps-wide">Sample data</span>
-        </div>
-      </div>
+      </AppFrame>
     </div>
   );
 }

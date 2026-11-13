@@ -302,6 +302,10 @@
 .fh-product-hero,
 .fh-page-hero {
   margin: 0;
+  /* The lead's face, named: Capsomer's default for it is the keyword inherit inside the font shorthand, which makes
+     the declaration invalid, so the lead took the hero's own font size (40px on a product page) in place of
+     --hero-lead-size. */
+  --hero-lead-face: var(--font-dm-sans), Arial, sans-serif;
 }
 .fh-home-hero {
   --hero-title: 2.75rem;

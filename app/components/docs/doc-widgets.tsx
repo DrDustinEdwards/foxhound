@@ -1,5 +1,7 @@
 import { Icon, iconActivity, iconCard, iconScale, iconWarning } from "capsomer/react/icons";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
+import { FeatureGrid } from "capsomer/react/feature";
+import { ProcessSteps } from "capsomer/react/process";
 import { Table } from "capsomer/react/table";
 import { Pill, type Tone } from "capsomer/react/status";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
@@ -18,7 +20,9 @@ import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
 import { HealthScoreBadge } from "./health-score-badge";
 
+import "capsomer/feature-grid.css";
 import "capsomer/panel.css";
+import "capsomer/process.css";
 import "capsomer/status.css";
 import "capsomer/stat-tile.css";
 import "capsomer/table.css";
@@ -39,7 +43,7 @@ import "capsomer/table.css";
 //   DisputesTablePreview and TriagePill: Recova's table printed invented
 //     customers, and a guide page has no loader to read the demo seed through.
 
-/** Recova's four audit scope cards (AuditScopeCard, blob `dc1d18dd`), at its
+/** Recova's four audit scope cards, as Capsomer's feature cards (AuditScopeCard, blob `dc1d18dd`), at its
  *  two-column grid, saying what Foxhound's engine computes for each
  *  (app/lib/audit/engine.ts). Recova's text glyphs become drawn icons, as on
  *  the app's step icons (APPROVED-DIFFERENCES, 2026-08-15). */
@@ -63,20 +67,14 @@ function AuditScopes() {
     [iconActivity, "Business health", "MRR, ARR, active subscriptions, and churn rate"],
   ];
   return (
-    <div className="fh-mk-doc-cards">
-      {scopes.map(([icon, title, description]) => (
-        <div key={title} className="cap-panel">
-          <div className="cap-panel-body">
-            <div className="fh-mk-point-wide">
-              <Icon d={icon} className="fh-mk-mark fh-icon-18 fh-icon-175 fh-accent" />
-              <div>
-                <div className="fh-doc-widgets-block fh-small fh-medium fh-text">{title}</div>
-                <div className="fh-small fh-relaxed fh-soft">{description}</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ))}
+    <div className="fh-doc-widgets-block-3">
+      <FeatureGrid
+        items={scopes.map(([icon, title, text]) => ({
+          icon: <Icon d={icon} className="fh-icon-175" />,
+          title,
+          text,
+        }))}
+      />
     </div>
   );
 }
@@ -192,24 +190,27 @@ function PaymentTimeline() {
           <span className="fh-small fh-medium fh-text">Example: a soft decline</span>
           <CategoryPill category="soft" />
         </div>
-        <ol className="fh-mk-rules">
-          {steps.map((step, i) => (
-            <li key={step.stepType} className="fh-doc-widgets-item-2">
-              <span className="fh-doc-widgets-label-2 fh-mono fh-tiny fh-quiet">{i + 1}</span>
-              <span className="fh-doc-widgets-label-3 fh-small fh-soft">
-                {formatStepType(step.stepType)}
-              </span>
-              <span className="fh-nowrap fh-mono fh-tiny fh-quiet">
-                {timingLabel(step.offsetHours)}
-              </span>
-              {i === 0 && isRetryStep(step.stepType) ? (
-                <Pill tone="crit">{titleCase("retry_failed")}</Pill>
-              ) : (
-                <Pill variant="secondary">Pending</Pill>
-              )}
-            </li>
-          ))}
-        </ol>
+        <ProcessSteps
+          layout="rows"
+          flush
+          headingLevel="p"
+          steps={steps.map((step, i) => ({
+            id: step.stepType,
+            title: formatStepType(step.stepType),
+            end: (
+              <>
+                <span className="fh-nowrap fh-mono fh-tiny fh-quiet">
+                  {timingLabel(step.offsetHours)}
+                </span>
+                {i === 0 && isRetryStep(step.stepType) ? (
+                  <Pill tone="crit">{titleCase("retry_failed")}</Pill>
+                ) : (
+                  <Pill variant="secondary">Pending</Pill>
+                )}
+              </>
+            ),
+          }))}
+        />
       </div>
     </div>
   );
@@ -308,23 +309,17 @@ function DisputeStates() {
       "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
-    <ol className="cap-stack fh-doc-widgets-block-3" data-gap="3">
-      {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
-        <li key={key} className="cap-panel">
-          <div className="cap-panel-body">
-            <div className="fh-mk-point-wide">
-              <span className="cap-keep fh-mono fh-tiny fh-accent">
-                {String(i + 1).padStart(2, "0")}
-              </span>
-              <div className="fh-doc-widgets-col">
-                <Pill variant="outline">{label}</Pill>
-                <span className="fh-small fh-relaxed fh-soft">{meaning[key] ?? ""}</span>
-              </div>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ol>
+    <div className="fh-doc-widgets-block-3">
+      <ProcessSteps
+        layout="rows"
+        headingLevel="p"
+        steps={Object.entries(DISPUTE_STATE_LABELS).map(([key, label]) => ({
+          id: key,
+          title: <Pill variant="outline">{label}</Pill>,
+          text: meaning[key] ?? "",
+        }))}
+      />
+    </div>
   );
 }
 

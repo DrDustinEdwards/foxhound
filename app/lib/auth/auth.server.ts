@@ -1,5 +1,7 @@
 import { signInOptions } from "@dustinedwards/site-runtime/sign-in";
-import { betterAuth } from "better-auth";
+// The minimal build: the database is the Drizzle adapter, so Kysely and the schema-migration code the full build
+// bundles never run here (Better Auth: "For minimal mode (without Kysely), import from better-auth/minimal").
+import { betterAuth } from "better-auth/minimal";
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
