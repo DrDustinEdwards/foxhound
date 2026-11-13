@@ -1,6 +1,7 @@
 import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { AlertTriangle, CreditCard, Scale, Activity } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import "capsomer/step-indicator.css";
 import { Pill, type Tone } from "capsomer/react/status";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
@@ -199,24 +200,26 @@ function PaymentTimeline() {
           <span className="text-label font-medium text-text">Example: a soft decline</span>
           <CategoryPill category="soft" />
         </div>
-        <ol className="m-0 list-none divide-y divide-border p-0">
-          {steps.map((step, i) => (
-            <li key={step.stepType} className="flex items-center gap-4 px-4 py-3">
-              <span className="w-6 font-mono text-micro text-text-tertiary">{i + 1}</span>
-              <span className="min-w-0 flex-1 break-words text-label text-text-secondary">
-                {formatStepType(step.stepType)}
-              </span>
-              <span className="whitespace-nowrap font-mono text-micro text-text-tertiary">
-                {timingLabel(step.offsetHours)}
-              </span>
-              {i === 0 && isRetryStep(step.stepType) ? (
-                <Pill tone="crit">{titleCase("retry_failed")}</Pill>
-              ) : (
-                <Pill variant="secondary">Pending</Pill>
-              )}
-            </li>
-          ))}
-        </ol>
+        <div className="cap-steps px-4" data-variant="ordered">
+          <ol className="cap-steps-list" aria-label="Steps of a soft decline">
+            {steps.map((step, i) => (
+              <li key={step.stepType} className="cap-step">
+                <span className="cap-step-number" aria-hidden="true">
+                  {i + 1}
+                </span>
+                <span className="cap-step-name">{formatStepType(step.stepType)}</span>
+                <span className="cap-step-meta">{timingLabel(step.offsetHours)}</span>
+                <span className="cap-step-meta">
+                  {i === 0 && isRetryStep(step.stepType) ? (
+                    <Pill tone="crit">{titleCase("retry_failed")}</Pill>
+                  ) : (
+                    <Pill variant="secondary">Pending</Pill>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
     </div>
   );
@@ -324,25 +327,23 @@ function DisputeStates() {
       "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
-    <ol className="my-6 flex list-none flex-col gap-2 p-0">
-      {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
-        <li key={key} className="cap-panel">
-          <div className="cap-panel-body">
-            <div className="flex items-start gap-3">
-              <span className="shrink-0 font-mono text-micro text-accent-text">
-                {String(i + 1).padStart(2, "0")}
+    <div className="cap-steps my-6" data-variant="ordered">
+      <ol className="cap-steps-list" aria-label="Dispute states, in order">
+        {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
+          <li key={key} className="cap-step">
+            <span className="cap-step-number" aria-hidden="true">
+              {String(i + 1).padStart(2, "0")}
+            </span>
+            <span className="cap-step-name flex flex-col items-start gap-1">
+              <Pill variant="outline">{label}</Pill>
+              <span className="text-label leading-relaxed text-text-secondary">
+                {meaning[key] ?? ""}
               </span>
-              <div className="flex flex-col items-start gap-1">
-                <Pill variant="outline">{label}</Pill>
-                <span className="text-label leading-relaxed text-text-secondary">
-                  {meaning[key] ?? ""}
-                </span>
-              </div>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ol>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 

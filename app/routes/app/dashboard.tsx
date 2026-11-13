@@ -1,4 +1,4 @@
-import { ChartFrame } from "capsomer/react/chart-frame";
+import { ChartPanel } from "capsomer/react/chart-frame";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
@@ -139,7 +139,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
 
         {latest ? (
           <div className="mt-4 grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <Panel
+            <ChartPanel
               title="MRR trend"
               level={3}
               more={
@@ -147,21 +147,18 @@ export default function Console({ loaderData }: Route.ComponentProps) {
                   {formatMoney(latest.totalMrrCents, latest.currency)}
                 </span>
               }
-            >
-              <ChartFrame
-                gridlines="none"
-                width={560}
-                draw={(width, fit) => drawMrrTrend(trend, latest.currency, width, fit)}
-              />
-            </Panel>
+              gridlines="none"
+              width={560}
+              draw={(width, fit) => drawMrrTrend(trend, latest.currency, width, fit)}
+            />
 
-            <Panel title="Movements (latest month)" level={3}>
-              <ChartFrame
-                gridlines="none"
-                width={560}
-                draw={(width, fit) => drawLatestMovement(latest, latest.currency, width, fit)}
-              />
-            </Panel>
+            <ChartPanel
+              title="Movements (latest month)"
+              level={3}
+              gridlines="none"
+              width={560}
+              draw={(width, fit) => drawLatestMovement(latest, latest.currency, width, fit)}
+            />
 
             <Panel title="Churn rate" level={3}>
               <p className="m-0 font-mono text-title tabular-nums text-text">
@@ -171,13 +168,13 @@ export default function Console({ loaderData }: Route.ComponentProps) {
             </Panel>
 
             {cohortRows.length > 0 ? (
-              <Panel title="Cohorts" level={3}>
-                <ChartFrame
-                  gridlines="none"
-                  width={560}
-                  draw={(width, fit) => drawCohorts(cohortRows, width, fit)}
-                />
-              </Panel>
+              <ChartPanel
+                title="Cohorts"
+                level={3}
+                gridlines="none"
+                width={560}
+                draw={(width, fit) => drawCohorts(cohortRows, width, fit)}
+              />
             ) : null}
           </div>
         ) : (

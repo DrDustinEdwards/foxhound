@@ -9,7 +9,8 @@ import { AdminMcpPanels } from "~/components/admin-mcp-panels";
 import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { D1_ALERT_THRESHOLD, D1_CAP_BYTES, formatBytes } from "~/lib/admin/format";
+import { formatBytes } from "capsomer/behavior/format";
+import { D1_ALERT_THRESHOLD, D1_CAP_BYTES } from "~/lib/admin/format";
 import {
   LOCK_STATUS,
   lockSummaryWords,
