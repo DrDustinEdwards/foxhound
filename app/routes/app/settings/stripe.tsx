@@ -3,19 +3,9 @@ import { data, redirect, useNavigation } from "react-router";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import "capsomer/banner.css";
-import "capsomer/button.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/account does.
-import "~/site-header.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
-import { SettingsLayout } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -230,7 +220,6 @@ function StripeSection({
   result?: DisconnectResult;
   isOwner: boolean;
 }) {
-  const demo = useDemoGuard();
   const navigation = useNavigation();
   const runningId =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "disconnect-stripe"
@@ -295,7 +284,7 @@ function StripeSection({
                       </div>
                       {isOwner ? (
                         <div className="flex flex-wrap items-center gap-2">
-                          <ReadOnlyForm {...demo} method="post">
+                          <DemoForm method="post">
                             <input type="hidden" name="_action" value="disconnect-stripe" />
                             <input type="hidden" name="connectionId" value={conn.id} />
                             <Button
@@ -320,7 +309,7 @@ function StripeSection({
                                   ? "Yes, disconnect Stripe"
                                   : "Disconnect Stripe"}
                             </Button>
-                          </ReadOnlyForm>
+                          </DemoForm>
                           {isConfirming && !isDisconnecting ? (
                             <Button onClick={() => keep(conn.id)}>Keep connected</Button>
                           ) : null}
@@ -373,16 +362,15 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
   const result = actionData as DisconnectResult | undefined;
 
   return (
-    <SettingsLayout
+    <SettingsPage
       title="Stripe connections"
       lead={
         isOwner
           ? "Connected Stripe accounts. Add additional accounts or disconnect existing ones."
           : "Connected Stripe accounts. Only the account owner can add or disconnect accounts."
       }
-      renderLink={routerLink}
     >
       <StripeSection connections={connections} result={result} isOwner={isOwner} />
-    </SettingsLayout>
+    </SettingsPage>
   );
 }

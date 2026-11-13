@@ -14,7 +14,7 @@ const KeepScrollForm: FormComponent = (props) =>
 
 // The props every mutating form in the app shell gives Capsomer's ReadOnlyForm, so a demo
 // visitor who presses Save, Approve or any payment action stays where they are and reads why
-// nothing was sent: <ReadOnlyForm {...useDemoGuard()} method="post">.
+// nothing was sent. Pages use DemoForm (below); a part that draws its own form uses these props.
 //
 // It reads isDemo off the app-shell layout's own loader data (no new query) and is not the
 // security boundary: a post without script, or by hand, still reaches appShellMiddleware's
@@ -40,4 +40,15 @@ export function useDemoConfirmForm(): FormComponent {
       },
     [readOnly, message],
   );
+}
+
+// A mutating form in the app shell, read-only for a demo visitor: <DemoForm method="post">.
+// `keepScroll` keeps the scroll position after its post, for a form that saves as it is changed.
+export function DemoForm({
+  keepScroll,
+  ...props
+}: Omit<ComponentProps<typeof ReadOnlyForm>, "form" | "readOnly" | "message"> & {
+  keepScroll?: boolean;
+}) {
+  return createElement(ReadOnlyForm, { ...useDemoGuard({ keepScroll }), ...props });
 }

@@ -10,19 +10,9 @@ import { Field, InputGroup, InputGroupAddon, TextField } from "capsomer/react/fi
 import { Segmented } from "capsomer/react/segmented";
 import { Select } from "capsomer/react/select";
 import { Status } from "capsomer/react/status";
-import "capsomer/save-bar.css";
 import "capsomer/banner.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
 import "capsomer/segmented.css";
 import "capsomer/select.css";
-import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/features does.
-import "~/site-header.css";
 
 import {
   accountSessions,
@@ -37,8 +27,7 @@ import {
 import { isAPIError } from "better-auth/api";
 import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoConfirmForm, useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { DemoForm, useDemoConfirmForm } from "~/lib/demo/use-demo-guard";
 import { InlineConfirm } from "capsomer/react/inline-confirm";
 import "capsomer/inline-confirm.css";
 import {
@@ -46,9 +35,7 @@ import {
   type SignedInDevices,
   type SignInSettings,
 } from "~/components/sign-in-settings";
-import { SettingsLayout } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { SettingsPage } from "~/components/settings-page";
 import { THEME_PREF_KEY } from "~/components/site-header";
 import { account as authAccount, getDb, passkey } from "~/db";
 import { authContext } from "~/lib/auth/context";
@@ -503,7 +490,6 @@ function ProfileForm({
   };
   result?: ActionResult;
 }) {
-  const demo = useDemoGuard();
   const navigation = useNavigation();
   const saving =
     navigation.state === "submitting" && navigation.formData?.get("_action") === "profile";
@@ -511,7 +497,7 @@ function ProfileForm({
   const barFailed = result && !result.ok && !result.field;
 
   return (
-    <ReadOnlyForm {...demo} method="post">
+    <DemoForm method="post">
       <input type="hidden" name="_action" value="profile" />
 
       {/* AccountNameSection */}
@@ -603,7 +589,7 @@ function ProfileForm({
         saved={result?.ok === true}
         error={barFailed ? "Failed to save. Please try again." : null}
       />
-    </ReadOnlyForm>
+    </DemoForm>
   );
 }
 
@@ -700,7 +686,6 @@ function SignedIn({ userEmail }: { userEmail: string }) {
  * from the last 10 minutes, as Delete account does.
  */
 function ChangeEmail({ result }: { result?: ActionResult }) {
-  const demo = useDemoGuard();
   const navigation = useNavigation();
   const sending =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
@@ -732,7 +717,7 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
         </Alert>
       ) : null}
       {showForm ? (
-        <ReadOnlyForm {...demo} method="post">
+        <DemoForm method="post">
           <input type="hidden" name="_action" value="change-email" />
           <TextField
             label="New email address"
@@ -749,7 +734,7 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
               </Button>
             }
           />
-        </ReadOnlyForm>
+        </DemoForm>
       ) : mine?.ok ? null : (
         <div>
           <Button size="sm" onClick={() => setOpen(true)}>
@@ -884,11 +869,7 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
   const result = actionData as ActionResult | undefined;
 
   return (
-    <SettingsLayout
-      title="My account"
-      lead="Profile, appearance, and account controls."
-      renderLink={routerLink}
-    >
+    <SettingsPage title="My account" lead="Profile, appearance, and account controls.">
       {/* Recova's mb-10 under the form. */}
       <div className="mb-10">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
@@ -915,6 +896,6 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
       </div>
-    </SettingsLayout>
+    </SettingsPage>
   );
 }

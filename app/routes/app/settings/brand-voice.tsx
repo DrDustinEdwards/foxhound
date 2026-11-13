@@ -4,23 +4,10 @@ import { data, useNavigation } from "react-router";
 import { SaveBar } from "capsomer/react/save-bar";
 import { Panel } from "capsomer/react/panel";
 import { Select } from "capsomer/react/select";
-import "capsomer/save-bar.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
 import "capsomer/select.css";
-import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/features does.
-import "~/site-header.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
-import { SettingsLayout } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -221,18 +208,16 @@ function CategoryVoice({
 }
 
 export default function BrandVoiceSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const demo = useDemoGuard();
   const { connectionId, stored, samples } = loaderData;
   const result = actionData as ActionResult | undefined;
   const saving = useNavigation().state === "submitting";
 
   return (
-    <SettingsLayout
+    <SettingsPage
       title="Brand voice"
       lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
-      renderLink={routerLink}
     >
-      <ReadOnlyForm {...demo} method="post">
+      <DemoForm method="post">
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
@@ -282,7 +267,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
             result?.ok === false ? (result.error ?? "Failed to save. Please try again.") : null
           }
         />
-      </ReadOnlyForm>
-    </SettingsLayout>
+      </DemoForm>
+    </SettingsPage>
   );
 }

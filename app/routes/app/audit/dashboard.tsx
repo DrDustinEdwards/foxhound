@@ -22,8 +22,7 @@ import "capsomer/table.css";
 import "~/site-header.css";
 
 import { AuditSummary } from "~/components/audit/sections";
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { DemoForm, useDemoGuard } from "~/lib/demo/use-demo-guard";
 import { accounts, getDb } from "~/db";
 import { listAuditRuns } from "~/lib/audit/persist.server";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
@@ -318,7 +317,7 @@ export function AuditSettingsForm({
   };
 
   return (
-    <ReadOnlyForm {...demo} method="post" ref={formRef}>
+    <DemoForm keepScroll method="post" ref={formRef}>
       <div aria-busy={saving || undefined}>
         <div className="mb-5 min-w-0">
           {/* The visible label repeats the legend's words, which name the group
@@ -378,7 +377,7 @@ export function AuditSettingsForm({
         {!saving && shown?.ok === true ? <span className="text-green">Saved.</span> : null}
         {!saving && shown?.ok === false ? <span className="text-red">Save failed.</span> : null}
       </div>
-    </ReadOnlyForm>
+    </DemoForm>
   );
 }
 

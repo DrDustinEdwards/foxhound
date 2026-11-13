@@ -5,19 +5,11 @@ import { Button } from "capsomer/react/button";
 import { TextField } from "capsomer/react/field";
 import { Pill } from "capsomer/react/status";
 import "capsomer/banner.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-import "capsomer/status.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoConfirmForm, useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { DemoForm, useDemoConfirmForm } from "~/lib/demo/use-demo-guard";
 import { InlineConfirm } from "capsomer/react/inline-confirm";
 import "capsomer/inline-confirm.css";
-import { SettingsLayout } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import {
   authContext,
@@ -237,7 +229,6 @@ function displayName(m: {
 // Foxhound's share link beside the invite email (E2), and when the email did
 // not go an alert says so, where Recova would still say "Invite sent to".
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
-  const demo = useDemoGuard();
   const confirmForm = useDemoConfirmForm();
   const navigation = useNavigation();
   // Pending belongs to the form that was sent: a remove marks its row, an
@@ -257,11 +248,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   }, [actionData]);
 
   return (
-    <SettingsLayout
-      title="Team"
-      lead="Members and pending invites for this account."
-      renderLink={routerLink}
-    >
+    <SettingsPage title="Team" lead="Members and pending invites for this account.">
       <section className="cap-panel">
         <div className="cap-panel-body">
           {removeResult && !removeResult.error ? (
@@ -320,12 +307,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
           </ul>
 
           {loaderData.isOwner ? (
-            <ReadOnlyForm
-              {...demo}
-              ref={inviteForm}
-              method="post"
-              className="border-t border-border pt-5"
-            >
+            <DemoForm ref={inviteForm} method="post" className="border-t border-border pt-5">
               <input type="hidden" name="_action" value="invite" />
               {/* Recova's invite row: the input and its button on one line,
                   with no "Required" marker, as Recova has it. */}
@@ -367,10 +349,10 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                   <Alert tone="crit">{inviteResult.emailError}</Alert>
                 </div>
               ) : null}
-            </ReadOnlyForm>
+            </DemoForm>
           ) : null}
         </div>
       </section>
-    </SettingsLayout>
+    </SettingsPage>
   );
 }

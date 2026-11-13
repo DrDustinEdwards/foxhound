@@ -2,22 +2,10 @@ import { useId } from "react";
 import { data, useNavigation } from "react-router";
 import { SaveBar } from "capsomer/react/save-bar";
 import { Pill } from "capsomer/react/status";
-import "capsomer/save-bar.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-import "capsomer/status.css";
-import "capsomer/switch.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// /settings/features loads them.
-import "~/site-header.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
-import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SwitchRow } from "capsomer/react/settings-row";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -143,7 +131,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function DisputeSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const demo = useDemoGuard();
   const navigation = useNavigation();
   const toggling =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "toggle_disputes";
@@ -154,18 +141,18 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
   const descriptionHelpId = `${id}-description-help`;
 
   return (
-    <SettingsLayout title="Disputes" lead={DISPUTES_SETTINGS_LINE} renderLink={routerLink}>
+    <SettingsPage title="Disputes" lead={DISPUTES_SETTINGS_LINE}>
       {/* The switch's own form, as Recova's DisputesToggle posted on its own:
           it carries the new value, and the switch below sends it at once
           (SwitchRow submitOnChange; without script its Save button does).
           The switch follows the stored value, so a refused change (the demo,
           a failed write) springs back. */}
-      <ReadOnlyForm {...demo} method="post" id={`${id}-toggle`}>
+      <DemoForm method="post" id={`${id}-toggle`}>
         <input type="hidden" name="_action" value="toggle_disputes" />
         <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
-      </ReadOnlyForm>
+      </DemoForm>
 
-      <ReadOnlyForm {...demo} method="post">
+      <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
             {/* Recova's top row: the product's name, its active pill while on,
@@ -252,7 +239,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
           }
           button={enabled}
         />
-      </ReadOnlyForm>
-    </SettingsLayout>
+      </DemoForm>
+    </SettingsPage>
   );
 }

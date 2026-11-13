@@ -11,8 +11,7 @@ import "capsomer/panel.css";
 import "capsomer/row-list.css";
 import "capsomer/status.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
 import type { CardSummary } from "~/lib/billing/platform-customer";
 import {
   DISPUTE_FEE_PERCENT,
@@ -354,7 +353,6 @@ export function SubscriptionsSection({ subscriptions }: { subscriptions: Subscri
 }
 
 export function PaymentMethodSection({ card, busy }: { card: CardSummary | null; busy: boolean }) {
-  const demo = useDemoGuard();
   return (
     <Panel title="Payment method">
       <div className="flex flex-col items-start gap-3 md:flex-row md:items-center md:justify-between">
@@ -379,12 +377,12 @@ export function PaymentMethodSection({ card, busy }: { card: CardSummary | null;
             </p>
           </div>
         )}
-        <ReadOnlyForm {...demo} method="post">
+        <DemoForm method="post">
           <input type="hidden" name="intent" value="setup_billing" />
           <Button type="submit" variant={card ? "default" : "primary"} pending={busy}>
             {card ? "Update payment method" : "Add payment method"}
           </Button>
-        </ReadOnlyForm>
+        </DemoForm>
       </div>
     </Panel>
   );

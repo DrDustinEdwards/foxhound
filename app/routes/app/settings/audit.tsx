@@ -3,22 +3,10 @@ import { data, useNavigation } from "react-router";
 import { SaveBar } from "capsomer/react/save-bar";
 import { Segmented } from "capsomer/react/segmented";
 import { Switch } from "capsomer/react/switch";
-import "capsomer/button.css";
-import "capsomer/save-bar.css";
-import "capsomer/status.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
 import "capsomer/segmented.css";
-import "capsomer/switch.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// /settings/alerts and /settings/api-keys load them.
-import "~/site-header.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
-import { SettingsLayout } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SettingsPage } from "~/components/settings-page";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
@@ -105,7 +93,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function AuditSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const demo = useDemoGuard();
   const [lookbackDays, setLookbackDays] = useState<string>(String(loaderData.lookbackDays));
   const [autoRun, setAutoRun] = useState<boolean>(loaderData.autoRun);
   const busy = useNavigation().state !== "idle";
@@ -115,12 +102,8 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   const failed = actionData?.ok === false;
 
   return (
-    <SettingsLayout
-      title="Audit"
-      lead="Lookback period and monthly digest options."
-      renderLink={routerLink}
-    >
-      <ReadOnlyForm {...demo} method="post">
+    <SettingsPage title="Audit" lead="Lookback period and monthly digest options.">
+      <DemoForm method="post">
         {/* Recova's AuditSection card has no heading, so this is Capsomer's
             panel markup with its body only, as /settings/alerts does. */}
         <div className="mb-4">
@@ -185,7 +168,7 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
           saved={saved}
           error={failed ? "Failed to save. Please try again." : null}
         />
-      </ReadOnlyForm>
-    </SettingsLayout>
+      </DemoForm>
+    </SettingsPage>
   );
 }

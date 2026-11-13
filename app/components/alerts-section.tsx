@@ -16,8 +16,7 @@ import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/table.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
 import {
   ALERT_DIRECTION_LABELS,
   ALERT_METRICS,
@@ -76,7 +75,6 @@ export function AlertsSection({
   data: Awaited<ReturnType<typeof loadAlertsSection>>;
   result?: AlertActionResult;
 }) {
-  const demo = useDemoGuard();
   const busy = useNavigation().state !== "idle";
   const [params] = useSearchParams();
   const creating = params.get("new") === "1";
@@ -198,13 +196,13 @@ export function AlertsSection({
                               />
                             </td>
                             <td data-label="Actions" data-num="">
-                              <ReadOnlyForm {...demo} method="post">
+                              <DemoForm method="post">
                                 <input type="hidden" name="_action" value="delete" />
                                 <input type="hidden" name="alertId" value={a.id} />
                                 <Button type="submit" size="sm" pending={busy}>
                                   Delete alert
                                 </Button>
-                              </ReadOnlyForm>
+                              </DemoForm>
                             </td>
                           </tr>
                         );
@@ -306,10 +304,9 @@ function AlertSwitch({
   name: string;
   busy: boolean;
 }) {
-  const demo = useDemoGuard();
   const form = useRef<HTMLFormElement>(null);
   return (
-    <ReadOnlyForm {...demo} method="post" ref={form}>
+    <DemoForm method="post" ref={form}>
       <input type="hidden" name="_action" value="toggle" />
       <input type="hidden" name="alertId" value={id} />
       <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
@@ -319,7 +316,7 @@ function AlertSwitch({
         busy={busy}
         onCheckedChange={() => form.current?.requestSubmit()}
       />
-    </ReadOnlyForm>
+    </DemoForm>
   );
 }
 
@@ -344,7 +341,6 @@ function CreateAlertForm({
   initialMetric: string | null;
   hasSlack: boolean;
 }) {
-  const demo = useDemoGuard();
   const [metric, setMetric] = useState<string>(alertFormMetric(initialMetric));
   const [direction, setDirection] = useState<AlertDirection>(DIRECTION_ORDER[0]);
   const [channel, setChannel] = useState<"email" | "slack">("email");
@@ -354,7 +350,7 @@ function CreateAlertForm({
   return (
     <div className="mt-6 min-w-0">
       <Panel title="Create a new alert" level={3}>
-        <ReadOnlyForm {...demo} method="post" className="min-w-0">
+        <DemoForm method="post" className="min-w-0">
           <input type="hidden" name="_action" value="create" />
           <div className="flex flex-col gap-4 text-label">
             <Field label="Metric">
@@ -443,7 +439,7 @@ function CreateAlertForm({
               Cancel
             </Link>
           </div>
-        </ReadOnlyForm>
+        </DemoForm>
       </Panel>
     </div>
   );

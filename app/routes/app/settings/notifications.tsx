@@ -1,24 +1,11 @@
 import { SaveBar } from "capsomer/react/save-bar";
 import { TextField } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
-import "capsomer/save-bar.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-import "capsomer/status.css";
-import "capsomer/switch.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/api-keys does.
-import "~/site-header.css";
 
 import { AlertsSection } from "~/components/alerts-section";
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
-import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SwitchRow } from "capsomer/react/settings-row";
+import { SettingsPage } from "~/components/settings-page";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -225,7 +212,6 @@ export async function action({ request, context }: Route.ActionArgs) {
 }
 
 export default function NotificationSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const demo = useDemoGuard();
   const navigation = useNavigation();
   // An alert's toggle or delete is not a save of this form.
   const busy = navigation.state !== "idle" && !navigation.formData?.has("_action");
@@ -237,12 +223,11 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
     result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <SettingsLayout
+    <SettingsPage
       title="Notifications"
       lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
-      renderLink={routerLink}
     >
-      <ReadOnlyForm {...demo} method="post">
+      <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="mb-5">
@@ -303,9 +288,9 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
 
         {/* Legacy's SaveBar: right-aligned under the card, the result beside the button. */}
         <SaveBar pending={busy} saved={result?.ok === true} error={otherError} />
-      </ReadOnlyForm>
+      </DemoForm>
 
       <AlertsSection data={loaderData.alerts} result={alertResult} />
-    </SettingsLayout>
+    </SettingsPage>
   );
 }

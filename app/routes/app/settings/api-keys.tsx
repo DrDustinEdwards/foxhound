@@ -9,29 +9,18 @@ import { Button } from "capsomer/react/button";
 import { CopyButton } from "capsomer/react/copy";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
-import { SettingsLayout } from "capsomer/react/settings-row";
-import { routerLink } from "~/lib/router-link";
+import { SettingsPage } from "~/components/settings-page";
 import { Panel } from "capsomer/react/panel";
 import { SecretReveal } from "capsomer/react/secret-reveal";
 import { Segmented } from "capsomer/react/segmented";
 import "capsomer/banner.css";
-import "capsomer/button.css";
 import "capsomer/copy.css";
 import "capsomer/empty.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/settings-row.css";
-import "capsomer/panel.css";
 import "capsomer/secret-reveal.css";
 import "capsomer/segmented.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /help does.
-import "~/site-header.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -309,7 +298,6 @@ function NewKey({ rawKey }: { rawKey: string }) {
 }
 
 function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) {
-  const demo = useDemoGuard();
   const navigation = useNavigation();
   const generating =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "create";
@@ -323,7 +311,7 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
 
   return (
     <Panel title="Generate a new API key">
-      <ReadOnlyForm {...demo} method="post" className="flex flex-col gap-4">
+      <DemoForm method="post" className="flex flex-col gap-4">
         <input type="hidden" name="_action" value="create" />
         <Field label="Name" error={error} announce>
           <input
@@ -346,13 +334,12 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
             Cancel
           </Link>
         </div>
-      </ReadOnlyForm>
+      </DemoForm>
     </Panel>
   );
 }
 
 export default function ApiKeySettings({ loaderData, actionData }: Route.ComponentProps) {
-  const demo = useDemoGuard();
   const { keys, loadError, isAdmin, isOwner: owner, callLog } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
@@ -367,7 +354,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
   const revokeError = result?.action === "revoke" && !result.ok ? result.error : undefined;
 
   return (
-    <SettingsLayout
+    <SettingsPage
       title="API Keys"
       lead={
         <>
@@ -381,7 +368,6 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
           account, and customer names and full email addresses are never sent.
         </>
       }
-      renderLink={routerLink}
     >
       <section className="cap-panel">
         <div className="cap-panel-body">
@@ -444,14 +430,14 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
                       <td data-label="Last used">{dateOrNever(k.lastUsedAt)}</td>
                       <td data-label="Actions" data-num>
                         {owner ? (
-                          <ReadOnlyForm {...demo} method="post">
+                          <DemoForm method="post">
                             <input type="hidden" name="_action" value="revoke" />
                             <input type="hidden" name="keyId" value={k.id} />
                             <Button type="submit" size="xs" pending={revoking === k.id}>
                               Revoke key
                               <span className="sr-only"> {k.label}</span>
                             </Button>
-                          </ReadOnlyForm>
+                          </DemoForm>
                         ) : null}
                       </td>
                     </tr>
@@ -469,7 +455,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
       </section>
 
       {callLog.state === "owner-only" ? null : <CallLogPanel log={callLog} />}
-    </SettingsLayout>
+    </SettingsPage>
   );
 }
 

@@ -3,23 +3,10 @@ import { useShownFor } from "capsomer/react/hooks";
 import { TextField } from "capsomer/react/field";
 import { data, useNavigation } from "react-router";
 import { Button } from "capsomer/react/button";
-import "capsomer/save-bar.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
-import "capsomer/page-head.css";
-import "capsomer/panel.css";
-import "capsomer/status.css";
-import "capsomer/switch.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/notifications does.
-import "~/site-header.css";
 
-import { ReadOnlyForm } from "capsomer/react/read-only-form";
-import { useDemoGuard } from "~/lib/demo/use-demo-guard";
-import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
-import "capsomer/settings-row.css";
-import { routerLink } from "~/lib/router-link";
+import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { SwitchRow } from "capsomer/react/settings-row";
+import { SettingsPage } from "~/components/settings-page";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
 import { authContext } from "~/lib/auth/context";
@@ -254,7 +241,6 @@ function testOutcome(result: ActionResult | undefined): string | null {
 }
 
 export default function EmailSettings({ loaderData, actionData }: Route.ComponentProps) {
-  const demo = useDemoGuard();
   const { connectionId, senderName, replyToEmail } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
@@ -278,12 +264,11 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       : undefined;
 
   return (
-    <SettingsLayout
+    <SettingsPage
       title="Email"
       lead="Configure how recovery emails appear to your customers, and which ones are sent."
-      renderLink={routerLink}
     >
-      <ReadOnlyForm {...demo} method="post">
+      <DemoForm method="post">
         <input type="hidden" name="_action" value="sender" />
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
@@ -344,10 +329,10 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
           saved={saveResult?.ok === true}
           error={barError}
         />
-      </ReadOnlyForm>
+      </DemoForm>
 
       {/* The recovery emails card, once /settings/features. */}
-      <ReadOnlyForm {...demo} method="post" className="mt-10">
+      <DemoForm method="post" className="mt-10">
         <input type="hidden" name="_action" value="features" />
         <h2 className="m-0 mb-3 text-heading font-semibold text-text">Recovery emails</h2>
         <section className="cap-panel">
@@ -371,12 +356,12 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
           saved={featuresResult?.ok === true}
           error={featuresResult && !featuresResult.ok ? SAVE_FAILED : null}
         />
-      </ReadOnlyForm>
+      </DemoForm>
 
       {/* The test email's own form: nothing typed, only the intent. */}
-      <ReadOnlyForm {...demo} method="post" id={TEST_FORM_ID}>
+      <DemoForm method="post" id={TEST_FORM_ID}>
         <input type="hidden" name="_action" value="test-email" />
-      </ReadOnlyForm>
-    </SettingsLayout>
+      </DemoForm>
+    </SettingsPage>
   );
 }
