@@ -22,6 +22,7 @@ import { buildAuditAuthorizeUrl } from "~/lib/stripe/connect";
 import { setAuditStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
+import "~/audit-tool.css";
 
 // Legacy's `/audit/connect` (blob `9d7075d8`, 2,139 bytes) plus its OAuth start
 // (`/api/audit/connect`, blob `dedddf99`, 1,093 bytes), phase (f).
@@ -141,16 +142,16 @@ export async function action({ request, context }: Route.ActionArgs) {
  */
 function AuditConnectFrame({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-center px-4 py-[60px]">
+    <div className="fh-auditconnect-row">
       <div
-        className="fh-cap w-full max-w-[480px]"
+        className="fh-auditconnect-block fh-cap"
         data-cap-site="foxhound"
         data-family="amber"
         data-audit-connect=""
       >
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="px-8 py-9">{children}</div>
+            <div className="fh-auditconnect-block-2">{children}</div>
           </div>
         </section>
       </div>
@@ -178,22 +179,24 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
 
   return (
     <AuditConnectFrame>
-      <h1 className="mb-2 fh-center fh-title fh-semibold fh-text">Connect your Stripe account</h1>
-      <p className="mb-8 fh-center fh-small fh-relaxed fh-faint">
+      <h1 className="fh-auditconnect-title fh-center fh-title fh-semibold fh-text">
+        Connect your Stripe account
+      </h1>
+      <p className="fh-auditconnect-text fh-center fh-small fh-relaxed fh-faint">
         {AUDIT_ACCESS_ASK} We only read, to scan your failed payments from the last{" "}
         {loaderData.lookbackDays} days. We disconnect ourselves after {AUDIT_GRANT_MINUTES} minutes
         unless you connect a Foxhound account. We never store your data permanently.
       </p>
 
       {message ? (
-        <div className="mb-6">
+        <div className="fh-auditconnect-block-3">
           <Alert tone="crit">{message}</Alert>
         </div>
       ) : null}
 
       {/* Recova's two labeled lists inside the inner box: Capsomer's
           permission lists, each a real list named by its heading. */}
-      <div className="mb-6 grid gap-4 rounded-lg border border-border bg-bg p-4">
+      <div className="fh-auditconnect-grid">
         <PermissionList id="audit-connect-can" heading="What we can do" items={CAN_DO} allowed />
         <PermissionList
           id="audit-connect-cannot"
@@ -204,7 +207,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
       </div>
 
       {loaderData.stripeEnabled ? (
-        <Form method="post" className="grid">
+        <Form method="post" className="fh-auditconnect-grid-2">
           <Button type="submit" variant="primary" size="lg" pending={busy}>
             {/* The label stays the same while pending: Capsomer 0.9.0 does not
                 paint it then (only the spinner shows), and the status region
@@ -215,7 +218,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
                 so Recova's 33-character label is clipped below about 400px,
                 where Recova's own button wraps to two lines. Named in the PR
                 for the per-site layer. */}
-            <span className="whitespace-normal">
+            <span className="fh-auditconnect-label">
               Connect Stripe and see my numbers<span aria-hidden="true"> →</span>
             </span>
           </Button>
@@ -229,7 +232,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
         </p>
       )}
 
-      <p className="mt-4 fh-center fh-tiny fh-faint">
+      <p className="fh-auditconnect-text-2 fh-center fh-tiny fh-faint">
         {"Reads only · Secure · Free · "}
         <AuthLink to="/demos/recovery">See a demo first</AuthLink>
       </p>

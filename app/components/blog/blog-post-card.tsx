@@ -23,21 +23,20 @@ export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level
   const Title = level === 2 ? "h2" : "h3";
   const tag = post.tags[0] ? titleCase(post.tags[0]) : null;
   return (
-    <Link
-      to={`/blog/${post.slug}`}
-      className="cap-panel [--card-lift:0px] [--gap:1.25rem] [--pad-card:1.25rem]"
-    >
+    <Link to={`/blog/${post.slug}`} className="fh-blog-post-card-link cap-panel">
       <div className="cap-panel-body">
         {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div className="cap-stack" data-gap="4">
           {tag ? (
-            <span className="w-fit">
+            <span className="fh-blog-post-card-label">
               <span className="cap-pill" data-variant="outline">
                 {tag}
               </span>
             </span>
           ) : null}
-          <Title className="fh-copy fh-semibold leading-snug fh-text">{post.title}</Title>
+          <Title className="fh-blog-post-card-block fh-copy fh-semibold fh-text">
+            {post.title}
+          </Title>
           <p className="fh-caption fh-relaxed fh-soft">{post.excerpt}</p>
           <span className="fh-mono fh-tiny fh-quiet">{post.readingTimeMinutes} min read</span>
         </div>

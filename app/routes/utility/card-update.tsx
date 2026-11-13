@@ -493,12 +493,7 @@ function CardUpdateFrame({
 }) {
   return (
     <main className="fh-card-update">
-      <div
-        className="fh-cap"
-        data-cap-site="foxhound"
-        data-family="amber"
-        data-card-update=""
-      >
+      <div className="fh-cap" data-cap-site="foxhound" data-family="amber" data-card-update="">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <Wordmark />

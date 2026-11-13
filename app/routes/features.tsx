@@ -32,6 +32,7 @@ import "capsomer/button.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/features";
+import "~/features.css";
 
 // /features. Recova's spec is app/(marketing)/features/page.tsx
 // (blob 04aa91d8) with components/features/FeatureCard.tsx (dd6c9a87),
@@ -62,13 +63,10 @@ function FeatureCard({ feature }: { feature: Feature }) {
   return (
     // data-product is what FEATURE_FILTER_CSS reads to hide a card.
     // Recova's feature card: p-4 and 8px corners.
-    <div
-      className="cap-panel rounded-lg [--gap:1rem] [--pad-card:1rem]"
-      data-product={feature.product}
-    >
+    <div className="fh-features-block cap-panel" data-product={feature.product}>
       <div className="cap-panel-body">
         <div>
-          <div className="mb-2 flex items-start justify-between gap-3">
+          <div className="fh-mk-card-top">
             <span className="fh-copy fh-medium fh-text">{feature.name}</span>
             <ProductTag product={feature.product} />
           </div>
@@ -85,14 +83,14 @@ function FeatureCard({ feature }: { feature: Feature }) {
 function SectionInlineExample({ id }: { id: string }) {
   if (id === "automation") {
     return (
-      <div className="my-4">
+      <div className="fh-features-block-2">
         <SequenceSteps category="soft" />
       </div>
     );
   }
   if (id === "intelligence") {
     return (
-      <div className="my-6 flex items-center gap-3 fh-small fh-soft">
+      <div className="fh-features-row fh-small fh-soft">
         {healthBandExampleScores().map((score) => (
           <HealthScoreBadge key={score} score={score} />
         ))}
@@ -139,7 +137,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
       <style>{FEATURE_FILTER_CSS}</style>
       <MarketingPageHeader eyebrow="Platform" title="Features" subtext={FEATURES_SUBTEXT} />
 
-      <div className="mx-auto max-w-[1100px] px-5 pb-16 sm:px-8">
+      <div className="fh-features-wrap">
         {/* Recova's FeatureFilterShell: the active value on the wrapper, which
             FEATURE_FILTER_CSS reads; no card re-renders on a press. */}
         <div
@@ -155,18 +153,18 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
             totalCount={all.length}
           />
 
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-[220px_1fr]">
+          <div className="fh-features-grid">
             {/* Recova's sticky section nav. Capsomer's anchor bar is a
                 horizontal bar with an "On this page" label, so this stays
                 Recova's vertical list in Foxhound utilities with the amber
                 accent on hover; a vertical anchor bar is a Capsomer gap. */}
-            <aside className="hidden lg:block">
-              <nav aria-label="Sections" className="sticky top-20 space-y-1">
+            <aside className="fh-features-aside">
+              <nav aria-label="Sections" className="fh-features-nav">
                 {sections.map((s) => (
                   <a
                     key={s.id}
                     href={`#${s.id}`}
-                    className="fh-line border-l border-border py-1 pl-3 fh-small fh-soft transition-colors hover:border-accent-text hover:text-text"
+                    className="fh-features-link fh-line fh-small fh-soft"
                   >
                     {s.label}
                   </a>
@@ -177,15 +175,15 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
             {/* Recova wraps this column in <main>; Foxhound renders one main
                 landmark per document from the layout (approved 2026-07-29), so
                 this is a plain div. */}
-            <div className="space-y-16">
+            <div className="fh-features-block-4">
               {sections.map((s) => (
-                <section key={s.id} id={s.id} className="scroll-mt-20">
-                  <div className="mb-6">
-                    <h2 className="mb-1 fh-title fh-medium fh-text">{s.title}</h2>
+                <section key={s.id} id={s.id} className="fh-features-band">
+                  <div className="fh-features-block-5">
+                    <h2 className="fh-features-title fh-title fh-medium fh-text">{s.title}</h2>
                     <p className="fh-copy fh-relaxed fh-soft">{s.intro}</p>
                   </div>
                   <SectionInlineExample id={s.id} />
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="fh-features-grid-2">
                     {s.features.map((f) => (
                       <FeatureCard key={f.name} feature={f} />
                     ))}
@@ -196,8 +194,8 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           </div>
         </div>
 
-        <div className="mt-24 border-t border-border pt-12 fh-center">
-          <p className="mx-auto mb-6 max-w-[400px] fh-subhead fh-soft">
+        <div className="fh-features-block-6 fh-center">
+          <p className="fh-features-wrap-2 fh-subhead fh-soft">
             See what your Stripe account is leaking. Free diagnostic, no account required.
           </p>
           {/* Comfortable density for Capsomer's lg button, as /pricing: 40px
@@ -205,7 +203,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           <div data-density="comfortable">
             <Link
               to="/audit"
-              className="cap-btn px-6 [--cap-btn-h:3rem]"
+              className="fh-mk-big-button cap-btn"
               data-variant="primary"
               data-size="lg"
             >

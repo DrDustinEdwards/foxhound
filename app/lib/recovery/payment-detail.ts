@@ -59,15 +59,15 @@ export function stepResultWords(result: string | null, executed: boolean): strin
 export function declineValueClass(category: string): string {
   switch (category) {
     case "soft":
-      return "text-blue";
+      return "fh-blue";
     case "network":
-      return "text-caution";
+      return "fh-caution";
     case "expired":
-      return "text-brand-text";
+      return "fh-brand";
     case "fraud":
-      return "text-red";
+      return "fh-red";
     default:
-      return "text-text-subtle";
+      return "fh-faint";
   }
 }
 
@@ -75,13 +75,13 @@ export function declineValueClass(category: string): string {
 export function statusValueClass(status: string): string {
   switch (status) {
     case "active":
-      return "text-brand-text";
+      return "fh-brand";
     case "recovered":
-      return "text-green";
+      return "fh-green";
     case "failed_unrecovered":
-      return "text-red";
+      return "fh-red";
     default:
-      return "text-text-subtle";
+      return "fh-faint";
   }
 }
 

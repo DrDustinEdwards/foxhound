@@ -1,6 +1,5 @@
+import { Icon, iconAlert, iconPercent, iconTrendingUp } from "capsomer/react/icons";
 import { plural } from "@drdustinedwards/site-helpers/text";
-import { AlertCircle, Percent, TrendingUp } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Pill, Status, type Tone } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
 
@@ -42,23 +41,20 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
     <div className="cap-panel">
       <div className="cap-panel-body">
         <div>
-          <div className="mb-3 fh-tiny fh-medium fh-quiet fh-caps-wide">
+          <div className="fh-recprev-block fh-tiny fh-medium fh-quiet fh-caps-wide">
             {label}: {count}
           </div>
           {/* Recova's row scrolls sideways on a narrow screen; this one wraps instead, since no
               page may need a sideways scrollbar (Dustin, 2026-10-30). */}
-          <div className="pb-2">
-            <ol
-              aria-label={`${label} sequence, ${count}`}
-              className="flex flex-wrap items-center gap-x-1 gap-y-2"
-            >
+          <div className="fh-recprev-block-2">
+            <ol aria-label={`${label} sequence, ${count}`} className="fh-recprev-list">
               {steps.map((step, i) => {
                 const retry = isRetryStep(step.stepType);
                 return (
-                  <li key={step.stepType} className="flex items-center gap-1">
+                  <li key={step.stepType} className="fh-mk-inline">
                     <StepChip retry={retry} timing={timingLabel(step.offsetHours)} />
                     {i < steps.length - 1 ? (
-                      <span className="cap-keep h-px w-4 bg-border" aria-hidden="true" />
+                      <span className="fh-recprev-label cap-keep" aria-hidden="true" />
                     ) : null}
                   </li>
                 );
@@ -73,10 +69,10 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
 
 export function CategorySequencePreview() {
   return (
-    <div className="flex flex-col gap-4 p-5">
+    <div className="cap-stack fh-recprev-block-3" data-gap="5">
       {CATEGORIES.map((category) => (
         <div key={category} data-category={category}>
-          <div className="mb-2 flex items-center gap-2">
+          <div className="fh-recprev-row">
             <CategoryPill category={category} />
             <span className="fh-mono fh-small fh-quiet">
               {DECLINE_CATEGORY_LABELS[category]} sequence
@@ -91,18 +87,18 @@ export function CategorySequencePreview() {
 
 const RATE_STATUS: Record<RecoveryRateTone, { tone: Tone; className: string }> = {
   green: { tone: "ok", className: "fh-success" },
-  caution: { tone: "warn", className: "text-caution" },
+  caution: { tone: "warn", className: "fh-caution" },
   red: { tone: "crit", className: "fh-error" },
 };
 
 function Figure({
-  icon: Icon,
+  icon,
   label,
   value,
   className,
   sub,
 }: {
-  icon: LucideIcon;
+  icon: string;
   label: string;
   value: string;
   className: string;
@@ -114,10 +110,10 @@ function Figure({
     <li className="cap-panel">
       <div className="cap-panel-body">
         <div>
-          <Icon className={`mb-2 h-4 w-4 ${className}`} strokeWidth={1.5} aria-hidden />
-          <p className="mb-2 fh-tiny fh-medium fh-quiet">{label}</p>
-          <p className={`fh-mono fh-display fh-bold tracking-[-0.5px] ${className}`}>{value}</p>
-          {sub ? <div className="mt-1 fh-tiny">{sub}</div> : null}
+          <Icon d={icon} className={`fh-recprev-icon fh-icon-16 fh-icon-fine ${className}`} />
+          <p className="fh-recprev-text fh-tiny fh-medium fh-quiet">{label}</p>
+          <p className={`fh-recprev-text-2 fh-mono fh-display fh-bold ${className}`}>{value}</p>
+          {sub ? <div className="fh-recprev-block-4 fh-tiny">{sub}</div> : null}
         </div>
       </div>
     </li>
@@ -133,10 +129,10 @@ function RoiRows({
 }) {
   return (
     <div>
-      <h4 className="mb-3 fh-tiny fh-medium uppercase tracking-[0.06em] fh-quiet">{heading}</h4>
+      <h4 className="fh-mk-kicker-gap fh-tiny fh-medium fh-quiet">{heading}</h4>
       <dl className="cap-stack" data-gap="3">
         {rows.map(([label, value, kind]) => (
-          <div key={label} className="flex flex-wrap items-baseline justify-between gap-x-3">
+          <div key={label} className="fh-recprev-row-2">
             <dt className={`fh-small ${kind === "fee" ? "fh-quiet" : "fh-soft"}`}>{label}</dt>
             <dd
               className={`fh-mono fh-body cap-num ${
@@ -158,22 +154,22 @@ export function DashboardPreview({ preview }: { preview: RecoveryPreview }) {
   const month: RoiColumn = roi.thisMonth;
   const all: RoiColumn = roi.allTime;
   return (
-    <div className="p-5">
-      <ul className="mb-5 grid grid-cols-1 gap-3 md:grid-cols-3" aria-label="Recovery figures">
+    <div className="fh-recprev-block-3">
+      <ul className="fh-recprev-grid" aria-label="Recovery figures">
         <Figure
-          icon={TrendingUp}
+          icon={iconTrendingUp}
           label="Recovered (30d)"
           value={dashboard.recovered30d}
           className="fh-success"
         />
         <Figure
-          icon={AlertCircle}
+          icon={iconAlert}
           label="Currently at risk"
           value={dashboard.atRisk}
           className="fh-error"
         />
         <Figure
-          icon={Percent}
+          icon={iconPercent}
           label="Recovery rate"
           value={dashboard.ratePct === null ? "-" : `${dashboard.ratePct}%`}
           className={rate?.className ?? "fh-faint"}
@@ -182,8 +178,8 @@ export function DashboardPreview({ preview }: { preview: RecoveryPreview }) {
       </ul>
       <div className="cap-panel">
         <div className="cap-panel-body">
-          <div className="grid grid-cols-2">
-            <div className="min-w-0 border-r border-border pr-6">
+          <div className="fh-recprev-grid-2">
+            <div className="fh-recprev-block-5">
               <RoiRows
                 heading="This month"
                 rows={[
@@ -193,7 +189,7 @@ export function DashboardPreview({ preview }: { preview: RecoveryPreview }) {
                 ]}
               />
             </div>
-            <div className="min-w-0 pl-6">
+            <div className="fh-recprev-block-6">
               <RoiRows
                 heading="All time"
                 rows={[
@@ -232,7 +228,7 @@ const HEADING_ID = "recovery-preview-payments";
 export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
   const { totalCount, activeCount, rows } = preview.payments;
   return (
-    <div className="p-5">
+    <div className="fh-recprev-block-3">
       <section className="cap-panel">
         <header className="cap-panel-head">
           <h4 id={HEADING_ID}>Failed payments</h4>
@@ -245,10 +241,10 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
         </header>
         <div className="cap-panel-body" data-flush>
           {/* Recova's phone layout: one card per payment. */}
-          <ul className="sm:hidden">
+          <ul className="fh-recprev-list-2">
             {rows.map((row) => (
-              <li key={row.id} className="border-b border-border px-5 py-4 last:border-b-0">
-                <div className="mb-2 flex items-start justify-between gap-3">
+              <li key={row.id} className="fh-recprev-item">
+                <div className="fh-mk-card-top">
                   <div className="cap-grow">
                     <div className="fh-truncate fh-small fh-medium fh-text">{row.customer}</div>
                     {row.email ? (
@@ -264,7 +260,7 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
               </li>
             ))}
           </ul>
-          <div className="hidden sm:block">
+          <div className="fh-recprev-block-7">
             <div
               className="cap-table-wrap"
               data-reflow=""
@@ -292,10 +288,14 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                           <FailureCount row={row} />
                         </div>
                         {row.email ? (
-                          <div className="mt-0.5 fh-tiny fh-regular fh-faint">{row.email}</div>
+                          <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
+                            {row.email}
+                          </div>
                         ) : null}
                         {row.plan ? (
-                          <div className="mt-0.5 fh-tiny fh-regular fh-faint">{row.plan}</div>
+                          <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
+                            {row.plan}
+                          </div>
                         ) : null}
                       </th>
                       <td data-label="Amount" className="fh-nowrap">
@@ -304,7 +304,9 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                       <td data-label="Decline">
                         <CategoryPill category={row.category} />
                         {row.declineCode ? (
-                          <div className="mt-1 fh-mono fh-tiny fh-faint">{row.declineCode}</div>
+                          <div className="fh-recprev-block-4 fh-mono fh-tiny fh-faint">
+                            {row.declineCode}
+                          </div>
                         ) : null}
                       </td>
                       <td data-label="Steps">
@@ -314,7 +316,9 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                           {row.stepsDone}/{row.stepsTotal}
                         </span>
                         {row.nextStep ? (
-                          <div className="mt-0.5 fh-tiny fh-accent">Next: {row.nextStep}</div>
+                          <div className="fh-recprev-block-8 fh-tiny fh-accent">
+                            Next: {row.nextStep}
+                          </div>
                         ) : null}
                       </td>
                       <td data-label="Status">
@@ -322,7 +326,9 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                       </td>
                       <td data-label="Detected" className="fh-nowrap">
                         <div className="fh-tiny fh-faint">{row.detectedAgo}</div>
-                        <div className="mt-0.5 fh-tiny fh-faint">{row.detectedDate}</div>
+                        <div className="fh-recprev-block-8 fh-tiny fh-faint">
+                          {row.detectedDate}
+                        </div>
                       </td>
                     </tr>
                   ))}

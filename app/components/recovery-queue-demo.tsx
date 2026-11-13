@@ -1,6 +1,6 @@
+import { Icon, iconCheck, iconClose, iconRefresh } from "capsomer/react/icons";
 import { useEffect, useState } from "react";
 import { usePrefersReducedMotion } from "capsomer/react/hooks";
-import { Check, RefreshCw, X } from "lucide-react";
 
 import {
   amountClass,
@@ -27,7 +27,7 @@ import {
 //   - Foxhound tokens throughout. Legacy hardcoded sizes below the type scale
 //     (0.5rem, 0.5625rem); text-micro is the floor here, so the panel is a
 //     little taller than legacy's and the step chips a little wider.
-//   - lucide icons instead of literal glyph characters, per DESIGN.md.
+//   - drawn icons instead of literal glyph characters, per DESIGN.md.
 //   - It sizes to its OWN content. Legacy was h-full inside a fixed-height
 //     hero and would clip exactly the way the ledger mock did (commit
 //     1c98363). Nothing here may reintroduce a fixed height.
@@ -55,35 +55,20 @@ import {
 // The correctness reason: the old read happened once on mount, so a visitor who
 // turned reduced motion ON while the page sat open kept the loop running. That
 // is the WCAG 2.2.2 case this behavior is here to serve.
-// All three icons, the one for `status` showing (Tailwind's `hidden` on the
+// All three icons, the one for `status` showing (the hidden attribute on the
 // others), so the island can switch them.
 function StatusIcons({ status }: { status: Status }) {
   return (
     <>
-      <X
-        width={13}
-        height={13}
-        strokeWidth={2.5}
-        aria-hidden
-        className={status === "failed" ? undefined : "hidden"}
-        data-queue-status="failed"
-      />
-      <RefreshCw
-        width={13}
-        height={13}
-        strokeWidth={2.5}
-        aria-hidden
-        className={status === "running" ? undefined : "hidden"}
-        data-queue-status="running"
-      />
-      <Check
-        width={13}
-        height={13}
-        strokeWidth={2.5}
-        aria-hidden
-        className={status === "recovered" ? undefined : "hidden"}
-        data-queue-status="recovered"
-      />
+      <span hidden={status !== "failed"} data-queue-status="failed">
+        <Icon d={iconClose} className="fh-icon-13 fh-icon-heavy" />
+      </span>
+      <span hidden={status !== "running"} data-queue-status="running">
+        <Icon d={iconRefresh} className="fh-icon-13 fh-icon-heavy" />
+      </span>
+      <span hidden={status !== "recovered"} data-queue-status="recovered">
+        <Icon d={iconCheck} className="fh-icon-13 fh-icon-heavy" />
+      </span>
     </>
   );
 }
@@ -100,8 +85,8 @@ function Stat({
   tone?: string;
 }) {
   return (
-    <div className="px-3 py-2.5">
-      <div className="mb-1 fh-mono fh-tiny fh-faint fh-caps-wide">{label}</div>
+    <div className="fh-queue-block">
+      <div className="fh-queue-block-2 fh-mono fh-tiny fh-faint fh-caps-wide">{label}</div>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
@@ -139,32 +124,29 @@ export function RecoveryQueueDemo() {
   const activePayment = PAYMENTS[frame.activeSequence];
 
   return (
-    <div className="w-full" data-island="queue-demo">
+    <div className="fh-queue-block-3" data-island="queue-demo">
       <p className="cap-sr-only">
         An illustration of the recovery queue working three sample failed payments. A Foxhound email
         sequence runs, a retry is attempted, and two of the three payments are recovered.
       </p>
 
-      <div
-        aria-hidden="true"
-        className="flex w-full flex-col overflow-hidden rounded-xl border border-border bg-surface"
-      >
-        <div className="flex items-center gap-1.5 border-b border-border-sub bg-bg px-3 py-2">
-          <div className="h-2.5 w-2.5 rounded-full bg-border" />
-          <div className="h-2.5 w-2.5 rounded-full bg-border" />
-          <div className="h-2.5 w-2.5 rounded-full bg-border" />
-          <div className="mx-3 flex-1">
-            <div className="rounded border border-border-sub bg-surface px-2 py-0.5 fh-center fh-mono fh-tiny fh-faint">
+      <div aria-hidden="true" className="fh-queue-col">
+        <div className="fh-queue-chrome">
+          <div className="fh-queue-block-4" />
+          <div className="fh-queue-block-4" />
+          <div className="fh-queue-block-4" />
+          <div className="fh-queue-block-5">
+            <div className="fh-queue-block-6 fh-center fh-mono fh-tiny fh-faint">
               foxhoundapp.com/recovery/dashboard
             </div>
           </div>
         </div>
 
-        <div className="flex items-center justify-between border-b border-border-sub px-4 py-3">
+        <div className="fh-queue-row-2">
           <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">Recovery queue</span>
-          <div className="flex items-center gap-1.5">
+          <div className="fh-mk-inline-wide">
             <span
-              className="h-1.5 w-1.5 rounded-full bg-green transition-opacity duration-300"
+              className="fh-queue-label"
               style={{ opacity: pulse ? 1 : 0.3 }}
               data-queue-pulse=""
             />
@@ -172,7 +154,7 @@ export function RecoveryQueueDemo() {
           </div>
         </div>
 
-        <ol className="flex flex-col">
+        <ol className="fh-mk-column">
           {PAYMENTS.map((payment, i) => (
             <li key={payment.name} className={rowClass(frame.statuses[i])} data-queue-row={i}>
               <span className={iconClass(frame.statuses[i])} data-queue-icon="">
@@ -193,11 +175,14 @@ export function RecoveryQueueDemo() {
           ))}
         </ol>
 
-        <div className="border-b border-border-sub bg-bg px-4 py-3">
-          <div className="mb-2 fh-mono fh-tiny fh-faint fh-caps-wide" data-queue-sequence="">
+        <div className="fh-queue-block-7">
+          <div
+            className="fh-queue-block-8 fh-mono fh-tiny fh-faint fh-caps-wide"
+            data-queue-sequence=""
+          >
             {`${activePayment.name} sequence`}
           </div>
-          <div className="flex items-center gap-1">
+          <div className="fh-mk-inline">
             {STEPS.map((label, i) => (
               <div key={label} className={stepClass(i, frame.done)} data-queue-step={i}>
                 {label}
@@ -206,7 +191,7 @@ export function RecoveryQueueDemo() {
           </div>
         </div>
 
-        <div className="grid grid-cols-3 divide-x divide-border-sub">
+        <div className="fh-queue-grid">
           <Stat
             name="recovered"
             label="Recovered"
@@ -217,7 +202,7 @@ export function RecoveryQueueDemo() {
           <Stat name="active" label="Active" value={String(frame.active)} />
         </div>
 
-        <div className="border-t border-border-sub bg-bg px-4 py-2">
+        <div className="fh-queue-block-9">
           <span className="fh-mono fh-tiny fh-faint fh-caps-wide">Sample data</span>
         </div>
       </div>

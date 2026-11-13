@@ -14,6 +14,7 @@ import type { Route } from "./+types/competitor";
 import "capsomer/table.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
+import "~/reference.css";
 
 // NEW in Phase 6 Pass 3 (net-new). Templated Foxhound-vs-competitor page for
 // each of the six named competitors (ROUTES.md Rev 2). Neither Capsid
@@ -62,9 +63,9 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         subtext={competitor.oneLiner}
       />
 
-      <div className="mx-auto max-w-4xl px-4 pb-16 sm:px-8">
+      <div className="fh-rival-wrap">
         <div
-          className="cap-table-wrap mb-10 rounded-lg border border-border"
+          className="fh-rival-block-2 cap-table-wrap"
           data-cap="table"
           data-reflow=""
           role="region"
@@ -82,13 +83,13 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
             <tbody>
               {competitor.rows.map((row) => (
                 <tr key={row.dimension}>
-                  <th scope="row" className="align-top fh-medium fh-text">
+                  <th scope="row" className="fh-rival-th fh-medium fh-text">
                     {row.dimension}
                   </th>
-                  <td data-label="Foxhound" className="align-top fh-relaxed fh-soft">
+                  <td data-label="Foxhound" className="fh-rival-th fh-relaxed fh-soft">
                     {row.foxhound}
                   </td>
-                  <td data-label={competitor.name} className="align-top fh-relaxed fh-soft">
+                  <td data-label={competitor.name} className="fh-rival-th fh-relaxed fh-soft">
                     {row.competitor}
                   </td>
                 </tr>
@@ -97,17 +98,16 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           </table>
         </div>
 
-        <section className={`${CARD_MD} mb-10`}>
+        <section className={`fh-rival-band ${CARD_MD}`}>
           <div className="cap-panel-body">
             <div>
-              <h2 className="mb-3 fh-title fh-medium fh-text">Where Foxhound is behind</h2>
-              <ul className="flex flex-col gap-2.5 fh-small fh-relaxed fh-soft">
+              <h2 className="fh-rival-title fh-title fh-medium fh-text">
+                Where Foxhound is behind
+              </h2>
+              <ul className="fh-rival-list fh-small fh-relaxed fh-soft">
                 {competitor.foxhoundCons.map((con) => (
-                  <li key={con} className="flex items-start gap-2">
-                    <span
-                      aria-hidden="true"
-                      className="mt-1.5 h-1 w-1 flex-shrink-0 rounded-full bg-text-tertiary"
-                    />
+                  <li key={con} className="fh-mk-point">
+                    <span aria-hidden="true" className="fh-rival-label" />
                     <span>{con}</span>
                   </li>
                 ))}
@@ -117,7 +117,7 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         </section>
 
         {competitor.priceSource ? (
-          <p className="mb-4 fh-small fh-quiet">
+          <p className="fh-rival-text fh-small fh-quiet">
             {competitor.name} pricing:{" "}
             <a href={competitor.priceSource.url} rel="external noopener noreferrer">
               {competitor.priceSource.url}
@@ -127,14 +127,16 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         ) : null}
 
         {competitor.omittedNote ? (
-          <p className="mb-10 fh-small fh-quiet">{competitor.omittedNote}</p>
+          <p className="fh-rival-band fh-small fh-quiet">{competitor.omittedNote}</p>
         ) : null}
 
         <div className={`${CARD} fh-center`}>
           <div className="cap-panel-body">
             <div>
-              <p className="mb-2 fh-body fh-medium fh-text">See Foxhound's pricing in full</p>
-              <p className="mb-5 fh-small fh-soft">
+              <p className="fh-rival-text-2 fh-body fh-medium fh-text">
+                See Foxhound's pricing in full
+              </p>
+              <p className="fh-rival-text-3 fh-small fh-soft">
                 {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of
                 won disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
                 {RECOVERY_MATURITY_DAYS} days.

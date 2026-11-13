@@ -1,6 +1,6 @@
+import { Icon, iconArrowLeft, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { formatDate } from "capsomer/behavior/time";
-import { ArrowLeft, ArrowRight } from "lucide-react";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
 import { CARD_MD, CTA_BUTTON } from "~/components/marketing-card";
 import { Link } from "capsomer/react/link";
@@ -197,34 +197,25 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
   const showPublished = post.showPublishedAt && post.publishedAt;
 
   return (
-    <div className="mx-auto max-w-[1100px] px-5 py-16 sm:px-8">
+    <div className="fh-mk-band-wrap">
       <div className="cap-reading-progress" aria-hidden="true" />
 
       <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: post.title }]} />
 
-      <div className="grid grid-cols-1 gap-12 lg:grid-cols-[minmax(0,680px)_minmax(0,1fr)]">
+      <div className="fh-post-grid">
         {/* h-entry and e-content name the post's own text for site-api's
             webmention hook, which sends to the links inside it only (not the
             share row's). No style reads either class. */}
         <article id="blog-post-article" className="h-entry" data-cap-reading>
           {cover ? (
-            <div className="mb-8 aspect-video w-full overflow-hidden rounded-xl bg-bg">
-              <Picture
-                attrs={cover.picture}
-                alt={cover.alt}
-                priority
-                className="h-full w-full object-cover"
-              />
+            <div className="fh-post-block">
+              <Picture attrs={cover.picture} alt={cover.alt} priority className="fh-mk-cover" />
             </div>
           ) : null}
 
           {post.tags.length > 0 ? (
             // Capsomer's outline pill as a link, as on /blog's cards, in the amber family.
-            <div
-              className="fh-cap mb-3 flex flex-wrap items-center gap-1.5"
-              data-cap-site="foxhound"
-              data-family="amber"
-            >
+            <div className="fh-post-row fh-cap" data-cap-site="foxhound" data-family="amber">
               {post.tags.map((t) => (
                 <Link
                   key={t}
@@ -238,7 +229,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             </div>
           ) : null}
 
-          <div className="mb-4 flex flex-wrap items-center gap-x-2 gap-y-1 fh-mono fh-small fh-quiet">
+          <div className="fh-post-row-2 fh-mono fh-small fh-quiet">
             {showPublished ? (
               <time dateTime={post.publishedAt!.toISOString()}>
                 {formatDate(post.publishedAt, { style: "medium" }) ?? ""}
@@ -254,23 +245,19 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
               </>
             ) : null}
             {showPublished || showUpdated ? (
-              <span aria-hidden="true" className="opacity-40">
+              <span aria-hidden="true" className="fh-post-label">
                 &middot;
               </span>
             ) : null}
             <span>{post.readingTimeMinutes} min read</span>
-            <span aria-hidden="true" className="opacity-40">
+            <span aria-hidden="true" className="fh-post-label">
               &middot;
             </span>
             <span>{post.author}</span>
           </div>
 
-          <h1 className="mb-4 fh-page-title fh-medium leading-tight tracking-tight fh-text">
-            {post.title}
-          </h1>
-          <p className="mb-8 border-b border-border pb-8 fh-product-sub fh-relaxed fh-soft">
-            {post.excerpt}
-          </p>
+          <h1 className="fh-post-title fh-page-title fh-medium fh-text">{post.title}</h1>
+          <p className="fh-post-text fh-product-sub fh-relaxed fh-soft">{post.excerpt}</p>
 
           <ShareRow url={canonical} title={post.title}>
             <CopyButton
@@ -306,7 +293,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         items={related.map((r) => ({ href: `/blog/${r.slug}`, title: r.title }))}
       />
 
-      <div className="mt-12 flex items-start gap-4 border-t border-border pt-8">
+      <div className="fh-post-row-3">
         <img
           src="/favicon.svg"
           alt="Foxhound"
@@ -314,13 +301,11 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
           height={44}
           loading="lazy"
           decoding="async"
-          className="h-11 w-11 shrink-0 rounded-[10px]"
+          className="fh-post-block-2"
         />
         <div>
-          <p className="mb-0.5 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
-            Published by
-          </p>
-          <p className="mb-1 fh-item-title fh-medium fh-text">{post.author}</p>
+          <p className="fh-post-text-2 fh-mono fh-tiny fh-quiet">Published by</p>
+          <p className="fh-post-text-3 fh-item-title fh-medium fh-text">{post.author}</p>
           <p className="fh-copy fh-relaxed fh-soft">
             Foxhound recovers failed Stripe payments, handles disputes, and surfaces subscription
             intelligence. {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing
@@ -332,24 +317,19 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       {previous || next ? (
         <nav
           aria-label="Adjacent posts"
-          className="fh-cap mx-auto mt-16 grid max-w-[1100px] grid-cols-1 gap-4 border-t border-border pt-8 sm:grid-cols-2"
+          className="fh-post-grid-2 fh-cap"
           data-cap-site="foxhound"
           data-family="amber"
         >
           {previous ? (
-            <Link to={`/blog/${previous.slug}`} className={`${CARD_MD} group`}>
+            <Link to={`/blog/${previous.slug}`} className={`${CARD_MD} fh-hover-group`}>
               <div className="cap-panel-body">
                 <div>
-                  <div className="mb-1 inline-flex items-center gap-1 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
-                    <ArrowLeft
-                      className="motion-safe:transition-transform group-hover:-translate-x-0.5"
-                      size={13}
-                      strokeWidth={1.5}
-                      aria-hidden
-                    />
+                  <div className="fh-post-row-4 fh-mono fh-tiny fh-quiet">
+                    <Icon d={iconArrowLeft} className="fh-icon-13 fh-icon-fine fh-post-block-3" />
                     Previous post
                   </div>
-                  <div className="fh-item-title fh-medium leading-snug fh-text">
+                  <div className="fh-post-block-4 fh-item-title fh-medium fh-text">
                     {previous.title}
                   </div>
                 </div>
@@ -359,19 +339,16 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
             <span />
           )}
           {next ? (
-            <Link to={`/blog/${next.slug}`} className={`${CARD_MD} group sm:text-right`}>
+            <Link to={`/blog/${next.slug}`} className={`fh-post-link ${CARD_MD} fh-hover-group`}>
               <div className="cap-panel-body">
                 <div>
-                  <div className="mb-1 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
+                  <div className="fh-mk-kicker fh-mono fh-tiny fh-quiet">
                     Next post{" "}
-                    <ArrowRight
-                      className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                      size={13}
-                      strokeWidth={1.5}
-                      aria-hidden
-                    />
+                    <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
                   </div>
-                  <div className="fh-item-title fh-medium leading-snug fh-text">{next.title}</div>
+                  <div className="fh-post-block-4 fh-item-title fh-medium fh-text">
+                    {next.title}
+                  </div>
                 </div>
               </div>
             </Link>
@@ -381,23 +358,21 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         </nav>
       ) : null}
 
-      <div
-        className="fh-cap mx-auto mt-16 max-w-[760px] border-t border-border pt-12 fh-center"
-        data-cap-site="foxhound"
-        data-family="amber"
-      >
-        <h2 className="mb-2 fh-feature-title fh-medium fh-text">Run your free Stripe audit</h2>
-        <p className="mx-auto mb-6 max-w-[480px] fh-item-title fh-relaxed fh-soft">
+      <div className="fh-post-wrap fh-cap fh-center" data-cap-site="foxhound" data-family="amber">
+        <h2 className="fh-post-title-2 fh-feature-title fh-medium fh-text">
+          Run your free Stripe audit
+        </h2>
+        <p className="fh-post-wrap-2 fh-item-title fh-relaxed fh-soft">
           See exactly what your account is leaking. Free, no account required.
         </p>
-        <Link to="/audit" className={`${CTA_BUTTON} group`} data-variant="primary" data-size="lg">
+        <Link
+          to="/audit"
+          className={`${CTA_BUTTON} fh-hover-group`}
+          data-variant="primary"
+          data-size="lg"
+        >
           Start free audit{" "}
-          <ArrowRight
-            className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-            size={13}
-            strokeWidth={1.5}
-            aria-hidden
-          />
+          <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
         </Link>
       </div>
 

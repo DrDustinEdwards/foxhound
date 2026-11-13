@@ -68,7 +68,7 @@ export function RecoveryCalculator() {
     // On a page that does not hydrate, the calculator island (islands/calculator.ts) runs the same math
     // on the same markup; data-calc names each figure it writes.
     <div
-      className="cap-panel [--gap:1.5rem] [--pad-card:1.5rem] sm:[--gap:2rem] sm:[--pad-card:2rem]"
+      className="fh-calc-block cap-panel"
       data-island="calculator"
       data-props={JSON.stringify({
         stripeRecoveryRatePercent: STRIPE_RECOVERY_RATE_PERCENT,
@@ -77,7 +77,7 @@ export function RecoveryCalculator() {
     >
       <div className="cap-panel-body">
         <div>
-          <div className="mb-6">
+          <div className="fh-calc-block-2">
             <RangeField
               id="mrr-slider"
               label={
@@ -102,7 +102,7 @@ export function RecoveryCalculator() {
             />
           </div>
 
-          <div className="mb-6">
+          <div className="fh-calc-block-2">
             <RangeField
               id="failure-share-slider"
               label={
@@ -123,7 +123,7 @@ export function RecoveryCalculator() {
             />
           </div>
 
-          <div className="mb-6">
+          <div className="fh-calc-block-2">
             <RangeField
               id="recovery-share-slider"
               label={
@@ -144,7 +144,7 @@ export function RecoveryCalculator() {
             />
           </div>
 
-          <div className="mb-6 flex flex-col gap-3">
+          <div className="cap-stack fh-calc-block-2" data-gap="4">
             <Row
               name="failedRevenue"
               label="Failed payments per month"
@@ -179,10 +179,10 @@ export function RecoveryCalculator() {
               value={`-${fmt(foxhoundFee)}`}
               valueClassName="fh-soft"
             />
-            <div className="flex items-center justify-between py-3">
+            <div className="fh-calc-row">
               <div>
                 <p className="fh-subhead fh-medium fh-text">Net revenue retained</p>
-                <p className="mt-0.5 fh-mono fh-tiny fh-quiet">
+                <p className="fh-calc-text fh-mono fh-tiny fh-quiet">
                   Nothing is billed until the recovery has matured for {RECOVERY_MATURITY_DAYS}{" "}
                   days.
                 </p>
@@ -194,7 +194,7 @@ export function RecoveryCalculator() {
                 </p>
                 {/* Recova dims this line to 70%, which takes it and its "/mo" under
                 4.5:1 in both themes (measured 3.02 and 3.29). Full strength here. */}
-                <p className="mt-0.5 fh-mono fh-subhead fh-medium fh-success">
+                <p className="fh-calc-text fh-mono fh-subhead fh-medium fh-success">
                   <span data-calc="netGain">{`+${fmt(netGain)}`}</span>
                   <span className="fh-tiny fh-regular fh-quiet">/mo</span>
                 </p>
@@ -202,16 +202,16 @@ export function RecoveryCalculator() {
             </div>
           </div>
 
-          <p className="mb-6 fh-center fh-mono fh-source fh-faint">
+          <p className="fh-calc-block-2 fh-center fh-mono fh-source fh-faint">
             Stripe {STRIPE_RECOVERY_RATE_PERCENT}% recovery: stripe.com/billing, read {STAT_AS_OF}.
             The failure and recovery shares are assumptions you set, not Foxhound results: Foxhound
             does not project a failure or recovery rate.
           </p>
 
-          <div className="flex justify-center">
+          <div className="fh-mk-centered">
             <Link
               to="/audit"
-              className="cap-btn w-full px-6 fh-semibold sm:w-auto sm:min-w-[280px] [--cap-btn-h:3rem]"
+              className="fh-calc-link cap-btn fh-semibold"
               data-variant="primary"
               data-size="lg"
             >
@@ -222,7 +222,7 @@ export function RecoveryCalculator() {
           Stripe access", but Stripe gives read_only only to Extensions
           (2026-10-29), so the audit asks for read_write, only reads, and
           disconnects itself when its window ends (audit-access.ts). */}
-          <p className="mt-3 fh-center fh-mono fh-tiny fh-faint">
+          <p className="fh-calc-text-2 fh-center fh-mono fh-tiny fh-faint">
             Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
           </p>
         </div>
@@ -246,10 +246,10 @@ function Row({
   valueClassName?: string;
 }) {
   return (
-    <div className="flex items-center justify-between border-b border-border-sub py-3">
+    <div className="fh-calc-row-2">
       <div>
         <p className="fh-copy fh-text">{label}</p>
-        <p className="mt-0.5 fh-mono fh-tiny fh-quiet" data-calc={`${name}-sub`}>
+        <p className="fh-calc-text fh-mono fh-tiny fh-quiet" data-calc={`${name}-sub`}>
           {sub}
         </p>
       </div>

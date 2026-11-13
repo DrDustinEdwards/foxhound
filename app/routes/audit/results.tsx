@@ -28,6 +28,7 @@ import { findLiveAttachment } from "~/lib/stripe/connections.server";
 import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/results";
+import "~/audit-tool.css";
 
 // Legacy's `app/audit/results/page.tsx` (blob `9aad7745`, 8,818 bytes), phase (f).
 // The live run: the door phase (e) built two rooms behind.
@@ -159,7 +160,7 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
       <Panel title="What's next">
         {notSaved === null ? (
           <>
-            <p className="mb-4 fh-small fh-soft">
+            <p className="fh-results-text fh-small fh-soft">
               This run is saved to your audit history. Trends show up after the second run.
             </p>
             <Link to="/audit/dashboard" className="cap-btn">
@@ -189,17 +190,17 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
             the panel's edge on a phone. The label wraps between its two
             sentences, never inside one, and py-2 gives two lines room; on a
             wide screen it is one line and the button keeps its height. */}
-        <Link to="/signup" className="cap-btn py-2" data-variant="primary">
-          <span className="whitespace-normal">
+        <Link to="/signup" className="fh-results-link cap-btn" data-variant="primary">
+          <span className="fh-results-label">
             <span className="fh-nowrap">Start recovering this revenue.</span>{" "}
             <span className="fh-nowrap">Free until we do.</span>
           </span>
         </Link>
-        <p className="mt-2 fh-small fh-soft">
+        <p className="fh-results-text-2 fh-small fh-soft">
           Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}%
           of what we recover. Nothing until then.
         </p>
-        <p className="mt-1 fh-tiny fh-faint">
+        <p className="fh-results-text-3 fh-tiny fh-faint">
           These results are from a {AUDIT_GRANT_MINUTES}-minute session. Create an account to save
           them.
         </p>
@@ -216,9 +217,11 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
   // (--fs-page, app.css). The page sits under the marketing shell, which is not a
   // Capsomer family, so it names the amber family itself, as the legal pages do.
   return (
-    <div className="fh-cap cap-page min-w-0 py-10" data-cap-site="foxhound" data-family="amber">
-      <div className="mb-6">
-        <div className="mb-2 fh-mono fh-tiny fh-faint fh-caps-wide">Stripe Account Diagnostic</div>
+    <div className="fh-results-block fh-cap cap-page" data-cap-site="foxhound" data-family="amber">
+      <div className="fh-results-block-2">
+        <div className="fh-results-block-3 fh-mono fh-tiny fh-faint fh-caps-wide">
+          Stripe Account Diagnostic
+        </div>
         <PageHead
           title={`Analyzed last ${run.lookbackDays} days of payment history`}
           lead={

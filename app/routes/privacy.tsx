@@ -133,14 +133,11 @@ export default function PrivacyPage() {
           <LegalMailto email={SUPPORT_EMAIL} />.
         </P>
 
-        <div className="my-8">
+        <div className="fh-privacy-block">
           {/* Recova's summary card: p-6, its heading a mono label inside. */}
           <section className={CARD} aria-labelledby="privacy-summary">
             <div className="cap-panel-body">
-              <h2
-                id="privacy-summary"
-                className="fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet"
-              >
+              <h2 id="privacy-summary" className="fh-privacy-title fh-mono fh-tiny fh-quiet">
                 Summary of key points
               </h2>
               <p className="fh-copy fh-relaxed fh-soft">

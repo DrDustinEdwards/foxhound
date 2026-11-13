@@ -19,6 +19,7 @@ import "~/site-header.css";
 
 import type { Route } from "./+types/page";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/docs.css";
 
 // The five docs guides on one :slug route. Recova's spec is
 // app/(marketing)/docs/{platform,audit,recovery,disputes,intelligence}/page.tsx
@@ -76,30 +77,21 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
   const sectionIds = guide.sections.map((section) => slugify(section.heading));
 
   return (
-    <div
-      className="fh-cap mx-auto max-w-[760px] px-6 py-16"
-      data-cap-site="foxhound"
-      data-family="amber"
-    >
+    <div className="fh-doc-wrap fh-cap" data-cap-site="foxhound" data-family="amber">
       <SectionTrail items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]} />
 
-      <div className="mb-3 fh-tiny fh-medium fh-quiet fh-caps-wide">User Guide</div>
-      <h1 className="mb-3 fh-page-title fh-medium tracking-tight fh-text">{guide.heading}</h1>
-      <p className="mb-10 fh-subhead fh-relaxed fh-soft">{guide.lead}</p>
+      <div className="fh-doc-block fh-tiny fh-medium fh-quiet fh-caps-wide">User Guide</div>
+      <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">{guide.heading}</h1>
+      <p className="fh-doc-text fh-subhead fh-relaxed fh-soft">{guide.lead}</p>
 
       {guide.sections.length > 1 ? (
-        <nav
-          aria-label="Contents"
-          className="cap-panel mb-12 rounded-lg [--gap:1.25rem] [--pad-card:1.25rem]"
-        >
+        <nav aria-label="Contents" className="fh-doc-nav cap-panel">
           <div className="cap-panel-body">
             <div>
-              <div className="mb-3 fh-mono fh-tiny uppercase tracking-[0.06em] fh-quiet">
-                Contents
-              </div>
-              <ol className="grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
+              <div className="fh-mk-kicker-gap fh-mono fh-tiny fh-quiet">Contents</div>
+              <ol className="fh-mk-grid-2">
                 {guide.sections.map((section, i) => (
-                  <li key={section.heading} className="fh-small leading-6">
+                  <li key={section.heading} className="fh-doc-item fh-small">
                     <a href={`#${sectionIds[i]}`}>
                       Part {i + 1}. {section.heading}
                     </a>
@@ -113,8 +105,10 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
       {guide.sections.map((section, i) => (
         <section key={section.heading}>
-          <div className="mb-2 mt-16 fh-tiny fh-medium fh-accent fh-caps-wide">Part {i + 1}</div>
-          <h2 id={sectionIds[i]} className="mb-6 scroll-mt-20 fh-title fh-medium fh-text">
+          <div className="fh-doc-block-2 fh-tiny fh-medium fh-accent fh-caps-wide">
+            Part {i + 1}
+          </div>
+          <h2 id={sectionIds[i]} className="fh-doc-title fh-title fh-medium fh-text">
             {section.heading}
           </h2>
           <DocBlocks blocks={section.body} />

@@ -23,6 +23,7 @@ import type { Route } from "./+types/code";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "capsomer/button.css";
 import "capsomer/panel.css";
+import "~/reference.css";
 
 // NEW in Phase 6 Pass 3. Templated page for a single Stripe decline code.
 // Category, retryability, and whether the code rides classifyDecline()'s
@@ -70,8 +71,8 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
         subtext={content.meaning}
       />
 
-      <div className="mx-auto max-w-3xl px-4 pb-16 sm:px-8">
-        <div className="mb-8 flex flex-wrap items-center gap-2">
+      <div className="fh-code-wrap">
+        <div className="cap-cluster fh-code-block-2" data-gap="3">
           <span className="cap-pill fh-mono fh-regular" data-variant="outline" data-tone="muted">
             {view.code}
           </span>
@@ -80,27 +81,27 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           </Pill>
         </div>
 
-        <section className="mb-10">
-          <h2 className="mb-3 fh-title fh-medium fh-text">Why it happens</h2>
+        <section className="fh-code-band">
+          <h2 className="fh-code-title fh-title fh-medium fh-text">Why it happens</h2>
           <p className="fh-body fh-relaxed fh-soft">{content.whyItHappens}</p>
         </section>
 
-        <section className="mb-10">
-          <h2 className="mb-3 fh-title fh-medium fh-text">How to fix it</h2>
+        <section className="fh-code-band">
+          <h2 className="fh-code-title fh-title fh-medium fh-text">How to fix it</h2>
           <p className="fh-body fh-relaxed fh-soft">{content.howToFix}</p>
         </section>
 
-        <section className={`${CARD_MD} mb-10`}>
+        <section className={`fh-code-band ${CARD_MD}`}>
           <div className="cap-panel-body">
             <div>
-              <h2 className="mb-3 fh-title fh-medium fh-text">How Foxhound recovers it</h2>
+              <h2 className="fh-code-title fh-title fh-medium fh-text">How Foxhound recovers it</h2>
               <p className="fh-body fh-relaxed fh-soft">{recoveryApproach(view)}</p>
             </div>
           </div>
         </section>
 
-        <section className="mb-10">
-          <h2 className="mb-4 fh-title fh-medium fh-text">Questions</h2>
+        <section className="fh-code-band">
+          <h2 className="fh-code-title-2 fh-title fh-medium fh-text">Questions</h2>
           <FaqList
             name="decline-code-faq"
             faqs={content.faqs.map((f) => ({ q: f.question, a: f.answer }))}
@@ -110,10 +111,10 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
         <div className={`${CARD} fh-center`}>
           <div className="cap-panel-body">
             <div>
-              <p className="mb-2 fh-body fh-medium fh-text">
+              <p className="fh-code-text fh-body fh-medium fh-text">
                 See what this looks like on your account
               </p>
-              <p className="mb-5 fh-small fh-soft">
+              <p className="fh-code-text-2 fh-small fh-soft">
                 The free audit shows what Stripe already recovered and what is still dying, no
                 signup required.
               </p>

@@ -66,12 +66,9 @@ function TriagePill({ row }: { row: PreviewDisputeRow }) {
  *  dashboard, three across in the numbers block. */
 function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
   const { stats } = preview;
-  const grid =
-    columns === 5
-      ? "md:[--tiles-columns:repeat(5,minmax(0,1fr))]"
-      : "sm:[--tiles-columns:repeat(3,minmax(0,1fr))]";
+  const grid = columns === 5 ? "fh-dispprev-tiles-5" : "fh-dispprev-tiles-3";
   return (
-    <div className={`fh-tiles-preview [--tiles-columns:repeat(2,minmax(0,1fr))] ${grid}`}>
+    <div className={`fh-dispprev-block fh-tiles-preview ${grid}`}>
       <StatTiles layout="grid" label="Dispute figures">
         <StaticStatTile label="Open disputes" figure={stats.openCount} />
         <StaticStatTile label="At stake" figure={stats.atStake} />
@@ -86,7 +83,7 @@ function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; colu
 /** Block 2: the stat cards on their own, as Recova's numbers block draws them. */
 export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
   return (
-    <div className="p-5">
+    <div className="fh-dispprev-block-2">
       <DisputeStatCards preview={preview} columns={3} />
     </div>
   );
@@ -108,8 +105,8 @@ const DASHBOARD_CAPTION = "preview-disputes-dashboard";
 /** Block 1: Recova's disputes dashboard, the five cards over the table. */
 export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
   return (
-    <div className="p-5">
-      <div className="mb-8">
+    <div className="fh-dispprev-block-2">
+      <div className="fh-dispprev-block-3">
         <DisputeStatCards preview={preview} columns={5} />
       </div>
       <div className="cap-panel">
@@ -173,7 +170,7 @@ const TABLE_CAPTION = "preview-disputes-table";
 /** Block 3: Recova's dispute table, with the deadline as a date. */
 export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
   return (
-    <div className="p-5">
+    <div className="fh-dispprev-block-2">
       <div
         className="cap-table-wrap"
         data-reflow=""

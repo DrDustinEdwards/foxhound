@@ -1,3 +1,4 @@
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import "capsomer/panel.css";
 import "capsomer/status.css";
@@ -8,7 +9,6 @@ import "capsomer/source-line.css";
 // this page reads. The site header loads the same file; importing it here
 // keeps the page whole under any layout.
 import "~/site-header.css";
-import { ArrowRight } from "lucide-react";
 import { faqPage } from "@drdustinedwards/site-helpers/schema";
 import { Link } from "capsomer/react/link";
 import { SourceLine } from "capsomer/react/source-line";
@@ -51,6 +51,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/home";
 import { PRODUCT_ICONS, Arrow, HOW_IT_WORKS, BILLING_ANSWER } from "../components/home-parts";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
+import "~/home.css";
 
 // The marketing home page. Recova's spec, read whole at HEAD:
 // app/(marketing)/page.tsx (blob c10db7d5), components/hero/RecoveryDemo.tsx
@@ -73,7 +74,7 @@ import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 // Copy, and every number in it read from the engine, is in
 // lib/marketing/home-copy.ts.
 
-const H2 = "m-0 mb-3 text-section font-semibold tracking-[-0.02em] text-text sm:text-section-lg";
+const H2 = "fh-home-h2 fh-section fh-semibold fh-text";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   // JSON-LD, as Recova emits it: Organization, SoftwareApplication, the
@@ -130,11 +131,11 @@ export default function Home({ loaderData }: Route.ComponentProps) {
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       {/* 1. Hero */}
-      <section className="speakable-hero border-b border-border-sub px-5 pb-16 pt-8 sm:px-8 sm:pb-20 sm:pt-10">
-        <div className="mx-auto max-w-[1100px]">
-          <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div className="flex flex-col">
-              <h1 className="animate-fade-up delay-80 mb-5 fh-hero fh-semibold leading-[1.02] tracking-[-0.03em] fh-text sm:text-hero-lg sm:tracking-[-0.04em]">
+      <section className="fh-home-band speakable-hero">
+        <div className="fh-mk-wrap">
+          <div className="fh-home-grid">
+            <div className="fh-mk-column">
+              <h1 className="fh-home-title animate-fade-up delay-80 fh-hero fh-semibold fh-text">
                 You pay when
                 <br />
                 you recover.
@@ -142,7 +143,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <span className="fh-accent">Not before.</span>
               </h1>
 
-              <p className="animate-fade-up delay-160 mb-8 fh-body leading-[1.6] fh-soft">
+              <p className="fh-home-text animate-fade-up delay-160 fh-body fh-soft">
                 {HERO_LEAD} <span className="fh-mono fh-text">{RECOVERY_FEE}</span> of what Foxhound
                 recovers. Anything Stripe would have recovered on its own is free. Nothing until you
                 have held the money for <span className="fh-mono fh-text">{MATURITY_DAYS}</span>{" "}
@@ -166,46 +167,41 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <Link
                   to="/demos/recovery"
                   rel="nofollow"
-                  className="cap-btn group [--cap-btn-bg:transparent]"
+                  className="fh-home-link cap-btn fh-hover-group"
                   data-size="lg"
                 >
                   See it live
-                  <ArrowRight
+                  <Icon
+                    d={iconArrowRight}
+                    className="fh-icon-13 fh-icon-fine fh-home-block-2"
                     data-icon="end"
-                    className="motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                    size={13}
-                    strokeWidth={1.5}
-                    aria-hidden
                   />
                 </Link>
               </div>
             </div>
 
-            <div className="animate-fade-in delay-320 flex items-center justify-center">
+            <div className="fh-home-row animate-fade-in delay-320">
               <RecoveryQueueDemo />
             </div>
           </div>
 
           {/* Trust row: full width, below both columns. */}
-          <div className="mt-5 border-t border-border-sub pt-4">
-            <ul className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2">
-              <li className="flex items-center gap-3">
+          <div className="fh-home-block-3">
+            <ul className="fh-home-list">
+              <li className="fh-home-item">
                 {/* leading-6 keeps the link a 24px target. */}
-                <a
-                  href="https://stripe.com/connect"
-                  className="fh-mono fh-caption leading-6 text-cobalt-text no-underline transition-opacity duration-150 hover:opacity-80"
-                >
+                <a href="https://stripe.com/connect" className="fh-home-link-2 fh-mono fh-caption">
                   Built on Stripe Connect
                 </a>
-                <span aria-hidden="true" className="text-border-sub">
+                <span aria-hidden="true" className="fh-home-label">
                   &middot;
                 </span>
               </li>
               {TRUST_ITEMS.map((label, i, arr) => (
-                <li key={label} className="flex items-center gap-3">
+                <li key={label} className="fh-home-item">
                   <span className="fh-mono fh-caption fh-faint">{label}</span>
                   {i < arr.length - 1 ? (
-                    <span aria-hidden="true" className="text-border-sub">
+                    <span aria-hidden="true" className="fh-home-label">
                       &middot;
                     </span>
                   ) : null}
@@ -217,26 +213,26 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Stats: the problem */}
-      <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
-        <div className="mx-auto max-w-[1100px]">
+      <section className="fh-home-band-2">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="mb-12 fh-center">
+            <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>The revenue you&apos;re losing isn&apos;t showing up as churn.</h2>
               <p className="fh-subhead fh-soft">
                 Stripe&apos;s own data on failed payments and what happens next.
               </p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="fh-home-grid-2">
             {STATS.map((item) => (
-              <div key={item.stat} className="cap-reveal grid">
+              <div key={item.stat} className="fh-home-grid-3 cap-reveal">
                 <div className={CARD}>
                   <div className="cap-panel-body">
-                    <div className="flex h-full flex-col">
-                      <div className="mb-4 fh-mono fh-hero fh-semibold fh-tight fh-accent">
+                    <div className="fh-home-col">
+                      <div className="fh-home-block-5 fh-mono fh-hero fh-semibold fh-tight fh-accent">
                         {item.stat}
                       </div>
-                      <p className="mb-4 flex-1 fh-copy leading-[1.6] fh-soft">{item.body}</p>
+                      <p className="fh-home-text-2 fh-copy fh-soft">{item.body}</p>
                       {/* RULES.md 2.3: the exact page and the day it was read. */}
                       <SourceLine href={item.href} name={citation(item.href)} read={STAT_AS_OF} />
                     </div>
@@ -249,36 +245,39 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Stripe plus Foxhound */}
-      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
-        <div className="mx-auto max-w-[1100px]">
+      <section className="fh-mk-band">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="mb-12 fh-center">
+            <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>Stripe plus Foxhound</h2>
               <p className="fh-subhead fh-soft">What Stripe does, and what Foxhound adds on top.</p>
             </div>
           </div>
-          <div className="space-y-4">
+          <div className="fh-home-block-6">
             {COMPARISON_ROWS.map((row) => (
-              <div
-                key={row.stripeTitle}
-                className="cap-reveal grid grid-cols-1 gap-4 md:grid-cols-2"
-              >
+              <div key={row.stripeTitle} className="fh-home-grid-4 cap-reveal">
                 <div className={CARD}>
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-3 fh-caption fh-quiet">Stripe does this</div>
-                      <div className="mb-2 fh-body fh-medium fh-text">{row.stripeTitle}</div>
-                      <p className="fh-copy leading-[1.55] fh-soft">{row.stripeBody}</p>
+                      <div className="fh-home-block-7 fh-caption fh-quiet">Stripe does this</div>
+                      <div className="fh-home-block-8 fh-body fh-medium fh-text">
+                        {row.stripeTitle}
+                      </div>
+                      <p className="fh-home-text-3 fh-copy fh-soft">{row.stripeBody}</p>
                     </div>
                   </div>
                 </div>
-                <Link to={row.foxhoundHref} className={`${CARD} group`}>
+                <Link to={row.foxhoundHref} className={`${CARD} fh-hover-group`}>
                   <div className="cap-panel-body">
                     <div>
-                      <div className="mb-3 fh-caption fh-medium fh-accent">Foxhound adds this</div>
-                      <div className="mb-2 fh-body fh-semibold fh-text">{row.foxhoundTitle}</div>
-                      <p className="fh-copy leading-[1.55] fh-soft">{row.foxhoundBody}</p>
-                      <div className="mt-4 fh-mono fh-caption fh-accent">
+                      <div className="fh-home-block-7 fh-caption fh-medium fh-accent">
+                        Foxhound adds this
+                      </div>
+                      <div className="fh-home-block-8 fh-body fh-semibold fh-text">
+                        {row.foxhoundTitle}
+                      </div>
+                      <p className="fh-home-text-3 fh-copy fh-soft">{row.foxhoundBody}</p>
+                      <div className="fh-home-block-9 fh-mono fh-caption fh-accent">
                         Learn more <Arrow />
                       </div>
                     </div>
@@ -291,21 +290,19 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Full-bleed statement */}
-      <section className="overflow-hidden border-t border-border-sub px-5 py-20 sm:px-8 sm:py-28">
-        <div className="mx-auto max-w-[1100px]">
+      <section className="fh-home-band-3">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <p className="mb-6 fh-center fh-mono fh-tiny fh-faint fh-caps-wide">
+            <p className="fh-home-text-4 fh-center fh-mono fh-tiny fh-faint fh-caps-wide">
               The gap Stripe leaves open
             </p>
-            <h2 className="fh-center fh-statement fh-semibold leading-[1.0] tracking-[-0.04em] fh-text sm:text-statement-md lg:text-statement-lg">
+            <h2 className="fh-home-title-2 fh-center fh-statement fh-semibold fh-text">
               {STRIPE_GAP} of failed payments
               <br />
               <span className="fh-accent">never come back.</span>
             </h2>
-            <p className="mx-auto mt-8 max-w-[560px] fh-center fh-subhead leading-[1.6] fh-soft sm:text-product-sub">
-              {STATEMENT_BODY}
-            </p>
-            <div className="mt-8 flex justify-center">
+            <p className="fh-home-wrap fh-center fh-subhead fh-soft">{STATEMENT_BODY}</p>
+            <div className="fh-home-row-2">
               <SourceLine
                 href={STAT_SOURCES.stripeBilling}
                 name={citation(STAT_SOURCES.stripeBilling)}
@@ -317,10 +314,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* How it works */}
-      <section className="speakable-how-it-works border-t border-border-sub px-5 py-16 sm:px-8">
-        <div className="mx-auto max-w-[1100px]">
+      <section className="fh-mk-band-short speakable-how-it-works">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="mb-12 fh-center">
+            <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>How it works</h2>
               <p className="fh-subhead fh-soft">Live in an afternoon. No code, no setup fees.</p>
             </div>
@@ -328,14 +325,14 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           {/* Recova's one bordered strip of three. Capsomer's panel, flush, holds it. */}
           <div className="cap-panel">
             <div className="cap-panel-body" data-flush>
-              <div className="grid grid-cols-1 md:grid-cols-3">
+              <div className="fh-home-grid-5">
                 {HOW_IT_WORKS.map((s, i) => (
                   <div
                     key={s.title}
-                    className={`cap-reveal p-7 ${i < 2 ? "border-b border-border md:border-b-0 md:border-r" : ""}`}
+                    className={`fh-home-block-10 cap-reveal ${i < 2 ? "fh-home-step-ruled" : ""}`}
                   >
-                    <div className="mb-2 fh-body fh-medium fh-text">{s.title}</div>
-                    <p className="fh-copy leading-[1.55] fh-soft">{s.body}</p>
+                    <div className="fh-home-block-8 fh-body fh-medium fh-text">{s.title}</div>
+                    <p className="fh-home-text-3 fh-copy fh-soft">{s.body}</p>
                   </div>
                 ))}
               </div>
@@ -345,56 +342,49 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Calculator */}
-      <section className="border-t border-border-sub bg-surface px-5 py-24 sm:px-8">
-        <div className="mx-auto max-w-[1100px]">
+      <section className="fh-home-band-2">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="mb-10 fh-center">
+            <div className="fh-home-block-11 fh-center">
               <h2 className={H2}>How much are you leaving on the table?</h2>
-              <p className="mx-auto max-w-[480px] fh-subhead fh-soft">
+              <p className="fh-mk-lede fh-subhead fh-soft">
                 Adjust your MRR and see the estimated recovery. Foxhound takes{" "}
                 <span className="fh-mono">{RECOVERY_FEE}</span> of what it recovers. Nothing if it
                 recovers nothing.
               </p>
             </div>
           </div>
-          <div className="mx-auto max-w-[600px]">
+          <div className="fh-home-wrap-2">
             <RecoveryCalculator />
           </div>
         </div>
       </section>
 
       {/* Products. The id and Recova's 60px scroll margin sit on the section. */}
-      <section
-        id="products"
-        className="scroll-mt-[60px] border-t border-border-sub px-5 py-20 sm:px-8"
-      >
-        <div className="mx-auto max-w-[1100px]">
+      <section id="products" className="fh-home-band-4">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="mb-12 fh-center">
+            <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>Start with recovery.</h2>
               <p className="fh-subhead fh-soft">Add the rest when you need it.</p>
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="fh-mk-cards-4">
             {PRODUCT_ORDER.map((key) => {
-              const Icon = PRODUCT_ICONS[key];
+              const icon = PRODUCT_ICONS[key];
               const card = PRODUCT_CARDS[key];
               return (
-                <div key={key} className="cap-reveal grid">
+                <div key={key} className="fh-home-grid-3 cap-reveal">
                   <Link to={PRODUCTS[key].href} className={CARD}>
                     <div className="cap-panel-body">
                       <div>
-                        <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-lg bg-surface2">
-                          <Icon
-                            className="h-[18px] w-[18px] fh-accent"
-                            strokeWidth={1.8}
-                            aria-hidden
-                          />
+                        <div className="fh-mk-tile-icon">
+                          <Icon d={icon} className="fh-icon-18 fh-icon-180 fh-accent" />
                         </div>
-                        <div className="mb-1.5 fh-body fh-medium fh-text">{PRODUCTS[key].name}</div>
-                        <p className="mb-4 min-h-[60px] fh-small leading-[1.55] fh-soft">
-                          {card.description}
-                        </p>
+                        <div className="fh-home-block-12 fh-body fh-medium fh-text">
+                          {PRODUCTS[key].name}
+                        </div>
+                        <p className="fh-home-text-5 fh-small fh-soft">{card.description}</p>
                         <div className="fh-mono fh-small fh-accent">{card.price}</div>
                       </div>
                     </div>
@@ -407,22 +397,22 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Email generator */}
-      <section className="border-t border-border-sub px-5 py-20 sm:px-8">
-        <div className="mx-auto max-w-[1100px]">
+      <section className="fh-mk-band">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="mb-10 fh-center">
+            <div className="fh-home-block-11 fh-center">
               {/* Recova: "The actual email Recova would send" and "Same AI, same
                   prompts, same output as the product." The sample runs its own
                   prompt on its own model (MODEL_MARKETING_EMAIL_SAMPLE) for a
                   fictional customer, so neither claim holds here. */}
               <h2 className={H2}>What a Foxhound recovery email looks like</h2>
-              <p className="mx-auto max-w-[480px] fh-subhead fh-soft">
+              <p className="fh-mk-lede fh-subhead fh-soft">
                 Pick a decline type and generate a real recovery email. Every account customizes its
                 own brand voice.
               </p>
             </div>
           </div>
-          <div className="mx-auto max-w-[600px]">
+          <div className="fh-home-wrap-2">
             <EmailSamples />
           </div>
         </div>
@@ -430,10 +420,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
 
       {/* FAQ: Capsomer's disclosure, one open at a time as Recova's accordion
           is, each revealed in Recova's 60ms stagger (M3 divergence 15). */}
-      <section className="speakable-faq border-t border-border-sub px-5 py-16 sm:px-8">
-        <div className="mx-auto max-w-[760px]">
+      <section className="fh-mk-band-short speakable-faq">
+        <div className="fh-mk-wrap-text">
           <div className="cap-reveal">
-            <div className="mb-12 fh-center">
+            <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>Common questions</h2>
             </div>
           </div>
@@ -442,13 +432,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <li key={faq.question}>
                 <div className="cap-reveal">
                   <details
-                    className="cap-disclosure [--pad-card:1.5rem]"
+                    className="fh-home-block-13 cap-disclosure"
                     data-variant="card"
                     name="home-faq"
                   >
                     <summary>{faq.question}</summary>
                     <div className="cap-disclosure-body">
-                      <p className="fh-copy leading-[1.6] fh-soft">
+                      <p className="fh-home-text-6 fh-copy fh-soft">
                         {faq.question === BILLING_FAQ_QUESTION ? BILLING_ANSWER : faq.answer}
                       </p>
                     </div>
@@ -461,10 +451,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Security trust bar */}
-      <section className="border-t border-border-sub px-5 py-10 sm:px-8">
-        <div className="mx-auto max-w-[1100px]">
+      <section className="fh-home-band-5">
+        <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <ul className="flex flex-wrap items-center justify-center gap-3">
+            <ul className="fh-home-list-2">
               {SECURITY_CHIPS.map((label) => (
                 <li
                   key={label}
@@ -501,38 +491,32 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           this card here rather than using its BlogPostCard (M3b): a tag, the
           title and the reading time, no excerpt. Each is a Capsomer panel. */}
       {blogPosts.length > 0 ? (
-        <section className="border-t border-border-sub bg-surface px-5 py-16 sm:px-8">
-          <div className="mx-auto max-w-[1100px]">
+        <section className="fh-home-band-6">
+          <div className="fh-mk-wrap">
             <div className="cap-reveal">
-              <div className="mb-8 flex items-center justify-between">
+              <div className="fh-home-row-3">
                 <h2 className="fh-copy fh-regular fh-soft">From the blog</h2>
-                <Link
-                  to="/blog"
-                  className="group fh-caption leading-6 fh-quiet transition-colors hover:text-text"
-                >
+                <Link to="/blog" className="fh-mk-quiet-link fh-hover-group fh-caption fh-quiet">
                   All articles <Arrow />
                 </Link>
               </div>
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="fh-home-grid-6">
               {blogPosts.map((post) => (
-                <div key={post.slug} className="cap-reveal grid">
+                <div key={post.slug} className="fh-home-grid-3 cap-reveal">
                   {/* Recova's blog card: the page ground on the surface band, p-5, 10px corners. */}
-                  <Link
-                    to={`/blog/${post.slug}`}
-                    className="cap-panel h-full rounded-[10px] [--gap:1.25rem] [--pad-card:1.25rem] [--surface:var(--bg)]"
-                  >
+                  <Link to={`/blog/${post.slug}`} className="fh-home-link-3 cap-panel">
                     <div className="cap-panel-body">
-                      <div className="flex h-full flex-col gap-3">
+                      <div className="cap-stack fh-home-block-14" data-gap="4">
                         {post.tags[0] ? (
                           <div className="fh-mono fh-tiny fh-quiet">
                             {post.tags[0].replace(/-/g, " ")}
                           </div>
                         ) : null}
-                        <h3 className="fh-item-title fh-medium leading-snug fh-text">
+                        <h3 className="fh-home-title-3 fh-item-title fh-medium fh-text">
                           {post.title}
                         </h3>
-                        <span className="mt-auto fh-mono fh-tiny fh-quiet">
+                        <span className="fh-home-label-2 fh-mono fh-tiny fh-quiet">
                           {post.readingTimeMinutes} min read
                         </span>
                       </div>
@@ -546,34 +530,36 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
-      <section className="border-t border-border-sub px-5 py-24 sm:px-8">
-        <div className="mx-auto max-w-[760px] fh-center" data-density="comfortable">
-          <h2 className="mb-4 fh-section fh-semibold tracking-[-0.02em] fh-text sm:text-section-lg">
+      <section className="fh-home-band-7">
+        <div className="fh-mk-wrap-text fh-center" data-density="comfortable">
+          <h2 className="fh-home-title-4 fh-section fh-semibold fh-text">
             See what your Stripe account is leaking
           </h2>
-          <p className="mx-auto mb-7 max-w-[560px] fh-subhead leading-[1.55] fh-soft">
+          <p className="fh-mk-sub fh-subhead fh-soft">
             Connect Stripe for a free diagnostic. Results in <span className="fh-mono">30</span>{" "}
             seconds. No setup, no card.
           </p>
           <Link to="/audit" className={CTA_BUTTON} data-variant="primary" data-size="lg">
             Connect Stripe, it is free
           </Link>
-          <div className="mt-5 fh-mono fh-caption fh-faint">
+          <div className="fh-home-block-15 fh-mono fh-caption fh-faint">
             No account required &middot; Results in 30 seconds &middot; Disconnect anytime
           </div>
-          <div className="mt-2 fh-mono fh-caption fh-faint">{COMPAT_TAGS.join(" · ")}</div>
-          <div className="mt-8 flex flex-wrap justify-center gap-4 border-t border-border-sub pt-6">
+          <div className="fh-home-block-16 fh-mono fh-caption fh-faint">
+            {COMPAT_TAGS.join(" · ")}
+          </div>
+          <div className="fh-home-row-4">
             <Link
               to="/demos/recovery"
               rel="nofollow"
-              className="group fh-copy leading-6 fh-soft transition-colors hover:text-text"
+              className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
             >
               View Recovery demo <Arrow />
             </Link>
             <Link
               to="/demos/disputes"
               rel="nofollow"
-              className="group fh-copy leading-6 fh-soft transition-colors hover:text-text"
+              className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
             >
               View Disputes demo <Arrow />
             </Link>

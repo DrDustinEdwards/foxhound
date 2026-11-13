@@ -45,7 +45,7 @@ const BAND_LABEL: Record<HealthScoreBand, string> = {
 
 /** A label over a figure, as Recova's cards have: micro, uppercase, tertiary. */
 function CardLabel({ children }: { children: React.ReactNode }) {
-  return <p className="mb-1 fh-tiny fh-medium uppercase tracking-[0.06em] fh-quiet">{children}</p>;
+  return <p className="fh-mk-kicker fh-tiny fh-medium fh-quiet">{children}</p>;
 }
 
 /** The width a 320 px phone leaves the chart inside the preview's two panels. */
@@ -75,8 +75,8 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
     );
   const chart = dashboard.plans.length > 0 ? planFrame(draw) : "";
   return (
-    <div className="flex flex-col gap-5 p-5">
-      <div className="fh-tiles-preview [--tiles-columns:repeat(2,minmax(0,1fr))] md:[--tiles-columns:repeat(4,minmax(0,1fr))]">
+    <div className="fh-intelprev-col">
+      <div className="fh-intelprev-block fh-tiles-preview">
         <StatTiles layout="grid" label="MRR figures">
           <StaticStatTile label="MRR" tone="accent" figure={dashboard.mrr} />
           <StaticStatTile
@@ -118,7 +118,7 @@ const TABLE_CAPTION = "preview-intelligence-customers";
 /** Block 2: Recova's customer table, worst health first. */
 export function CustomerTablePreview({ preview }: { preview: IntelligencePreview }) {
   return (
-    <div className="p-5">
+    <div className="fh-intelprev-block-2">
       <div
         className="cap-table-wrap"
         data-reflow=""
@@ -174,17 +174,17 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
 /** Block 3: Recova's churn summary, the three bands, high risk first. */
 export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview }) {
   return (
-    <div className="p-5">
-      <ul className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="MRR by health band">
+    <div className="fh-intelprev-block-2">
+      <ul className="fh-intelprev-grid" aria-label="MRR by health band">
         {preview.bands.map((b) => (
           <li key={b.band} className="cap-panel">
             <div className="cap-panel-body">
               <div>
-                <p className="mb-1">
+                <p className="fh-intelprev-text">
                   <Pill tone={METER_TONE[b.band]}>{BAND_LABEL[b.band]}</Pill>
                 </p>
                 <p className="fh-mono fh-title fh-medium cap-num fh-text">{b.customerCount}</p>
-                <p className="mt-0.5 fh-mono fh-small fh-soft">
+                <p className="fh-intelprev-text-2 fh-mono fh-small fh-soft">
                   {b.mrr}/mo{b.band === "at_risk" ? " at risk" : ""}
                 </p>
               </div>

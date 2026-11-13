@@ -98,15 +98,15 @@ export function showDisputesSection(run: AuditRunView): boolean {
  *  knows which figure is missing. */
 function Unread({ label }: { label: string }) {
   return (
-    <div className="py-2">
+    <div className="fh-auditsec-block">
       <div className="fh-small fh-text">{label}</div>
-      <p className="mt-0.5 fh-tiny fh-quiet">{SCOPE_UNREAD}</p>
+      <p className="fh-auditsec-text fh-tiny fh-quiet">{SCOPE_UNREAD}</p>
     </div>
   );
 }
 
 function NoneDetected() {
-  return <p className="mb-5 fh-small fh-faint">None detected in this period.</p>;
+  return <p className="fh-auditsec-text-2 fh-small fh-faint">None detected in this period.</p>;
 }
 
 /** One line per currency, stacked, each an element of its own. A single
@@ -114,7 +114,7 @@ function NoneDetected() {
 function Lines({ lines }: { lines: readonly string[] }) {
   if (lines.length === 1) return <>{lines[0]}</>;
   return (
-    <span className="flex flex-col items-end">
+    <span className="fh-auditsec-col">
       {lines.map((line) => (
         <span key={line}>{line}</span>
       ))}
@@ -134,10 +134,10 @@ function StatRow({
   primaryClassName?: string;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-2">
+    <div className="fh-auditsec-row">
       <div>
         <div className="fh-small fh-text">{label}</div>
-        {secondary ? <div className="mt-0.5 fh-tiny fh-faint">{secondary}</div> : null}
+        {secondary ? <div className="fh-auditsec-text fh-tiny fh-faint">{secondary}</div> : null}
       </div>
       <div className={`fh-nowrap fh-mono fh-body fh-semibold ${primaryClassName}`}>
         {typeof primary === "string" ? primary : <Lines lines={primary} />}
@@ -158,8 +158,8 @@ function Headline({
   valueClassName: string;
 }) {
   return (
-    <div className="mb-2">
-      <div className="mb-1 fh-tiny fh-quiet fh-caps">{label}</div>
+    <div className="fh-auditsec-block-2">
+      <div className="fh-auditsec-block-3 fh-tiny fh-quiet fh-caps">{label}</div>
       {value.map((line) => (
         <div key={line} className={`fh-mono fh-display fh-bold ${valueClassName}`}>
           {line}
@@ -174,7 +174,7 @@ function Headline({
 export function AuditSummary({ summary }: { summary: string | null }) {
   if (!summary) return null;
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel title="AI Summary">
         <p className="fh-body fh-relaxed fh-text">{summary}</p>
       </Panel>
@@ -206,10 +206,10 @@ function CardUpdaterRow({ cardUpdater }: { cardUpdater: AuditRunView["cardUpdate
       ? `Card Updater: data unavailable for the last ${days} days.`
       : `Card Updater: ${plural(cardUpdater.eventsInWindow, "card")} auto-updated in the last ${days} days (${plural(cardUpdater.expiredCardDeclinesInWindow, "expired-card decline")} in the same window).`;
   return (
-    <div className="mb-4 ml-5 mt-3">
+    <div className="fh-auditsec-block-4">
       <div className="fh-tiny fh-soft">{summary}</div>
       {cardUpdater?.advisory ? (
-        <div className="mt-2">
+        <div className="fh-auditsec-block-5">
           <Banner tone="info">{cardUpdater.advisory}</Banner>
         </div>
       ) : null}
@@ -223,7 +223,7 @@ function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<stri
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
   return (
-    <div className="mt-4 min-w-0">
+    <div className="fh-auditsec-block-6">
       <ChartFrame draw={(width, fit) => drawExpiringCardsTimeline(months, width, fit)} />
     </div>
   );
@@ -275,7 +275,7 @@ export function AuditRecoverySection({
     (failed?.count ?? 0) > 0 || (expiring?.count ?? 0) > 0 || (pastDue?.count ?? 0) > 0;
 
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel
         title="Revenue leaking now"
         description="What your Stripe account is losing or about to lose."
@@ -296,7 +296,7 @@ export function AuditRecoverySection({
             )}
 
             {activeSequences !== null && activeSequences > 0 ? (
-              <div className="ml-5 mt-1">
+              <div className="fh-auditsec-block-7">
                 <Link
                   to="/recovery/payments?status=active"
                   className="cap-btn"
@@ -311,9 +311,9 @@ export function AuditRecoverySection({
             ) : null}
 
             {failed !== null && failed.count > 0 ? (
-              <div className="mb-4 ml-5 mt-3 space-y-2">
+              <div className="fh-auditsec-block-8">
                 {BREAKDOWN_ORDER.map((key) => (
-                  <div key={key} className="flex items-start justify-between fh-tiny">
+                  <div key={key} className="fh-auditsec-row-2 fh-tiny">
                     <span className="fh-quiet">{BREAKDOWN_ROWS[key]}</span>
                     <span className="fh-nowrap fh-mono fh-soft">
                       <Lines lines={formatTotals(failed.byCategory[key] ?? [], cur)} />
@@ -374,11 +374,9 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
   }));
   return (
     <>
-      <div className="my-5 border-t border-border" />
-      <div className="mb-2">
-        <div className="mb-1 fh-tiny uppercase tracking-[0.06em] fh-quiet">
-          Recoverable estimate
-        </div>
+      <div className="fh-auditsec-block-9" />
+      <div className="fh-auditsec-block-2">
+        <div className="fh-mk-kicker fh-tiny fh-quiet">Recoverable estimate</div>
         <div className="fh-mono fh-title fh-bold fh-success">
           <Lines lines={formatTotals(shown, currency)} />
         </div>
@@ -440,7 +438,7 @@ export function AuditDisputesSection({
   const cur = run.currency;
   const data = run.disputes;
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel
         title="Disputes unmanaged"
         description="Where responses were skipped or evidence was thin."
@@ -498,14 +496,14 @@ function DisputeFigures({
           status colors are not accents, so the one-accent rule leaves them
           alone. */}
       {foxhoundWinRate !== null ? (
-        <div className="mt-2 fh-small fh-soft">
+        <div className="fh-auditsec-block-5 fh-small fh-soft">
           Foxhound win rate:{" "}
           <span
             className={`fh-mono fh-medium ${
               foxhoundWinRate >= 70
                 ? "fh-success"
                 : foxhoundWinRate >= 50
-                  ? "text-caution"
+                  ? "fh-caution"
                   : "fh-error"
             }`}
           >
@@ -518,7 +516,7 @@ function DisputeFigures({
       ) : null}
 
       {anyAbove(accepted.totals) ? (
-        <div className="mt-5 border-t border-border pt-5">
+        <div className="fh-auditsec-block-10">
           <Headline
             label="Revenue left on the table"
             value={formatTotals(accepted.totals, cur)}
@@ -563,7 +561,7 @@ export function AuditHealthSection({
       health.involuntaryChurnRateBps > 0);
 
   return (
-    <div className="mb-5">
+    <div className="fh-auditsec-text-2">
       <Panel
         title="Business snapshot"
         description={
@@ -586,7 +584,7 @@ export function AuditHealthSection({
           <NoneDetected />
         ) : (
           <>
-            <div className="mb-5 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div className="fh-auditsec-grid">
               <Headline
                 label="MRR"
                 value={formatTotals(health.mrr, cur)}

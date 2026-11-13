@@ -91,10 +91,8 @@ function LinkColumn({
 }) {
   return (
     <div>
-      <h2 className="mb-3 fh-mono text-[0.6875rem] uppercase tracking-[0.06em] text-chrome-text-secondary">
-        {heading}
-      </h2>
-      <ul className="space-y-2">
+      <h2 className="fh-footer-title fh-mono">{heading}</h2>
+      <ul className="fh-footer-list">
         {links.map((link) => {
           const isActive = pathname === link.to;
           return (
@@ -102,9 +100,7 @@ function LinkColumn({
               <Link
                 to={link.to}
                 aria-current={isActive ? "page" : undefined}
-                className={`text-[0.875rem] no-underline transition-colors ${
-                  isActive ? "text-chrome-brand" : "text-chrome-text hover:text-chrome-brand"
-                }`}
+                className={isActive ? "fh-footer-link fh-footer-current" : "fh-footer-link"}
               >
                 {link.label}
               </Link>
@@ -143,30 +139,25 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
   const hasColumnsAbove = variant === "marketing";
 
   return (
-    <footer className="border-t border-border bg-chrome">
-      <div className="mx-auto max-w-[1200px] px-5 sm:px-8">
+    <footer className="fh-footer-footer">
+      <div className="fh-footer-wrap">
         {hasColumnsAbove ? (
           // A nav, as Capsomer's family footer groups its links: the link system draws no hover
           // tint behind a link in a nav (capsomer/links.css), and no footer link has one.
-          <nav
-            aria-label="Footer"
-            className="grid grid-cols-1 gap-10 py-12 sm:grid-cols-4 lg:grid-cols-5"
-          >
+          <nav aria-label="Footer" className="fh-footer-grid">
             {/* Wordmark column. The brand mark itself is reserved for the
                 bottom row, matching legacy: this column is the wordmark only. */}
             <div>
-              <Link to="/" className="no-underline">
+              <Link to="/" className="fh-footer-home">
                 <Wordmark tone="chrome" />
               </Link>
-              <p className="mt-3 max-w-[240px] text-[0.875rem] fh-relaxed text-chrome-text-secondary">
-                The recovery layer for Stripe merchants.
-              </p>
+              <p className="fh-footer-text fh-relaxed">The recovery layer for Stripe merchants.</p>
               {/* Legacy's own line and legacy's own treatment, read from
                   components/SiteFooter.tsx: a plain <p> under the blurb, not a
                   link, mt-3 font-mono at 0.6875rem on chrome-text-secondary. */}
-              <p className="mt-3 fh-mono text-[0.6875rem] text-chrome-text-secondary">{MCP_LINE}</p>
+              <p className="fh-footer-text-2 fh-mono">{MCP_LINE}</p>
             </div>
-            <div className="grid grid-cols-2 gap-6 sm:col-span-3 lg:col-span-4 lg:grid-cols-4">
+            <div className="fh-footer-grid-2">
               {COLUMNS.map((col) => (
                 <LinkColumn
                   key={col.heading}
@@ -183,13 +174,9 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
             legacy's and only appears when something sits above. On the app
             variant the footer's own border-t already separates it from page
             content, and an inner rule would read as a stray line. */}
-        <div
-          className={`flex h-14 items-center justify-between ${
-            hasColumnsAbove ? "border-t border-border" : ""
-          }`}
-        >
-          <div className="flex min-w-0 items-center gap-4">
-            <div className="flex min-w-0 items-center gap-2.5">
+        <div className={hasColumnsAbove ? "fh-footer-bar fh-footer-bar-ruled" : "fh-footer-bar"}>
+          <div className="fh-footer-row">
+            <div className="fh-footer-row-2">
               <img
                 src="/favicon.svg"
                 alt=""
@@ -197,21 +184,15 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 height={28}
                 loading="lazy"
                 decoding="async"
-                className="size-7 shrink-0"
+                className="fh-footer-block"
                 aria-hidden
               />
-              <span className="fh-mono text-[0.6875rem] text-chrome-text-secondary">
-                © {year} Foxhound.
-              </span>
+              <span className="fh-footer-label fh-mono">© {year} Foxhound.</span>
             </div>
             {variant === "auth" ? (
-              <nav aria-label="Legal" className="flex items-center gap-4">
+              <nav aria-label="Legal" className="fh-footer-row-3">
                 {AUTH_LEGAL_LINKS.map((link) => (
-                  <Link
-                    key={link.to}
-                    to={link.to}
-                    className="inline-flex min-h-6 shrink-0 items-center fh-mono fh-tiny text-chrome-text-secondary no-underline transition-colors hover:text-chrome-brand"
-                  >
+                  <Link key={link.to} to={link.to} className="fh-footer-link-2 fh-mono fh-tiny">
                     {link.label}
                   </Link>
                 ))}
@@ -223,7 +204,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
               Foxhound handles exist; linking the recovamrr handles is banned.
               The empty flex slot preserves legacy's justify-between shape so
               they drop straight in. */}
-          <div className="flex items-center gap-4" />
+          <div className="fh-footer-row-3" />
         </div>
       </div>
     </footer>

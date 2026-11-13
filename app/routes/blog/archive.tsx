@@ -16,6 +16,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/archive";
 import { SectionTrail } from "~/components/section-trail";
 import "capsomer/chips.css";
+import "~/blog-index.css";
 
 // Ported from legacy app/(marketing)/blog/archive/page.tsx: a "Blog"
 // back-link, an H1 that names the active filter, an article count, a row of
@@ -72,24 +73,21 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
   const activeLabel = activeTag ? labelForTag(activeTag) : "All articles";
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <div className="fh-mk-wide">
       <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label: activeLabel }]} />
 
-      <h1 className="mt-3 text-2xl fh-bold fh-text">{activeLabel}</h1>
-      <p className="mt-1 fh-mono text-sm fh-soft">{plural(posts.length, "article")}</p>
+      <h1 className="fh-archive-title fh-bold fh-text">{activeLabel}</h1>
+      <p className="fh-archive-text fh-mono fh-soft">{plural(posts.length, "article")}</p>
 
       {/* Recova's tag filter: mono chips, the current one filled amber. Link
           chips (Capsomer chips.md): the tag is in the address. */}
       <nav
         aria-label="Filter articles by tag"
-        className="fh-cap mb-8 mt-8"
+        className="fh-archive-nav fh-cap"
         data-cap-site="foxhound"
         data-family="amber"
       >
-        <ul
-          className="cap-chips [--ui:var(--mono)] [&_.cap-chip]:min-h-[30px] [&_.cap-chip]:text-caption"
-          data-variant="solid"
-        >
+        <ul className="fh-mk-chips cap-chips" data-variant="solid">
           <li>
             <Link
               to="/blog/archive"
@@ -114,22 +112,20 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
       </nav>
 
       {posts.length === 0 ? (
-        <p className="text-sm fh-soft">No articles found.</p>
+        <p className="fh-archive-text-2 fh-soft">No articles found.</p>
       ) : (
-        <div className="flex flex-col divide-y divide-border-sub">
+        <div className="fh-archive-col">
           {posts.map((post) => (
             <Link
               key={post.slug}
               to={`/blog/${post.slug}`}
-              className="group -mx-2 flex items-start gap-4 rounded-lg px-2 py-4 no-underline transition-colors hover:bg-surface"
+              className="fh-archive-link fh-hover-group"
             >
               <div className="cap-grow">
-                <p className="text-sm fh-semibold leading-snug fh-text transition-colors group-hover:text-brand-text">
-                  {post.title}
-                </p>
-                <p className="mt-0.5 text-xs fh-soft">{post.excerpt}</p>
+                <p className="fh-archive-text-3 fh-semibold fh-text">{post.title}</p>
+                <p className="fh-archive-text-4 fh-soft">{post.excerpt}</p>
               </div>
-              <span className="mt-0.5 shrink-0 fh-mono fh-tiny fh-quiet">
+              <span className="fh-mk-mark fh-mono fh-tiny fh-quiet">
                 {post.readingTimeMinutes} min
               </span>
             </Link>

@@ -10,6 +10,7 @@ import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/index";
+import "~/reference.css";
 
 // NEW in Phase 6 Pass 3 (net-new). /compare hub: a card grid linking to each
 // of the six named competitor pages (ROUTES.md Rev 2). Honest by
@@ -42,22 +43,20 @@ export default function CompareIndex() {
 
       {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
           the cards' accent edge and the focus ring read the family. */}
-      <div
-        className="fh-cap mx-auto max-w-5xl px-4 pb-16 sm:px-8"
-        data-cap-site="foxhound"
-        data-family="amber"
-      >
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="fh-mk-page fh-cap" data-cap-site="foxhound" data-family="amber">
+        <div className="fh-mk-cards-3">
           {COMPETITOR_ORDER.map((slug) => {
             const c = COMPETITORS[slug];
             return (
-              <Link key={slug} to={`/compare/${slug}`} className={`${CARD_MD} group`}>
+              <Link key={slug} to={`/compare/${slug}`} className={`${CARD_MD}`}>
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
-                    <p className="mb-1 fh-mono fh-tiny fh-quiet fh-caps">{c.category}</p>
-                    <p className="mb-2 fh-body fh-medium fh-text">Foxhound vs {c.name}</p>
-                    <p className="mb-4 fh-small fh-relaxed fh-soft">{c.oneLiner}</p>
+                    <p className="fh-compare-text fh-mono fh-tiny fh-quiet fh-caps">{c.category}</p>
+                    <p className="fh-compare-text-2 fh-body fh-medium fh-text">
+                      Foxhound vs {c.name}
+                    </p>
+                    <p className="fh-compare-text-3 fh-small fh-relaxed fh-soft">{c.oneLiner}</p>
                     <div className="fh-small fh-brand">
                       See the comparison <Arrow />
                     </div>

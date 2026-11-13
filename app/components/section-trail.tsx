@@ -8,15 +8,13 @@ import "capsomer/breadcrumb.css";
 // the home page. Recova's crumbs are quiet: tertiary, the link lighting up under the pointer.
 export function SectionTrail({
   items,
-  className = "mb-8",
+  className = "fh-trail-gap",
 }: {
   items: { label: string; href?: string }[];
   className?: string;
 }) {
   return (
-    <div
-      className={`${className} [&_.cap-breadcrumb]:text-micro [&_.cap-breadcrumb]:text-text-tertiary [&_.cap-breadcrumb-page]:font-normal [&_.cap-breadcrumb-page]:text-text-tertiary [&_a:hover]:text-text [&_a]:text-text-tertiary [&_a]:no-underline`}
-    >
+    <div className={`fh-section-trail-block ${className}`}>
       <Breadcrumb
         items={items}
         renderLink={({ href, className: linkClass, children }) => (

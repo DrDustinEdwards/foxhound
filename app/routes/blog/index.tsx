@@ -1,6 +1,6 @@
+import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
-import { ArrowRight } from "lucide-react";
 import { Link } from "capsomer/react/link";
 
 import { BlogHeaderIntro } from "~/components/blog/blog-header-intro";
@@ -31,6 +31,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
+import "~/blog-index.css";
 
 // Ported from legacy app/(marketing)/blog/page.tsx: a featured-post hero, four
 // curated topic sections, and a "latest" strip of non-featured posts.
@@ -113,20 +114,11 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
     // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as the site
     // header, /products and /docs); the focus ring reads the family's ring.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
-      <div className="mx-auto max-w-[1080px] px-5 pb-10 pt-16 sm:px-8">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+      <div className="fh-blog-wrap">
+        <div className="cap-stack fh-blog-block-2" data-gap="5">
           <BlogHeaderIntro />
-          <Link
-            to="/blog/archive"
-            className="group shrink-0 fh-mono fh-copy leading-6 fh-quiet transition-colors hover:text-text"
-          >
-            All articles{" "}
-            <ArrowRight
-              className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-              size={13}
-              strokeWidth={1.5}
-              aria-hidden
-            />
+          <Link to="/blog/archive" className="fh-blog-link fh-hover-group fh-mono fh-copy fh-quiet">
+            All articles <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
           </Link>
         </div>
       </div>
@@ -140,14 +132,11 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
       {latest.length > 0 ? <BlogLatestStrip posts={latest} /> : null}
 
       {!hasAnyContent ? (
-        <div className="mx-auto max-w-xl px-4 pb-20 pt-4 fh-center sm:px-8">
+        <div className="fh-blog-wrap-2 fh-center">
           <p className="fh-body fh-soft">
             Nothing published yet. Check back soon, or read the product docs in the meantime.
           </p>
-          <Link
-            to="/docs"
-            className="mt-4 inline-block fh-small leading-6 fh-accent hover:opacity-80"
-          >
+          <Link to="/docs" className="fh-blog-link-2 fh-small fh-accent">
             Read the docs
           </Link>
         </div>
@@ -164,24 +153,21 @@ function BlogHero({
   cover: Route.ComponentProps["loaderData"]["cover"];
 }) {
   return (
-    <section className="border-b border-border-sub bg-surface">
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 py-12 sm:px-6 lg:grid-cols-2 lg:px-8 lg:py-16">
+    <section className="fh-blog-band">
+      <div className="fh-blog-grid">
         <div>
           <p className="fh-mono fh-caption fh-accent fh-caps-wide">Featured</p>
-          <h2 className="mt-3 text-[1.875rem] fh-bold leading-tight fh-text lg:text-statement">
-            <Link
-              to={`/blog/${post.slug}`}
-              className="fh-text transition-colors hover:text-accent-text"
-            >
+          <h2 className="fh-blog-title fh-bold fh-text">
+            <Link to={`/blog/${post.slug}`} className="fh-blog-link-3 fh-text">
               {post.title}
             </Link>
           </h2>
-          <p className="mt-3 fh-body fh-relaxed fh-soft">{post.excerpt}</p>
-          <div className="mt-4 flex flex-wrap items-center gap-2 fh-mono fh-copy fh-quiet">
+          <p className="fh-blog-text fh-body fh-relaxed fh-soft">{post.excerpt}</p>
+          <div className="cap-cluster fh-blog-block-3 fh-mono fh-copy fh-quiet" data-gap="3">
             <span>{post.readingTimeMinutes} min read</span>
             {post.tags[0] ? (
               <>
-                <span aria-hidden="true" className="opacity-40">
+                <span aria-hidden="true" className="fh-blog-label">
                   &middot;
                 </span>
                 {/* Capsomer's outline pill as a link: its own focus ring, and a
@@ -198,39 +184,29 @@ function BlogHero({
             ) : null}
           </div>
           {/* Wrapped so the spacing above is the page's, not a class on the button. */}
-          <div className="mt-6">
+          <div className="fh-blog-block-4">
             {/* "group" carries no style; it drives Recova's arrow nudge on hover. */}
             <Link
               to={`/blog/${post.slug}`}
-              className="cap-btn group"
+              className="cap-btn fh-hover-group"
               data-variant="primary"
               data-size="lg"
             >
               Read the guide
-              <ArrowRight
+              <Icon
+                d={iconArrowRight}
+                className="fh-icon-13 fh-icon-fine fh-mk-arrow"
                 data-icon="end"
-                className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-                size={13}
-                strokeWidth={1.5}
-                aria-hidden
               />
             </Link>
           </div>
         </div>
         {cover ? (
-          <Link
-            to={`/blog/${post.slug}`}
-            className="fh-line aspect-video w-full overflow-hidden rounded-xl border border-border-sub bg-bg"
-          >
-            <Picture
-              attrs={cover.picture}
-              alt={cover.alt}
-              priority
-              className="h-full w-full object-cover"
-            />
+          <Link to={`/blog/${post.slug}`} className="fh-blog-link-4 fh-line">
+            <Picture attrs={cover.picture} alt={cover.alt} priority className="fh-mk-cover" />
           </Link>
         ) : (
-          <div className="aspect-video w-full overflow-hidden rounded-xl border border-border-sub">
+          <div className="fh-blog-block-5">
             {/* Legacy's hand-drawn cover fallback, ported from app/(marketing)/blog/page.tsx.
                 Legacy inlines four literal colors plus a [data-theme="light"] override block.
                 Its two dark values are exactly our --bg and --brand-text, and its two light
@@ -275,24 +251,18 @@ function BlogHero({
 
 function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: BlogPostSummary[] }) {
   return (
-    <section className="border-b border-border-sub bg-bg">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <section className="fh-blog-band-2">
+      <div className="fh-mk-wide">
+        <div className="cap-stack fh-blog-block-2" data-gap="4">
           <div>
             <p className="fh-mono fh-copy fh-accent fh-caps-wide">{section.label}</p>
-            <p className="mt-1 max-w-2xl fh-copy fh-soft">{section.description}</p>
+            <p className="fh-blog-text-2 fh-copy fh-soft">{section.description}</p>
           </div>
-          <Link to={section.tagHref} className="group fh-nowrap fh-copy leading-6">
-            See all{" "}
-            <ArrowRight
-              className="inline-block motion-safe:transition-transform duration-150 group-hover:translate-x-0.5"
-              size={13}
-              strokeWidth={1.5}
-              aria-hidden
-            />
+          <Link to={section.tagHref} className="fh-blog-link-5 fh-hover-group fh-nowrap fh-copy">
+            See all <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
           </Link>
         </div>
-        <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="fh-blog-grid-2">
           {posts.map((post) => (
             <BlogPostCard key={post.slug} post={post} />
           ))}
@@ -304,10 +274,10 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
 
 function BlogLatestStrip({ posts }: { posts: BlogPostSummary[] }) {
   return (
-    <section className="bg-bg">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <section className="fh-blog-band-3">
+      <div className="fh-mk-wide">
         <p className="fh-mono fh-copy fh-quiet fh-caps-wide">Latest</p>
-        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="fh-blog-grid-3">
           {posts.map((post) => (
             <BlogPostCard key={post.slug} post={post} />
           ))}

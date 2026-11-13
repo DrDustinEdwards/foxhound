@@ -23,20 +23,20 @@ import {
  *  breakpoint, each a glyph beside a title and its line. */
 export function AuditScopeCard() {
   return (
-    <div className="p-5">
-      <ul className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="fh-auditprev-block">
+      <ul className="fh-mk-doc-cards">
         {AUDIT_SCOPES.map((s) => (
           <li key={s.title} className="cap-panel">
             <div className="cap-panel-body">
-              <div className="flex items-start gap-3">
+              <div className="fh-mk-point-wide">
                 <span
                   aria-hidden="true"
-                  className="mt-0.5 fh-mono fh-card-title fh-tight fh-accent"
+                  className="fh-auditprev-label fh-mono fh-card-title fh-tight fh-accent"
                 >
                   {s.icon}
                 </span>
                 <div>
-                  <div className="mb-1 fh-copy fh-medium fh-text">{s.title}</div>
+                  <div className="fh-auditprev-block-2 fh-copy fh-medium fh-text">{s.title}</div>
                   <div className="fh-small fh-relaxed fh-soft">{s.desc}</div>
                 </div>
               </div>
@@ -51,8 +51,8 @@ export function AuditScopeCard() {
 /** Recova's AISummaryPreview: a micro label over the summary, figures in mono. */
 export function AISummaryPreview() {
   return (
-    <div className="p-5">
-      <div className="mb-3 fh-tiny fh-medium fh-quiet fh-caps-wide">AI Summary</div>
+    <div className="fh-auditprev-block">
+      <div className="fh-auditprev-block-3 fh-tiny fh-medium fh-quiet fh-caps-wide">AI Summary</div>
       <p className="fh-copy fh-relaxed fh-soft">
         {AUDIT_SUMMARY_EXAMPLE.map((part, i) =>
           typeof part === "string" ? (
@@ -71,14 +71,14 @@ export function AISummaryPreview() {
 /** Recova's AuditHistoryPreview: a header strip, then one row per run. */
 export function AuditHistoryPreview() {
   return (
-    <div className="overflow-hidden">
-      <div className="flex items-center justify-between border-b border-border bg-surface2 px-5 py-3">
+    <div className="fh-auditprev-block-4">
+      <div className="fh-auditprev-row">
         <span className="fh-tiny fh-medium fh-quiet fh-caps-wide">Audit history</span>
         <span className="fh-mono fh-tiny fh-accent">Monthly auto-run on</span>
       </div>
-      <ul className="divide-y divide-border">
+      <ul className="fh-mk-rules">
         {AUDIT_HISTORY_EXAMPLE.map((run) => (
-          <li key={run.date} className="flex items-center justify-between gap-4 px-5 py-3">
+          <li key={run.date} className="fh-auditprev-item">
             <span className="fh-mono fh-small fh-soft">{run.date}</span>
             <span className="fh-caption fh-quiet">{run.summary}</span>
           </li>

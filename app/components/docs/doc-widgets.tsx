@@ -1,6 +1,5 @@
+import { Icon, iconActivity, iconCard, iconScale, iconWarning } from "capsomer/react/icons";
 import { titleCase } from "@drdustinedwards/site-helpers/text";
-import { AlertTriangle, CreditCard, Scale, Activity } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
 import { Pill, type Tone } from "capsomer/react/status";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 
@@ -44,38 +43,33 @@ import "capsomer/table.css";
  *  (app/lib/audit/engine.ts). Recova's text glyphs become drawn icons, as on
  *  the app's step icons (APPROVED-DIFFERENCES, 2026-08-15). */
 function AuditScopes() {
-  const scopes: [LucideIcon, string, string][] = [
+  const scopes: [string, string, string][] = [
     [
-      AlertTriangle,
+      iconWarning,
       "Failed invoices",
       "Unrecovered failed invoices, their total, and the decline category behind each",
     ],
     [
-      CreditCard,
+      iconCard,
       "Expiring cards",
       "Cards that have expired or expire this month or next, and the MRR at risk",
     ],
     [
-      Scale,
+      iconScale,
       "Open disputes",
       "Open disputes, disputes lost with no evidence, and your won and lost record",
     ],
-    [Activity, "Business health", "MRR, ARR, active subscriptions, and churn rate"],
+    [iconActivity, "Business health", "MRR, ARR, active subscriptions, and churn rate"],
   ];
   return (
-    <div className="my-6 grid grid-cols-1 gap-3 sm:grid-cols-2">
-      {scopes.map(([Icon, title, description]) => (
+    <div className="fh-mk-doc-cards">
+      {scopes.map(([icon, title, description]) => (
         <div key={title} className="cap-panel">
           <div className="cap-panel-body">
-            <div className="flex items-start gap-3">
-              <Icon
-                className="mt-0.5 shrink-0 fh-accent"
-                size={18}
-                strokeWidth={1.75}
-                aria-hidden
-              />
+            <div className="fh-mk-point-wide">
+              <Icon d={icon} className="fh-mk-mark fh-icon-18 fh-icon-175 fh-accent" />
               <div>
-                <div className="mb-1 fh-small fh-medium fh-text">{title}</div>
+                <div className="fh-doc-widgets-block fh-small fh-medium fh-text">{title}</div>
                 <div className="fh-small fh-relaxed fh-soft">{description}</div>
               </div>
             </div>
@@ -102,13 +96,13 @@ const STATUS_PILL: Record<
 
 function PaymentStatuses() {
   return (
-    <div className="cap-panel my-4">
+    <div className="fh-doc-widgets-block-2 cap-panel">
       <div className="cap-panel-body">
-        <ul className="flex flex-wrap gap-4">
+        <ul className="fh-doc-widgets-list">
           {Object.entries(FAILED_PAYMENT_STATUS_LABELS).map(([key, label]) => {
             const pill = STATUS_PILL[key] ?? { variant: "outline" as const, caption: "" };
             return (
-              <li key={key} className="flex flex-col items-center gap-1.5">
+              <li key={key} className="fh-doc-widgets-item">
                 <Pill tone={pill.tone} variant={pill.variant}>
                   {label}
                 </Pill>
@@ -142,15 +136,15 @@ const CATEGORY_CODES: Record<DeclineCategory, { codes: string[]; note: string }>
 
 function DeclineCategories() {
   return (
-    <ul className="my-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
+    <ul className="fh-doc-widgets-grid">
       {(Object.keys(CATEGORY_CODES) as DeclineCategory[]).map((category) => {
         const { codes, note } = CATEGORY_CODES[category];
         return (
           <li key={category} data-category={category} className="cap-panel">
             <div className="cap-panel-body">
-              <div className="flex items-start gap-3">
+              <div className="fh-mk-point-wide">
                 <CategoryPill category={category} />
-                <span className="min-w-0 break-words fh-small fh-relaxed fh-soft">
+                <span className="fh-doc-widgets-label fh-small fh-relaxed fh-soft">
                   <span className="fh-medium fh-text">{DECLINE_CATEGORY_LABELS[category]}.</span>{" "}
                   {note}
                   {codes.length > 0 ? ": " : null}
@@ -176,7 +170,7 @@ function DeclineCategories() {
  *  first where the category allows a retry at all. */
 function SequenceTimelines() {
   return (
-    <div className="my-6 flex flex-col gap-3">
+    <div className="cap-stack fh-doc-widgets-block-3" data-gap="4">
       {(Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map((category) => (
         <SequenceSteps key={category} category={category} />
       ))}
@@ -191,17 +185,17 @@ function SequenceTimelines() {
 function PaymentTimeline() {
   const steps = RECOVERY_SCHEDULES.soft;
   return (
-    <div className="cap-panel my-6">
+    <div className="fh-doc-widgets-block-3 cap-panel">
       <div className="cap-panel-body" data-flush>
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <div className="fh-doc-widgets-row">
           <span className="fh-small fh-medium fh-text">Example: a soft decline</span>
           <CategoryPill category="soft" />
         </div>
-        <ol className="divide-y divide-border">
+        <ol className="fh-mk-rules">
           {steps.map((step, i) => (
-            <li key={step.stepType} className="flex items-center gap-4 px-4 py-3">
-              <span className="w-6 fh-mono fh-tiny fh-quiet">{i + 1}</span>
-              <span className="min-w-0 flex-1 break-words fh-small fh-soft">
+            <li key={step.stepType} className="fh-doc-widgets-item-2">
+              <span className="fh-doc-widgets-label-2 fh-mono fh-tiny fh-quiet">{i + 1}</span>
+              <span className="fh-doc-widgets-label-3 fh-small fh-soft">
                 {formatStepType(step.stepType)}
               </span>
               <span className="fh-nowrap fh-mono fh-tiny fh-quiet">
@@ -226,7 +220,7 @@ function PaymentTimeline() {
 function HealthBands() {
   const last = WATCH_CEILING - 1;
   return (
-    <div className="my-6">
+    <div className="fh-doc-widgets-block-3">
       <StatTiles label="Health bands">
         <StatTile
           label="Health score"
@@ -268,7 +262,7 @@ function CustomerColumns() {
     ["MRR", "What that customer contributes each month."],
     [
       "Health",
-      <span key="h" className="inline-flex flex-wrap items-center gap-2">
+      <span key="h" className="fh-doc-widgets-row-2">
         The 0 to 100 score, in its band:
         {examples.map((s) => (
           <HealthScoreBadge key={s} score={s} />
@@ -280,7 +274,7 @@ function CustomerColumns() {
   ];
   return (
     <div
-      className="cap-table-wrap my-6"
+      className="fh-doc-widgets-block-3 cap-table-wrap"
       data-reflow=""
       data-cap="table"
       role="region"
@@ -322,15 +316,15 @@ function DisputeStates() {
       "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
-    <ol className="my-6 flex flex-col gap-2">
+    <ol className="cap-stack fh-doc-widgets-block-3" data-gap="3">
       {Object.entries(DISPUTE_STATE_LABELS).map(([key, label], i) => (
         <li key={key} className="cap-panel">
           <div className="cap-panel-body">
-            <div className="flex items-start gap-3">
+            <div className="fh-mk-point-wide">
               <span className="cap-keep fh-mono fh-tiny fh-accent">
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <div className="flex flex-col items-start gap-1">
+              <div className="fh-doc-widgets-col">
                 <Pill variant="outline">{label}</Pill>
                 <span className="fh-small fh-relaxed fh-soft">{meaning[key] ?? ""}</span>
               </div>

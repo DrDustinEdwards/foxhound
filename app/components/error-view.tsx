@@ -25,8 +25,8 @@ import { headerLogo } from "./header-logo";
 export function ErrorBar() {
   const logo = headerLogo("/");
   return (
-    <header className="fh-error-bar flex h-14 items-center border-b bg-chrome px-6">
-      <a href={logo.href} aria-label={logo.label} className="no-underline">
+    <header className="fh-error-view-row fh-error-bar">
+      <a href={logo.href} aria-label={logo.label} className="fh-error-view-link">
         {logo.wordmark}
       </a>
     </header>
@@ -35,7 +35,11 @@ export function ErrorBar() {
 
 export function ErrorFooter() {
   const [year] = useState(() => new Date().getFullYear());
-  return <footer className="w-full p-6 fh-center fh-small fh-quiet">&copy; {year} Foxhound</footer>;
+  return (
+    <footer className="fh-error-view-footer fh-center fh-small fh-quiet">
+      &copy; {year} Foxhound
+    </footer>
+  );
 }
 
 // Recova's words (its not-found.tsx and error.tsx), passed to ErrorPage in place of Capsomer's: a 404
