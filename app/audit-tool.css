@@ -22,9 +22,8 @@
   }
   .fh-audit-label {
     letter-spacing: 0.06em;
-    --_bg: color-mix(in srgb, var(--primary) 13%, transparent);
-    --_fg: var(--accent-text);
-    --_line: color-mix(in srgb, var(--primary) 27%, transparent);
+    --accent-soft: color-mix(in srgb, var(--primary) 13%, transparent);
+    --tag-edge: 27%;
   }
   .fh-audit-title {
     margin-bottom: 1.25rem;
@@ -163,8 +162,8 @@
     display: grid;
     gap: 1rem;
     border-radius: 0.5rem;
-    border: 1px solid var(--border);
-    background-color: var(--bg);
+    border: 1px solid var(--line);
+    background-color: var(--ground);
     padding: 1rem;
   }
   .fh-auditconnect-text-2 {

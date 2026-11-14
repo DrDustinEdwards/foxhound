@@ -21,17 +21,19 @@ const TONE: Record<DeclineCategory, "info" | "accent" | "warn" | "crit" | "nodat
   unknown: "nodata",
 };
 
-// The badge's edge takes the word's color, as Recova's bordered pills do.
-const EDGE = "fh-pill-edge";
-// Capsomer's badge has no accent tone; the accent's own tint and text stand in.
-const ACCENT = "fh-pill-accent";
+// Capsomer's tag badge: the word on its tone's tint with an edge in the word's own color
+// (--tag-edge, app.css), or, for the accent, the amber family's tint and text. fh-pill-word keeps
+// the badge's own word (sans, semibold, no case change) where Foxhound's tags are mono capitals.
+const AMBER = "amber";
 
 export function CategoryPill({ category }: { category: DeclineCategory }) {
   const tone = TONE[category];
   return (
     <span
-      className={`cap-pill ${EDGE} ${tone === "accent" ? ACCENT : ""}`}
+      className="cap-pill fh-pill-word"
+      data-variant="tag"
       data-tone={tone === "accent" ? undefined : tone}
+      data-family={tone === "accent" ? AMBER : undefined}
     >
       {CATEGORY_PILL_WORDS[category]}
     </span>
@@ -41,8 +43,10 @@ export function CategoryPill({ category }: { category: DeclineCategory }) {
 export function StepChip({ retry, timing }: { retry: boolean; timing: string }) {
   return (
     <span
-      className={`fh-tone-pills-col cap-pill fh-tiny fh-medium ${EDGE} ${retry ? ACCENT : ""}`}
+      className="fh-tone-pills-col cap-pill fh-pill-word fh-tiny fh-medium"
+      data-variant="tag"
       data-tone={retry ? undefined : "info"}
+      data-family={retry ? AMBER : undefined}
     >
       {retry ? "Retry" : "Email"}
       <span className="fh-mono fh-source fh-regular">{timing}</span>
@@ -50,20 +54,15 @@ export function StepChip({ retry, timing }: { retry: boolean; timing: string }) 
   );
 }
 
-const PRODUCT_TONE: Record<Feature["product"], string> = {
-  Recovery: ACCENT,
-  Disputes: "",
-  Intelligence: "",
-  Audit: "fh-pill-plain",
-  Platform: "fh-pill-plain",
-};
-
+// Audit and Platform are the tag's quiet label: no tint, a hairline edge.
 export function ProductTag({ product }: { product: Feature["product"] }) {
   const tone = product === "Disputes" ? "info" : product === "Intelligence" ? "ok" : undefined;
   return (
     <span
-      className={`cap-keep cap-pill fh-mono fh-source ${EDGE} ${PRODUCT_TONE[product]}`}
+      className="cap-keep cap-pill fh-pill-word fh-mono fh-source"
+      data-variant="tag"
       data-tone={tone}
+      data-family={product === "Recovery" ? AMBER : undefined}
     >
       {product}
     </span>

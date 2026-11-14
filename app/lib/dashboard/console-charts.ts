@@ -73,7 +73,7 @@ export function drawCohorts(rows: readonly CohortRow[], width: number, fit: Char
     orientation: "horizontal",
     xLabel: null,
     yLabel,
-    colors: { [yLabel]: "var(--brand-ui)" },
+    colors: { [yLabel]: "var(--accent)" },
     formatValue: (v) => `${v}%`,
     alt: cohortAlt(rows),
     hoverTitles: false,

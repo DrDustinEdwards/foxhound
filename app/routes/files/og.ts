@@ -62,7 +62,7 @@ import type { Route } from "./+types/og";
 // Colors are hardcoded hex here (not var(--*) tokens): workers-og renders in
 // total isolation from this app's CSS pipeline (no stylesheet is loaded),
 // so there is no token mechanism it could read from. Values below are
-// copied from app.css's dark theme (--bg, --wordmark, --brand, etc.) to
+// copied from the dark theme's tokens (--ground, --wordmark, --accent, etc.) to
 // stay visually consistent with the app itself. DESIGN.md sanctions this as
 // a second exception to "no hardcoded hex anywhere outside token
 // definitions", alongside email HTML, for the same reason: both render

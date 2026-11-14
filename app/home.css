@@ -106,7 +106,7 @@
   }
   .fh-queue-block-7 {
     border-bottom: 1px solid var(--border-sub);
-    background-color: var(--bg);
+    background-color: var(--ground);
     padding: 0.75rem 1rem;
   }
   .fh-queue-block-8 {
@@ -165,7 +165,7 @@
   }
   .fh-home-link-2 {
     line-height: 1.5rem;
-    color: var(--cobalt-text);
+    color: var(--blue);
     text-decoration-line: none;
   }
   @media (hover: hover) {
@@ -376,7 +376,7 @@
     border-radius: 10px;
     --gap: 1.25rem;
     --pad-card: 1.25rem;
-    --surface: var(--bg);
+    --surface: var(--ground);
   }
   .fh-home-block-14 {
     height: 100%;
@@ -414,7 +414,7 @@
   .fh-home-step-ruled {
     border-bottom-style: solid;
     border-bottom-width: 1px;
-    border-color: var(--border);
+    border-color: var(--line);
   }
   @media (width >= 48rem) {
     .fh-home-step-ruled {
@@ -425,30 +425,30 @@
     }
   }
   .fh-queue-icon-failed {
-    background-color: var(--red-bg);
+    background-color: var(--crit-soft);
     color: var(--red);
   }
   .fh-queue-icon-running {
-    background-color: var(--brand-bg);
-    color: var(--brand-text);
+    background-color: var(--accent-soft);
+    color: var(--accent-text);
   }
   .fh-queue-icon-recovered {
-    background-color: var(--green-bg);
+    background-color: var(--ok-soft);
     color: var(--green);
   }
   .fh-queue-step-done {
     border-color: var(--green);
-    background-color: var(--green-bg);
+    background-color: var(--ok-soft);
     color: var(--green);
   }
   .fh-queue-step-active {
-    border-color: var(--brand-border-interactive);
-    background-color: var(--brand-bg);
-    color: var(--brand-text);
+    border-color: var(--accent-line);
+    background-color: var(--accent-soft);
+    color: var(--accent-text);
   }
   .fh-queue-step-pending {
-    border-color: var(--border);
-    color: var(--text-subtle);
+    border-color: var(--line);
+    color: var(--dim);
   }
   .fh-queue-row {
     display: flex;
@@ -458,7 +458,7 @@
     padding: 0.75rem 1rem;
   }
   .fh-queue-row-done {
-    background-color: var(--surface2);
+    background-color: var(--raised);
   }
   .fh-queue-icon {
     display: flex;

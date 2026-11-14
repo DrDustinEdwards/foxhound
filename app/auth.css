@@ -9,8 +9,8 @@
     border-radius: 0.5rem;
     border-style: solid;
     border-width: 1px;
-    border-color: var(--border);
-    background-color: var(--bg);
+    border-color: var(--line);
+    background-color: var(--ground);
     padding: 1rem;
   }
   .fh-connect-page {
@@ -60,7 +60,7 @@
     display: flex;
     min-height: 100vh;
     align-items: center;
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-card-update {
     margin-inline: auto;
@@ -88,7 +88,7 @@
     display: flex;
     flex: 1;
     align-items: center;
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-target-link {
     display: inline-flex;
@@ -100,7 +100,7 @@
     min-height: 100vh;
     align-items: center;
     justify-content: center;
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-auth-card {
     width: 100%;
@@ -153,7 +153,7 @@
   .fh-auth-or-line {
     height: 1px;
     flex: 1;
-    background-color: var(--border);
+    background-color: var(--line);
   }
   .fh-auth-gap {
     margin-bottom: 1rem;

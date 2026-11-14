@@ -186,7 +186,7 @@
     overflow: hidden;
     border-radius: 0.75rem;
     border: 1px solid var(--border-sub);
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-blog-block-5 {
     aspect-ratio: 16 / 9;
@@ -197,7 +197,7 @@
   }
   .fh-blog-band-2 {
     border-bottom: 1px solid var(--border-sub);
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-blog-text-2 {
     margin-top: 0.25rem;
@@ -223,7 +223,7 @@
     }
   }
   .fh-blog-band-3 {
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-blog-grid-3 {
     margin-top: 1rem;

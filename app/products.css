@@ -20,8 +20,8 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom: 1px solid var(--border);
-    background-color: var(--surface2);
+    border-bottom: 1px solid var(--line);
+    background-color: var(--raised);
     padding: 0.75rem 1.25rem;
   }
   .fh-auditprev-item {
@@ -74,7 +74,7 @@
     margin-top: 0.125rem;
   }
   .fh-product-band {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--line);
     padding: 5rem 1.25rem;
     /* Recova's 96px between feature blocks. */
     --cap-features-gap: 6rem;
@@ -96,7 +96,7 @@
     margin-bottom: 2rem;
   }
   .fh-product-band-2 {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--line);
     padding: 4rem 1.25rem;
   }
   /* How it works: Capsomer's process steps at Recova's sizes, the step name 0.9375rem and its text 0.875rem. */
@@ -116,7 +116,7 @@
     margin-bottom: 4rem;
   }
   .fh-product-band-3 {
-    border-bottom: 1px solid var(--border);
+    border-bottom: 1px solid var(--line);
     background-color: var(--surface);
     padding: 4rem 1.25rem;
     /* Recova's price card: the page ground on the surface band, p-8, a 48px price in the text

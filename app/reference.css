@@ -15,7 +15,7 @@
   .fh-rival-block-2 {
     margin-bottom: 2.5rem;
     border-radius: 0.5rem;
-    border: 1px solid var(--border);
+    border: 1px solid var(--line);
   }
   .fh-rival-th {
     vertical-align: top;
@@ -37,7 +37,7 @@
     width: 0.25rem;
     flex-shrink: 0;
     border-radius: calc(infinity * 1px);
-    background-color: var(--text-tertiary);
+    background-color: var(--dim);
   }
   .fh-rival-text {
     margin-bottom: 1rem;
