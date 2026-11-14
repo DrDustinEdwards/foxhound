@@ -81,7 +81,7 @@
     margin-bottom: var(--space-1);
   }
   .fh-audit-link {
-    border-radius: var(--radius-l);
+    border-radius: 10px;
     --cap-btn-fs: var(--title-6);
     --cap-btn-h: 3.5rem;
   }

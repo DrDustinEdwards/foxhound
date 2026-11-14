@@ -365,7 +365,7 @@
   }
   .fh-home-link-3 {
     height: 100%;
-    border-radius: var(--radius-l);
+    border-radius: 10px;
     --gap: 1.25rem;
     --pad-card: 1.25rem;
     --surface: var(--bg);

@@ -34,8 +34,8 @@
   --prose-code-radius: 4px;
   --prose-pre-bg: var(--surface);
   --prose-pre-pad: 1.25rem var(--space-6);
-  --prose-block-radius: var(--radius-l);
-  --prose-image-radius: var(--radius-l);
+  --prose-block-radius: 10px;
+  --prose-image-radius: 10px;
   --prose-table-rule: var(--border);
   --accent-text: var(--brand-text);
   /* The heading's section link, in Foxhound's tertiary ink. */
@@ -208,7 +208,7 @@
     height: 2.75rem;
     width: 2.75rem;
     flex-shrink: 0;
-    border-radius: var(--radius-l);
+    border-radius: 10px;
   }
   .fh-post-text-2 {
     margin-bottom: var(--space-1);
