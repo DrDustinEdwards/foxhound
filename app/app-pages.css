@@ -6,31 +6,31 @@
   .fh-welcome {
     margin-inline: auto;
     max-width: 640px;
-    padding-inline: 1rem;
-    padding-block: 4rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-9);
   }
   @media (width >= 48rem) {
     .fh-welcome {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-welcome-head {
     margin-bottom: 2.5rem;
   }
   .fh-welcome-title {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-welcome-account {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-welcome-lede {
-    line-height: 1.6;
+    line-height: var(--leading-relaxed);
   }
   .fh-welcome-steps {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-welcome-note {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-help {
     margin-inline: auto;
@@ -40,25 +40,30 @@
   }
   @media (width >= 40rem) {
     .fh-help {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-help-head {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-help-section {
-    margin-bottom: 3rem;
+    margin-bottom: var(--space-8);
   }
   :where(.fh-help-faq > :not(:last-child)) {
-    margin-block: 0 1.5rem;
+    margin-block: 0 var(--space-6);
   }
   .fh-help-question {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
-  .fh-help-cards {
+  .fh-help-cards,
+  .fh-console-charts,
+  .fh-console-tiles,
+  .fh-recpanel-hero,
+  .fh-dispute-fields,
+  .fh-churn-bands {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   @media (width >= 40rem) {
     .fh-help-cards {
@@ -66,22 +71,26 @@
     }
   }
   .fh-help-contact {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-team-list {
     display: flex;
     flex-direction: column;
   }
+  .fh-team-member,
+  .fh-intel-table-head,
+  .fh-payment-step {
+    border-bottom-style: solid;
+    border-bottom-width: var(--line-w);
+    border-color: var(--border);
+  }
   .fh-team-member {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    column-gap: 0.75rem;
-    row-gap: 0.5rem;
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border);
-    padding-block: 0.75rem;
+    column-gap: var(--space-4);
+    row-gap: var(--space-3);
+    padding-block: var(--space-4);
   }
   .fh-team-member:last-child {
     border-bottom-style: solid;
@@ -97,25 +106,33 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: var(--space-3);
+  }
+  .fh-team-invite,
+  .fh-settings-group,
+  .fh-audit-switch,
+  .fh-signin-providers,
+  .fh-recpanel-foot,
+  .fh-auditd-digest,
+  .fh-payment-links-title {
+    border-top-style: solid;
+    border-top-width: var(--line-w);
+    border-color: var(--border);
   }
   .fh-team-invite {
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border);
     padding-top: 1.25rem;
   }
   .fh-field-gap {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-stripe-head {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-setting-row {
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   @media (width >= 48rem) {
     .fh-setting-row {
@@ -125,66 +142,63 @@
     }
   }
   .fh-setting-label {
-    margin-bottom: 0.125rem;
+    margin-bottom: var(--space-1);
   }
   .fh-stripe-more {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-stripe-foot {
-    padding-top: 0.5rem;
+    padding-top: var(--space-3);
   }
   .fh-email-block {
     margin-bottom: 1.25rem;
   }
   .fh-email-group {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-email-sequence {
     margin-top: 2.5rem;
   }
   .fh-email-sequence-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-account-confirm {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-account-field {
     margin-bottom: 1.25rem;
   }
   .fh-account-pair {
     display: flex;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-account-intro {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-account-alert {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-account-actions {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-account-list {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-settings-group {
     margin-top: 1.25rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border);
     padding-top: 1.25rem;
   }
   .fh-danger-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-account-end {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-account-top {
     margin-bottom: 2.5rem;
@@ -198,7 +212,7 @@
     }
   }
   .fh-hub-title {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-wide-only {
     display: none;
@@ -209,15 +223,15 @@
     }
   }
   .fh-hub-block {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-hub-group-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-hub-grid {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   @media (width >= 40rem) {
     .fh-hub-grid {
@@ -228,7 +242,7 @@
     padding-bottom: 1.25rem;
   }
   .fh-voice-row {
-    border-top: 1px solid var(--border-sub);
+    border-top: var(--line-w) solid var(--border-sub);
     padding-block: 1.25rem;
   }
   .fh-voice-row:last-child {
@@ -253,133 +267,137 @@
     background-color: var(--red);
   }
   .fh-help-label {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-rec-gap {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-voice-head {
-    margin-bottom: 0.625rem;
+    margin-bottom: var(--space-3-5);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-voice-help {
     margin-top: 1px;
   }
   .fh-voice-control {
-    margin-top: 0.625rem;
+    margin-top: var(--space-3-5);
   }
   .fh-voice-intro {
     margin-bottom: 1.25rem;
   }
   .fh-voice-preview {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-voice-rows {
     display: grid;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-keys-head {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-keys-panel {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-keys-actions {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-toggle-label {
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-dispute-setting {
     border-block-style: solid;
-    border-block-width: 1px;
+    border-block-width: var(--line-w);
     border-color: var(--border);
-    padding-block: 1rem;
+    padding-block: var(--space-5);
   }
   .fh-dispute-help {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-dispute-foot {
-    padding-top: 1rem;
+    padding-top: var(--space-5);
   }
   .fh-field-block {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-shrink {
     min-width: 0px;
   }
   .fh-audit-help {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-audit-switch {
     display: flex;
     min-width: 0px;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border);
-    padding-top: 1rem;
+    gap: var(--space-5);
+    padding-top: var(--space-5);
   }
   .fh-audit-switch-text {
-    padding-right: 1rem;
+    padding-right: var(--space-5);
   }
   .fh-notify-group {
     border-block-style: solid;
-    border-block-width: 1px;
+    border-block-width: var(--line-w);
     border-color: var(--border);
-    padding-top: 1rem;
+    padding-top: var(--space-5);
     padding-bottom: 1.25rem;
   }
   .fh-invoice {
     margin-inline: auto;
     max-width: 48rem;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
-  .fh-box {
+  .fh-box,
+  .fh-billing-box,
+  .fh-customer-factor,
+  .fh-customer-table,
+  .fh-intel-table-wrap,
+  .fh-list-table {
     border-radius: 0.5rem;
     border-style: solid;
-    border-width: 1px;
+    border-width: var(--line-w);
     border-color: var(--border);
+  }
+  .fh-box {
     background-color: var(--surface);
-    padding: 1rem;
+    padding: var(--space-5);
   }
   .fh-split {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-invoice-currency {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-invoice-actions {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-invoice-lines {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-invoice-empty {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-invoice-list {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
     display: flex;
     flex-direction: column;
   }
@@ -387,11 +405,11 @@
     margin-inline: auto;
     max-width: 720px;
     padding-inline: 1.25rem;
-    padding-block: 2rem;
+    padding-block: var(--space-7);
   }
   @media (width >= 40rem) {
     .fh-billing {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   @media (width >= 48rem) {
@@ -400,10 +418,10 @@
     }
   }
   .fh-billing-head {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-billing-banner {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-ledger {
     display: flex;
@@ -411,26 +429,23 @@
   }
   .fh-console {
     gap: 0px;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-console {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
       padding-block: 2.5rem;
     }
   }
   .fh-console-head {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-console-section {
     margin-top: 2.5rem;
   }
   .fh-console-charts {
-    margin-top: 1rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    margin-top: var(--space-5);
   }
   @media (width >= 64rem) {
     .fh-console-charts {
@@ -438,20 +453,20 @@
     }
   }
   .fh-console-more {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-demo-badge {
     border-radius: 0.25rem;
     border-style: solid;
-    border-width: 1px;
+    border-width: var(--line-w);
     border-color: var(--brand);
-    padding-inline: 0.375rem;
-    padding-block: 0.125rem;
+    padding-inline: var(--space-2-5);
+    padding-block: var(--space-1);
   }
   .fh-settings-main {
     min-width: 0px;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-settings-main {
@@ -462,14 +477,20 @@
   .fh-settings-column {
     max-width: 800px;
   }
+  .fh-ledger-row,
+  .fh-auditd-line,
+  .fh-intel-row,
+  .fh-payment-link,
+  .fh-payment-fact {
+    border-bottom-style: solid;
+    border-bottom-width: var(--line-w);
+    border-color: var(--border-sub);
+  }
   .fh-ledger-row {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border-sub);
-    padding-block: 0.75rem;
+    gap: var(--space-3);
+    padding-block: var(--space-4);
   }
   .fh-ledger-row:last-child {
     border-style: solid;
@@ -478,7 +499,7 @@
   .fh-inline-row {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-billing-figure {
     display: flex;
@@ -487,45 +508,45 @@
   }
   .fh-billing-box {
     margin-bottom: 1.25rem;
-    border-radius: 0.5rem;
-    border-style: solid;
-    border-width: 1px;
-    border-color: var(--border);
     background-color: var(--bg);
-    padding-inline: 1rem;
-    padding-block: 1rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-5);
   }
   .fh-billing-line {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-billing-note {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-billing-fine {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-console-sub {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-console-tiles {
-    margin-bottom: 1.5rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    margin-bottom: var(--space-6);
   }
   @media (width >= 40rem) {
     .fh-console-tiles {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
-  .fh-console-products {
-    margin-bottom: 2rem;
+  .fh-console-products,
+  .fh-recpanel-tiles,
+  .fh-intel-tiles,
+  .fh-payment-tiles,
+  .fh-payments-tiles,
+  .fh-sequence-tiles {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: var(--space-4);
+  }
+  .fh-console-products {
+    margin-bottom: var(--space-7);
   }
   @media (width >= 64rem) {
     .fh-console-products {
@@ -540,69 +561,66 @@
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
-    column-gap: 1rem;
-    row-gap: 0.25rem;
+    column-gap: var(--space-5);
+    row-gap: var(--space-2);
   }
   .fh-rec-why {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-rec-facts {
     display: flex;
     flex-wrap: wrap;
-    column-gap: 0.75rem;
-    row-gap: 0.125rem;
+    column-gap: var(--space-4);
+    row-gap: var(--space-1);
   }
   .fh-rec-note {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-signin-title {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-signin-intro {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-signin-list {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-signin-providers {
     margin-top: 1.25rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border);
+    gap: var(--space-3);
     padding-top: 1.25rem;
   }
   .fh-split-center {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-signin-note {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-signin-subtitle {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-signin-devices {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-signin-more {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-signin-rename {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-end;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-grow {
     flex-grow: 1;
@@ -612,29 +630,29 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-pair {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-invoice-link {
     display: inline-flex;
     min-height: 1.5rem;
     align-items: center;
-    gap: 0.125rem;
+    gap: var(--space-1);
   }
   .fh-alerts {
-    margin-top: 3rem;
+    margin-top: var(--space-8);
   }
   .fh-alerts-head {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-alerts-sub {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-alerts-banner {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
     min-width: 0px;
   }
   .fh-alerts-banner-row {
@@ -643,29 +661,29 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-alerts-empty {
     min-width: 0px;
-    padding-block: 2rem;
+    padding-block: var(--space-7);
   }
   .fh-alerts-table {
     margin-top: 1.25rem;
     min-width: 0px;
   }
   .fh-alerts-form {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
     min-width: 0px;
   }
   .fh-alerts-field {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-alerts-actions {
     margin-top: 1.25rem;
   }
   .fh-dispute-fact {
     display: flex;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-dispute-fact-label {
     width: 140px;
@@ -675,15 +693,15 @@
     flex: 1;
   }
   .fh-warnings {
-    margin-top: 2rem;
+    margin-top: var(--space-7);
     scroll-margin-top: 6rem;
   }
   .fh-warnings-head {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-warnings-empty {
-    padding-inline: 1rem;
-    padding-block: 1.5rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-6);
   }
   .fh-warnings-actions-cell {
     grid-column: 1/-1;
@@ -692,20 +710,20 @@
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-warnings-note {
     align-self: center;
   }
   .fh-warnings-foot {
-    padding-inline: 1rem;
-    padding-bottom: 1rem;
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-5);
   }
   .fh-recchart-grid {
     display: grid;
     height: 100%;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   @media (width >= 48rem) {
     .fh-recchart-grid {
@@ -719,7 +737,7 @@
   .fh-recchart-key {
     display: inline-flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-recchart-swatch {
     display: inline-flex;
@@ -727,22 +745,12 @@
   .fh-recpanel-label {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-  }
-  .fh-recpanel-hero {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: var(--space-3);
   }
   @media (width >= 48rem) {
     .fh-recpanel-hero {
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
-  }
-  .fh-recpanel-tiles {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
   }
   @media (width >= 48rem) {
     .fh-recpanel-tiles {
@@ -753,12 +761,12 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-recpanel-pair {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1.5rem;
+    gap: var(--space-6);
   }
   @media (width >= 40rem) {
     .fh-recpanel-pair {
@@ -766,18 +774,15 @@
     }
   }
   .fh-recpanel-title {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-recpanel-foot {
-    margin-top: 1rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border);
-    padding-top: 1rem;
+    margin-top: var(--space-5);
+    padding-top: var(--space-5);
   }
   .fh-recpanel-empty {
-    padding-inline: 0.25rem;
-    padding-block: 0.75rem;
+    padding-inline: var(--space-2);
+    padding-block: var(--space-4);
   }
   .fh-recpanel-figures {
     margin-bottom: 1.25rem;
@@ -786,12 +791,12 @@
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
-    gap: 1.5rem;
+    gap: var(--space-6);
   }
   .fh-recpanel-legend {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-phone-list {
@@ -807,20 +812,20 @@
     }
   }
   .fh-sync {
-    margin-top: 2rem;
+    margin-top: var(--space-7);
   }
   .fh-sync-card {
     margin-inline: auto;
     max-width: 28rem;
   }
   .fh-sync-row {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-sync-note {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-auditd-delta {
     display: inline-flex;
@@ -831,11 +836,8 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 1rem;
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border-sub);
-    padding-block: 0.5rem;
+    gap: var(--space-5);
+    padding-block: var(--space-3);
   }
   .fh-auditd-line:last-child {
     border-bottom-style: solid;
@@ -846,72 +848,70 @@
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: flex-end;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-auditd-figure {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
   .fh-auditd-lookback {
     margin-bottom: 1.25rem;
     min-width: 0px;
   }
   .fh-auditd-label {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-auditd-digest {
     display: flex;
     min-width: 0px;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border);
-    padding-block: 0.75rem;
+    gap: var(--space-5);
+    padding-block: var(--space-4);
   }
   .fh-auditd-digest-text {
-    padding-right: 1rem;
+    padding-right: var(--space-5);
   }
   .fh-auditd-digest-label {
-    margin-bottom: 0.125rem;
+    margin-bottom: var(--space-1);
   }
   .fh-auditd-block {
     margin-bottom: 1.25rem;
   }
-  .fh-auditd-page {
+  .fh-auditd-page,
+  .fh-payments {
     width: 100%;
     min-width: 0px;
     gap: 0px;
-    padding-inline: 1rem;
+    padding-inline: var(--space-5);
     padding-block: 2.5rem;
   }
   @media (width >= 48rem) {
     .fh-auditd-page {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-auditd-head {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-dispute-actions {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-dispute {
     margin-inline: auto;
     max-width: 960px;
-    padding-inline: 1rem;
+    padding-inline: var(--space-5);
     padding-block: 2.5rem;
   }
   @media (width >= 48rem) {
     .fh-dispute {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-dispute-back {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
     display: inline-flex;
     min-height: 1.5rem;
     align-items: center;
@@ -923,83 +923,77 @@
     }
   }
   .fh-dispute-header {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-dispute-title {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-dispute-reason {
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
   }
   .fh-dispute-status {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-dispute-section {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   :where(.fh-dispute-timeline > :not(:last-child)) {
-    margin-block: 0 0.5rem;
+    margin-block: 0 var(--space-3);
   }
   .fh-dispute-event {
     display: flex;
     align-items: baseline;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-dispute-lede {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-dispute-group {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-dispute-group-title {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   :where(.fh-dispute-facts > :not(:last-child)) {
-    margin-block: 0 0.25rem;
+    margin-block: 0 var(--space-2);
   }
   .fh-dispute-charges {
     width: 100%;
   }
   .fh-dispute-cell {
-    padding-block: 0.25rem;
+    padding-block: var(--space-2);
   }
   .fh-dispute-cell-pad {
-    padding-block: 0.25rem;
-    padding-left: 0.75rem;
+    padding-block: var(--space-2);
+    padding-left: var(--space-4);
   }
-  .fh-dispute-charge {
+  .fh-dispute-charge,
+  .fh-dispute-context,
+  .fh-customer-stats {
     border-top-style: solid;
-    border-top-width: 1px;
+    border-top-width: var(--line-w);
     border-color: var(--border-sub);
   }
   .fh-dispute-context {
-    margin-top: 0.75rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border-sub);
-    padding-top: 0.75rem;
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
   }
   .fh-dispute-more {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-dispute-evidence {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   :where(.fh-dispute-evidence > :not(:last-child)) {
-    margin-block: 0 0.5rem;
+    margin-block: 0 var(--space-3);
   }
   .fh-dispute-input {
-    margin-top: 0.25rem;
-  }
-  .fh-dispute-fields {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    margin-top: var(--space-2);
   }
   @media (width >= 48rem) {
     .fh-dispute-fields {
@@ -1007,30 +1001,30 @@
     }
   }
   .fh-dispute-help-text {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-dispute-submit {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-dispute-gap {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-disputes {
     gap: 0px;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-disputes {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
       padding-block: 2.5rem;
     }
   }
   .fh-disputes-head {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
   }
   .fh-disputes-tiles {
-    margin-bottom: 2rem;
+    margin-bottom: var(--space-7);
     --tiles-columns: repeat(2, minmax(0, 1fr));
   }
   @media (width >= 48rem) {
@@ -1039,7 +1033,7 @@
     }
   }
   .fh-disputes-score {
-    margin-left: 0.375rem;
+    margin-left: var(--space-2-5);
   }
   .fh-disputes-link {
     display: inline-flex;
@@ -1054,22 +1048,19 @@
   }
   .fh-intel-page {
     gap: 0px;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-intel-page {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-intel-head {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-churn-bands {
-    margin-bottom: 1.5rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    margin-bottom: var(--space-6);
   }
   @media (width >= 48rem) {
     .fh-churn-bands {
@@ -1079,16 +1070,16 @@
   .fh-customer {
     margin-inline: auto;
     max-width: 1080px;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-customer {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-customer-back {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-customer-links {
     margin-bottom: 1.25rem;
@@ -1108,7 +1099,7 @@
     display: inline-flex;
     min-height: 1.5rem;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--space-2);
     text-decoration-line: none;
   }
   @media (hover: hover) {
@@ -1131,10 +1122,11 @@
       transition-duration: 150ms;
     }
   }
-  .fh-customer-panels {
+  .fh-customer-panels,
+  .fh-recovery-declines {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
+    gap: var(--space-5);
   }
   @media (width >= 48rem) {
     .fh-customer-panels {
@@ -1142,11 +1134,11 @@
     }
   }
   .fh-customer-note {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-customer-scope {
     margin-top: 1.25rem;
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-customer-link {
     text-decoration-line: none;
@@ -1161,25 +1153,22 @@
     flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-customer-sub {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-customer-score-row {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-customer-stats {
     margin-top: 1.25rem;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border-sub);
-    padding-top: 1rem;
+    gap: var(--space-5);
+    padding-top: var(--space-5);
   }
   @media (width >= 48rem) {
     .fh-customer-stats {
@@ -1190,55 +1179,47 @@
     display: flex;
     align-items: baseline;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-customer-score {
     display: flex;
     align-items: baseline;
     justify-content: flex-end;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-customer-section {
-    margin-top: 2rem;
+    margin-top: var(--space-7);
   }
   .fh-customer-section-lede {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-customer-list {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-customer-factor {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    border-radius: 0.5rem;
-    border-style: solid;
-    border-width: 1px;
-    border-color: var(--border);
+    gap: var(--space-5);
     background-color: var(--surface);
-    padding: 0.75rem;
+    padding: var(--space-4);
   }
   .fh-customer-table {
-    margin-top: 0.75rem;
-    border-radius: 0.5rem;
-    border-style: solid;
-    border-width: 1px;
-    border-color: var(--border);
+    margin-top: var(--space-4);
   }
   .fh-intel-page-tall {
     gap: 0px;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-intel-page-tall {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
       padding-block: 2.5rem;
     }
   }
   .fh-customers-count {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
     margin-bottom: 0px;
   }
   .fh-customers-name {
@@ -1253,12 +1234,12 @@
     }
   }
   .fh-customers-email {
-    margin-left: 0.5rem;
+    margin-left: var(--space-3);
   }
   .fh-customers-flag {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-customers-dot {
     height: 0.5rem;
@@ -1269,39 +1250,25 @@
   }
   /* The page links under a paged list. */
   .fh-pager {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-customers-foot {
-    margin-top: 2rem;
+    margin-top: var(--space-7);
     margin-bottom: 0px;
   }
   .fh-intel-section {
-    margin-top: 2rem;
+    margin-top: var(--space-7);
   }
   .fh-intel-table-wrap {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
     overflow-x: auto;
-    border-radius: 0.5rem;
-    border-style: solid;
-    border-width: 1px;
-    border-color: var(--border);
   }
   .fh-intel-table {
     width: 100%;
   }
-  .fh-intel-table-head {
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border);
-  }
   .fh-intel-cell {
-    padding-inline: 1rem;
-    padding-block: 0.75rem;
-  }
-  .fh-intel-row {
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border-sub);
+    padding-inline: var(--space-5);
+    padding-block: var(--space-4);
   }
   .fh-intel-row:last-child {
     border-style: solid;
@@ -1314,13 +1281,8 @@
   }
   .fh-intel-cell-bar {
     width: 10rem;
-    padding-inline: 1rem;
-    padding-block: 0.75rem;
-  }
-  .fh-intel-tiles {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-4);
   }
   @media (width >= 48rem) {
     .fh-intel-tiles {
@@ -1330,7 +1292,7 @@
   .fh-intel-month {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
   .fh-intel-month-label {
     min-width: 120px;
@@ -1338,58 +1300,54 @@
   .fh-reports {
     margin-inline: auto;
     max-width: 48rem;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   .fh-empty-box {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
     border-radius: 0.5rem;
-    border-width: 1px;
+    border-width: var(--line-w);
     border-style: dashed;
     border-color: var(--border);
-    padding: 1.5rem;
+    padding: var(--space-6);
   }
   .fh-reports-list {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-reports-line {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-list-page {
     margin-inline: auto;
     max-width: 72rem;
-    padding-inline: 1rem;
-    padding-block: 2rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
   }
   .fh-list-page-sub {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-list-table {
-    margin-top: 1.5rem;
-    border-radius: 0.5rem;
-    border-style: solid;
-    border-width: 1px;
-    border-color: var(--border);
+    margin-top: var(--space-6);
   }
   .fh-recovery {
     width: 100%;
     min-width: 0px;
     gap: 0px;
-    padding-inline: 1rem;
-    padding-bottom: 2rem;
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-recovery {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
       padding-bottom: 2.5rem;
     }
   }
   .fh-recovery-banner {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-recovery-head {
     margin-bottom: 1.75rem;
-    padding-top: 2rem;
+    padding-top: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-recovery-head {
@@ -1400,7 +1358,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-end;
-    gap: 0.375rem;
+    gap: var(--space-2-5);
   }
   .fh-recovery-block {
     margin-bottom: 1.25rem;
@@ -1410,7 +1368,7 @@
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
     align-items: stretch;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   @media (width >= 48rem) {
     .fh-recovery-pair {
@@ -1418,12 +1376,7 @@
     }
   }
   .fh-recovery-label {
-    margin-bottom: 0.75rem;
-  }
-  .fh-recovery-declines {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
+    margin-bottom: var(--space-4);
   }
   @media (width >= 48rem) {
     .fh-recovery-declines {
@@ -1447,7 +1400,7 @@
     }
   }
   .fh-recovery-more {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-inline-icon {
     display: inline-block;
@@ -1455,14 +1408,14 @@
   .fh-payment {
     margin-inline: auto;
     max-width: 1000px;
-    padding-inline: 2rem;
+    padding-inline: var(--space-7);
     padding-block: 2.5rem;
   }
   .fh-payment-header {
     margin-bottom: 1.75rem;
   }
   .fh-payment-back {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
     display: inline-flex;
     min-height: 1.5rem;
     align-items: center;
@@ -1480,29 +1433,26 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-payment-badges {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-payment-block {
     margin-bottom: 1.25rem;
   }
   .fh-payment-chips {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
     display: flex;
     flex-wrap: wrap;
-    gap: 0.625rem;
+    gap: var(--space-3-5);
   }
   .fh-payment-pull {
-    margin-top: -1rem;
-    margin-bottom: 1.5rem;
+    margin-top: calc(-1 * var(--space-5));
+    margin-bottom: var(--space-6);
   }
   .fh-payment-tiles {
     margin-bottom: 1.25rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
   }
   @media (width >= 40rem) {
     .fh-payment-tiles {
@@ -1510,7 +1460,7 @@
     }
   }
   .fh-payment-tile-note {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   @media (width >= 48rem) {
     .fh-payment-panels {
@@ -1518,87 +1468,78 @@
     }
   }
   .fh-payment-links-title {
-    margin-top: 1rem;
-    margin-bottom: 0.75rem;
-    border-top-style: solid;
-    border-top-width: 1px;
-    border-color: var(--border);
-    padding-top: 1rem;
+    margin-top: var(--space-5);
+    margin-bottom: var(--space-4);
+    padding-top: var(--space-5);
   }
   .fh-payment-link,
   .fh-payment-fact {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border-sub);
   }
   .fh-payment-link {
-    padding-block: 0.375rem;
+    padding-block: var(--space-2-5);
     text-decoration-line: none;
   }
   .fh-payment-link-label {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-payment-outcome {
     margin-bottom: 1.25rem;
     border-radius: 0.5rem;
     border-style: solid;
-    border-width: 1px;
+    border-width: var(--line-w);
     border-color: var(--brand);
     background-color: var(--brand-bg);
-    padding: 1rem;
+    padding: var(--space-5);
   }
   .fh-payment-empty {
-    padding-inline: 1.5rem;
+    padding-inline: var(--space-6);
     padding-block: 2.5rem;
   }
   .fh-payment-steps {
-    padding-block: 0.5rem;
+    padding-block: var(--space-3);
   }
   .fh-payment-step {
     display: flex;
-    gap: 1rem;
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border);
-    padding-inline: 1.5rem;
-    padding-block: 1rem;
+    gap: var(--space-5);
+    padding-inline: var(--space-6);
+    padding-block: var(--space-5);
   }
   .fh-payment-step:last-child {
     border-style: solid;
     border-width: 0px;
   }
   .fh-payment-step-top {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-payment-step-meta {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.625rem;
+    gap: var(--space-3-5);
   }
   .fh-payment-step-subject {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-payment-preview {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
     background-color: var(--bg);
   }
   .fh-payment-pull-gap {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
   }
   .fh-payment-saved {
     display: inline-flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
   .fh-payment-step-dot {
     display: flex;
@@ -1609,35 +1550,25 @@
     justify-content: center;
     border-radius: calc(infinity * 1px);
     border-style: solid;
-    border-width: 1px;
+    border-width: var(--line-w);
   }
   .fh-payment-fact {
-    padding-block: 0.5rem;
+    padding-block: var(--space-3);
   }
   .fh-payment-fact:last-child {
     border-style: solid;
     border-width: 0px;
   }
-  .fh-payments {
-    width: 100%;
-    min-width: 0px;
-    gap: 0px;
-    padding-inline: 1rem;
-    padding-block: 2.5rem;
-  }
   @media (width >= 48rem) {
     .fh-payments {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-payments-head {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-payments-tiles {
     margin-bottom: 1.25rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
   }
   @media (width >= 480px) {
     .fh-payments-tiles {
@@ -1650,16 +1581,16 @@
     }
   }
   .fh-payments-bulk {
-    margin-bottom: 1rem;
+    margin-bottom: var(--space-5);
   }
   .fh-payments-gap {
-    margin-left: 0.5rem;
+    margin-left: var(--space-3);
   }
   .fh-payments-filters {
     display: flex;
     flex-direction: column;
     align-items: stretch;
-    gap: 0.625rem;
+    gap: var(--space-3-5);
   }
   @media (width >= 48rem) {
     .fh-payments-filters {
@@ -1688,30 +1619,30 @@
     }
   }
   .fh-payments-rows {
-    margin-top: 1rem;
-    margin-bottom: 0.5rem;
+    margin-top: var(--space-5);
+    margin-bottom: var(--space-3);
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 0.375rem;
+    gap: var(--space-2-5);
   }
   .fh-payments-rows-label {
-    margin-right: 0.25rem;
+    margin-right: var(--space-2);
   }
   .fh-payments-name {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.375rem;
+    gap: var(--space-2-5);
   }
   .fh-payments-sub {
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
   }
   .fh-payments-amount {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-payments-open {
     text-decoration-line: none;
@@ -1721,19 +1652,16 @@
     opacity: 100%;
   }
   .fh-payments-pager {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-payments-bar {
     position: sticky;
-    bottom: 1.5rem;
-    z-index: 100;
-    margin-top: 1.5rem;
+    bottom: var(--space-6);
+    z-index: var(--z-skip);
+    margin-top: var(--space-6);
   }
   .fh-sequence-tiles {
-    margin-bottom: 1.5rem;
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
+    margin-bottom: var(--space-6);
   }
   @media (width >= 48rem) {
     .fh-sequence-tiles {
@@ -1748,39 +1676,39 @@
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.625rem;
+    gap: var(--space-3-5);
   }
   .fh-sequence-step-top {
     display: flex;
     flex-wrap: wrap;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-sequence-body {
     overflow-x: auto;
   }
   .fh-sequence-title {
-    margin-bottom: 0.375rem;
+    margin-bottom: var(--space-2-5);
   }
   .fh-sequence-desc {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-sequence {
     gap: 0px;
-    padding-inline: 1rem;
+    padding-inline: var(--space-5);
     padding-block: 2.5rem;
   }
   @media (width >= 48rem) {
     .fh-sequence {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-sequence-head {
-    margin-bottom: 1.5rem;
+    margin-bottom: var(--space-6);
   }
   .fh-sequence-banner {
-    margin-top: 1.5rem;
+    margin-top: var(--space-6);
   }
   .fh-sequence-list {
     margin-top: 2.5rem;
@@ -1789,7 +1717,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
   .fh-intel-stack {
     display: flex;
@@ -1797,10 +1725,10 @@
     gap: 1.25rem;
   }
   .fh-payment-note {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-payment-fact-value {
-    margin-left: 0.75rem;
+    margin-left: var(--space-4);
     max-width: 200px;
   }
   .fh-payment-dot-pending {

@@ -104,14 +104,14 @@
   margin: 0;
   color: var(--text);
   font-size: var(--fs-lead);
-  font-weight: 600;
+  font-weight: var(--weight-semibold);
 }
 
 /* A run linked to from the Overview (/admin/platform/crons#run-...) is marked when it
    is the target. */
 .fh-admin :target {
-  outline: 2px solid var(--ring);
-  outline-offset: 2px;
+  outline: var(--focus-width) solid var(--ring);
+  outline-offset: var(--focus-offset);
 }
 /* Land a linked run a third of the way down the screen, with its cron's name
    and schedule above it in view, not under the top edge. */
@@ -158,47 +158,47 @@
     display: inline-flex;
     min-height: 1.5rem;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
   .fh-above-row {
     position: relative;
     z-index: 1;
   }
   .fh-cron-schedule {
-    margin-left: 0.5rem;
+    margin-left: var(--space-3);
   }
   .fh-cron-failures {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-cron-run {
     border-radius: 0.25rem;
   }
-  .fh-panel-note {
+  .fh-panel-note,
+  .fh-filter-frame {
     border-bottom-style: solid;
-    border-bottom-width: 1px;
+    border-bottom-width: var(--line-w);
     border-color: var(--border);
-    padding-inline: 1rem;
-    padding-block: 0.75rem;
+  }
+  .fh-panel-note {
+    padding-inline: var(--space-5);
+    padding-block: var(--space-4);
   }
   .fh-panel-foot {
     border-top-style: solid;
-    border-top-width: 1px;
+    border-top-width: var(--line-w);
     border-color: var(--border);
-    padding-inline: 1rem;
-    padding-block: 0.75rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-4);
   }
   .fh-section-title {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
   }
   .fh-staged-submit {
     align-self: flex-end;
   }
   .fh-filter-frame {
-    border-bottom-style: solid;
-    border-bottom-width: 1px;
-    border-color: var(--border);
-    padding-inline: 1rem;
-    padding-block: 0.75rem;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-4);
   }
   .fh-filter-search {
     min-width: 14rem;
@@ -216,17 +216,17 @@
   .fh-payload {
     max-height: 24rem;
     overflow: auto;
-    border-radius: 0.375rem;
+    border-radius: var(--radius-m);
     border-style: solid;
-    border-width: 1px;
+    border-width: var(--line-w);
     border-color: var(--border);
     background-color: var(--sunken);
-    padding: 0.75rem;
+    padding: var(--space-4);
   }
   .fh-halves {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
+    gap: var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-halves {
@@ -241,7 +241,7 @@
   .fh-figure {
     display: grid;
     align-content: flex-start;
-    gap: 0.125rem;
+    gap: var(--space-1);
   }
   .fh-row-actions {
     grid-column: 1/-1;
