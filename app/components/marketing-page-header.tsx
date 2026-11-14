@@ -1,4 +1,7 @@
+import { Eyebrow } from "capsomer/react/eyebrow";
 import { SectionTrail } from "~/components/section-trail";
+
+import "capsomer/eyebrow.css";
 
 // Ported from legacy components/MarketingPageHeader.tsx: the shared
 // eyebrow/title/subtext block. Legacy uses it on exactly seven marketing pages
@@ -28,7 +31,7 @@ export function MarketingPageHeader({
     <div className="fh-mkhead-wrap">
       {trail ? <SectionTrail items={trail} className="fh-mkhead-block" /> : null}
       <div className="cap-reveal-stack">
-        <div className="fh-mkhead-block-2 fh-tiny fh-medium fh-quiet fh-caps-wide">{eyebrow}</div>
+        <Eyebrow className="fh-mkhead-block-2">{eyebrow}</Eyebrow>
         <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">{title}</h1>
         {subtext ? <p className="fh-mk-measure fh-subhead fh-relaxed fh-soft">{subtext}</p> : null}
       </div>

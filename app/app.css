@@ -11,6 +11,9 @@
    base.css's reset and body rules. They land in cap.utilities, inside the cap
    layer declared above, so Foxhound's site layer still wins. */
 @import "capsomer/utilities.css";
+/* Capsomer's layout classes (.cap-stack, .cap-cluster, .cap-grid and the rest), every page's and the admin's: since
+   0.138.0 they are their own file, no longer in utilities.css or base.css. */
+@import "capsomer/layout.css";
 /* Capsomer's link system, without the rest of base.css, in Foxhound's look from its Capsomer entry
    (root.tsx puts data-cap-site on <html>): semibold in amber with no line, a line under the
    pointer in place of the tint, the visited color once followed. In cap.base, so a site part
@@ -159,6 +162,11 @@ body {
    so a page on that class keeps the size it always had. */
 .fh-cap {
   --fs-page: 1rem;
+}
+/* Capsomer's eyebrow at Recova's section labels: medium weight in the tertiary text color. */
+[data-cap-site="foxhound"] {
+  --cap-eyebrow-weight: 500;
+  --cap-eyebrow-color: var(--text-tertiary);
 }
 /* Recova's column had a 32px side margin from 768px up (px-4 md:px-8), the width of the header's
    own padding, so the page starts under the logo. Capsomer's page class defaults to 16px. */
@@ -359,9 +367,6 @@ body {
   .fh-statement-md {
     font-size: 3.5rem;
   }
-  .fh-product-price {
-    font-size: 3rem;
-  }
   .fh-hero {
     font-size: 2.75rem;
   }
@@ -382,9 +387,6 @@ body {
   }
   .fh-section-lg {
     font-size: 2rem;
-  }
-  .fh-product-hero {
-    font-size: 2.5rem;
   }
   .fh-item-title {
     font-size: 0.9375rem;
@@ -693,9 +695,6 @@ body {
     margin-top: 0.125rem;
     flex-shrink: 0;
   }
-  .fh-doc-widgets-block {
-    margin-bottom: 0.25rem;
-  }
   .fh-doc-widgets-block-2 {
     margin-block: 1rem;
   }
@@ -737,31 +736,14 @@ body {
     border-bottom: 1px solid var(--line);
     padding: 0.75rem 1rem;
   }
-  .fh-doc-widgets-item-2 {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-    padding: 0.75rem 1rem;
-  }
-  .fh-doc-widgets-label-2 {
-    width: 1.5rem;
-  }
-  .fh-doc-widgets-label-3 {
-    min-width: 0px;
-    flex: 1;
-    overflow-wrap: break-word;
-  }
   .fh-doc-widgets-row-2 {
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
     gap: 0.5rem;
   }
-  .fh-doc-widgets-col {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.25rem;
+  .fh-health-score-badge-label {
+    --_line: var(--_fg);
   }
   .fh-error-view-row {
     display: flex;

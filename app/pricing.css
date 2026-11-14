@@ -9,6 +9,11 @@
   .fh-pricing-band {
     padding-inline: 1.25rem;
     padding-bottom: 3rem;
+    /* Capsomer's price cards at Recova's p-6, 40px price at medium weight and 12px price label. */
+    --pad-card: 1.5rem;
+    --cap-price-size: 2.5rem;
+    --cap-price-weight: 500;
+    --cap-price-label-size: 0.75rem;
   }
   @media (width >= 40rem) {
     .fh-pricing-band {
@@ -18,34 +23,6 @@
   .fh-pricing-wrap {
     margin-inline: auto;
     max-width: 1200px;
-  }
-  .fh-pricing-grid {
-    position: relative;
-    display: grid;
-    scroll-margin-top: 60px;
-  }
-  .fh-pricing-title {
-    margin-bottom: 1rem;
-  }
-  .fh-pricing-block-2 {
-    margin-bottom: 0.25rem;
-  }
-  .fh-pricing-label {
-    letter-spacing: -0.02em;
-  }
-  .fh-pricing-text {
-    margin-bottom: 1.25rem;
-    line-height: 1.55;
-  }
-  .fh-pricing-list {
-    display: flex;
-    flex-direction: column;
-    gap: 0.625rem;
-    line-height: 1.45;
-  }
-  .fh-pricing-block-3 {
-    margin-top: 3px;
-    flex-shrink: 0;
   }
   .fh-pricing-link {
     margin-top: 1.25rem;

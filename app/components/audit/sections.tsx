@@ -6,16 +6,11 @@ import { Panel } from "capsomer/react/panel";
 import "capsomer/banner.css";
 import "capsomer/count-up.css";
 import "capsomer/button.css";
+import { formatBps } from "capsomer/behavior/format";
 import "capsomer/panel.css";
 
 import "~/components/charts.css";
-import {
-  anyAbove,
-  formatBps,
-  formatTotals,
-  SCOPE_UNREAD,
-  type AuditRunView,
-} from "~/lib/audit/render";
+import { anyAbove, formatTotals, SCOPE_UNREAD, type AuditRunView } from "~/lib/audit/render";
 import type { MoneyTotals } from "~/lib/audit/engine";
 import { drawExpiringCardsTimeline, expiringCardsMonths } from "~/lib/audit/timeline";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
@@ -589,11 +584,11 @@ export function AuditHealthSection({
             />
             <StatRow
               label="Involuntary churn rate"
-              primary={formatBps(health.involuntaryChurnRateBps)}
+              primary={formatBps(health.involuntaryChurnRateBps, { digits: 1 })}
             />
             <StatRow
               label="Voluntary churn rate"
-              primary={formatBps(health.voluntaryChurnRateBps)}
+              primary={formatBps(health.voluntaryChurnRateBps, { digits: 1 })}
             />
             {recoveryRatePct !== null ? (
               <StatRow

@@ -76,6 +76,8 @@
   .fh-product-band {
     border-bottom: 1px solid var(--line);
     padding: 5rem 1.25rem;
+    /* Recova's 96px between feature blocks. */
+    --cap-features-gap: 6rem;
   }
   @media (width >= 40rem) {
     .fh-product-band {
@@ -97,6 +99,11 @@
     border-bottom: 1px solid var(--line);
     padding: 4rem 1.25rem;
   }
+  /* How it works: Capsomer's process steps at Recova's sizes, the step name 0.9375rem and its text 0.875rem. */
+  .fh-product-band-2 .cap-process {
+    --fs-h3: 0.9375rem;
+    --text-size: 0.875rem;
+  }
   @media (width >= 40rem) {
     .fh-product-band-2 {
       padding-inline: 2rem;
@@ -105,79 +112,30 @@
   .fh-product-title-2 {
     margin-bottom: 2.5rem;
   }
-  .fh-product-grid {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 2rem;
-  }
-  @media (width >= 40rem) {
-    .fh-product-grid {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
-  }
-  .fh-product-block-2 {
-    margin-bottom: 0.75rem;
-  }
-  .fh-product-title-3 {
-    margin-bottom: 0.5rem;
-  }
   .fh-product-block-3 {
     margin-bottom: 4rem;
-  }
-  :where(.fh-product-block-4 > :not(:last-child)) {
-    margin-block: 0 6rem;
-  }
-  :where(.fh-product-block-5 > :not(:last-child)) {
-    margin-block: 0 1.5rem;
-  }
-  .fh-product-wrap-3 {
-    margin-inline: auto;
-    max-width: 640px;
-  }
-  .fh-product-title-4 {
-    margin-bottom: 0.75rem;
-    line-height: 1.375;
-  }
-  .fh-product-block-6 {
-    max-height: 480px;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-  .fh-product-block-7 {
-    border-radius: 1rem;
-    --gap: 2rem;
-    --pad-card: 2rem;
   }
   .fh-product-band-3 {
     border-bottom: 1px solid var(--line);
     background-color: var(--surface);
     padding: 4rem 1.25rem;
+    /* Recova's price card: the page ground on the surface band, p-8, a 48px price in the text
+       color at medium weight, green checks. */
+    --pad-card: 2rem;
+    --cap-price-size: 3rem;
+    --cap-price-weight: 500;
+    --cap-price-color: var(--text);
+    --cap-price-label-size: 0.875rem;
+    --cap-price-check: var(--green);
+
+    & .cap-price-card {
+      background: var(--bg);
+    }
   }
   @media (width >= 40rem) {
     .fh-product-band-3 {
       padding-inline: 2rem;
     }
-  }
-  .fh-product-block-8 {
-    --gap: 2rem;
-    --pad-card: 2rem;
-    --surface: var(--ground);
-  }
-  .fh-product-block-9 {
-    margin-bottom: 0.25rem;
-  }
-  .fh-product-list {
-    margin-bottom: 2rem;
-  }
-  :where(.fh-product-list > :not(:last-child)) {
-    margin-block: 0 0.75rem;
-  }
-  .fh-product-label {
-    margin-top: 0.125rem;
-    flex-shrink: 0;
-  }
-  .fh-product-grid-2 {
-    display: grid;
   }
   .fh-product-wrap-4 {
     margin-inline: auto;

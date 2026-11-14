@@ -11,6 +11,7 @@
 @import "capsomer/themes.css" layer(cap.tokens);
 @import "capsomer/family-amber.css" layer(cap.tokens);
 @import "capsomer/base.css";
+@import "capsomer/layout.css";
 @import "capsomer/site-header.css";
 @import "capsomer/admin-shell.css";
 @import "capsomer/dialog.css";

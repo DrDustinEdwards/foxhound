@@ -1,12 +1,14 @@
 import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { useState } from "react";
-import { useFetcher } from "react-router";
+import { AiSample, type AiSampleResult } from "capsomer/react/ai-sample";
+import { Eyebrow } from "capsomer/react/eyebrow";
 import { Segmented } from "capsomer/react/segmented";
 
-import type { MarketingEmailCategory, MarketingEmailResult } from "~/lib/marketing/email-sample";
+import { generateEmailSample, type MarketingEmailCategory } from "~/lib/marketing/email-sample";
 
-import "capsomer/panel.css";
+import "capsomer/ai-sample.css";
 import "capsomer/button.css";
+import "capsomer/eyebrow.css";
 import "capsomer/segmented.css";
 
 // The home page's live email generator. Recova's spec is
@@ -18,15 +20,18 @@ import "capsomer/segmented.css";
 // labels are Recova's: the decline name in bold, the plain cause beneath, and
 // no raw Stripe code (M3 divergence 27).
 //
-// Look is Capsomer's: the card is a panel, the picker its segmented control in
-// the cards layout (one of a few, so radios, not four buttons), each chosen
-// type tinted as Recova's were (soft blue, network orange, expired amber,
-// fraud red), the button its primary.
+// It is Capsomer's AI sample: the picker its segmented control in the cards
+// layout (one of a few, so radios, not four buttons), each chosen type tinted
+// as Recova's were (soft blue, network orange, expired amber, fraud red), the
+// button its primary. Hydrated, React keeps the state here; on a page that does
+// not hydrate, the email-generator island (islands/email-generator.ts) runs the
+// same markup through capsomer/behavior/ai-sample.
 //
-// Generation posts to /marketing/generate-email-sample, which calls the model
-// for a fictional customer. When that fails or the visitor is over the rate
-// limit, the route says so and this shows Recova's failure line (M3 divergence
-// 28), rather than passing a stored sample off as one generated just now.
+// Generation posts to /marketing/generate-email-sample (generateEmailSample),
+// which calls the model for a fictional customer. When that fails or the
+// visitor is over the rate limit, the route says so and this shows Recova's
+// failure line (M3 divergence 28), rather than passing a stored sample off as
+// one generated just now.
 
 interface CategoryMeta {
   id: MarketingEmailCategory;
@@ -44,154 +49,59 @@ const CATEGORIES: CategoryMeta[] = [
 
 export function EmailSamples() {
   const [category, setCategory] = useState<MarketingEmailCategory>("soft");
-  const [result, setResult] = useState<MarketingEmailResult | null>(null);
-  const fetcher = useFetcher<MarketingEmailResult>();
-  const busy = fetcher.state !== "idle";
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<AiSampleResult | null>(null);
 
-  // `result` is fetcher.data, EXCEPT that switching category clears it and it
-  // stays cleared until the next generate lands, so it cannot be derived from
-  // fetcher.data alone. React's documented pattern: adjust state during
-  // render, guarded on the value having changed.
-  const [seenData, setSeenData] = useState(fetcher.data);
-  if (fetcher.data !== seenData) {
-    setSeenData(fetcher.data);
-    if (fetcher.data) setResult(fetcher.data);
-  }
-
-  function selectCategory(id: MarketingEmailCategory) {
-    setCategory(id);
+  // Recova's generate() clears the last email and failure line before the
+  // request, so a new call never shows the last call's.
+  async function generate(data: FormData) {
     setResult(null);
-  }
-
-  // Recova's generate() calls setResult(null) and setError(false) before the
-  // request, so a new call never shows the last call's email or failure line.
-  function generate() {
-    setResult(null);
-    void fetcher.submit(
-      { category },
-      { method: "post", action: "/marketing/generate-email-sample" },
-    );
+    setBusy(true);
+    const next = await generateEmailSample(data);
+    setBusy(false);
+    setResult(next);
   }
 
   return (
-    <EmailGeneratorView
-      category={category}
-      busy={busy}
-      result={result}
-      onSelect={selectCategory}
-      onGenerate={generate}
-    />
-  );
-}
-
-/** What the generator draws for a given state, apart from the fetcher, so each
- *  state (idle, busy, a result, a failure) can be rendered on its own. */
-function EmailGeneratorView({
-  category,
-  busy,
-  result,
-  onSelect,
-  onGenerate,
-}: {
-  category: MarketingEmailCategory;
-  busy: boolean;
-  result: MarketingEmailResult | null;
-  onSelect: (id: MarketingEmailCategory) => void;
-  onGenerate: () => void;
-}) {
-  return (
-    // On a page that does not hydrate, the email-generator island (islands/email-generator.ts) runs this
-    // same markup: the picker is native radios, the button posts the same form, and the result is drawn
-    // with the same classes and words.
-    <div className="cap-panel" data-island="email-generator">
-      <div className="cap-panel-body" data-flush>
-        <div>
-          <div className="fh-sample-row">
-            <span className="fh-mono fh-tiny fh-quiet fh-caps-wide">Live email generator</span>
-            <span className="fh-mk-inline-wide">
-              <span className="fh-sample-live" aria-hidden />
-              <span className="fh-mono fh-source fh-green">Calls real AI</span>
-            </span>
-          </div>
-
-          <div className="fh-sample-block">
-            <div className="fh-sample-block-2">
-              <Segmented
-                legend={
-                  <span className="fh-tiny fh-medium fh-quiet fh-caps-wide">Decline type</span>
-                }
-                name="decline-type"
-                layout="cards"
-                value={category}
-                onChange={onSelect}
-                options={CATEGORIES.map((c) => ({
-                  value: c.id,
-                  tone: c.tone,
-                  label: (
-                    <span className="fh-line fh-caption">
-                      <span className="fh-line fh-medium">{c.label}</span>
-                      <span className="fh-sample-label-2 fh-line fh-mono fh-source">{c.desc}</span>
-                    </span>
-                  ),
-                }))}
-              />
-            </div>
-
-            <div className="fh-mk-centered">
-              <button
-                type="button"
-                onClick={onGenerate}
-                data-email-generate=""
-                disabled={busy}
-                aria-busy={busy ? "true" : undefined}
-                className="fh-sample-button cap-btn fh-semibold"
-                data-variant="primary"
-              >
-                {/* Recova (EmailGenerator.tsx): "Generating..." with no arrow
-                    while the call runs, the label and the arrow otherwise. */}
-                {busy ? (
-                  <span className="cap-btn-label">Generating...</span>
-                ) : (
-                  <>
-                    <span className="cap-btn-label">Generate recovery email</span>
-                    <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine" data-icon="end" />
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Recova: "The same AI that writes your recovery emails. Try it on
-                a real failed payment." The sample uses its own model
-                (MODEL_MARKETING_EMAIL_SAMPLE, not MODEL_RECOVERY_EMAIL) on a
-                fictional customer, so the line says what it is. */}
-            <p className="fh-sample-text fh-center fh-mono fh-source fh-faint">
-              A live AI call on a sample failed payment, for a fictional customer.
-            </p>
-          </div>
-
-          <div aria-live="polite">
-            {busy ? null : result && "error" in result ? (
-              <div className="fh-sample-result fh-small fh-error">
-                Generation failed. Try again.
-              </div>
-            ) : result ? (
-              <div className="fh-sample-result">
-                <p className="fh-sample-label fh-mono fh-source fh-faint fh-caps-wide">Subject</p>
-                <div className="fh-sample-subject fh-copy fh-medium fh-text">{result.subject}</div>
-                <p className="fh-sample-label-tight fh-mono fh-source fh-faint fh-caps-wide">
-                  Body
-                </p>
-                <div className="fh-sample-body fh-pre-wrap fh-mono fh-small fh-soft">
-                  {result.body.replace("{{update_url}}", "https://billing.yoursaas.com/update")}
-                </div>
-                <p className="fh-sample-note fh-mono fh-source fh-faint">
-                  Generated in real time by AI, for a fictional customer.
-                </p>
-              </div>
-            ) : null}
-          </div>
-        </div>
-      </div>
+    <div data-island="email-generator">
+      <AiSample
+        title="Live email generator"
+        live="Calls real AI"
+        busy={busy}
+        result={result}
+        onGenerate={(data) => void generate(data)}
+        // Choosing another decline type clears the last email.
+        onChange={() => setResult(null)}
+        button={
+          <>
+            <span className="cap-btn-label">Generate recovery email</span>
+            <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine" data-icon="end" />
+          </>
+        }
+        // Recova: "The same AI that writes your recovery emails. Try it on a
+        // real failed payment." The sample uses its own model
+        // (MODEL_MARKETING_EMAIL_SAMPLE, not MODEL_RECOVERY_EMAIL) on a
+        // fictional customer, so the line says what it is.
+        hint="A live AI call on a sample failed payment, for a fictional customer."
+      >
+        <Segmented
+          legend={<Eyebrow as="span">Decline type</Eyebrow>}
+          name="decline-type"
+          layout="cards"
+          value={category}
+          onChange={setCategory}
+          options={CATEGORIES.map((c) => ({
+            value: c.id,
+            tone: c.tone,
+            label: (
+              <span className="fh-line fh-caption">
+                <span className="fh-line fh-medium">{c.label}</span>
+                <span className="fh-sample-label-2 fh-line fh-mono fh-source">{c.desc}</span>
+              </span>
+            ),
+          }))}
+        />
+      </AiSample>
     </div>
   );
 }
