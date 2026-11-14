@@ -166,7 +166,7 @@ body {
 /* Capsomer's eyebrow at Recova's section labels: medium weight in the tertiary text color. */
 [data-cap-site="foxhound"] {
   --cap-eyebrow-weight: 500;
-  --cap-eyebrow-color: var(--text-tertiary);
+  --cap-eyebrow-color: var(--muted);
 }
 /* Recova's column had a 32px side margin from 768px up (px-4 md:px-8), the width of the header's
    own padding, so the page starts under the logo. Capsomer's page class defaults to 16px. */

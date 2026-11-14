@@ -89,7 +89,7 @@
     --cap-eyebrow-weight: 400;
   }
   .fh-queue-label-text {
-    --cap-eyebrow-color: var(--text-subtle);
+    --cap-eyebrow-color: var(--dim);
   }
   .fh-queue-row-2 {
     display: flex;
@@ -253,7 +253,7 @@
   }
   .fh-home-text-4 {
     margin-bottom: 1.5rem;
-    --cap-eyebrow-color: var(--text-subtle);
+    --cap-eyebrow-color: var(--dim);
     --cap-eyebrow-weight: 400;
   }
   .fh-home-title-2 {

@@ -129,7 +129,7 @@
     --cap-price-check: var(--green);
 
     & .cap-price-card {
-      background: var(--bg);
+      background: var(--ground);
     }
   }
   @media (width >= 40rem) {
