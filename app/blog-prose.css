@@ -2,6 +2,9 @@
    route's stylesheet to the preview's). Capsomer's prose blocks land in cap.components, inside the cap
    layer app.css declares; the rules below are unlayered, so Foxhound's tokens win. */
 @import "capsomer/prose-blocks.css";
+/* Capsomer's reading progress bar, the post's alone, in Foxhound's amber and under the 56px sticky
+   header. */
+@import "capsomer/reading-progress.css";
 
 /* Blog post body: Capsomer's prose blocks (capsomer/prose-blocks.css, imported at the top) on
    <div class="blog-prose" data-context="prose">, in legacy's look (globals.css) by Capsomer's tokens.
@@ -274,4 +277,9 @@
     margin-bottom: var(--space-6);
     max-width: 480px;
   }
+}
+
+.cap-reading-progress {
+  --reading-progress-color: var(--brand);
+  --reading-progress-top: var(--header-h);
 }

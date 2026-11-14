@@ -11,7 +11,7 @@ import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { formatMoney, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import { dayKey } from "@dustinedwards/site-runtime/time";
-import type { DailyRatePoint, RecoveryTimingBucket } from "./recovery-window";
+import type { RecoveryTimingBucket } from "./recovery-window";
 import { percent } from "capsomer/behavior/meter";
 
 // The /recovery/dashboard page's display arithmetic: pure, no
@@ -93,19 +93,6 @@ export function formatLongDate(date: Date): string {
 }
 
 // ---- Recovery rate chart ----
-
-/** The sentence a reader without the chart gets: where the running rate
- *  started and ended over the range. */
-export function recoveryRateAlt(points: readonly DailyRatePoint[], rangeLabel: string): string {
-  const present = points.filter((p): p is { date: string; rate: number } => p.rate !== null);
-  if (present.length === 0)
-    return `Recovery rate, ${rangeLabel}: no failed payments in this range yet.`;
-  const first = present[0]!;
-  const last = present[present.length - 1]!;
-  if (present.length === 1)
-    return `Recovery rate, ${rangeLabel}: ${first.rate}% on ${formatShortDate(first.date)}.`;
-  return `Running recovery rate, ${rangeLabel}: ${first.rate}% on ${formatShortDate(first.date)} and ${last.rate}% on ${formatShortDate(last.date)}.`;
-}
 
 // ---- Recovered revenue chart ----
 

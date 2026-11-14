@@ -20,8 +20,7 @@
    on a link that is a button or a card wins. The public pages add each kind's cue
    (capsomer/link.css, in layouts/marketing.tsx). */
 @import "capsomer/links.css";
-/* Capsomer's scroll-driven parts: the blog post's reading progress and the scroll reveal. */
-@import "capsomer/reading-progress.css";
+/* Capsomer's scroll reveal (the home page, the page headers and the audit run). */
 @import "capsomer/reveal.css";
 /* Capsomer's icons (Foxhound's entry draws them at Lucide's stroke, 2). Before any page's admin-shell.css, so
    the shell's menu icon sizes win. */
@@ -228,62 +227,6 @@
   --border-i: #899178;
 }
 
-/* Ported from legacy app/globals.css (M3 divergences 41 and 3). The STRUCTURE
-   is load-bearing, not just the declarations: legacy guards every animated
-   utility behind prefers-reduced-motion: no-preference, so under reduced motion
-   the classes do not exist at all and elements render in their final state.
-   Foxhound's own reduce block below overrides animation-duration but NOT
-   animation-delay, so defining these unguarded would leave a delayed element
-   holding opacity 0 for its whole delay (320ms on the hero's last item) before
-   snapping in. The guard prevents that, and it is also what legacy does.
-
-   The delay classes set animation-delay, not transition-delay. */
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes fade-up {
-    from {
-      opacity: 0;
-      transform: translateY(16px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .animate-fade-up {
-    animation: fade-up 0.5s ease both;
-  }
-
-  .animate-fade-in {
-    animation: fade-in var(--dur-slow) ease both;
-  }
-
-  .delay-80 {
-    animation-delay: 80ms;
-  }
-
-  .delay-160 {
-    animation-delay: 160ms;
-  }
-
-  .delay-240 {
-    animation-delay: 240ms;
-  }
-
-  .delay-320 {
-    animation-delay: 320ms;
-  }
-}
-
 /* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference, so a color fade can stay while a slide goes. No global 0.01ms override:
    it ends some animations in a jump and breaks scroll-driven effects (Capsomer base.css, which
    also turns smooth scrolling off). */
@@ -322,12 +265,6 @@ body {
   }
 }
 
-/* Capsomer's reading progress bar (the blog post, routes/blog/post.tsx), in Foxhound's amber and
-   under the 56px sticky header. */
-.cap-reading-progress {
-  --reading-progress-color: var(--brand);
-  --reading-progress-top: var(--header-h);
-}
 /* Capsomer's site header and dashboard shell, in Foxhound's colors: every
    .fh-cap wrapper carries data-cap-site="foxhound", so the neutrals and faces
    Capsomer reads are Foxhound's own (capsomer/site-foxhound.css, in the cap
