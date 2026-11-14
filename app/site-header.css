@@ -5,8 +5,11 @@
 
    Capsomer's tokens and the amber family come from app/error-page.css (capbase layer, on every
    page with the root route), so they are not imported twice. Foxhound's colors over them are in
-   app.css (.fh-cap). Capsomer's base.css is not loaded here, so no page's own elements change. */
-@import "capsomer/site-header.css";
+   app.css (.fh-cap). Capsomer's base.css is not loaded here, so no page's own elements change.
+
+   These headers are not the letterhead and have no search, so only the header's frame is loaded,
+   not site-header.css's letterhead and search parts (the admin's letterhead loads all three). */
+@import "capsomer/site-header-frame.css";
 @import "capsomer/dialog.css";
 @import "capsomer/popover.css";
 @import "capsomer/theme-switch.css";

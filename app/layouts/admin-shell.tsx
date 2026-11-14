@@ -20,7 +20,7 @@ import {
   type AdminApp,
   type AdminEntry,
 } from "capsomer/react/admin-shell";
-import { initialsOf } from "capsomer/react/site-header";
+import { initials } from "capsomer/behavior/avatar";
 import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 
 import "~/admin.css";
@@ -232,7 +232,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
           // The Access login, not the family owner's name: Foxhound stands
           // apart from the Dustin Edwards network.
           name: email,
-          initials: initialsOf(null, email),
+          initials: initials(null, email),
           role: "Admin",
           // Access owns sign-out: it ends the Access session, then shows its
           // own login.

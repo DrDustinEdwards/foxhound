@@ -21,8 +21,8 @@ import "capsomer/save-bar.css";
 import "capsomer/segmented.css";
 import "capsomer/switch.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// /settings/audit and /settings/alerts load them.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { AuditSummary } from "~/components/audit/sections";

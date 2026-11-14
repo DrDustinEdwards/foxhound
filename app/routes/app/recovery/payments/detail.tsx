@@ -26,8 +26,8 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/link.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// the payments list and /disputes load them.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { getDb } from "~/db";

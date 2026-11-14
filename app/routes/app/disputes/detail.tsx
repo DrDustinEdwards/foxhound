@@ -6,8 +6,8 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// the disputes list and the payment pages load them.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
 import { useDraftDirty } from "capsomer/react/form-hooks";

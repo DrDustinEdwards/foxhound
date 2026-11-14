@@ -6,9 +6,8 @@ import { Form, useActionData, useNavigation } from "react-router";
 import "capsomer/button.css";
 import "capsomer/panel.css";
 import "capsomer/status-mark.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// status tones and the focus ring read. The site header loads the same file;
-// importing it here keeps the page whole under any layout (as legal-page.tsx).
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { Header } from "~/components/header";
