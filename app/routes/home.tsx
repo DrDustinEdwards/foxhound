@@ -7,9 +7,8 @@ import "capsomer/button.css";
 import "capsomer/disclosure.css";
 import "capsomer/eyebrow.css";
 import "capsomer/source-line.css";
-// Capsomer's tokens and the amber family (capbase layer), which every part on
-// this page reads. The site header loads the same file; importing it here
-// keeps the page whole under any layout.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 import { Eyebrow } from "capsomer/react/eyebrow";
 import { jsonLd, faqPage } from "@drdustinedwards/site-helpers/schema";

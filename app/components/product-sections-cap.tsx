@@ -19,9 +19,8 @@ import "capsomer/price-card.css";
 import "capsomer/process.css";
 import "capsomer/button.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family (capbase layer), which every part
-// below reads. The site header loads the same file; importing it here keeps
-// the page whole under any layout.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 // The /product spoke sections built from Capsomer's parts. Recova's

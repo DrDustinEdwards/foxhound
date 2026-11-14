@@ -67,6 +67,7 @@ export function AdminMcpPanels({
           headingId={KEYS_HEADING_ID}
           reading={reading}
           description={`${plural(keys.length, "key", "keys")}, ${summary.keysActive} active, newest first.`}
+          caption="API keys, newest first."
           reflow
           isEmpty={keys.length === 0}
           empty={
@@ -75,24 +76,21 @@ export function AdminMcpPanels({
             </Empty>
           }
         >
-          <table className="cap-table">
-            <caption className="cap-sr-only">API keys, newest first.</caption>
-            <thead>
-              <tr>
-                <th scope="col">Label</th>
-                <th scope="col">Scope</th>
-                <th scope="col">Account</th>
-                <th scope="col">Status</th>
-                <th scope="col">Created</th>
-                <th scope="col">Last used</th>
-              </tr>
-            </thead>
-            <tbody>
-              {keys.map((k) => (
-                <KeyRow key={k.id} apiKey={k} />
-              ))}
-            </tbody>
-          </table>
+          <thead>
+            <tr>
+              <th scope="col">Label</th>
+              <th scope="col">Scope</th>
+              <th scope="col">Account</th>
+              <th scope="col">Status</th>
+              <th scope="col">Created</th>
+              <th scope="col">Last used</th>
+            </tr>
+          </thead>
+          <tbody>
+            {keys.map((k) => (
+              <KeyRow key={k.id} apiKey={k} />
+            ))}
+          </tbody>
         </TablePanel>
 
         <TablePanel
@@ -100,41 +98,37 @@ export function AdminMcpPanels({
           headingId={TOOLS_HEADING_ID}
           reading={reading}
           description={`${plural(tools.length, "tool", "tools")} in the merchant MCP's registry: ${tools.length - writes} read, ${writes} write.`}
+          caption="Merchant MCP tools, as the registry lists them."
           reflow
           isEmpty={tools.length === 0}
           empty={<Empty kind="nothing-yet" title="No merchant tools registered." />}
         >
-          <table className="cap-table">
-            <caption className="cap-sr-only">
-              Merchant MCP tools, as the registry lists them.
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Tool</th>
-                <th scope="col">What it does</th>
-                <th scope="col">Access</th>
+          <thead>
+            <tr>
+              <th scope="col">Tool</th>
+              <th scope="col">What it does</th>
+              <th scope="col">Access</th>
+            </tr>
+          </thead>
+          <tbody>
+            {tools.map((t) => (
+              <tr key={t.name}>
+                <th scope="row" className="fh-mono fh-tiny fh-regular fh-break">
+                  {t.name}
+                </th>
+                <td data-label="What it does" data-wrap="">
+                  {t.title}
+                </td>
+                <td data-label="Access">
+                  {t.writes ? (
+                    <Status tone="info">Writes</Status>
+                  ) : (
+                    <Status tone="ok">Reads</Status>
+                  )}
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {tools.map((t) => (
-                <tr key={t.name}>
-                  <th scope="row" className="fh-mono fh-tiny fh-regular fh-break">
-                    {t.name}
-                  </th>
-                  <td data-label="What it does" data-wrap="">
-                    {t.title}
-                  </td>
-                  <td data-label="Access">
-                    {t.writes ? (
-                      <Status tone="info">Writes</Status>
-                    ) : (
-                      <Status tone="ok">Reads</Status>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+            ))}
+          </tbody>
         </TablePanel>
 
         <TablePanel
@@ -142,6 +136,7 @@ export function AdminMcpPanels({
           headingId={CALLS_HEADING_ID}
           reading={reading}
           description={`Up to the newest ${MCP_CALLS_SHOWN} merchant MCP calls, every account. Arguments are not shown.`}
+          caption="Merchant MCP calls, newest first."
           reflow
           isEmpty={calls.length === 0}
           empty={
@@ -150,24 +145,21 @@ export function AdminMcpPanels({
             </Empty>
           }
         >
-          <table className="cap-table">
-            <caption className="cap-sr-only">Merchant MCP calls, newest first.</caption>
-            <thead>
-              <tr>
-                <th scope="col">Tool</th>
-                <th scope="col">Account</th>
-                <th scope="col">Key</th>
-                <th scope="col">Outcome</th>
-                <th scope="col">When</th>
-                <th scope="col">Error</th>
-              </tr>
-            </thead>
-            <tbody>
-              {calls.map((c) => (
-                <CallRow key={c.id} call={c} />
-              ))}
-            </tbody>
-          </table>
+          <thead>
+            <tr>
+              <th scope="col">Tool</th>
+              <th scope="col">Account</th>
+              <th scope="col">Key</th>
+              <th scope="col">Outcome</th>
+              <th scope="col">When</th>
+              <th scope="col">Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {calls.map((c) => (
+              <CallRow key={c.id} call={c} />
+            ))}
+          </tbody>
         </TablePanel>
       </div>
     </div>

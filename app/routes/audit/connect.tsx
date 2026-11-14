@@ -9,8 +9,8 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/consent.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// button, the alert and the focus ring read, as on /connect.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { AUDIT_LOOKBACK_DAYS, RATE_LIMIT_AUDIT } from "~/lib/constants";

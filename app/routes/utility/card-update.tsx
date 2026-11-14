@@ -8,9 +8,8 @@ import { data, Form, redirect, useNavigation } from "react-router";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the Panel, the
-// Button, the Banner and Alert, and the focus ring read. The site header loads the same
-// file; importing it here keeps the page whole under any layout.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { Header } from "~/components/header";

@@ -10,9 +10,8 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family (capbase layer), which the cards, the
-// pills and the focus ring read. The site header loads the same file;
-// importing it here keeps the page whole under any layout.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import type { Route } from "./+types/tag";

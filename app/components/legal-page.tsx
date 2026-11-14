@@ -3,9 +3,8 @@ import type { ReactNode } from "react";
 import { DISPUTE_AUTO_SUBMIT_HOURS } from "~/lib/disputes/approval";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 
-// Capsomer's tokens and the amber family (capbase layer), which the legal page, the link roles and
-// the focus ring read. The site header loads the same file; importing it here keeps these pages
-// whole under any layout.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 // The legal pages' frame and the one paragraph two of them share. The page itself (title, date,

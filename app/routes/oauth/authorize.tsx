@@ -9,9 +9,8 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/consent.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// buttons, the alert and the focus ring read. The site header loads the same
-// file; this page has no header, so it imports it itself, as auth-card.tsx does.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { Wordmark } from "~/components/wordmark";

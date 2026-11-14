@@ -18,9 +18,8 @@ import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /disputes does.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { getDb } from "~/db";

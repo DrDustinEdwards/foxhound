@@ -8,9 +8,8 @@ import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 import "capsomer/page-head.css";
 import "capsomer/row-list.css";
 import "capsomer/stat-tile.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/email does.
+// The site header's CSS (app/site-header.css), so the page is whole under any layout. Capsomer's
+// tokens and the amber family come with the root route (app/error-page.css).
 import "~/site-header.css";
 
 import { disputes, failedPayments, getDb, stripeConnections } from "~/db";

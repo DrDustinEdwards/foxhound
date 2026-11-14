@@ -1,7 +1,7 @@
 import { Outlet } from "react-router";
-// The CSS every settings page reads, loaded once here for all of them: Capsomer's parts, and the
-// tokens and amber family they read (~/site-header.css; the shell loads it too, and this keeps a
-// settings page whole under any layout).
+// The CSS every settings page reads, loaded once here for all of them: Capsomer's parts and the
+// site header's CSS (~/site-header.css; the shell loads it too, and this keeps a settings page
+// whole under any layout). The tokens and amber family come with the root route (app/error-page.css).
 import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/page-head.css";

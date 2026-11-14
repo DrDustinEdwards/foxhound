@@ -1,5 +1,5 @@
 /* Layers, lowest first. capbase holds Capsomer's tokens on the public site and the merchant app
-   (app/site-header.css): the site header and the dashboard shell read them. base holds the element
+   (app/error-page.css, with the root route): the site header and the dashboard shell read them. base holds the element
    reset (Capsomer's copy of Tailwind's preflight) and Foxhound's base rules over it. cap holds
    Capsomer's parts (the admin's and the merchant shell's), with its own sublayers. site holds
    Foxhound's own classes: the type and color roles and each page's parts, above Capsomer's parts. */

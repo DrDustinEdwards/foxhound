@@ -354,7 +354,7 @@
 .fh-product-hero .cap-hero-text {
   max-inline-size: 680px;
 }
-.fh-product-hero .cap-hero-eyebrow {
+.fh-product-hero .cap-hero-text > .cap-eyebrow {
   margin: 0 0 var(--space-6);
   color: inherit;
   font: inherit;
@@ -395,7 +395,7 @@
 .fh-page-hero .cap-hero-text {
   max-inline-size: none;
 }
-.fh-page-hero .cap-hero-eyebrow {
+.fh-page-hero .cap-hero-text > .cap-eyebrow {
   margin: 0 0 var(--space-4);
   color: var(--text-tertiary);
   font: var(--weight-medium) 0.6875rem / var(--leading-snug) var(--font-dm-sans);
