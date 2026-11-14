@@ -28,7 +28,8 @@ import {
   iconUndo,
 } from "capsomer/react/icons";
 import { AdminShell, type AdminEntry } from "capsomer/react/admin-shell";
-import { initialsOf, SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
+import { initials } from "capsomer/behavior/avatar";
+import { SiteHeader, type HeaderSwitcher } from "capsomer/react/site-header";
 import { ErrorPage } from "capsomer/react/error-page";
 import { ModeBanner } from "capsomer/react/mode-banner";
 import { shouldShowRouteSplash } from "capsomer/behavior/route-splash";
@@ -411,7 +412,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         onHelp={() => void navigate("/help")}
         account={{
           name: userName || email,
-          initials: initialsOf(userName, email),
+          initials: initials(userName, email),
           email: userName ? email : undefined,
           appLabel: accountName ?? email,
           appLinks: [
