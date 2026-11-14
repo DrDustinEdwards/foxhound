@@ -20,8 +20,7 @@
    on a link that is a button or a card wins. The public pages add each kind's cue
    (capsomer/link.css, in layouts/marketing.tsx). */
 @import "capsomer/links.css";
-/* Capsomer's scroll-driven parts: the blog post's reading progress and the scroll reveal. */
-@import "capsomer/reading-progress.css";
+/* Capsomer's scroll reveal (the home page, the page headers and the audit run). */
 @import "capsomer/reveal.css";
 /* Capsomer's icons (Foxhound's entry draws them at Lucide's stroke, 2). Before any page's admin-shell.css, so
    the shell's menu icon sizes win. */
@@ -228,62 +227,6 @@
   --border-i: #899178;
 }
 
-/* Ported from legacy app/globals.css (M3 divergences 41 and 3). The STRUCTURE
-   is load-bearing, not just the declarations: legacy guards every animated
-   utility behind prefers-reduced-motion: no-preference, so under reduced motion
-   the classes do not exist at all and elements render in their final state.
-   Foxhound's own reduce block below overrides animation-duration but NOT
-   animation-delay, so defining these unguarded would leave a delayed element
-   holding opacity 0 for its whole delay (320ms on the hero's last item) before
-   snapping in. The guard prevents that, and it is also what legacy does.
-
-   The delay classes set animation-delay, not transition-delay. */
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes fade-up {
-    from {
-      opacity: 0;
-      transform: translateY(16px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .animate-fade-up {
-    animation: fade-up 0.5s ease both;
-  }
-
-  .animate-fade-in {
-    animation: fade-in 0.4s ease both;
-  }
-
-  .delay-80 {
-    animation-delay: 80ms;
-  }
-
-  .delay-160 {
-    animation-delay: 160ms;
-  }
-
-  .delay-240 {
-    animation-delay: 240ms;
-  }
-
-  .delay-320 {
-    animation-delay: 320ms;
-  }
-}
-
 /* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference, so a color fade can stay while a slide goes. No global 0.01ms override:
    it ends some animations in a jump and breaks scroll-driven effects (Capsomer base.css, which
    also turns smooth scrolling off). */
@@ -322,12 +265,6 @@ body {
   }
 }
 
-/* Capsomer's reading progress bar (the blog post, routes/blog/post.tsx), in Foxhound's amber and
-   under the 56px sticky header. */
-.cap-reading-progress {
-  --reading-progress-color: var(--brand);
-  --reading-progress-top: var(--header-h);
-}
 /* Capsomer's site header and dashboard shell, in Foxhound's colors: every
    .fh-cap wrapper carries data-cap-site="foxhound", so the neutrals and faces
    Capsomer reads are Foxhound's own (capsomer/site-foxhound.css, in the cap
@@ -538,20 +475,8 @@ body {
    text colors and its faces, one class each, read by every page. Each page's own parts sit beside
    it (admin.css for the admin). */
 @layer site {
-  .fh-hero-lg {
-    font-size: 4rem;
-  }
-  .fh-statement-lg {
-    font-size: 4.5rem;
-  }
-  .fh-statement-md {
-    font-size: 3.5rem;
-  }
   .fh-hero {
     font-size: 2.75rem;
-  }
-  .fh-price {
-    font-size: 2.5rem;
   }
   .fh-statement {
     font-size: 2.25rem;
@@ -564,9 +489,6 @@ body {
   }
   .fh-section {
     font-size: 1.75rem;
-  }
-  .fh-section-lg {
-    font-size: 2rem;
   }
   .fh-item-title {
     font-size: 0.9375rem;
@@ -757,8 +679,7 @@ body {
   .fh-archive-link,
   .fh-archive-text-3,
   .fh-blog-link,
-  .fh-blog-link-3,
-  .fh-features-link {
+  .fh-blog-link-3 {
     transition-property:
       color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -1061,22 +982,10 @@ body {
   .fh-recprev-block-2 {
     padding-bottom: 0.5rem;
   }
-  .fh-recprev-list {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    column-gap: 0.25rem;
-    row-gap: 0.5rem;
-  }
   .fh-mk-inline {
     display: flex;
     align-items: center;
     gap: 0.25rem;
-  }
-  .fh-recprev-label {
-    height: 1px;
-    width: 1rem;
-    background-color: var(--border);
   }
   .fh-recprev-block-3 {
     padding: 1.25rem;
