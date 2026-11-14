@@ -38,7 +38,7 @@
     "@modelcontextprotocol/server": "2.4.0",
     "@sentry/cloudflare": "10.78.0",
     "better-auth": "1.7.18",
-    "capsomer": "github:DrDustinEdwards/capsomer#v0.152.1",
+    "capsomer": "github:DrDustinEdwards/capsomer#v0.152.2",
     "drizzle-orm": "0.45.4",
     "enarratio": "0.15.0",
     "hast-util-from-html": "2.1.0",
@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.67.0",
-    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.50.1",
+    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.51.0",
     "@modelcontextprotocol/conformance": "0.2.0-alpha.12",
     "@react-router/dev": "8.5.1",
     "@types/better-sqlite3": "7.6.13",
