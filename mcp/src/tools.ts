@@ -69,6 +69,14 @@ const READ = {
 const OBJECT = { type: "object" } as const;
 const LIST = { type: "array" } as const;
 
+/** A tool's arguments: these and no others (an unknown one is refused, checklist T4), `required` among them. */
+const input = (properties: Record<string, unknown>, required: string[] = []) => ({
+  type: "object" as const,
+  additionalProperties: false as const,
+  properties,
+  required,
+});
+
 /** The API's answer: its keys and their shapes. None is required, so a key the
  *  API adds or drops never turns a good answer into an error; a wrong shape does. */
 const output = (properties: Record<string, unknown>) => ({
@@ -120,7 +128,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "What needs me",
     description:
       "Start here. What on Foxhound needs an admin now: whether the emergency brake is engaged, accounts with stale brake markers, crons that are off or failed their last run, webhook failures in the last day, and the staged changes waiting for confirmation in /admin/staged.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    inputSchema: input({}),
     outputSchema: output({
       brake: OBJECT,
       stale_markers: OBJECT,
@@ -138,7 +146,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Platform overview",
     description:
       "Read the platform overview: merchant count, active recoveries, MRR by currency and cron health.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    inputSchema: input({}),
     outputSchema: output({ platform: OBJECT }),
     scope: "read",
     annotations: READ,
@@ -149,24 +157,19 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Find a merchant",
     description:
       "Find merchants by name or account id (filter narrows to the paused, billing-exempt or canceled ones), or pass account_id for one merchant in full: its account state, Stripe connections (never their tokens), subscriptions, recovery and dispute activity and recent invoices. Paginated: pass next_cursor back to read on.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        query: { type: "string", description: "Part of a merchant's name or account id." },
-        account_id: {
-          type: "string",
-          description: "One merchant's account id, for its full detail.",
-        },
-        filter: {
-          type: "string",
-          enum: ["paused", "billing_exempt", "canceled"],
-          description: "Only merchants that are paused, billing-exempt or canceled.",
-        },
-        cursor: CURSOR,
+    inputSchema: input({
+      query: { type: "string", description: "Part of a merchant's name or account id." },
+      account_id: {
+        type: "string",
+        description: "One merchant's account id, for its full detail.",
       },
-      required: [],
-    },
+      filter: {
+        type: "string",
+        enum: ["paused", "billing_exempt", "canceled"],
+        description: "Only merchants that are paused, billing-exempt or canceled.",
+      },
+      cursor: CURSOR,
+    }),
     outputSchema: output({ merchant: OBJECT, merchants: LIST, ...PAGE }),
     outside: "foxhound-data",
     scope: "read",
@@ -186,10 +189,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "View as a merchant",
     description:
       "See what a merchant's own agent sees: run one of the merchant tools for that merchant and get the same answer, with the same masking (customer names never, emails masked) and the same paging. tool is the merchant tool's name (foxhound_get_overview, foxhound_list_payments, foxhound_get_payment, foxhound_list_customers, foxhound_get_customer, foxhound_get_intelligence, foxhound_get_recovery, foxhound_list_disputes, foxhound_review_audits, foxhound_get_billing or foxhound_get_settings) and arguments are that tool's own (view, payment_id, dispute_id, invoice_id, cursor and so on). Read only, like View as merchant in the app: the merchant's write tools cannot be named. Each call is recorded in the audit log under your name, the merchant and the tool.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
+    inputSchema: input(
+      {
         account_id: { type: "string", description: "From foxhound_admin_find_merchant." },
         tool: { type: "string", enum: [...MERCHANT_READ_TOOLS] },
         arguments: {
@@ -197,8 +198,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
           description: "That merchant tool's own arguments. Omit for none.",
         },
       },
-      required: ["account_id", "tool"],
-    },
+      ["account_id", "tool"],
+    ),
     outputSchema: output({ tool: { type: "string" }, result: OBJECT }),
     outside: "foxhound-data",
     // A read. Its audit row is bookkeeping, as the tool-call log is for every
@@ -227,7 +228,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Check health",
     description:
       "Check Foxhound's health: webhook delivery in the last day, every cron's state and last run, which migrations are applied, the D1 database size, and the most-hit missing pages this week.",
-    inputSchema: { type: "object", additionalProperties: false, properties: {}, required: [] },
+    inputSchema: input({}),
     outputSchema: output({
       webhooks: OBJECT,
       crons: LIST,
@@ -245,12 +246,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Read the audit log",
     description:
       "Read the admin audit log, newest first: who did what and when, including every pause, staging and confirmation. Paginated: pass next_cursor back to read on.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: { cursor: CURSOR },
-      required: [],
-    },
+    inputSchema: input({ cursor: CURSOR }),
     outputSchema: output({ entries: LIST, ...PAGE }),
     outside: "foxhound-data",
     scope: "read",
@@ -262,15 +258,10 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Pause processing",
     description:
       "Pause recovery and dispute processing now, for one merchant (account_id) or for every merchant through the emergency brake (all: true). Pausing stops money moving, so it happens at once and is recorded under your name. Resuming is not offered here: stage it with foxhound_admin_stage_change and confirm it in /admin/staged.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        account_id: { type: "string", description: "The merchant to pause." },
-        all: { type: "boolean", description: "True to pause every merchant through the brake." },
-      },
-      required: [],
-    },
+    inputSchema: input({
+      account_id: { type: "string", description: "The merchant to pause." },
+      all: { type: "boolean", description: "True to pause every merchant through the brake." },
+    }),
     // Destructive because it halts a merchant's recoveries until someone
     // resumes them; idempotent because pausing a paused merchant changes nothing.
     outputSchema: output({ paused: { type: "string" }, affected: { type: "number" } }),
@@ -311,10 +302,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Stage a change",
     description:
       "Ask for a change that starts or changes money, for an admin to confirm in /admin/staged. Nothing changes until then. kind is resume_account (account_id), release_brake, cron_enable (cron_name) or billing_exempt (account_id and exempt true or false). Add a note saying why.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
+    inputSchema: input(
+      {
         kind: {
           type: "string",
           enum: ["resume_account", "release_brake", "cron_enable", "billing_exempt"],
@@ -330,8 +319,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
         },
         note: { type: "string", description: "Why, for the admin who confirms it." },
       },
-      required: ["kind"],
-    },
+      ["kind"],
+    ),
     // Not destructive: it only records a request. Not idempotent: each call
     // stages another request.
     outputSchema: output({ staged: OBJECT, next: { type: "string" } }),
@@ -370,15 +359,10 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "List staged changes",
     description:
       "List staged changes, newest first, with who asked, when, and whether each is pending, confirmed, rejected or failed. Paginated: pass next_cursor back to read on.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        status: { type: "string", enum: ["pending", "confirmed", "rejected", "failed"] },
-        cursor: CURSOR,
-      },
-      required: [],
-    },
+    inputSchema: input({
+      status: { type: "string", enum: ["pending", "confirmed", "rejected", "failed"] },
+      cursor: CURSOR,
+    }),
     outputSchema: output({ staged: LIST, ...PAGE }),
     outside: "foxhound-data",
     scope: "read",
@@ -391,23 +375,18 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Preview an email",
     description:
       "See any email Foxhound sends exactly as it would arrive (From, Reply-To, subject, HTML and text), without sending it. Call with no type for the list of types. Customer emails (recovery, the manual resend, win-back, expiring card, the merchant's test email) and the weekly digest need account_id: they render with that merchant's sender name and Reply-To, on sample customer data. Read only.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        type: {
-          type: "string",
-          description: "An email type, e.g. recovery_day1. Omit to list the types.",
-        },
-        account_id: {
-          type: "string",
-          description:
-            "The merchant whose settings to render with. From foxhound_admin_find_merchant.",
-        },
-        to: { type: "string", description: "Whose inbox to render for. Omit for your own." },
+    inputSchema: input({
+      type: {
+        type: "string",
+        description: "An email type, e.g. recovery_day1. Omit to list the types.",
       },
-      required: [],
-    },
+      account_id: {
+        type: "string",
+        description:
+          "The merchant whose settings to render with. From foxhound_admin_find_merchant.",
+      },
+      to: { type: "string", description: "Whose inbox to render for. Omit for your own." },
+    }),
     outputSchema: output({
       types: LIST,
       recipients: OBJECT,
@@ -434,10 +413,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
     title: "Send test emails",
     description:
       "Send one, several or all email types to your own inbox (or a test inbox on Foxhound's allow list) to check delivery, links, unsubscribe and Reply-To, for example after a deploy. types is a list of types or \"all\"; customer emails need account_id and use that merchant's sender name and Reply-To on sample customer data. Buttons go to a stand-in page and record no clicks; nothing is billed and no recovery changes. Each send is in the admin audit log.",
-    inputSchema: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
+    inputSchema: input(
+      {
         types: {
           description:
             'A list of email types, or "all". foxhound_admin_preview_email with no type lists them.',
@@ -452,8 +429,8 @@ export const ADMIN_TOOLS: AdminTool[] = [
           description: "Omit to send to yourself. Any other address must be on the allow list.",
         },
       },
-      required: ["types"],
-    },
+      ["types"],
+    ),
     // Not destructive: it only mails the caller. Not idempotent: each call sends again.
     // Open world: the mail leaves Foxhound.
     outputSchema: output({
