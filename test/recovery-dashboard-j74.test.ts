@@ -11,10 +11,10 @@ import {
   emailCategoryRows,
   formatShortDate,
   onboardingNeeded,
-  recoveryRateAlt,
   recoveryTimingAlt,
   roiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
+import { recoveryRateAlt } from "~/components/recovery-dashboard-charts";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
 import RecoveryDashboard from "~/routes/app/recovery/index";
 
@@ -283,7 +283,9 @@ describe("J74: display arithmetic", () => {
         ],
         "30d",
       ),
-    ).toBe("Running recovery rate, 30d: 20% on Oct 2 and 30% on Oct 3.");
+    ).toBe(
+      "Running recovery rate, 30d, Oct 2 to Oct 3: 30% on Oct 3, from 20% to 30%; most on Oct 3.",
+    );
     expect(
       recoveryTimingAlt([
         { dayBucket: "Day 1", count: 1, percentage: 50 },
