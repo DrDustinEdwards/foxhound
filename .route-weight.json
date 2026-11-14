@@ -70,7 +70,7 @@
       "routes/home": 54938,
       "routes/products/disputes": 53346,
       "routes/products/audit": 51906,
-      "routes/products/recovery": 51906,
+      "routes/products/recovery": 55521,
       "routes/docs/page": 51267,
       "routes/decline-codes/code": 51240,
       "routes/features": 50091,

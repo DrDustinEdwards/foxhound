@@ -566,20 +566,8 @@ body {
     grid-template-columns: repeat(1, minmax(0, 1fr));
     gap: var(--space-5);
   }
-  .fh-hero-lg {
-    font-size: 4rem;
-  }
-  .fh-statement-lg {
-    font-size: 4.5rem;
-  }
-  .fh-statement-md {
-    font-size: 3.5rem;
-  }
   .fh-hero {
     font-size: 2.75rem;
-  }
-  .fh-price {
-    font-size: 2.5rem;
   }
   .fh-statement {
     font-size: var(--title-1);
@@ -592,9 +580,6 @@ body {
   }
   .fh-section {
     font-size: 1.75rem;
-  }
-  .fh-section-lg {
-    font-size: 2rem;
   }
   .fh-item-title {
     font-size: 0.9375rem;
@@ -785,8 +770,7 @@ body {
   .fh-archive-link,
   .fh-archive-text-3,
   .fh-blog-link,
-  .fh-blog-link-3,
-  .fh-features-link {
+  .fh-blog-link-3 {
     transition-property:
       color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
@@ -1088,22 +1072,10 @@ body {
   .fh-recprev-block-2 {
     padding-bottom: var(--space-3);
   }
-  .fh-recprev-list {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    column-gap: var(--space-2);
-    row-gap: var(--space-3);
-  }
   .fh-mk-inline {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-  }
-  .fh-recprev-label {
-    height: 1px;
-    width: 1rem;
-    background-color: var(--border);
   }
   .fh-recprev-block-3 {
     padding: 1.25rem;

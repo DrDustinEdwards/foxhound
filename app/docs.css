@@ -19,13 +19,6 @@
   .fh-doc-blocks-list {
     margin-block: var(--space-5);
   }
-  :where(.fh-doc-blocks-list > :not(:last-child)) {
-    margin-block: 0 var(--space-4);
-  }
-  .fh-doc-blocks-item {
-    display: flex;
-    gap: var(--space-4);
-  }
   .fh-doc-blocks-list-2 {
     margin-block: var(--space-5);
     list-style-position: inside;

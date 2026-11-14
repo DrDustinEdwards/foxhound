@@ -3,6 +3,7 @@ import { plural } from "@drdustinedwards/site-helpers/text";
 import { Table } from "capsomer/react/table";
 import { Pill, Status, type Tone } from "capsomer/react/status";
 import { Link } from "capsomer/react/link";
+import "capsomer/step-indicator.css";
 
 import { CategoryPill, StepChip } from "~/components/tone-pills";
 import type { DeclineCategory } from "~/lib/constants";
@@ -45,21 +46,18 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
           <div className="fh-recprev-block fh-tiny fh-medium fh-quiet fh-caps-wide">
             {label}: {count}
           </div>
-          {/* Recova's row scrolls sideways on a narrow screen; this one wraps instead, since no
-              page may need a sideways scrollbar (Dustin, 2026-10-30). */}
-          <div className="fh-recprev-block-2">
-            <ol aria-label={`${label} sequence, ${count}`} className="fh-recprev-list">
-              {steps.map((step, i) => {
-                const retry = isRetryStep(step.stepType);
-                return (
-                  <li key={step.stepType} className="fh-mk-inline">
-                    <StepChip retry={retry} timing={timingLabel(step.offsetHours)} />
-                    {i < steps.length - 1 ? (
-                      <span className="fh-recprev-label cap-keep" aria-hidden="true" />
-                    ) : null}
-                  </li>
-                );
-              })}
+          {/* Recova's row scrolls sideways on a narrow screen; Capsomer's inline steps wrap instead,
+              since no page may need a sideways scrollbar (Dustin, 2026-10-30). */}
+          <div className="cap-steps fh-recprev-block-2" data-variant="inline">
+            <ol aria-label={`${label} sequence, ${count}`} className="cap-steps-list">
+              {steps.map((step) => (
+                <li key={step.stepType} className="cap-step">
+                  <StepChip
+                    retry={isRetryStep(step.stepType)}
+                    timing={timingLabel(step.offsetHours)}
+                  />
+                </li>
+              ))}
             </ol>
           </div>
         </div>
