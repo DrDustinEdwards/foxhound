@@ -2,15 +2,10 @@
    dashboard shell (AdminShell's user variant) the merchant app sits in. Loaded
    only with the pages that draw them (app/components/site-header.tsx and
    app/layouts/app-shell.tsx); the admin loads its own copy in app/admin.css.
-
-   Capsomer's tokens go into the capbase layer, the lowest (declared first in
-   app.css): Foxhound's own tokens stay as they are, and the
-   header, its panels and the shell read Capsomer's where Foxhound has none.
-   Foxhound's colors over them are in app.css (.fh-cap). Capsomer's base
-   element rules (capsomer/base.css) are not loaded here, so no page's own
-   elements change. */
-@import "capsomer/tokens.css" layer(capbase);
-@import "capsomer/family-amber.css" layer(capbase);
+   They read Capsomer's tokens and the amber family from the capbase layer that
+   app/error-page.css loads on every page; a second import here put the whole
+   token block in this stylesheet too, about 5 KB gzip on every page. Foxhound's
+   colors over them are in app.css (.fh-cap). */
 @import "capsomer/site-header.css";
 @import "capsomer/dialog.css";
 @import "capsomer/popover.css";
