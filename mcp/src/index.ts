@@ -1,4 +1,5 @@
 import OAuthProvider from "@cloudflare/workers-oauth-provider";
+import { robotsResponse } from "@drdustinedwards/site-helpers/robots";
 import { adminMcpWorker } from "@dustinedwards/site-runtime/admin-mcp";
 import { foxhoundMcp } from "@dustinedwards/site-runtime/sites";
 
@@ -72,4 +73,9 @@ export default adminMcpWorker<AdminMcpEnv>({
       probe: true,
     });
   },
+  // The door is for machines: its robots.txt is Prelum's in the preview form, Disallow: / for every crawler.
+  routes: (request) =>
+    new URL(request.url).pathname === "/robots.txt"
+      ? robotsResponse({ origin: new URL(request.url).origin, request, preview: true })
+      : null,
 });
