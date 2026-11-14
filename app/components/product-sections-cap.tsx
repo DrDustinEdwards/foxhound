@@ -19,7 +19,6 @@ import "capsomer/price-card.css";
 import "capsomer/process.css";
 import "capsomer/button.css";
 import "capsomer/status.css";
-import "capsomer/table.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part
 // below reads. The site header loads the same file; importing it here keeps
 // the page whole under any layout.
