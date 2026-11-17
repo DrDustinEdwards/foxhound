@@ -3,7 +3,7 @@
 // signed-in account owning the dispute.
 
 import { DISPUTE_EVIDENCE_MAX_SIZE_BYTES, type DisputeState } from "~/lib/constants";
-import * as Sentry from "@sentry/cloudflare";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { data, redirect } from "react-router";
 import { SYNC_RESULT_MESSAGES } from "~/components/sync-dispute-link";
@@ -230,10 +230,11 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
         return data({ error: result.message, intent: "accept" as const }, { status: 400 });
       }
     } catch (err) {
-      console.error("dispute accept failed", err);
-      Sentry.captureException(err, {
-        extra: { scope: "dispute-accept", disputeId: detail.dispute.id },
-      });
+      logEvent(
+        "dispute_accept_failed",
+        { dispute_id: detail.dispute.id, error: err },
+        { level: "error" },
+      );
       return data(
         {
           error: "Accept failed. Check this dispute in Stripe before trying again.",
@@ -303,10 +304,11 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
       // approval record still exists, so billing safely under-counts until it
       // is reconciled, never over-bills. Either way the page cannot know which,
       // so it says so. The whole error goes to the log and to Sentry.
-      console.error("dispute approve and submit failed", err);
-      Sentry.captureException(err, {
-        extra: { scope: "dispute-approve-and-submit", disputeId: detail.dispute.id },
-      });
+      logEvent(
+        "dispute_submit_failed",
+        { dispute_id: detail.dispute.id, error: err },
+        { level: "error" },
+      );
       return data(
         {
           error:

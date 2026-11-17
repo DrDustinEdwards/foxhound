@@ -9,7 +9,6 @@ import {
   siteWorker,
   type GatewayStep,
 } from "@dustinedwards/site-runtime/worker";
-import { withSentry } from "@sentry/cloudflare";
 import type { ServerBuild } from "react-router";
 
 import { markdownCopies } from "@drdustinedwards/site-helpers/markdown-copy";
@@ -20,7 +19,6 @@ import { codePagePaths } from "~/routes/files/sitemap";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
-import { sentryOptions } from "~/lib/errors/sentry-options";
 import { TOKEN_ROUTES } from "~/lib/errors/token-routes";
 import { withSecurityHeaders } from "~/lib/http/content-security-policy";
 import { SPECULATION_OPTIONS } from "~/lib/http/speculation-rules";
@@ -166,10 +164,8 @@ setPageRenderer(async (path, env) => {
  */
 export class Renderer extends siteRenderer(WorkerEntrypoint<Env>, site) {}
 
-const worker = siteWorker(site);
-
-export default withSentry<Env>(sentryOptions, {
-  fetch: (request, env, ctx) => worker.fetch(request, env, ctx),
+// Under Sentry (site-runtime ./sentry) with the shared fetch: the queue consumer and Foxhound's own cron.
+export default siteWorker(site, {
   // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
   // foxhound-email (no producer; live sends are synchronous in the recovery
   // cron), its dead-letter queue, and foxhound-email-events (bounces and
@@ -219,4 +215,4 @@ export default withSentry<Env>(sentryOptions, {
     // invocation failed.
     await runScheduledJobs(env, jobsForSchedule(controller.cron));
   },
-} satisfies ExportedHandler<Env>);
+}) satisfies ExportedHandler<Env>;

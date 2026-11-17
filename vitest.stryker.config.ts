@@ -16,7 +16,6 @@ const SOURCE_TEXT_TEST_FILES = [
   "test/live-send-flag.test.ts",
   "test/merchant-recovery-notification.test.ts",
   "test/multi-account-phase-b-327.test.ts",
-  "test/sentry-noop-372.test.ts",
   "test/sequence-complete-notification.test.ts",
   "test/settings-digest-email-removed.test.ts",
   "test/settings-email-s33.test.ts",

@@ -396,7 +396,10 @@ describe("J77: Recova's sync form and the approve card", () => {
       error:
         "Something went wrong while submitting. Stripe may or may not have received the evidence, so check this dispute in Stripe before trying again.",
     });
-    expect(spy).toHaveBeenCalledWith(expect.any(String), err);
+    // One error line (also the Sentry report, site-runtime ./log) with the whole error in it.
+    expect(spy).toHaveBeenCalledWith(
+      expect.stringMatching(/"event":"dispute_submit_failed".*confirm write failed/),
+    );
   });
 });
 

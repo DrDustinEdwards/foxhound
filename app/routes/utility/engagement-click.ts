@@ -1,5 +1,4 @@
-import * as Sentry from "@sentry/cloudflare";
-import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
@@ -68,12 +67,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
     // Still best-effort for the customer, who gets the same response, but a
     // failed write loses an attribution signal, so it must be seen, not
     // swallowed. The step id is enough to trace it; the token and URL stay out.
-    logEvent(
-      "engagement_click_failed",
-      { stepId: payload.stepId, error: errorMessage(err) },
-      { level: "error" },
-    );
-    Sentry.captureException(err, { extra: { scope: "engagement-click", stepId: payload.stepId } });
+    logEvent("engagement_click_failed", { stepId: payload.stepId, error: err }, { level: "error" });
   }
   return noStoreRedirect(payload.url);
 }

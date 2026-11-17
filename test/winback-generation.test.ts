@@ -281,7 +281,11 @@ describe("PLANT 3: every failure falls back to the template", () => {
       "We're sorry to see you go. Here's what you're missing.",
     );
     expect(stepRow().result).toBe("email_sent_fallback");
-    expect(logged).not.toHaveBeenCalled();
+    // No generation failure is logged. (This harness has no MONEY_WRITER, so recordOutcome's own
+    // record_outcome_failed line is expected here and is not what this test is about.)
+    expect(logged.mock.calls.map(([line]) => String(line))).not.toContainEqual(
+      expect.stringContaining("winback generation failed"),
+    );
     logged.mockRestore();
   });
 

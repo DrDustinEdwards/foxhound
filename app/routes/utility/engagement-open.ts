@@ -1,5 +1,4 @@
-import * as Sentry from "@sentry/cloudflare";
-import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
@@ -38,10 +37,9 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       // swallowed. The step id is enough to trace it; the token stays out.
       logEvent(
         "engagement_open_failed",
-        { stepId: payload.stepId, error: errorMessage(err) },
+        { stepId: payload.stepId, error: err },
         { level: "error" },
       );
-      Sentry.captureException(err, { extra: { scope: "engagement-open", stepId: payload.stepId } });
     }
   }
   return new Response(PIXEL, {

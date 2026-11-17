@@ -65,8 +65,6 @@ vi.mock("~/lib/stripe/webhook", () => ({
   },
 }));
 
-vi.mock("@sentry/cloudflare", () => ({ captureException: () => {} }));
-
 const { action } = await import("~/routes/webhooks/stripe-platform");
 const { cloudflareContext } = await import("@dustinedwards/site-runtime/context");
 const schema = await import("~/db/schema");
