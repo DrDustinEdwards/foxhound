@@ -168,7 +168,7 @@
     margin-top: var(--space-5);
   }
   .fh-blog-label {
-    opacity: 40%;
+    opacity: var(--opacity-faint);
   }
   .fh-blog-block-4 {
     margin-top: var(--space-6);
@@ -232,7 +232,7 @@
   }
   .fh-tag-title {
     margin-bottom: var(--space-3);
-    letter-spacing: -0.025em;
+    letter-spacing: var(--tracking-tight);
   }
   .fh-tag-text {
     margin-bottom: var(--space-7-5);

@@ -184,7 +184,7 @@
     row-gap: var(--space-2);
   }
   .fh-post-label {
-    opacity: 40%;
+    opacity: var(--opacity-faint);
   }
   .fh-post-text {
     margin-bottom: var(--space-7);

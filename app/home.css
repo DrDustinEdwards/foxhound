@@ -231,7 +231,7 @@
     margin-bottom: var(--space-3);
   }
   .fh-home-text-3 {
-    line-height: 1.55;
+    line-height: var(--leading-normal);
   }
   .fh-home-block-9 {
     margin-top: var(--space-5);
@@ -247,7 +247,7 @@
   @media (width >= 40rem) {
     .fh-home-band-3 {
       padding-inline: var(--space-7);
-      padding-block: 7rem;
+      padding-block: var(--space-10);
     }
   }
   .fh-home-text-4 {
@@ -261,7 +261,7 @@
   }
   @media (width >= 40rem) {
     .fh-home-title-2 {
-      font-size: 3.5rem;
+      font-size: var(--display-2);
     }
   }
   @media (width >= 64rem) {
@@ -305,7 +305,7 @@
     max-width: 600px;
   }
   .fh-home-band-4 {
-    scroll-margin-top: 60px;
+    scroll-margin-top: var(--space-8-5);
   }
   @media (width >= 40rem) {
     .fh-home-band-4 {
@@ -318,7 +318,7 @@
   .fh-home-text-5 {
     margin-bottom: var(--space-5);
     min-height: 60px;
-    line-height: 1.55;
+    line-height: var(--leading-normal);
   }
   .fh-home-block-13 {
     --pad-card: var(--space-6);

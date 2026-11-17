@@ -326,7 +326,7 @@ body {
   place-items: center;
   inline-size: 20px;
   block-size: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-s-5);
   background: var(--hover);
   color: var(--text);
   font-family: var(--font-dm-mono), monospace;
@@ -606,7 +606,7 @@ body {
     white-space: nowrap;
   }
   .fh-caps {
-    letter-spacing: 0.025em;
+    letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
   }
   .fh-caps-wide {
@@ -1136,7 +1136,7 @@ body {
   .fh-post-title {
     margin-bottom: var(--space-5);
     line-height: var(--leading-tight-5);
-    letter-spacing: -0.025em;
+    letter-spacing: var(--tracking-tight);
   }
   .fh-footer-link {
     font-size: var(--fs-body);

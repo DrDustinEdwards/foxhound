@@ -29,7 +29,7 @@
   .fh-audit-title {
     margin-bottom: var(--space-5-5);
     font-size: clamp(var(--title-2-5), 5vw, var(--display-4));
-    line-height: 1.15;
+    line-height: var(--leading-tight);
     letter-spacing: -1px;
   }
   .fh-audit-text {
@@ -70,7 +70,7 @@
     gap: var(--space-4);
   }
   .fh-audit-label-2 {
-    margin-top: 7px;
+    margin-top: var(--space-2-5);
     height: 0.375rem;
     width: 0.375rem;
     flex-shrink: 0;
@@ -137,14 +137,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 60px var(--space-5);
+    padding: var(--space-8-5) var(--space-5);
   }
   .fh-auditconnect-block {
     width: 100%;
     max-width: 480px;
   }
   .fh-auditconnect-block-2 {
-    padding: 2.25rem var(--space-7);
+    padding: var(--space-7) var(--space-7);
   }
   .fh-auditconnect-title {
     margin-bottom: var(--space-3);
