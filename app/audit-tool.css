@@ -29,7 +29,7 @@
   .fh-audit-title {
     margin-bottom: var(--space-5-5);
     font-size: clamp(var(--title-2-5), 5vw, var(--display-4));
-    line-height: var(--leading-tight);
+    line-height: 1.15;
     letter-spacing: -1px;
   }
   .fh-audit-text {
