@@ -91,7 +91,7 @@
     flex-direction: column;
   }
   .fh-section-trail-block .cap-breadcrumb {
-    font-size: 0.6875rem;
+    font-size: var(--fs-tiny-5);
     color: var(--text-tertiary);
   }
   .fh-section-trail-block .cap-breadcrumb-page {
@@ -269,7 +269,7 @@
 }
 .fh-legal .cap-legal-contents-title {
   font-family: var(--font-dm-mono);
-  font-size: 0.6875rem;
+  font-size: var(--fs-tiny-5);
   font-weight: var(--weight-regular);
   color: var(--text-tertiary);
 }
@@ -397,7 +397,7 @@
 .fh-page-hero .cap-hero-eyebrow {
   margin: 0 0 var(--space-4);
   color: var(--text-tertiary);
-  font: var(--weight-medium) 0.6875rem / var(--leading-snug) var(--font-dm-sans);
+  font: var(--weight-medium) var(--fs-tiny-5) / var(--leading-snug) var(--font-dm-sans);
   letter-spacing: var(--tracking-sign);
 }
 .fh-page-hero .cap-hero-title {
@@ -490,7 +490,7 @@
   max-inline-size: min(560px, var(--fh-closing-w));
   margin: 0 auto var(--space-6-5);
   font-size: 0.9375rem;
-  line-height: 1.55;
+  line-height: var(--leading-normal-5);
   color: var(--text-secondary);
 }
 .fh-closing-band .cap-cta-band-actions {
