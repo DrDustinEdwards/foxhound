@@ -14,7 +14,7 @@
 .blog-prose {
   --prose: var(--font-dm-sans), sans-serif;
   --fs-prose: 0.9375rem;
-  --leading: 1.75;
+  --leading: var(--leading-airy);
   --prose-ink: var(--text-secondary);
   --prose-strong-ink: var(--text);
   --prose-heading-ink: var(--text);
@@ -34,9 +34,9 @@
   --prose-quote-style: italic;
   --prose-code-bg: var(--surface);
   --prose-code-ink: var(--brand-text);
-  --prose-code-radius: 4px;
+  --prose-code-radius: var(--radius-s-5);
   --prose-pre-bg: var(--surface);
-  --prose-pre-pad: 1.25rem var(--space-6);
+  --prose-pre-pad: var(--space-5-5) var(--space-6);
   --prose-block-radius: 10px;
   --prose-image-radius: 10px;
   --prose-table-rule: var(--border);
@@ -84,7 +84,7 @@
   margin-block: var(--space-6) var(--space-3);
 }
 .blog-prose :where(li > ul, li > ol) {
-  margin-block: 0 1.25rem;
+  margin-block: 0 var(--space-5-5);
 }
 .blog-prose .heading-anchor {
   margin-inline-start: var(--space-2-5);
@@ -150,7 +150,7 @@
   margin-block: var(--space-7);
 }
 .blog-prose > :last-child {
-  margin-block-end: 1.25rem;
+  margin-block-end: var(--space-5-5);
 }
 
 /* The post page's own parts (its grid, cover and meta rows), as Recova laid them out. */
@@ -165,7 +165,7 @@
     aspect-ratio: 16 / 9;
     width: 100%;
     overflow: hidden;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-l-5);
     background-color: var(--bg);
   }
   .fh-post-row {
@@ -252,11 +252,11 @@
     .fh-post-block-3 {
       transition-property: transform, translate, scale, rotate;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-      transition-duration: 150ms;
+      transition-duration: var(--dur-quick);
     }
   }
   .fh-post-block-4 {
-    line-height: 1.375;
+    line-height: var(--leading-snug-5);
   }
   @media (width >= 40rem) {
     .fh-post-link {

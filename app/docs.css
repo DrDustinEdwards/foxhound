@@ -4,10 +4,10 @@
   .fh-docs-cross {
     transition-property: opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   .fh-doc-blocks-code {
-    border-radius: 0.25rem;
+    border-radius: var(--radius-s-5);
     border: var(--line-w) solid var(--border);
     background-color: var(--surface);
     padding: var(--space-1) var(--space-2-5);
@@ -37,10 +37,10 @@
     margin-top: var(--space-6);
   }
   .fh-docs-link {
-    border-radius: 0.5rem;
+    border-radius: var(--radius-m-5);
     --card-lift: 0px;
-    --gap: 1.25rem;
-    --pad-card: 1.25rem;
+    --gap: var(--space-5-5);
+    --pad-card: var(--space-5-5);
   }
   .fh-docs-block-2 {
     margin-bottom: var(--space-3);
@@ -57,16 +57,16 @@
     margin-bottom: var(--space-4);
   }
   .fh-doc-text {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-doc-nav {
     margin-bottom: var(--space-8);
-    border-radius: 0.5rem;
-    --gap: 1.25rem;
-    --pad-card: 1.25rem;
+    border-radius: var(--radius-m-5);
+    --gap: var(--space-5-5);
+    --pad-card: var(--space-5-5);
   }
   .fh-doc-item {
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
   }
   .fh-doc-block-2 {
     margin-top: var(--space-9);
@@ -74,7 +74,7 @@
   }
   .fh-doc-title {
     margin-bottom: var(--space-6);
-    scroll-margin-top: 5rem;
+    scroll-margin-top: var(--space-9-5);
   }
   .fh-doc-para {
     margin-bottom: var(--space-5);
@@ -88,7 +88,7 @@
     border-color: var(--brand);
   }
   .fh-docs-cross {
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
     text-decoration-line: none;
   }
   @media (hover: hover) {

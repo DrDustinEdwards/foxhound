@@ -13,15 +13,15 @@
     }
   }
   .fh-rival-block-2 {
-    margin-bottom: 2.5rem;
-    border-radius: 0.5rem;
+    margin-bottom: var(--space-7-5);
+    border-radius: var(--radius-m-5);
     border: var(--line-w) solid var(--border);
   }
   .fh-rival-th {
     vertical-align: top;
   }
   .fh-rival-band {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-rival-title {
     margin-bottom: var(--space-4);
@@ -36,7 +36,7 @@
     height: 0.25rem;
     width: 0.25rem;
     flex-shrink: 0;
-    border-radius: calc(infinity * 1px);
+    border-radius: calc(infinity * var(--radius-hair));
     background-color: var(--text-tertiary);
   }
   .fh-rival-text {
@@ -46,7 +46,7 @@
     margin-bottom: var(--space-3);
   }
   .fh-rival-text-3 {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-mk-page {
     margin-inline: auto;
@@ -93,7 +93,7 @@
     margin-bottom: var(--space-7);
   }
   .fh-code-band {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-code-title {
     margin-bottom: var(--space-4);
@@ -105,7 +105,7 @@
     margin-bottom: var(--space-3);
   }
   .fh-code-text-2 {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-codes-band {
     border-bottom: var(--line-w) solid var(--border-sub);

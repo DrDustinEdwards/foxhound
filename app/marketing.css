@@ -20,7 +20,7 @@
   }
   .fh-mk-arrow {
     display: inline-block;
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   @media (hover: hover) {
     :is(.fh-hover-group:hover .fh-mk-arrow) {
@@ -31,7 +31,6 @@
     .fh-mk-arrow {
       transition-property: transform, translate, scale, rotate;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-      transition-duration: 150ms;
     }
   }
   .fh-mk-article {
@@ -68,7 +67,7 @@
   }
   /* 12px: the badge sizes a drawn glyph at 1em. */
   .fh-mk-quiet-link {
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
   }
   @media (hover: hover) {
     .fh-mk-quiet-link:hover {
@@ -110,7 +109,7 @@
     margin-inline: auto;
     max-width: 42rem;
     padding-inline: var(--space-5);
-    padding-bottom: 5rem;
+    padding-bottom: var(--space-9-5);
   }
   @media (width >= 40rem) {
     .fh-mk-narrow {
@@ -130,7 +129,7 @@
   .fh-mk-band-wrap {
     margin-inline: auto;
     max-width: 1100px;
-    padding: var(--space-9) 1.25rem;
+    padding: var(--space-9) var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-mk-band-wrap {
@@ -147,7 +146,7 @@
   }
   .fh-contact-list {
     list-style-type: disc;
-    padding-left: 1.25rem;
+    padding-left: var(--space-5-5);
   }
   :where(.fh-contact-list > :not(:last-child)) {
     margin-block: 0 var(--space-2);
@@ -174,7 +173,7 @@
   }
   .fh-mk-band {
     border-top: var(--line-w) solid var(--border-sub);
-    padding: 5rem 1.25rem;
+    padding: var(--space-9-5) var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-mk-band {
@@ -183,7 +182,7 @@
   }
   .fh-mk-band-short {
     border-top: var(--line-w) solid var(--border-sub);
-    padding: var(--space-9) 1.25rem;
+    padding: var(--space-9) var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-mk-band-short {
@@ -197,7 +196,7 @@
     width: 2.5rem;
     align-items: center;
     justify-content: center;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-m-5);
     background-color: var(--surface2);
   }
   .fh-privacy-block {
@@ -215,7 +214,7 @@
     --pad-card: var(--space-6);
   }
   .fh-card-md {
-    --gap: 1.25rem;
+    --gap: var(--space-5-5);
   }
   .fh-card-sm {
     --gap: var(--space-5);
@@ -241,7 +240,7 @@
   --measure: 100%;
 }
 .fh-legal .cap-legal-title {
-  font-size: 2rem;
+  font-size: var(--title-1-5);
   font-weight: var(--weight-medium);
   letter-spacing: -0.025em;
   color: var(--text);
@@ -254,7 +253,7 @@
 .fh-legal .cap-legal-intro,
 .fh-legal .cap-legal-outro {
   font-size: 0.9375rem;
-  line-height: 1.625;
+  line-height: var(--leading-relaxed-5);
   color: var(--text-secondary);
 }
 .fh-legal .cap-legal-section-title,
@@ -300,7 +299,7 @@
   max-inline-size: none;
 }
 .fh-home-hero .cap-hero-title {
-  margin: 0 0 1.25rem;
+  margin: 0 0 var(--space-5-5);
   font-weight: var(--weight-semibold);
   line-height: 1.02;
   letter-spacing: -0.03em;
@@ -344,7 +343,7 @@
   --hero-title: 2.5rem;
   --hero-lead-size: 1.0625rem;
   border-bottom: var(--line-w) solid var(--border);
-  padding: 5rem 1.25rem;
+  padding: var(--space-9-5) var(--space-5-5);
 }
 @media (min-width: 640px) {
   .fh-product-hero {
@@ -372,7 +371,7 @@
 .fh-product-hero .cap-hero-lead {
   max-inline-size: 520px;
   margin: 0 auto var(--space-4);
-  line-height: 1.625;
+  line-height: var(--leading-relaxed-5);
   color: var(--text-secondary);
 }
 .fh-product-hero .cap-hero-body {
@@ -385,7 +384,7 @@
   --hero-lead-size: 0.9375rem;
   max-inline-size: 1080px;
   margin-inline: auto;
-  padding: var(--space-9) 1.25rem 2.5rem;
+  padding: var(--space-9) var(--space-5-5) var(--space-7-5);
 }
 @media (min-width: 640px) {
   .fh-page-hero {
@@ -410,7 +409,7 @@
 .fh-page-hero .cap-hero-lead {
   max-inline-size: 560px;
   margin: 0;
-  line-height: 1.625;
+  line-height: var(--leading-relaxed-5);
   color: var(--text-secondary);
 }
 
@@ -468,7 +467,7 @@
   --fh-closing-w: 760px;
   gap: 0;
   margin: 0;
-  padding: 5rem 1.25rem;
+  padding: var(--space-9-5) var(--space-5-5);
   border-color: var(--border-sub);
 }
 @media (min-width: 640px) {
@@ -489,7 +488,7 @@
 }
 .fh-closing-band .cap-cta-band-text {
   max-inline-size: min(560px, var(--fh-closing-w));
-  margin: 0 auto 1.75rem;
+  margin: 0 auto var(--space-6-5);
   font-size: 0.9375rem;
   line-height: 1.55;
   color: var(--text-secondary);
@@ -503,21 +502,21 @@
   color: inherit;
 }
 .fh-closing-home .cap-cta-band-title {
-  font-size: 1.75rem;
+  font-size: var(--title-2-5);
   font-weight: var(--weight-semibold);
   letter-spacing: var(--tracking-tight);
 }
 @media (min-width: 640px) {
   .fh-closing-home .cap-cta-band-title {
-    font-size: 2rem;
+    font-size: var(--title-1-5);
   }
 }
 .fh-closing-pricing .cap-cta-band-title {
-  font-size: 1.75rem;
+  font-size: var(--title-2-5);
 }
 @media (min-width: 640px) {
   .fh-closing-pricing .cap-cta-band-title {
-    font-size: 2rem;
+    font-size: var(--title-1-5);
   }
 }
 /* A box that only carries the comfortable density to the buttons in a hero's or closing band's actions. */
@@ -534,7 +533,7 @@
 }
 .fh-closing-product .cap-cta-band-text {
   margin-bottom: var(--space-7);
-  line-height: 1.625;
+  line-height: var(--leading-relaxed-5);
 }
 .fh-closing-product .cap-cta-band-note {
   margin-block-start: var(--space-4);
