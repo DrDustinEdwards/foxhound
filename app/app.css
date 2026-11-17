@@ -20,8 +20,7 @@
    on a link that is a button or a card wins. The public pages add each kind's cue
    (capsomer/link.css, in layouts/marketing.tsx). */
 @import "capsomer/links.css";
-/* Capsomer's scroll-driven parts: the blog post's reading progress and the scroll reveal. */
-@import "capsomer/reading-progress.css";
+/* Capsomer's scroll reveal (the home page, the page headers and the audit run). */
 @import "capsomer/reveal.css";
 /* Capsomer's icons (Foxhound's entry draws them at Lucide's stroke, 2). Before any page's admin-shell.css, so
    the shell's menu icon sizes win. */
@@ -73,62 +72,6 @@
   --purple-bg: #ece6ff;
 }
 
-/* Ported from legacy app/globals.css (M3 divergences 41 and 3). The STRUCTURE
-   is load-bearing, not just the declarations: legacy guards every animated
-   utility behind prefers-reduced-motion: no-preference, so under reduced motion
-   the classes do not exist at all and elements render in their final state.
-   Foxhound's own reduce block below overrides animation-duration but NOT
-   animation-delay, so defining these unguarded would leave a delayed element
-   holding opacity 0 for its whole delay (320ms on the hero's last item) before
-   snapping in. The guard prevents that, and it is also what legacy does.
-
-   The delay classes set animation-delay, not transition-delay. */
-@media (prefers-reduced-motion: no-preference) {
-  @keyframes fade-up {
-    from {
-      opacity: 0;
-      transform: translateY(16px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
-  }
-
-  .animate-fade-up {
-    animation: fade-up 0.5s ease both;
-  }
-
-  .animate-fade-in {
-    animation: fade-in 0.4s ease both;
-  }
-
-  .delay-80 {
-    animation-delay: 80ms;
-  }
-
-  .delay-160 {
-    animation-delay: 160ms;
-  }
-
-  .delay-240 {
-    animation-delay: 240ms;
-  }
-
-  .delay-320 {
-    animation-delay: 320ms;
-  }
-}
-
 /* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference, so a color fade can stay while a slide goes. No global 0.01ms override:
    it ends some animations in a jump and breaks scroll-driven effects (Capsomer base.css, which
    also turns smooth scrolling off). */
@@ -148,16 +91,10 @@ body {
    real skeleton-loading component. */
 @media (forced-colors: active) {
   *:focus-visible {
-    outline: 3px solid Highlight;
+    outline: var(--line-w-bar) solid Highlight;
   }
 }
 
-/* Capsomer's reading progress bar (the blog post, routes/blog/post.tsx), in Foxhound's amber and
-   under the 56px sticky header. */
-.cap-reading-progress {
-  --reading-progress-color: var(--accent);
-  --reading-progress-top: var(--header-h);
-}
 /* Capsomer's page class (.cap-page) reads --fs-page for its text; Foxhound's body text is 16px,
    so a page on that class keeps the size it always had. */
 .fh-cap {
@@ -165,14 +102,14 @@ body {
 }
 /* Capsomer's eyebrow at Recova's section labels: medium weight in the tertiary text color. */
 [data-cap-site="foxhound"] {
-  --cap-eyebrow-weight: 500;
+  --cap-eyebrow-weight: var(--weight-medium);
   --cap-eyebrow-color: var(--muted);
 }
 /* Recova's column had a 32px side margin from 768px up (px-4 md:px-8), the width of the header's
    own padding, so the page starts under the logo. Capsomer's page class defaults to 16px. */
 @media (min-width: 768px) {
   .fh-cap.cap-page {
-    --page-gutter: 32px;
+    --page-gutter: var(--space-7);
   }
 }
 /* The public site's header is the only thing in its wrapper: no box of its
@@ -198,7 +135,7 @@ body {
   --ring: var(--header-brand);
   --font-ui: var(--ui);
   /* Recova's nav links are 13px. */
-  --header-fs: 0.8125rem;
+  --header-fs: var(--fs-detail);
 }
 /* The business tile in the switcher's panel and the phone's sheet: a square
    with the business's initial, like the one on its button. */
@@ -207,12 +144,12 @@ body {
   place-items: center;
   inline-size: 20px;
   block-size: 20px;
-  border-radius: 5px;
+  border-radius: var(--radius-s-5);
   background: var(--sel);
   color: var(--text);
-  font-family: var(--mono);
-  font-size: 0.6875rem;
-  font-weight: 600;
+  font-family: var(--mono), monospace;
+  font-size: var(--fs-tiny-5);
+  font-weight: var(--weight-semibold);
 }
 [aria-current] > * > .fh-account-tile,
 [aria-current] > .fh-account-tile {
@@ -232,8 +169,8 @@ body {
 }
 .fh-app-page-name {
   color: var(--text);
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--title-6);
+  font-weight: var(--weight-semibold);
 }
 
 /* On a phone the section links move into the sheet, so with the links on the
@@ -264,23 +201,23 @@ body {
    mono upper-case badges with no glyph (their words say the state), and bare lists. */
 :root {
   --tile-figure-face: var(--mono);
-  --tile-figure-size: 1.75rem;
-  --tile-figure-weight: 500;
+  --tile-figure-size: var(--title-2-5);
+  --tile-figure-weight: var(--weight-medium);
   --tile-label-face: var(--mono);
-  --tile-label-size: 0.6875rem;
+  --tile-label-size: var(--fs-tiny-5);
   --tile-label-case: uppercase;
   --tile-label-tracking: 0.025em;
   --tile-icon-flow: column;
   --tile-icon-align: flex-start;
-  --tile-icon-size: 1rem;
-  --tile-gap: 0.5rem;
-  --tile-detail-space: 0.25rem;
-  --tile-pad: 1rem;
-  --tile-radius: 0.5rem;
-  --tiles-gap: 0.75rem;
+  --tile-icon-size: var(--title-6);
+  --tile-gap: var(--space-3);
+  --tile-detail-space: var(--space-2);
+  --tile-pad: var(--space-5);
+  --tile-radius: var(--radius-m-5);
+  --tiles-gap: var(--space-4);
   --tag-face: var(--mono);
-  --tag-size: 0.6875rem;
-  --tag-weight: 400;
+  --tag-size: var(--fs-tiny-5);
+  --tag-weight: var(--weight-regular);
   --tag-case: uppercase;
   --tag-tracking: 0.025em;
   --tag-edge: 100%;
@@ -293,11 +230,11 @@ body {
    label and a bold title-size figure. */
 .fh-tiles-preview {
   --tile-label-face: inherit;
-  --tile-label-weight: 500;
-  --tile-label-tracking: 0.06em;
-  --tile-figure-size: 1.25rem;
-  --tile-figure-weight: 700;
-  --tile-gap: 0.25rem;
+  --tile-label-weight: var(--weight-medium);
+  --tile-label-tracking: var(--tracking-widest);
+  --tile-figure-size: var(--title-4);
+  --tile-figure-weight: var(--weight-bold);
+  --tile-gap: var(--space-2);
   --tile-pad: var(--gap) var(--pad-card);
   --tile-radius: var(--radius-l);
   --tile-shadow: var(--card-shadow);
@@ -338,7 +275,7 @@ body {
   min-block-size: 1rem;
 }
 .fh-audit-autosave .cap-save-bar-status {
-  font-size: 0.6875rem;
+  font-size: var(--fs-tiny-5);
 }
 
 /* A filter bar inside a Capsomer panel (the payments page): the panel is the frame, so the bar's own
@@ -358,62 +295,90 @@ body {
    text colors and its faces, one class each, read by every page. Each page's own parts sit beside
    it (admin.css for the admin). */
 @layer site {
+  .fh-mk-cards-4,
+  .fh-mk-cards-2,
+  .fh-mk-cards-3 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
+  .fh-post-grid,
+  .fh-features-grid {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-8);
+  }
+  .fh-blog-wrap,
+  .fh-mkhead-wrap {
+    margin-inline: auto;
+    max-width: 1080px;
+    padding-inline: var(--space-5-5);
+    padding-top: var(--space-9);
+    padding-bottom: var(--space-7-5);
+  }
+  .fh-auditsec-grid,
+  .fh-recovery-charts,
+  .fh-audit-grid-4 {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-5);
+  }
   .fh-hero {
-    font-size: 2.75rem;
+    font-size: var(--display-4);
   }
   .fh-statement {
-    font-size: 2.25rem;
+    font-size: var(--title-1);
   }
   .fh-page-title {
-    font-size: 2rem;
+    font-size: var(--title-1-5);
   }
   .fh-display {
-    font-size: 1.75rem;
+    font-size: var(--title-2-5);
   }
   .fh-section {
-    font-size: 1.75rem;
+    font-size: var(--title-2-5);
   }
   .fh-item-title {
     font-size: 0.9375rem;
   }
   .fh-tag {
-    font-size: 0.625rem;
+    font-size: var(--fs-tiny);
   }
   .fh-subsection {
-    font-size: 1.5rem;
+    font-size: var(--title-3);
   }
   .fh-feature-title {
-    font-size: 1.375rem;
+    font-size: var(--fs-h2);
   }
   .fh-title {
-    font-size: 1.25rem;
+    font-size: var(--title-4);
   }
   .fh-card-title {
-    font-size: 1.125rem;
+    font-size: var(--fs-h3);
   }
   .fh-product-sub {
     font-size: 1.0625rem;
   }
   .fh-body {
-    font-size: 1rem;
+    font-size: var(--title-6);
   }
   .fh-subhead {
     font-size: 0.9375rem;
   }
   .fh-copy {
-    font-size: 0.875rem;
+    font-size: var(--fs-body);
   }
   .fh-small {
-    font-size: 0.8125rem;
+    font-size: var(--fs-detail);
   }
   .fh-caption {
-    font-size: 0.75rem;
+    font-size: var(--fs-small);
   }
   .fh-tiny {
-    font-size: 0.6875rem;
+    font-size: var(--fs-tiny-5);
   }
   .fh-source {
-    font-size: 0.625rem;
+    font-size: var(--fs-tiny);
   }
   .fh-text {
     color: var(--text);
@@ -443,13 +408,13 @@ body {
     font-family: var(--mono);
   }
   .fh-regular {
-    font-weight: 400;
+    font-weight: var(--weight-regular);
   }
   .fh-medium {
-    font-weight: 500;
+    font-weight: var(--weight-medium);
   }
   .fh-semibold {
-    font-weight: 600;
+    font-weight: var(--weight-semibold);
   }
   .fh-break {
     word-break: break-all;
@@ -461,21 +426,21 @@ body {
     white-space: nowrap;
   }
   .fh-caps {
-    letter-spacing: 0.025em;
+    letter-spacing: var(--tracking-wide);
     text-transform: uppercase;
   }
   .fh-caps-wide {
-    letter-spacing: 0.1em;
+    letter-spacing: var(--tracking-sign);
     text-transform: uppercase;
   }
   .fh-relaxed {
-    line-height: 1.625;
+    line-height: var(--leading-relaxed-5);
   }
   .fh-center {
     text-align: center;
   }
   .fh-bold {
-    font-weight: 700;
+    font-weight: var(--weight-bold);
   }
   .fh-right {
     text-align: right;
@@ -512,30 +477,30 @@ body {
     color: var(--blue);
   }
   .fh-tight {
-    line-height: 1;
+    line-height: var(--leading-none);
   }
   .fh-caps-fine {
-    letter-spacing: 0.06em;
+    letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
   }
   /* Icon sizes and the finer stroke some icons were drawn at (lucide-react's size and strokeWidth). */
   .fh-icon-40 {
-    --icon-size: 2.5rem;
+    --icon-size: var(--display-5);
   }
   .fh-icon-12 {
-    --icon-size: 0.75rem;
+    --icon-size: var(--fs-small);
   }
   .fh-icon-13 {
-    --icon-size: 13px;
+    --icon-size: var(--fs-detail);
   }
   .fh-icon-14 {
-    --icon-size: 0.875rem;
+    --icon-size: var(--fs-body);
   }
   .fh-icon-16 {
-    --icon-size: 1rem;
+    --icon-size: var(--title-6);
   }
   .fh-icon-18 {
-    --icon-size: 18px;
+    --icon-size: var(--fs-h3);
   }
   .fh-icon-fine {
     --icon-stroke: 1.5;
@@ -566,18 +531,23 @@ body {
     transition-property:
       color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   .fh-wordmark-label {
     transition-property: opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
     transition-duration: 500ms;
   }
-  .fh-mk-doc-cards {
-    margin-block: 1.5rem;
+  .fh-mk-doc-cards,
+  .fh-doc-widgets-grid,
+  .fh-recprev-grid,
+  .fh-payment-panels {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    gap: var(--space-4);
+  }
+  .fh-mk-doc-cards {
+    margin-block: var(--space-6);
   }
   @media (width >= 40rem) {
     .fh-mk-doc-cards {
@@ -587,19 +557,19 @@ body {
   .fh-mk-point-wide {
     display: flex;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   :where(.fh-mk-rules > :not(:last-child)) {
-    border-bottom: 1px solid var(--line);
+    border-bottom: var(--line-w) solid var(--line);
   }
   .fh-auditsec-block {
-    padding-block: 0.5rem;
+    padding-block: var(--space-3);
   }
   .fh-auditsec-text {
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
   }
   .fh-auditsec-text-2 {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-auditsec-col {
     display: flex;
@@ -610,38 +580,38 @@ body {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 1rem;
-    padding-block: 0.5rem;
+    gap: var(--space-5);
+    padding-block: var(--space-3);
   }
   .fh-auditsec-block-2 {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-auditsec-block-3 {
-    margin-bottom: 0.25rem;
+    margin-bottom: var(--space-2);
   }
   .fh-auditsec-block-4 {
-    margin-top: 0.75rem;
-    margin-bottom: 1rem;
-    margin-left: 1.25rem;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-5);
+    margin-left: var(--space-5-5);
   }
   .fh-auditsec-block-5 {
-    margin-top: 0.5rem;
+    margin-top: var(--space-3);
   }
   .fh-auditsec-block-6 {
-    margin-top: 1rem;
+    margin-top: var(--space-5);
     min-width: 0px;
   }
   .fh-auditsec-block-7 {
-    margin-top: 0.25rem;
-    margin-left: 1.25rem;
+    margin-top: var(--space-2);
+    margin-left: var(--space-5-5);
   }
   .fh-auditsec-block-8 {
-    margin-top: 0.75rem;
-    margin-bottom: 1rem;
-    margin-left: 1.25rem;
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-5);
+    margin-left: var(--space-5-5);
   }
   :where(.fh-auditsec-block-8 > :not(:last-child)) {
-    margin-block: 0 0.5rem;
+    margin-block: 0 var(--space-3);
   }
   .fh-auditsec-row-2 {
     display: flex;
@@ -649,25 +619,22 @@ body {
     justify-content: space-between;
   }
   .fh-auditsec-block-9 {
-    margin-block: 1.25rem;
-    border-top: 1px solid var(--line);
+    margin-block: var(--space-5-5);
+    border-top: var(--line-w) solid var(--line);
   }
   .fh-mk-kicker {
-    margin-bottom: 0.25rem;
-    letter-spacing: 0.06em;
+    margin-bottom: var(--space-2);
+    letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
   }
   .fh-auditsec-block-10 {
-    margin-top: 1.25rem;
-    border-top: 1px solid var(--line);
-    padding-top: 1.25rem;
+    margin-top: var(--space-5-5);
+    border-top: var(--line-w) solid var(--line);
+    padding-top: var(--space-5-5);
   }
   .fh-auditsec-grid,
   .fh-recovery-charts {
-    margin-bottom: 1.25rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 1rem;
+    margin-bottom: var(--space-5-5);
   }
   @media (width >= 48rem) {
     .fh-auditsec-grid,
@@ -676,28 +643,25 @@ body {
     }
   }
   .fh-mk-mark {
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
     flex-shrink: 0;
   }
   .fh-doc-widgets-block-2 {
-    margin-block: 1rem;
+    margin-block: var(--space-5);
   }
   .fh-doc-widgets-list {
     display: flex;
     flex-wrap: wrap;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-doc-widgets-item {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.375rem;
+    gap: var(--space-2-5);
   }
   .fh-doc-widgets-grid {
-    margin-block: 1rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    margin-block: var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-doc-widgets-grid {
@@ -709,22 +673,22 @@ body {
     overflow-wrap: break-word;
   }
   .fh-doc-widgets-block-3 {
-    margin-block: 1.5rem;
+    margin-block: var(--space-6);
   }
   .fh-doc-widgets-row {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
-    border-bottom: 1px solid var(--line);
-    padding: 0.75rem 1rem;
+    gap: var(--space-4);
+    border-bottom: var(--line-w) solid var(--line);
+    padding: var(--space-4) var(--space-5);
   }
   .fh-doc-widgets-row-2 {
     display: inline-flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-health-score-badge-label {
     --_line: var(--_fg);
@@ -734,46 +698,46 @@ body {
     height: 3.5rem;
     align-items: center;
     border-bottom-style: solid;
-    border-bottom-width: 1px;
+    border-bottom-width: var(--line-w);
     background-color: var(--chrome);
-    padding-inline: 1.5rem;
+    padding-inline: var(--space-6);
   }
   .fh-error-view-link {
     text-decoration-line: none;
   }
   .fh-error-view-footer {
     width: 100%;
-    padding: 1.5rem;
+    padding: var(--space-6);
   }
   .fh-footer-title {
-    margin-bottom: 0.75rem;
-    font-size: 0.6875rem;
-    letter-spacing: 0.06em;
+    margin-bottom: var(--space-4);
+    font-size: var(--fs-tiny-5);
+    letter-spacing: var(--tracking-widest);
     color: var(--chrome-text-secondary);
     text-transform: uppercase;
   }
   :where(.fh-footer-list > :not(:last-child)) {
-    margin-block: 0 0.5rem;
+    margin-block: 0 var(--space-3);
   }
   .fh-footer-footer {
-    border-top: 1px solid var(--line);
+    border-top: var(--line-w) solid var(--line);
     background-color: var(--chrome);
   }
   .fh-footer-wrap {
     margin-inline: auto;
     max-width: 1200px;
-    padding-inline: 1.25rem;
+    padding-inline: var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-footer-wrap {
-      padding-inline: 2rem;
+      padding-inline: var(--space-7);
     }
   }
   .fh-footer-grid {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 2.5rem;
-    padding-block: 3rem;
+    gap: var(--space-7-5);
+    padding-block: var(--space-8);
   }
   @media (width >= 40rem) {
     .fh-footer-grid {
@@ -789,20 +753,20 @@ body {
     text-decoration-line: none;
   }
   .fh-footer-text {
-    margin-top: 0.75rem;
+    margin-top: var(--space-4);
     max-width: 240px;
-    font-size: 0.875rem;
+    font-size: var(--fs-body);
     color: var(--chrome-text-secondary);
   }
   .fh-footer-text-2 {
-    margin-top: 0.75rem;
-    font-size: 0.6875rem;
+    margin-top: var(--space-4);
+    font-size: var(--fs-tiny-5);
     color: var(--chrome-text-secondary);
   }
   .fh-footer-grid-2 {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1.5rem;
+    gap: var(--space-6);
   }
   @media (width >= 40rem) {
     .fh-footer-grid-2 {
@@ -819,13 +783,13 @@ body {
     display: flex;
     min-width: 0px;
     align-items: center;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-footer-row-2 {
     display: flex;
     min-width: 0px;
     align-items: center;
-    gap: 0.625rem;
+    gap: var(--space-3-5);
   }
   .fh-footer-block {
     width: 1.75rem;
@@ -833,13 +797,13 @@ body {
     flex-shrink: 0;
   }
   .fh-footer-label {
-    font-size: 0.6875rem;
+    font-size: var(--fs-tiny-5);
     color: var(--chrome-text-secondary);
   }
   .fh-footer-row-3 {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: var(--space-5);
   }
   .fh-footer-link-2 {
     display: inline-flex;
@@ -855,55 +819,52 @@ body {
     }
   }
   .fh-mk-kicker-gap {
-    margin-bottom: 0.75rem;
-    letter-spacing: 0.06em;
+    margin-bottom: var(--space-4);
+    letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
   }
   .fh-recprev-block {
-    margin-bottom: 0.75rem;
+    margin-bottom: var(--space-4);
   }
   .fh-recprev-block-2 {
-    padding-bottom: 0.5rem;
+    padding-bottom: var(--space-3);
   }
   .fh-mk-inline {
     display: flex;
     align-items: center;
-    gap: 0.25rem;
+    gap: var(--space-2);
   }
   .fh-recprev-block-3 {
-    padding: 1.25rem;
+    padding: var(--space-5-5);
   }
   .fh-recprev-row {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: var(--space-3);
   }
   .fh-recprev-icon {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-recprev-text {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
   }
   .fh-recprev-text-2 {
     letter-spacing: -0.5px;
   }
   .fh-recprev-block-4 {
-    margin-top: 0.25rem;
+    margin-top: var(--space-2);
   }
   .fh-recprev-row-2 {
     display: flex;
     flex-wrap: wrap;
     align-items: baseline;
     justify-content: space-between;
-    column-gap: 0.75rem;
+    column-gap: var(--space-4);
   }
   .fh-recprev-grid,
   .fh-payment-panels {
-    margin-bottom: 1.25rem;
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 0.75rem;
+    margin-bottom: var(--space-5-5);
   }
   @media (width >= 48rem) {
     .fh-recprev-grid {
@@ -916,12 +877,12 @@ body {
   }
   .fh-recprev-block-5 {
     min-width: 0px;
-    border-right: 1px solid var(--line);
-    padding-right: 1.5rem;
+    border-right: var(--line-w) solid var(--line);
+    padding-right: var(--space-6);
   }
   .fh-recprev-block-6 {
     min-width: 0px;
-    padding-left: 1.5rem;
+    padding-left: var(--space-6);
   }
   @media (width >= 40rem) {
     .fh-recprev-list-2 {
@@ -929,19 +890,19 @@ body {
     }
   }
   .fh-recprev-item {
-    border-bottom: 1px solid var(--line);
-    padding: 1rem 1.25rem;
+    border-bottom: var(--line-w) solid var(--line);
+    padding: var(--space-5) var(--space-5-5);
   }
   .fh-recprev-item:last-child {
     border-bottom-style: solid;
     border-bottom-width: 0px;
   }
   .fh-mk-card-top {
-    margin-bottom: 0.5rem;
+    margin-bottom: var(--space-3);
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: var(--space-4);
   }
   .fh-recprev-block-7 {
     display: none;
@@ -952,13 +913,13 @@ body {
     }
   }
   .fh-recprev-block-8 {
-    margin-top: 0.125rem;
+    margin-top: var(--space-1);
   }
   .fh-tone-pills-col {
     flex-direction: column;
     gap: 0px;
-    border-radius: 0.5rem;
-    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-m-5);
+    padding: var(--space-2-5) var(--space-4);
   }
   .fh-wordmark-label {
     translate: 0 -1px;
@@ -993,12 +954,12 @@ body {
     flex: 1;
   }
   .fh-post-title {
-    margin-bottom: 1rem;
-    line-height: 1.25;
-    letter-spacing: -0.025em;
+    margin-bottom: var(--space-5);
+    line-height: var(--leading-tight-5);
+    letter-spacing: var(--tracking-tight);
   }
   .fh-footer-link {
-    font-size: 0.875rem;
+    font-size: var(--fs-body);
     color: var(--chrome-text);
     text-decoration-line: none;
   }
@@ -1017,7 +978,19 @@ body {
     justify-content: space-between;
   }
   .fh-footer-bar-ruled {
-    border-top: 1px solid var(--line);
+    border-top: var(--line-w) solid var(--line);
+  }
+  .fh-pill-edge {
+    --_line: var(--_fg);
+  }
+  .fh-pill-accent {
+    --_bg: var(--accent-soft);
+    --_fg: var(--accent-text);
+  }
+  .fh-pill-plain {
+    --_bg: var(--raised);
+    --_fg: var(--dim);
+    --_line: var(--line);
   }
   .fh-chrome-text {
     color: var(--chrome-text);
@@ -1026,8 +999,8 @@ body {
     color: var(--wordmark);
   }
   .fh-wordmark-size {
-    font-size: 1.125rem;
-    line-height: 1.75rem;
+    font-size: var(--fs-h3);
+    line-height: var(--line-box-7);
   }
   .fh-chrome-brand {
     color: var(--header-brand);
@@ -1035,6 +1008,6 @@ body {
   .fh-post-preview {
     margin-inline: auto;
     max-width: 680px;
-    padding: 3rem 1.5rem;
+    padding: var(--space-8) var(--space-6);
   }
 }

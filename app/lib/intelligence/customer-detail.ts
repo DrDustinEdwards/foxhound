@@ -1,4 +1,5 @@
 import { formatCount } from "@drdustinedwards/site-helpers/text";
+import { describeSeries } from "capsomer/behavior/chart-frame";
 import { formatDate } from "capsomer/behavior/time";
 import { areaChart } from "enarratio/lite/area";
 import type { ChartFit } from "capsomer/react/chart-frame";
@@ -121,14 +122,13 @@ export interface HealthReading {
 
 /** The text equivalent of the health history chart. */
 function healthHistoryAlt(readings: readonly HealthReading[]): string {
-  const first = readings[0];
-  const last = readings[readings.length - 1];
-  if (!first || !last) return "Health score: no readings yet.";
-  const scores = readings.map((r) => r.healthScore);
-  return (
-    `Health score over ${readings.length} readings, from ${first.healthScore} on ${formatDate(first.recordedAt, { style: "monthDay" }) ?? ""} ` +
-    `to ${last.healthScore} on ${formatDate(last.recordedAt, { style: "monthDay" }) ?? ""}; lowest ${Math.min(...scores)}, highest ${Math.max(...scores)}.`
-  );
+  return describeSeries({
+    what: "Health score",
+    x: readings.map((r) => formatDate(r.recordedAt, { style: "monthDay" }) ?? ""),
+    values: readings.map((r) => r.healthScore),
+    at: "on",
+    empty: readings.length ? "Health score: 0 each time." : "Health score: no readings yet.",
+  });
 }
 
 /** The line's color, by the latest score's band, as Recova colored its line

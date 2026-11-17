@@ -2,9 +2,9 @@
    footer and words in app/components/error-view.tsx): Capsomer's button,
    Empty and error page on the amber family, in Foxhound's neutrals.
 
-   Same pattern as app/site-header.css: Capsomer's tokens and the amber family
-   go into the capbase layer, the lowest, so Foxhound's own tokens keep
-   winning everywhere else; the component's CSS sits in
+   Capsomer's tokens and the amber family go into the capbase layer, the
+   lowest, here alone (the site header reads this copy), so Foxhound's own
+   tokens keep winning everywhere else; the component's CSS sits in
    Capsomer's own cap layer. The page wraps itself in .fh-cap with
    data-family="amber" (app.css), so the button reads Foxhound's surface, text
    and line values and only the accents are amber.

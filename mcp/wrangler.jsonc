@@ -14,7 +14,7 @@
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
   // Required by workers-oauth-provider to fetch a Client ID Metadata Document.
-  "compatibility_flags": ["global_fetch_strictly_public"],
+  "compatibility_flags": ["global_fetch_strictly_public", "enable_request_signal"],
   "observability": { "enabled": true, "traces": { "enabled": true, "head_sampling_rate": 0.1 } },
   "minify": true,
   "upload_source_maps": true,

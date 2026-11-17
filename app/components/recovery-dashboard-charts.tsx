@@ -6,7 +6,7 @@ import { barChart } from "enarratio/lite/bar";
 import { sparkline } from "enarratio/lite/sparkline";
 import { Meter } from "capsomer/react/meter";
 import { ChartPanel } from "capsomer/react/chart-frame";
-import { drawWith } from "capsomer/behavior/chart-frame";
+import { describeSeries, drawWith } from "capsomer/behavior/chart-frame";
 import { Panel } from "capsomer/react/panel";
 import "~/components/charts.css";
 import type { RecoveryDashboardWindow } from "~/lib/dashboard/recovery-window.server";
@@ -19,13 +19,30 @@ import {
   formatCurrencyTotals,
   formatShortDate,
   recoveredRevenueAlt,
-  recoveryRateAlt,
   recoveryTimingAlt,
 } from "~/lib/dashboard/recovery-dashboard";
+import type { DailyRatePoint } from "~/lib/dashboard/recovery-window";
 import { formatMoney, fromMajorUnits } from "@dustinedwards/site-runtime/money";
 import { markup } from "capsomer/behavior/trusted-html";
 
 // ---- Charts ----
+
+// Here, beside its only chart, so the shared recovery-dashboard module
+// (the payments list loads it) does not pull in chart-frame.
+/** The sentence a reader without the chart gets: the running rate over the
+ *  range, its latest value, its spread and where it peaked. */
+export function recoveryRateAlt(points: readonly DailyRatePoint[], rangeLabel: string): string {
+  const present = points.filter((p): p is { date: string; rate: number } => p.rate !== null);
+  if (!present.length) return `Recovery rate, ${rangeLabel}: no failed payments in this range yet.`;
+  return describeSeries({
+    what: `Running recovery rate, ${rangeLabel}`,
+    x: present.map((p) => formatShortDate(p.date)),
+    values: present.map((p) => p.rate),
+    format: (v) => `${v}%`,
+    at: "on",
+    empty: `Running recovery rate, ${rangeLabel}: 0%.`,
+  });
+}
 
 // The drawing's width before its container is measured, and on the server:
 // about each panel's body in Recova's 1280px column.

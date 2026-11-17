@@ -1,5 +1,6 @@
 import { Link } from "capsomer/react/link";
-import { initialsOf, type HeaderAccount, type LinkProps } from "capsomer/react/site-header";
+import { initials } from "capsomer/behavior/avatar";
+import { type HeaderAccount, type LinkProps } from "capsomer/react/site-header";
 
 import "~/site-header.css";
 import { PLATFORM_LINKS } from "~/lib/nav/manifest";
@@ -93,7 +94,7 @@ export function merchantAccountMenu({
   const current = currentRow(pathname, rows);
   return {
     name: name || email,
-    initials: initialsOf(name, email),
+    initials: initials(name, email),
     detail: name ? email : undefined,
     groups: [
       {

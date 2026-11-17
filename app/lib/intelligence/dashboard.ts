@@ -1,3 +1,4 @@
+import { describeSeries } from "capsomer/behavior/chart-frame";
 import { formatDate } from "capsomer/behavior/time";
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
@@ -189,17 +190,16 @@ interface MrrPointLike {
   totalMrrCents: number;
 }
 
+const day = (at: Date) => formatDate(at, { style: "monthDay" }) ?? "";
+
 export function mrrTrendAlt(points: readonly MrrPointLike[], currency: string): string {
-  const first = points[0];
-  const last = points[points.length - 1];
-  if (!first || !last) return "MRR: no snapshots yet.";
-  if (points.length === 1) {
-    return `MRR on ${formatDate(last.at, { style: "monthDay" }) ?? ""}: ${formatMoneyShort(last.totalMrrCents, currency)}.`;
-  }
-  return (
-    `MRR across ${points.length} daily snapshots, from ${formatMoneyShort(first.totalMrrCents, currency)} ` +
-    `on ${formatDate(first.at, { style: "monthDay" }) ?? ""} to ${formatMoneyShort(last.totalMrrCents, currency)} on ${formatDate(last.at, { style: "monthDay" }) ?? ""}.`
-  );
+  return describeSeries({
+    what: "MRR",
+    x: points.map((p) => day(p.at)),
+    values: points.map((p) => p.totalMrrCents),
+    format: (c) => formatMoneyShort(c, currency),
+    at: "on",
+  });
 }
 
 /** "101.5%". */
@@ -209,13 +209,15 @@ export function formatPct(value: number): string {
 
 export function nrrAlt(points: readonly { at: Date; nrrPct: number | null }[]): string {
   const present = points.filter((p): p is { at: Date; nrrPct: number } => p.nrrPct !== null);
-  const last = present[present.length - 1];
-  if (!last) return "Net revenue retention: no figure yet.";
-  const values = present.map((p) => p.nrrPct);
-  return (
-    `Net revenue retention by week, latest ${formatPct(last.nrrPct)} on ${formatDate(last.at, { style: "monthDay" }) ?? ""}, ` +
-    `ranging from ${formatPct(Math.min(...values))} to ${formatPct(Math.max(...values))}. 100% is the line.`
-  );
+  if (!present.length) return "Net revenue retention: no figure yet.";
+  return `${describeSeries({
+    what: "Net revenue retention by week",
+    x: present.map((p) => day(p.at)),
+    values: present.map((p) => p.nrrPct),
+    format: formatPct,
+    at: "on",
+    empty: "Net revenue retention by week: 0%.",
+  })} 100% is the line.`;
 }
 
 export function movementAlt(
@@ -233,7 +235,7 @@ export function movementAlt(
   if (!last) return "MRR movement: no snapshots yet.";
   const m = (c: number) => formatMoneyShort(c, currency);
   return (
-    `MRR movement by week. Week of ${formatDate(last.at, { style: "monthDay" }) ?? ""}: new ${m(last.newMrrCents)}, ` +
+    `MRR movement by week. Week of ${day(last.at)}: new ${m(last.newMrrCents)}, ` +
     `expansion ${m(last.expansionMrrCents)}, reactivation ${m(last.reactivationMrrCents)}, ` +
     `contraction ${m(last.contractionMrrCents)}, churn ${m(last.churnMrrCents)}.`
   );

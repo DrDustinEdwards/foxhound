@@ -2,7 +2,8 @@ import { createElement, useMemo, type ComponentProps } from "react";
 import { Form, useRouteLoaderData } from "react-router";
 import "capsomer/banner.css";
 import "capsomer/read-only-form.css";
-import { ReadOnlyForm, type FormComponent } from "capsomer/react/read-only-form";
+import type { FormComponent } from "capsomer/react/plain-form";
+import { ReadOnlyForm } from "capsomer/react/read-only-form";
 
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
