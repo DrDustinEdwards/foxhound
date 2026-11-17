@@ -12,13 +12,13 @@
    65 and 68 keep apart from post prose. The theme's colors are Foxhound's own variables, so the
    prose follows light and dark as the rest of the page does. */
 .blog-prose {
-  --prose: var(--font-dm-sans), sans-serif;
+  --prose: var(--ui);
   --fs-prose: 0.9375rem;
   --leading: var(--leading-airy);
-  --prose-ink: var(--text-secondary);
+  --prose-ink: var(--muted);
   --prose-strong-ink: var(--text);
   --prose-heading-ink: var(--text);
-  --prose-heading-face: var(--font-dm-sans), sans-serif;
+  --prose-heading-face: var(--ui), sans-serif;
   --prose-heading-weight: var(--weight-semibold);
   --prose-heading-space: var(--space-7);
   --prose-h2-size: var(--fs-h2);
@@ -29,20 +29,17 @@
   --prose-numbers: none;
   --prose-item-space: var(--space-2-5);
   --prose-list-indent: 1.5rem;
-  --prose-quote-line: var(--brand);
-  --prose-quote-ink: var(--text-secondary);
+  --prose-quote-line: var(--accent);
+  --prose-quote-ink: var(--muted);
   --prose-quote-style: italic;
   --prose-code-bg: var(--surface);
-  --prose-code-ink: var(--brand-text);
+  --prose-code-ink: var(--accent-text);
   --prose-code-radius: var(--radius-s-5);
   --prose-pre-bg: var(--surface);
   --prose-pre-pad: var(--space-5-5) var(--space-6);
   --prose-block-radius: 10px;
   --prose-image-radius: 10px;
-  --prose-table-rule: var(--border);
-  --accent-text: var(--brand-text);
-  /* The heading's section link, in Foxhound's tertiary ink. */
-  --muted: var(--text-tertiary);
+  --prose-table-rule: var(--line);
   font-size: var(--fs-prose);
   line-height: var(--leading);
 }
@@ -50,23 +47,23 @@
    classes) in Foxhound's flat hairline drawing, outlines at one 1px stroke, a faint tint at most.
    Set on the figure itself, where Capsomer sets its defaults. */
 .blog-prose .blog-diagram {
-  --diagram-face: var(--font-dm-sans), sans-serif;
-  --mono: var(--font-dm-mono), ui-monospace, monospace;
+  --diagram-face: var(--ui), sans-serif;
+  --mono: var(--mono), ui-monospace, monospace;
   --diagram-label-weight: var(--weight-regular);
   --diagram-ink: var(--text);
-  --diagram-ink-muted: var(--text-secondary);
-  --diagram-arrow: var(--text-secondary);
-  --diagram-rule: var(--border);
+  --diagram-ink-muted: var(--muted);
+  --diagram-arrow: var(--muted);
+  --diagram-rule: var(--line);
   --diagram-neutral: transparent;
-  --diagram-neutral-line: var(--border-strong);
-  --diagram-accent: color-mix(in srgb, var(--brand-ui) 10%, transparent);
-  --diagram-accent-line: var(--brand-ui);
+  --diagram-neutral-line: var(--line-strong);
+  --diagram-accent: color-mix(in srgb, var(--accent) 10%, transparent);
+  --diagram-accent-line: var(--accent);
   --diagram-success: color-mix(in srgb, var(--green) 10%, transparent);
   --diagram-success-line: var(--green);
-  --diagram-success-ink: var(--success-text);
+  --diagram-success-ink: var(--ok);
   --diagram-warning: color-mix(in srgb, var(--red) 10%, transparent);
   --diagram-warning-line: var(--red);
-  --diagram-warning-ink: var(--error-text);
+  --diagram-warning-ink: var(--crit);
   --diagram-info: color-mix(in srgb, var(--blue) 10%, transparent);
   --diagram-info-line: var(--blue);
   --diagram-info-ink: var(--blue);
@@ -118,7 +115,7 @@
 }
 .blog-prose pre {
   margin-block: 0 var(--space-6);
-  border: var(--line-w) solid var(--border);
+  border: var(--line-w) solid var(--line);
 }
 .blog-prose pre code {
   line-height: var(--leading-loose);
@@ -140,7 +137,7 @@
   text-align: left;
 }
 .blog-prose th {
-  border-bottom: var(--line-w-thick) solid var(--border);
+  border-bottom: var(--line-w-thick) solid var(--line);
   color: var(--text);
 }
 .blog-prose td {
@@ -166,7 +163,7 @@
     width: 100%;
     overflow: hidden;
     border-radius: var(--radius-l-5);
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-post-row {
     margin-bottom: var(--space-4);
@@ -190,7 +187,7 @@
     margin-bottom: var(--space-7);
     border-bottom-style: solid;
     border-bottom-width: var(--line-w);
-    border-color: var(--border);
+    border-color: var(--line);
     padding-bottom: var(--space-7);
   }
   .fh-post-row-3,
@@ -198,7 +195,7 @@
   .fh-post-wrap {
     border-top-style: solid;
     border-top-width: var(--line-w);
-    border-color: var(--border);
+    border-color: var(--line);
   }
   .fh-post-row-3 {
     margin-top: var(--space-8);
@@ -280,6 +277,6 @@
 }
 
 .cap-reading-progress {
-  --reading-progress-color: var(--brand);
+  --reading-progress-color: var(--accent);
   --reading-progress-top: var(--header-h);
 }

@@ -8,7 +8,7 @@
   }
   .fh-doc-blocks-code {
     border-radius: var(--radius-s-5);
-    border: var(--line-w) solid var(--border);
+    border: var(--line-w) solid var(--line);
     background-color: var(--surface);
     padding: var(--space-1) var(--space-2-5);
   }
@@ -81,11 +81,11 @@
   }
   .fh-doc-note {
     margin-block: var(--space-5);
-    border-left: var(--line-w-thick) solid var(--border);
+    border-left: var(--line-w-thick) solid var(--line);
     padding-left: var(--space-5);
   }
   .fh-doc-note-info {
-    border-color: var(--brand);
+    border-color: var(--accent);
   }
   .fh-docs-cross {
     line-height: var(--line-box-6);

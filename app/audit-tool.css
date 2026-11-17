@@ -160,8 +160,8 @@
     display: grid;
     gap: var(--space-5);
     border-radius: var(--radius-m-5);
-    border: var(--line-w) solid var(--border);
-    background-color: var(--bg);
+    border: var(--line-w) solid var(--line);
+    background-color: var(--ground);
     padding: var(--space-5);
   }
   .fh-auditconnect-text-2 {

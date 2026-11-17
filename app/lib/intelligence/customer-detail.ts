@@ -136,7 +136,7 @@ function healthHistoryAlt(readings: readonly HealthReading[]): string {
  *  the same colors the dashboard's health chart uses. */
 const BAND_COLOR: Record<HealthScoreBand, string> = {
   at_risk: "var(--red)",
-  watch: "var(--warning-text)",
+  watch: "var(--warn)",
   healthy: "var(--green)",
 };
 

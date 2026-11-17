@@ -72,7 +72,7 @@ export function drawStepPerformance(
     colors: {
       "Open rate": "var(--green)",
       "Click rate": "var(--blue)",
-      "Recovery rate": "var(--brand-ui)",
+      "Recovery rate": "var(--accent)",
     },
     xLabel: null,
     yLabel: "Rate (%)",

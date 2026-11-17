@@ -1,4 +1,4 @@
-// Pure display formatters + constants for the admin surface, used by BOTH the
+// Constants for the admin surface (the D1 size display), used by BOTH the
 // loader and the rendered component on /admin and /admin/operations. Not a
 // `.server.ts` module (mirrors app/lib/money/totals.ts): anything a route
 // component reads directly (not just its loader) must live outside a

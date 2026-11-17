@@ -182,11 +182,11 @@
     border: var(--line-w) solid var(--border-sub);
   }
   .fh-blog-link-4 {
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-blog-band-2 {
     border-bottom: var(--line-w) solid var(--border-sub);
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-blog-text-2 {
     margin-top: var(--space-2);
@@ -215,7 +215,7 @@
     }
   }
   .fh-blog-band-3 {
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-blog-grid-3 {
     margin-top: var(--space-5);

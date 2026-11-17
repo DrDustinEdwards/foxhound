@@ -82,7 +82,7 @@
   .fh-payment-step {
     border-bottom-style: solid;
     border-bottom-width: var(--line-w);
-    border-color: var(--border);
+    border-color: var(--line);
   }
   .fh-team-member {
     display: flex;
@@ -117,7 +117,7 @@
   .fh-payment-links-title {
     border-top-style: solid;
     border-top-width: var(--line-w);
-    border-color: var(--border);
+    border-color: var(--line);
   }
   .fh-team-invite {
     padding-top: var(--space-5-5);
@@ -258,7 +258,7 @@
     background-color: var(--blue);
   }
   .fh-voice-dot[data-tone="brand"] {
-    background-color: var(--brand);
+    background-color: var(--accent);
   }
   .fh-voice-dot[data-tone="orange"] {
     background-color: var(--orange);
@@ -317,7 +317,7 @@
   .fh-dispute-setting {
     border-block-style: solid;
     border-block-width: var(--line-w);
-    border-color: var(--border);
+    border-color: var(--line);
     padding-block: var(--space-5);
   }
   .fh-dispute-help {
@@ -349,7 +349,7 @@
   .fh-notify-group {
     border-block-style: solid;
     border-block-width: var(--line-w);
-    border-color: var(--border);
+    border-color: var(--line);
     padding-top: var(--space-5);
     padding-bottom: var(--space-5-5);
   }
@@ -368,7 +368,7 @@
     border-radius: var(--radius-m-5);
     border-style: solid;
     border-width: var(--line-w);
-    border-color: var(--border);
+    border-color: var(--line);
   }
   .fh-box {
     background-color: var(--surface);
@@ -459,7 +459,7 @@
     border-radius: var(--radius-s-5);
     border-style: solid;
     border-width: var(--line-w);
-    border-color: var(--brand);
+    border-color: var(--accent);
     padding-inline: var(--space-2-5);
     padding-block: var(--space-1);
   }
@@ -508,7 +508,7 @@
   }
   .fh-billing-box {
     margin-bottom: var(--space-5-5);
-    background-color: var(--bg);
+    background-color: var(--ground);
     padding-inline: var(--space-5);
     padding-block: var(--space-5);
   }
@@ -1043,7 +1043,7 @@
   }
   @media (hover: hover) {
     .fh-disputes-link:hover {
-      color: var(--brand-text-hover);
+      color: var(--accent-hover);
     }
   }
   .fh-intel-page {
@@ -1275,7 +1275,7 @@
   }
   @media (hover: hover) {
     .fh-intel-name:hover {
-      color: var(--brand-text);
+      color: var(--accent-text);
     }
   }
   .fh-intel-cell-bar {
@@ -1307,7 +1307,7 @@
     border-radius: var(--radius-m-5);
     border-width: var(--line-w);
     border-style: dashed;
-    border-color: var(--border);
+    border-color: var(--line);
     padding: var(--space-6);
   }
   .fh-reports-list {
@@ -1491,8 +1491,8 @@
     border-radius: var(--radius-m-5);
     border-style: solid;
     border-width: var(--line-w);
-    border-color: var(--brand);
-    background-color: var(--brand-bg);
+    border-color: var(--accent);
+    background-color: var(--accent-soft);
     padding: var(--space-5);
   }
   .fh-payment-empty {
@@ -1530,7 +1530,7 @@
   }
   .fh-payment-preview {
     margin-top: var(--space-4);
-    background-color: var(--bg);
+    background-color: var(--ground);
   }
   .fh-payment-pull-gap {
     margin-top: var(--space-4);
@@ -1731,24 +1731,24 @@
     max-width: 200px;
   }
   .fh-payment-dot-pending {
-    border-color: var(--border);
-    background-color: var(--border);
-    color: var(--text-tertiary);
+    border-color: var(--line);
+    background-color: var(--line);
+    color: var(--dim);
   }
   .fh-payment-dot-success {
     border-color: var(--green);
-    background-color: var(--green-bg);
+    background-color: var(--ok-soft);
     color: var(--green);
   }
   .fh-payment-dot-failure {
     border-color: var(--red);
-    background-color: var(--red-bg);
-    color: var(--error-text);
+    background-color: var(--crit-soft);
+    color: var(--crit);
   }
   .fh-payment-dot-neutral {
     border-color: var(--border-sub);
-    background-color: var(--surface2);
-    color: var(--text-subtle);
+    background-color: var(--raised);
+    color: var(--dim);
   }
   .fh-customers-scale {
     flex-shrink: 0;

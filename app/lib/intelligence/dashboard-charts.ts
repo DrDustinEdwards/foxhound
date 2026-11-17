@@ -59,7 +59,7 @@ export function drawMrrTrend(
     y: "mrr",
     xLabel: null,
     yLabel,
-    colors: { [yLabel]: "var(--brand-ui)" },
+    colors: { [yLabel]: "var(--accent)" },
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     formatX: (v) => formatDate(new Date(v), { style: "monthDay" }) ?? "",
     alt: mrrTrendAlt(points, currency),
@@ -185,7 +185,7 @@ export function drawPlans(
     xDomain: rows.map((r) => r.plan),
     xLabel: null,
     yLabel,
-    colors: { [yLabel]: "var(--brand-ui)" },
+    colors: { [yLabel]: "var(--accent)" },
     formatValue: (v) => formatMoneyShort(fromMajorUnits(v, currency), currency),
     alt: planAlt(rows, currency),
     hoverTitles: false,
@@ -205,7 +205,7 @@ export interface HealthDay {
 const HEALTH_SERIES = ["High risk", "Medium risk", "Healthy"] as const;
 const HEALTH_COLORS: Record<(typeof HEALTH_SERIES)[number], string> = {
   "High risk": "var(--red)",
-  "Medium risk": "var(--warning-text)",
+  "Medium risk": "var(--warn)",
   Healthy: "var(--green)",
 };
 

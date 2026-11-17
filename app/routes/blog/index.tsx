@@ -204,11 +204,9 @@ function BlogHero({
           <div className="fh-blog-block-5">
             {/* Legacy's hand-drawn cover fallback, ported from app/(marketing)/blog/page.tsx.
                 Legacy inlines four literal colors plus a [data-theme="light"] override block.
-                Its two dark values are exactly our --bg and --brand-text, and its two light
-                values are exactly what those same tokens hold under [data-theme="light"]
-                (verified against app.css), so the var() form renders identically in both
-                themes and legacy's override block becomes redundant. Keeping the literals
-                would also trip check-tokens, which bans raw hex outside the token file. */}
+                Capsomer's --ground and --accent-text follow the theme, so legacy's override
+                block is not needed. Keeping the literals would also trip check-tokens, which
+                bans raw hex outside the token file. */}
             <svg
               width="100%"
               height="100%"

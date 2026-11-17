@@ -92,14 +92,14 @@
   }
   .fh-section-trail-block .cap-breadcrumb {
     font-size: var(--fs-tiny-5);
-    color: var(--text-tertiary);
+    color: var(--dim);
   }
   .fh-section-trail-block .cap-breadcrumb-page {
     font-weight: var(--weight-regular);
-    color: var(--text-tertiary);
+    color: var(--dim);
   }
   .fh-section-trail-block a {
-    color: var(--text-tertiary);
+    color: var(--dim);
     text-decoration-line: none;
   }
   .fh-section-trail-block a:hover {
@@ -118,7 +118,7 @@
   }
   @media (hover: hover) {
     :is(.fh-hover-group:hover .fh-archive-text-3) {
-      color: var(--brand-text);
+      color: var(--accent-text);
     }
   }
   .fh-mk-cover {
@@ -197,7 +197,7 @@
     align-items: center;
     justify-content: center;
     border-radius: var(--radius-m-5);
-    background-color: var(--surface2);
+    background-color: var(--raised);
   }
   .fh-privacy-block {
     margin-block: var(--space-7);
@@ -247,14 +247,14 @@
 }
 .fh-legal .cap-legal-updated {
   font-size: 0.9375rem;
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-legal .cap-legal-body,
 .fh-legal .cap-legal-intro,
 .fh-legal .cap-legal-outro {
   font-size: 0.9375rem;
   line-height: var(--leading-relaxed-5);
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-legal .cap-legal-section-title,
 .fh-legal .cap-legal-intro h2 {
@@ -268,10 +268,10 @@
   color: var(--text);
 }
 .fh-legal .cap-legal-contents-title {
-  font-family: var(--font-dm-mono);
+  font-family: var(--mono);
   font-size: var(--fs-tiny-5);
   font-weight: var(--weight-regular);
-  color: var(--text-tertiary);
+  color: var(--dim);
 }
 .fh-legal .cap-legal-contents a {
   font-size: var(--fs-detail);
@@ -315,7 +315,7 @@
   max-inline-size: none;
   margin: 0 0 var(--space-7);
   line-height: var(--leading-relaxed);
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-home-hero .cap-hero-actions,
 .fh-product-hero .cap-hero-actions {
@@ -342,7 +342,7 @@
 .fh-product-hero {
   --hero-title: 2.5rem;
   --hero-lead-size: 1.0625rem;
-  border-bottom: var(--line-w) solid var(--border);
+  border-bottom: var(--line-w) solid var(--line);
   padding: var(--space-9-5) var(--space-5-5);
 }
 @media (min-width: 640px) {
@@ -372,7 +372,7 @@
   max-inline-size: 520px;
   margin: 0 auto var(--space-4);
   line-height: var(--leading-relaxed-5);
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-product-hero .cap-hero-body {
   max-inline-size: none;
@@ -396,8 +396,8 @@
 }
 .fh-page-hero .cap-hero-eyebrow {
   margin: 0 0 var(--space-4);
-  color: var(--text-tertiary);
-  font: var(--weight-medium) var(--fs-tiny-5) / var(--leading-snug) var(--font-dm-sans);
+  color: var(--dim);
+  font: var(--weight-medium) var(--fs-tiny-5) / var(--leading-snug) var(--ui);
   letter-spacing: var(--tracking-sign);
 }
 .fh-page-hero .cap-hero-title {
@@ -410,7 +410,7 @@
   max-inline-size: 560px;
   margin: 0;
   line-height: var(--leading-relaxed-5);
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 
 /* Recova's hero fade, guarded so that under reduced motion the text renders in place
@@ -491,7 +491,7 @@
   margin: 0 auto var(--space-6-5);
   font-size: 0.9375rem;
   line-height: var(--leading-normal-5);
-  color: var(--text-secondary);
+  color: var(--muted);
 }
 .fh-closing-band .cap-cta-band-actions {
   margin: 0;
@@ -538,5 +538,5 @@
 .fh-closing-product .cap-cta-band-note {
   margin-block-start: var(--space-4);
   font-size: var(--fs-small);
-  color: var(--text-tertiary);
+  color: var(--dim);
 }
