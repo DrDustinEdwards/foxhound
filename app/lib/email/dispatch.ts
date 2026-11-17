@@ -1,13 +1,13 @@
 import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
+import { inList } from "@dustinedwards/site-runtime/d1";
 import { and, eq, isNotNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { accounts, getDb, emailSends } from "~/db";
+import { accounts, getDb, emailSends, emailSuppressions } from "~/db";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 import { redact } from "@dustinedwards/site-runtime/email";
 import { sendJobEmail } from "./send";
-import { isSuppressed } from "./suppression";
 import type { OutboundEmailJob } from "./types";
 
 // Email dispatch: suppression gate -> send -> email_sends log.
@@ -173,12 +173,16 @@ export async function processEmailJob(
   env: Env,
   job: OutboundEmailJob,
   queueMessageId: string | null,
+  /** The gates read once for a loop of sends (SendGates.read); omitted, they
+   *  are read for this job alone. */
+  gates?: SendGates,
 ): Promise<EmailJobResult> {
   const db = getDb(env);
   const now = new Date();
   const recipientHash = await hashRecipient(job.to);
+  const gate = gates ?? (await SendGates.read(env, [job]));
 
-  if (await isSuppressed(env, job.to)) {
+  if (gate.suppressed(job)) {
     await logSend(db, {
       job,
       status: "suppressed",
@@ -205,11 +209,7 @@ export async function processEmailJob(
   // PR 160): platform-to-merchant mail whose caller already refused demo and
   // ineligible accounts. Recova has no such switch for that mail, and the
   // switch is off for every real merchant today.
-  if (
-    job.audience !== "preview" &&
-    job.liveSendGate !== "skip" &&
-    !(await liveSendsEnabled(db, job.accountId))
-  ) {
+  if (job.audience !== "preview" && job.liveSendGate !== "skip" && !gate.liveSends(job)) {
     await logSend(db, {
       job,
       status: "blocked",
@@ -375,36 +375,97 @@ async function recordClaimError(db: Db, idempotencyKey: string, error: string): 
   await db.update(emailSends).set({ error }).where(eq(emailSends.idempotencyKey, idempotencyKey));
 }
 
+/** The fields of a job its two gates read. */
+type GatedJob = Pick<OutboundEmailJob, "to" | "accountId">;
+
 /**
- * Whether this account may send live mail. FAILS CLOSED in all three directions:
- * a row predating the column reads false through the migration's own
- * `DEFAULT false NOT NULL`, a MISSING account reads false, and a job carrying NO
- * account reads false, because a flag that is per-account cannot be satisfied by
- * a job that names none.
+ * The two gates processEmailJob passes before the provider is called: the
+ * address is not suppressed (the rows the bounce/complaint consumer and the
+ * unsubscribe route write, one per address), and the account has live sends
+ * on. Read for a set of jobs in ONE D1 batch, so a loop that sends N mails reads
+ * them once rather than twice per mail (Sentry FOXHOUND-2, the win-back tick).
+ * Only `read` makes one, so no caller can hand processEmailJob a gate it did
+ * not read, and asking about an address or account the read did not cover
+ * throws rather than answering "not suppressed".
  *
+ * A gate read for a batch is as fresh as the start of that batch: a suppression
+ * written while a cron tick is still sending is honored from the next tick,
+ * five minutes later, where a per-mail read honored it from the next mail.
+ *
+ * LIVE SENDS FAIL CLOSED in all three directions: a row predating the column
+ * reads false through the migration's own `DEFAULT false NOT NULL`, a MISSING
+ * account reads false, and a job carrying NO account reads false, because a
+ * flag that is per-account cannot be satisfied by a job that names none.
  * `EmailJob.accountId` is nullable in the type; measured 2026-08-12, no live
- * caller passes null. processEmailJob has exactly two callers, defaultSend in
- * execute-step.ts (accountId from a non-null EmailStepContext) and the queue
- * consumer, which since 2026-08-14 nothing CAN enqueue to: the producer and its
- * EMAIL_QUEUE binding were deleted under 280, so that caller is unreachable
- * rather than merely unused. So the null branch is unreachable today and exists
- * so it can never become a bypass.
+ * caller passes null, so the null branch exists so it can never become a bypass.
  *
- * SCOPE, stated rather than assumed: this gates processEmailJob, which is the
- * dunning path. `sendTransactionalEmail` and `sendRenderedTransactionalEmail`
- * reach `env.EMAIL` DIRECTLY and are not gated, so verification and
- * password-reset mail is unaffected. 9766ff5 placed
- * the flag in this function specifically, and gating auth mail behind a
- * per-account send switch would lock merchants out of their own accounts.
+ * SCOPE, stated rather than assumed: the live-send gate holds processEmailJob,
+ * which is the dunning path. `sendTransactionalEmail` and
+ * `sendRenderedTransactionalEmail` reach `env.EMAIL` DIRECTLY and are not
+ * gated, so verification and password-reset mail is unaffected. 9766ff5 placed
+ * the flag here specifically, and gating auth mail behind a per-account send
+ * switch would lock merchants out of their own accounts.
  */
-export async function liveSendsEnabled(db: Db, accountId: string | null): Promise<boolean> {
-  if (!accountId) return false;
-  const rows = await db
-    .select({ enabled: accounts.liveSendsEnabled })
-    .from(accounts)
-    .where(eq(accounts.id, accountId))
-    .limit(1);
-  return rows[0]?.enabled === true;
+export class SendGates {
+  readonly #emails: ReadonlySet<string>;
+  readonly #accounts: ReadonlySet<string>;
+  readonly #suppressed: ReadonlySet<string>;
+  readonly #live: ReadonlySet<string>;
+
+  private constructor(
+    emails: ReadonlySet<string>,
+    accountIds: ReadonlySet<string>,
+    suppressed: ReadonlySet<string>,
+    live: ReadonlySet<string>,
+  ) {
+    this.#emails = emails;
+    this.#accounts = accountIds;
+    this.#suppressed = suppressed;
+    this.#live = live;
+  }
+
+  /** Both gates for every job, in one D1 batch of two statements. Each list is
+   *  bound as one parameter (inList), so the batch fits D1's bound-parameter
+   *  ceiling at any length. */
+  static async read(env: Env, jobs: readonly GatedJob[]): Promise<SendGates> {
+    const db = getDb(env);
+    const emails = new Set(jobs.map((j) => j.to));
+    const accountIds = new Set(jobs.flatMap((j) => (j.accountId ? [j.accountId] : [])));
+    const [suppressed, live] = await db.batch([
+      db
+        .select({ email: emailSuppressions.email })
+        .from(emailSuppressions)
+        .where(
+          and(
+            inList(emailSuppressions.email, [...emails]),
+            isNotNull(emailSuppressions.suppressedAt),
+          ),
+        ),
+      db
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(and(inList(accounts.id, [...accountIds]), eq(accounts.liveSendsEnabled, true))),
+    ]);
+    return new SendGates(
+      emails,
+      accountIds,
+      new Set(suppressed.map((r) => r.email)),
+      new Set(live.map((r) => r.id)),
+    );
+  }
+
+  /** Whether the job's address is suppressed. */
+  suppressed(job: GatedJob): boolean {
+    if (!this.#emails.has(job.to)) throw new Error("SendGates: this address was not read");
+    return this.#suppressed.has(job.to);
+  }
+
+  /** Whether the job's account may send live mail. */
+  liveSends(job: GatedJob): boolean {
+    if (!job.accountId) return false;
+    if (!this.#accounts.has(job.accountId)) throw new Error("SendGates: this account was not read");
+    return this.#live.has(job.accountId);
+  }
 }
 
 async function logSend(db: Db, input: Parameters<typeof buildEmailSendRow>[1]): Promise<void> {

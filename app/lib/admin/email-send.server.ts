@@ -34,7 +34,7 @@ import {
   sendRenderedTransactionalEmail,
   sendTransactionalEmail,
 } from "~/lib/email/send";
-import { isSuppressed } from "~/lib/email/suppression";
+import { SendGates } from "~/lib/email/dispatch";
 import type { EmailNotice } from "~/lib/email/templates";
 import type { EmailAudience, OutboundEmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
@@ -895,7 +895,8 @@ export async function sendAdminEmail(
   try {
     if (prepared.channel === "job") {
       // The suppression gate every real customer and merchant send passes.
-      if (await isSuppressed(env, prepared.job.to)) return done("suppressed");
+      const gates = await SendGates.read(env, [prepared.job]);
+      if (gates.suppressed(prepared.job)) return done("suppressed");
       const { providerMessageId } = await sendJobEmail(env, prepared.job);
       return done("sent", providerMessageId);
     }

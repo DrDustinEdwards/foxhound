@@ -29,6 +29,8 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 vi.mock("~/lib/email/dispatch", () => ({
+  // The gates are processEmailJob's to read, and it is stubbed here.
+  SendGates: { read: async () => ({}) },
   processEmailJob: async (_env: unknown, job: Record<string, unknown>) => {
     harness.emailJobs.push(job);
     return { status: "sent" };
