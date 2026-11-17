@@ -490,7 +490,7 @@
   max-inline-size: min(560px, var(--fh-closing-w));
   margin: 0 auto var(--space-6-5);
   font-size: 0.9375rem;
-  line-height: var(--leading-normal);
+  line-height: 1.55;
   color: var(--text-secondary);
 }
 .fh-closing-band .cap-cta-band-actions {
