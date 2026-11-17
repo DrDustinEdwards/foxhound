@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/cloudflare";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 import { and, asc, eq, gt, isNotNull, isNull, lte, notExists, notInArray, sql } from "drizzle-orm";
 
 import { accounts, disputeApprovals, disputes, getDb } from "~/db";
@@ -120,10 +120,11 @@ export async function runDisputeAutoSubmit(
     } catch (err) {
       // Recova's per-dispute catch: log, count, go on to the next.
       result.failed++;
-      console.error(`dispute auto-submit failed for dispute ${dispute.id}:`, err);
-      Sentry.captureException(err, {
-        extra: { scope: "dispute-auto-submit", disputeId: dispute.id },
-      });
+      logEvent(
+        "dispute_auto_submit_failed",
+        { dispute_id: dispute.id, error: err },
+        { level: "error" },
+      );
     }
   }
   return result;
@@ -164,11 +165,11 @@ async function autoSubmitOne(
     detail.evidence,
   );
   if (submission.status === "error") {
-    console.error(`dispute auto-submit refused for dispute ${dispute.id}: ${submission.message}`);
-    Sentry.captureMessage("dispute auto-submit refused", {
-      level: "warning",
-      extra: { disputeId: dispute.id, message: submission.message },
-    });
+    logEvent(
+      "dispute_auto_submit_refused",
+      { dispute_id: dispute.id, message: submission.message },
+      { level: "error" },
+    );
     return false;
   }
 

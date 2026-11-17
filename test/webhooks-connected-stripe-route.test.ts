@@ -7,8 +7,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // THE CONNECTED-ACCOUNT MONEY FRONT DOOR HAD NO EXECUTED COVERAGE. Ruling 376
 // item (10), verified across all 215 test files: app/routes/webhooks/stripe was
 // imported by no test. Only stripe-platform was driven, and the one place
-// app/routes/webhooks/stripe.ts appeared elsewhere was a string in
-// sentry-noop-372's path list, which never runs the route. So every payment
+// app/routes/webhooks/stripe.ts appeared elsewhere was a string in a
+// test's path list, which never ran the route. So every payment
 // Foxhound ingests arrived through a signature check nothing had exercised.
 //
 // Built on test/billing-platform-webhook-claim.test.ts's model: drive the REAL
@@ -71,10 +71,9 @@ vi.mock("~/lib/money/execute", () => ({
   },
 }));
 
-const captureException = vi.fn();
-vi.mock("@sentry/cloudflare", () => ({
-  captureException: (...args: unknown[]) => captureException(...args),
-}));
+// The error lines the route writes; each is also a Sentry report (site-runtime ./log).
+let errorLines: string[] = [];
+const reported = () => errorLines.filter((line) => line.includes('"event":"stripe_webhook')).length;
 
 const { action } = await import("~/routes/webhooks/stripe");
 const { cloudflareContext } = await import("@dustinedwards/site-runtime/context");
@@ -161,7 +160,10 @@ async function seed({ connected = true }: { connected?: boolean } = {}) {
 
 beforeEach(() => {
   harness.failNextCommit = false;
-  captureException.mockClear();
+  errorLines = [];
+  vi.spyOn(console, "error").mockImplementation(
+    (line: unknown) => void errorLines.push(String(line)),
+  );
 });
 
 describe("connected webhook: the method and configuration rungs", () => {
@@ -212,7 +214,7 @@ describe("connected webhook: the processing rung", () => {
     // retry is safe. A 200 here would lose the event permanently.
     expect(res.status).toBe(500);
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
-    expect(captureException).toHaveBeenCalledTimes(1);
+    expect(reported()).toBe(1);
   });
 
   it("the redelivery after that failure then claims exactly once", async () => {
@@ -245,7 +247,7 @@ describe("connected webhook: a valid event", () => {
     // Resolved through stripe_connections, not taken from the request.
     expect(rows[0].accountId).toBe(ACCOUNT_ID);
     expect(rows[0].processed).toBe(true);
-    expect(captureException).not.toHaveBeenCalled();
+    expect(reported()).toBe(0);
   });
 
   it("a redelivery of the same event id is a duplicate, not a second claim", async () => {

@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/cloudflare";
 import { readText } from "@dustinedwards/site-runtime/body";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { logEvent } from "@dustinedwards/site-runtime/log";
@@ -43,7 +42,12 @@ async function reportBadSignature(
     // The limiter is unavailable: treat the cap as spent.
   }
   if (withinCap) {
-    Sentry.captureException(err, { extra: { scope, hasSignature } });
+    // An error line is also a Sentry report (site-runtime ./log).
+    logEvent(
+      "stripe_webhook_signature_invalid",
+      { endpoint, reported: true, has_signature: hasSignature, error: err },
+      { level: "error" },
+    );
   } else {
     logEvent("stripe_webhook_signature_invalid", { endpoint, reported: false }, { level: "warn" });
   }
@@ -113,9 +117,16 @@ export function stripeWebhookRoute(options: {
       if (event instanceof Response) return event;
       const outcome = await options.process(env, event, new Date());
       if (outcome.status === "error") {
-        Sentry.captureException(new Error(outcome.message), {
-          extra: { scope: options.errorScope, eventType: event.type, eventId: event.id },
-        });
+        logEvent(
+          "stripe_webhook_processing_failed",
+          {
+            scope: options.errorScope,
+            event_type: event.type,
+            event_id: event.id,
+            error: new Error(outcome.message),
+          },
+          { level: "error" },
+        );
         return new Response("processing error", { status: 500 });
       }
       return Response.json({ received: true, outcome: outcome.status });

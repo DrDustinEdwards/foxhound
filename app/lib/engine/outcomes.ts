@@ -1,4 +1,4 @@
-import * as Sentry from "@sentry/cloudflare";
+import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { outcomes } from "~/db";
 import type { AttributionKind } from "~/lib/constants";
@@ -9,7 +9,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 //
 //   1. NEVER THROWS. Outcomes are analytics; a failure here must never block the
 //      recovery/dispute/billing path that called it. Failures are captured and
-//      dropped. (Legacy: try/catch + Sentry.captureException.)
+//      dropped: an error line, which site-runtime also reports to Sentry.
 //   2. ATTRIBUTION IS FIRST-CLASS. attributionKind + attributedRef are recorded
 //      on the row (SCHEMA.md spine #1), so lift and billing derive from the row.
 //
@@ -64,13 +64,11 @@ export async function recordOutcome(env: Env, params: RecordOutcomeParams): Prom
     return applied;
   } catch (err) {
     // Moat write must not block the caller. Capture and drop (legacy semantics).
-    Sentry.captureException(err, {
-      extra: {
-        scope: "recordOutcome",
-        accountId: params.accountId,
-        eventType: params.eventType,
-      },
-    });
+    logEvent(
+      "record_outcome_failed",
+      { account_id: params.accountId, event_type: params.eventType, error: err },
+      { level: "error" },
+    );
     return false;
   }
 }
