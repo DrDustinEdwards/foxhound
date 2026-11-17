@@ -34,7 +34,7 @@
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.62.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.16.1",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.42.1",
-    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.161.1",
+    "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.163.0",
     "@modelcontextprotocol/server": "2.4.0",
     "better-auth": "1.7.23",
     "capsomer": "github:DrDustinEdwards/capsomer#v0.155.1",
