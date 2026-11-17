@@ -192,9 +192,10 @@ export default function PricingPage() {
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
             <span className="fh-pricing-block-4 fh-line fh-mono fh-caption fh-faint">
-              Estimator: no account, no Stripe connection &middot; Full audit: Stripe grants {AUDIT_SCOPE_WORDS}
-              access, Foxhound only reads and disconnects itself after {AUDIT_GRANT_MINUTES} minutes,
-              no account, 30 seconds
+              Estimator: no account, no Stripe connection &middot; Full audit: Stripe grants{" "}
+              {AUDIT_SCOPE_WORDS}
+              access, Foxhound only reads and disconnects itself after {AUDIT_GRANT_MINUTES}{" "}
+              minutes, no account, 30 seconds
             </span>
           </>
         }
