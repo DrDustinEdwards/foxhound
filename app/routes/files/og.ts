@@ -1,35 +1,12 @@
 import { fromBase64 } from "@dustinedwards/site-runtime/encoding";
 import { cardText, shareCardResponse, titleFontSize } from "@dustinedwards/site-runtime/share-card";
-import { ImageResponse } from "workers-og";
+import { drawShareCard } from "@dustinedwards/site-runtime/share-card-draw";
 
-// Satori (workers-og's layout engine) parses fonts with opentype.js, which:
-//   (a) only understands raw TrueType/OpenType signatures, not WOFF2's
-//       compressed wrapper (confirmed at request time: "Unsupported OpenType
-//       signature wOF2 Error", silently swallowed into an empty PNG rather
-//       than a visible error) -- fixed by shipping a .ttf sibling of the
-//       real self-hosted font (decompressed with the `wawoff2` package,
-//       used once to generate this file, not a runtime or build dependency).
-//   (b) cannot parse variable-font tables (fvar/gvar/avar/HVAR/STAT), which
-//       the app's DM Sans Variable file carries -- confirmed at request
-//       time ("Cannot read properties of undefined (reading '265')" deep
-//       inside opentype.js's table parser, again swallowed into an empty
-//       PNG).
-//
-// This file previously concluded from (b) that the card should use DM Mono
-// for EVERY line of text, calling it "a legitimate on-brand choice, not a
-// workaround dressed up as one". Ruling 96 (Dustin, 2026-08-02) corrected
-// that: the constraint rules out one FILE, not the typeface. Legacy's card is
-// sans throughout (app/og/route.tsx, `system-ui, sans-serif`), and a STATIC
-// per-weight DM Sans instance parses exactly as DM Mono's static file does.
-// scripts/build-og-fonts.py derives dm-sans-{400,500,600}.ttf from the same
-// dm-sans-variable.woff2 the app already ships (Capsomer's), stripping fvar/gvar/avar/
-// HVAR/STAT so the table set matches dm-mono-500.ttf, the file already proven
-// to parse at request time. A constraint that rules out an artifact is not a
-// license to change the design, and recording that change as deliberate
-// without a ratification is what PRIME DIRECTIVE item 4 exists to catch.
-//
-// DM Mono is retained for the WORDMARK only: that is Foxhound's own brand
-// treatment (wordmark.tsx), sanctioned under PRIME DIRECTIVE item 2(b).
+// The card draws static per-weight TTFs (dm-sans-{400,500,600}.ttf, derived by
+// scripts/build-og-fonts.py from the variable woff2 the app ships; dm-mono-500.ttf):
+// the files the card was built and ratified with (Ruling 96, Dustin, 2026-08-02:
+// legacy's card is sans throughout, DM Mono is the wordmark only, PRIME DIRECTIVE
+// item 2(b)). They stay as they are so the card's pixels do not move.
 import dmMono500 from "~/assets/fonts/dm-mono-500.ttf?inline";
 import dmSans400 from "~/assets/fonts/dm-sans-400.ttf?inline";
 import dmSans500 from "~/assets/fonts/dm-sans-500.ttf?inline";
@@ -41,12 +18,11 @@ import { siteUrl } from "~/lib/seo/jsonld";
 import type { Route } from "./+types/og";
 
 // Dynamic Open Graph image generation, rewritten from legacy app/og/route.tsx
-// (Phase 6 Pass 2) using `workers-og`, NOT next/og's ImageResponse: next/og
-// compiles Satori's WASM dynamically at request time, which Cloudflare
-// Workers blocks outright. workers-og bundles its WASM (resvg + yoga) as a
-// static import inside its own package, which @cloudflare/vite-plugin
-// handles like any other .wasm import, so there is nothing extra to wire up
-// here beyond `npm install workers-og`.
+// (Phase 6 Pass 2), drawn by site-runtime's share-card-draw (Takumi, WebAssembly),
+// NOT next/og's ImageResponse: next/og compiles its WASM dynamically at request
+// time, which Cloudflare Workers blocks outright. share-card-draw imports its
+// .wasm statically, which @cloudflare/vite-plugin handles like any other .wasm
+// import, so nothing extra is wired up here.
 //
 // Route shape: registered twice. `og/:params` (a path segment) is the form
 // Foxhound's own meta tags use: `:params` carries the card TYPE ("default" |
@@ -59,7 +35,7 @@ import type { Route } from "./+types/og";
 // two conceptually distinct (what kind of card vs. what it says) rather
 // than stuffing everything into the query string.
 //
-// Colors are hardcoded hex here (not var(--*) tokens): workers-og renders in
+// Colors are hardcoded hex here (not var(--*) tokens): the renderer works in
 // total isolation from this app's CSS pipeline (no stylesheet is loaded),
 // so there is no token mechanism it could read from. Values below are
 // copied from the dark theme's tokens (--ground, --wordmark, --accent, etc.) to
@@ -82,7 +58,7 @@ const COLOR_ON_BRAND = "#0d0e0c";
 const FONT = "DM Mono";
 const FONT_SANS = "DM Sans";
 
-// Satori/workers-og constraints (carried over from legacy): no <span>, every
+// Card constraints (carried over from legacy): no <span>, every
 // element is a <div>, every <div> has an explicit display:flex, no `gap`
 // (use margins instead).
 function wordmarkHtml(fontSize: number, extraStyle = ""): string {
@@ -142,7 +118,7 @@ function blogCardHtml(title: string, description: string, host: string): string 
   </div>`;
 }
 
-// workers-og needs the raw font bytes passed in explicitly (it cannot read
+// The renderer needs the raw font bytes passed in explicitly (it cannot read
 // a CSS @font-face), and there is no local-filesystem or ASSETS-binding
 // fetch available at this call site, so the font is imported with Vite's
 // `?inline` suffix (a base64 data: URL baked into the bundle at build time)
@@ -177,7 +153,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   // it pulled the footer's host and pill in from the edges and the footer up off Recova's 72px bottom padding, J20) and
   // reads the whole PNG, so a failed render is a 503 rather than an empty image, and sends the card with
   // Cross-Origin-Resource-Policy: cross-origin, which the Worker's merge keeps.
-  return shareCardResponse(ImageResponse, {
+  return shareCardResponse(drawShareCard, {
     html,
     fonts: () => [
       { name: FONT, data: fontBytes(dmMono500), weight: 500, style: "normal" },
