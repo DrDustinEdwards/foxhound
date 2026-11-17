@@ -75,7 +75,7 @@ import { HOUR_MS } from "~/lib/constants";
 //
 // A SUPPRESSED ADDRESS IS NOT SELECTED. The send layer would log a
 // `suppressed` row for it and keep no key, so the query reads the same
-// suppression list isSuppressed reads (an exact match on the address) and
+// suppression list SendGates reads (an exact match on the address) and
 // skips it. Recova's outcome rows (dispute_reminder_3d and _1d) are still
 // recorded after a real send, through recordOutcome (the money-write Durable
 // Object).

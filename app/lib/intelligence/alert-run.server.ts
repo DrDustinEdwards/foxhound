@@ -4,6 +4,7 @@ import {
   count,
   desc,
   eq,
+  exists,
   gte,
   isNotNull,
   isNull,
@@ -322,24 +323,19 @@ export async function runCriticalCustomersCheck(
 async function evaluateAccountAlerts(
   env: Env,
   db: Db,
-  accountId: string,
+  account: { id: string; hasEnabledAlert: boolean },
   now: Date,
 ): Promise<number> {
-  const [enabled] = await db
-    .select({ id: alerts.id })
-    .from(alerts)
-    .where(and(eq(alerts.accountId, accountId), eq(alerts.enabled, true)))
-    .limit(1);
-  const fired = enabled
+  const fired = account.hasEnabledAlert
     ? await evaluateAndRecordAlerts(
         env,
         db,
-        accountId,
-        await computeAlertMetrics(db, accountId, now.getTime()),
+        account.id,
+        await computeAlertMetrics(db, account.id, now.getTime()),
         now,
       )
     : 0;
-  if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, accountId, now);
+  if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, account.id, now);
   return fired;
 }
 
@@ -351,14 +347,25 @@ export async function runAlertsForAllAccounts(
 ): Promise<{ accounts: number; fired: number }> {
   const db = getDb(env);
   const now = new Date(nowMs);
+  // Whether each account has an enabled alert comes with the account list, one
+  // query, not one more per account (Sentry FOXHOUND-1).
   const eligible = await db
-    .select({ id: accounts.id })
+    .select({
+      id: accounts.id,
+      hasEnabledAlert: exists(
+        db
+          .select({ one: sql`1` })
+          .from(alerts)
+          .where(and(eq(alerts.accountId, accounts.id), eq(alerts.enabled, true))),
+      ).mapWith(Boolean),
+    })
     .from(accounts)
     .where(accountProcessingEligible());
   let fired = 0;
-  for (const { id } of eligible) {
+  for (const account of eligible) {
+    const { id } = account;
     try {
-      fired += await evaluateAccountAlerts(env, db, id, now);
+      fired += await evaluateAccountAlerts(env, db, account, now);
     } catch (err) {
       console.error(`alert evaluation failed for account ${id}:`, errorMessage(err));
     }

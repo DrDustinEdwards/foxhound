@@ -1,21 +1,12 @@
-import { and, eq, isNotNull, isNull } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 
 import { accounts, getDb, emailSuppressions } from "~/db";
 
 import type { UnsubscribeTokenPayload } from "./unsubscribe-token";
 
-// Suppression gate: never send to an address that has bounced or unsubscribed.
-// The suppression rows are written by the bounce/complaint queue consumer and the
-// unsubscribe route; this read gates every send.
-export async function isSuppressed(env: Env, email: string): Promise<boolean> {
-  const db = getDb(env);
-  const rows = await db
-    .select({ id: emailSuppressions.id })
-    .from(emailSuppressions)
-    .where(and(eq(emailSuppressions.email, email), isNotNull(emailSuppressions.suppressedAt)))
-    .limit(1);
-  return rows.length > 0;
-}
+// Suppression is never read here: the gate every send passes is SendGates in
+// ./dispatch, which reads the rows these writers leave. The rows are written by
+// the bounce/complaint queue consumer and the unsubscribe route below.
 
 // Reason marker for a recipient-initiated opt-out (vs "bounce"/"complaint" from
 // the Email Service events consumer). Distinct so CAN-SPAM audits can tell an

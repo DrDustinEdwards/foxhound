@@ -5,7 +5,7 @@ import { and, eq, isNull, lte, or } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accounts, getDb, stripeConnections, winBackSequences, winBackSteps } from "~/db";
 import { signCardUpdateToken } from "~/lib/card-update/token";
-import { processEmailJob } from "~/lib/email/dispatch";
+import { processEmailJob, SendGates } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { recordOutcome } from "~/lib/engine/outcomes";
@@ -319,6 +319,13 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
   const db = getDb(env);
   const result: WinbackSendResult = { sent: 0, skipped: 0 };
   const due = await queryDueWinbackSteps(db, now);
+  if (due.length === 0) return result;
+  // Both send gates for every due step in one read, not two reads per step
+  // (Sentry FOXHOUND-2).
+  const gates = await SendGates.read(
+    env,
+    due.map((step) => ({ to: step.customerEmail, accountId: step.accountId })),
+  );
 
   for (const step of due) {
     // NULL is ON. A disabled account's step is stamped with
@@ -363,6 +370,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
           cronRunId: null,
         },
         null,
+        gates,
       );
 
       if (outcome.status === "suppressed") {

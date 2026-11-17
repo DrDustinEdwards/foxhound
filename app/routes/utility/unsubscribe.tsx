@@ -50,7 +50,7 @@ export const headers = () => PRIVATE_PAGE_HEADERS;
 // (app/lib/email/unsubscribe-token.ts, mirrors the /e/* engagement + /p/ card-update
 // pattern); it is verified before anything runs, so a tampered/garbage link renders
 // a clean "invalid link" state, never a stack trace. A valid link writes an
-// account-scoped email_suppressions row (reason=unsubscribe) that isSuppressed()
+// account-scoped email_suppressions row (reason=unsubscribe) that SendGates (dispatch.ts)
 // then gates every future send on. The suppression write is idempotent, so a second
 // confirm (or the List-Unsubscribe POST arriving after it) is a no-op.
 //

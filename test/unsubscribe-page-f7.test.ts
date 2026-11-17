@@ -28,7 +28,9 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/utility/unsubscribe");
 const { signUnsubscribeToken } = await import("~/lib/email/unsubscribe-token");
-const { isSuppressed } = await import("~/lib/email/suppression");
+const { SendGates } = await import("~/lib/email/dispatch");
+const isSuppressed = async (env: Env, to: string) =>
+  (await SendGates.read(env, [{ to, accountId: null }])).suppressed({ to, accountId: null });
 
 const ACCOUNT = "acct_sample";
 const EMAIL = "sam@example.com";
