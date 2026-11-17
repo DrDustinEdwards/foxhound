@@ -5,7 +5,7 @@
   /* The opacity fades (the color fades are in app.css). */
   .fh-mk-heading {
     margin-bottom: var(--space-4);
-    letter-spacing: -0.025em;
+    letter-spacing: var(--tracking-tight);
   }
   .fh-mk-measure {
     margin-bottom: 0px;
@@ -242,7 +242,7 @@
 .fh-legal .cap-legal-title {
   font-size: var(--title-1-5);
   font-weight: var(--weight-medium);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--tracking-tight);
   color: var(--text);
 }
 .fh-legal .cap-legal-updated {
@@ -301,8 +301,8 @@
 .fh-home-hero .cap-hero-title {
   margin: 0 0 var(--space-5-5);
   font-weight: var(--weight-semibold);
-  line-height: 1.02;
-  letter-spacing: -0.03em;
+  line-height: var(--leading-none);
+  letter-spacing: var(--tracking-tight);
   text-wrap: initial;
   color: var(--text);
 }
@@ -363,8 +363,8 @@
 .fh-product-hero .cap-hero-title {
   margin: 0 0 var(--space-5);
   font-weight: var(--weight-medium);
-  line-height: 1.1;
-  letter-spacing: -0.025em;
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
   white-space: pre-line;
   color: var(--text);
 }
@@ -403,7 +403,7 @@
 .fh-page-hero .cap-hero-title {
   margin: 0 0 var(--space-4);
   font-weight: var(--weight-medium);
-  letter-spacing: -0.025em;
+  letter-spacing: var(--tracking-tight);
   color: var(--text);
 }
 .fh-page-hero .cap-hero-lead {
