@@ -9,7 +9,7 @@ import "capsomer/cta-band.css";
 import "capsomer/hero.css";
 
 import { CARD, ConnectStripeAction } from "~/components/marketing-card";
-import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
+import { AUDIT_GRANT_MINUTES, AUDIT_SCOPE_WORDS } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
   PRICING_FAQS,
@@ -192,8 +192,9 @@ export default function PricingPage() {
               line now names which is which. Same element, same separators, same
               place: only the words changed. */}
             <span className="fh-pricing-block-4 fh-line fh-mono fh-caption fh-faint">
-              Estimator: no account, no Stripe connection &middot; Full audit: a Stripe connection
-              that only reads and ends after {AUDIT_GRANT_MINUTES} minutes, no account, 30 seconds
+              Estimator: no account, no Stripe connection &middot; Full audit: Stripe grants {AUDIT_SCOPE_WORDS}
+              access, Foxhound only reads and disconnects itself after {AUDIT_GRANT_MINUTES} minutes,
+              no account, 30 seconds
             </span>
           </>
         }

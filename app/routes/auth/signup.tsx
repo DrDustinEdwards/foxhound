@@ -97,8 +97,8 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
   return (
     <AuthCard>
       <AuthHeading
-        title="Connect Stripe once"
-        subtitle={`You pay ${RECOVERY_FEE_PERCENT}% of what we recover. Nothing until then.`}
+        title="Create your account"
+        subtitle={`Next you connect Stripe. You pay ${RECOVERY_FEE_PERCENT}% of what we recover, nothing until then.`}
       />
 
       {actionData?.sent ? (
