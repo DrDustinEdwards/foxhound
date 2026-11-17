@@ -114,7 +114,7 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
       )}
 
       <AuthFootnote>
-        Don&apos;t have an account? <AuthLink to="/signup">Connect Stripe</AuthLink>
+        Don&apos;t have an account? <AuthLink to="/signup">Create one</AuthLink>
       </AuthFootnote>
     </AuthCard>
   );
