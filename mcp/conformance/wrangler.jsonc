@@ -5,7 +5,7 @@
   "$schema": "../../node_modules/wrangler/config-schema.json",
   "name": "foxhound-admin-mcp-conformance",
   "compatibility_date": "2026-09-01",
-  "compatibility_flags": ["global_fetch_strictly_public"],
+  "compatibility_flags": ["global_fetch_strictly_public", "enable_request_signal"],
   "workers_dev": false,
   "kv_namespaces": [{ "binding": "OAUTH_KV", "id": "00000000000000000000000000000000" }],
   "durable_objects": {
