@@ -9,7 +9,7 @@
   .fh-home-link-2 {
     transition-property: opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   .fh-queue-row,
   .fh-queue-icon,
@@ -101,7 +101,7 @@
   .fh-queue-label {
     height: 0.375rem;
     width: 0.375rem;
-    border-radius: calc(infinity * 1px);
+    border-radius: calc(infinity * var(--radius-hair));
     background-color: var(--green);
   }
   .fh-queue-block-7 {
@@ -121,32 +121,31 @@
   }
   .fh-home-band {
     border-bottom: var(--line-w) solid var(--border-sub);
-    padding-inline: 1.25rem;
+    padding-inline: var(--space-5-5);
     padding-top: var(--space-7);
     padding-bottom: var(--space-9);
   }
   @media (width >= 40rem) {
     .fh-home-band {
       padding-inline: var(--space-7);
-      padding-top: 2.5rem;
-      padding-bottom: 5rem;
+      padding-top: var(--space-7-5);
+      padding-bottom: var(--space-9-5);
     }
   }
   .fh-home-link {
     --cap-btn-bg: transparent;
   }
   .fh-home-block-2 {
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   @media (prefers-reduced-motion: no-preference) {
     .fh-home-block-2 {
       transition-property: transform, translate, scale, rotate;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-      transition-duration: 150ms;
     }
   }
   .fh-home-block-3 {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
     border-top: var(--line-w) solid var(--border-sub);
     padding-top: var(--space-5);
   }
@@ -155,7 +154,7 @@
     flex-wrap: wrap;
     align-items: center;
     justify-content: center;
-    column-gap: 1.25rem;
+    column-gap: var(--space-5-5);
     row-gap: var(--space-3);
   }
   .fh-home-item {
@@ -164,7 +163,7 @@
     gap: var(--space-4);
   }
   .fh-home-link-2 {
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
     color: var(--cobalt-text);
     text-decoration-line: none;
   }
@@ -179,7 +178,7 @@
   .fh-home-band-2 {
     border-top: var(--line-w) solid var(--border-sub);
     background-color: var(--surface);
-    padding: 6rem 1.25rem;
+    padding: var(--space-10) var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-home-band-2 {
@@ -237,10 +236,13 @@
   .fh-home-block-9 {
     margin-top: var(--space-5);
   }
+  .fh-home-band-3,
+  .fh-home-band-4 {
+    border-top: var(--line-w) solid var(--border-sub);
+    padding: var(--space-9-5) var(--space-5-5);
+  }
   .fh-home-band-3 {
     overflow: hidden;
-    border-top: var(--line-w) solid var(--border-sub);
-    padding: 5rem 1.25rem;
   }
   @media (width >= 40rem) {
     .fh-home-band-3 {
@@ -264,7 +266,7 @@
   }
   @media (width >= 64rem) {
     .fh-home-title-2 {
-      font-size: 4.5rem;
+      font-size: var(--display-1);
     }
   }
   .fh-home-wrap {
@@ -293,10 +295,10 @@
     }
   }
   .fh-home-block-10 {
-    padding: 1.75rem;
+    padding: var(--space-6-5);
   }
   .fh-home-block-11 {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-home-wrap-2 {
     margin-inline: auto;
@@ -304,8 +306,6 @@
   }
   .fh-home-band-4 {
     scroll-margin-top: 60px;
-    border-top: var(--line-w) solid var(--border-sub);
-    padding: 5rem 1.25rem;
   }
   @media (width >= 40rem) {
     .fh-home-band-4 {
@@ -328,7 +328,7 @@
   }
   .fh-home-band-5 {
     border-top: var(--line-w) solid var(--border-sub);
-    padding: 2.5rem 1.25rem;
+    padding: var(--space-7-5) var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-home-band-5 {
@@ -345,7 +345,7 @@
   .fh-home-band-6 {
     border-top: var(--line-w) solid var(--border-sub);
     background-color: var(--surface);
-    padding: var(--space-9) 1.25rem;
+    padding: var(--space-9) var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-home-band-6 {
@@ -366,21 +366,21 @@
   .fh-home-link-3 {
     height: 100%;
     border-radius: 10px;
-    --gap: 1.25rem;
-    --pad-card: 1.25rem;
+    --gap: var(--space-5-5);
+    --pad-card: var(--space-5-5);
     --surface: var(--bg);
   }
   .fh-home-block-14 {
     height: 100%;
   }
   .fh-home-title-3 {
-    line-height: 1.375;
+    line-height: var(--leading-snug-5);
   }
   .fh-home-label-2 {
     margin-top: auto;
   }
   .fh-home-block-15 {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
   }
   .fh-home-block-16 {
     margin-top: var(--space-3);
@@ -400,7 +400,7 @@
   }
   @media (width >= 40rem) {
     .fh-home-h2 {
-      font-size: 2rem;
+      font-size: var(--title-1-5);
     }
   }
   .fh-home-step-ruled {
@@ -459,7 +459,7 @@
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-m-5);
   }
   .fh-queue-amount {
     flex-shrink: 0;
@@ -470,7 +470,7 @@
     width: 2rem;
     align-items: center;
     justify-content: center;
-    border-radius: 0.25rem;
+    border-radius: var(--radius-s-5);
     border-style: solid;
     border-width: var(--line-w);
   }

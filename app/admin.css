@@ -135,7 +135,7 @@
   /* A 24 px target (WCAG 2.2, 2.5.8) without growing the row. */
   display: inline-block;
   min-block-size: 24px;
-  line-height: 24px;
+  line-height: var(--line-box-6);
 }
 
 /* Capsomer's table writes its column names in upper case with wide spacing
@@ -152,7 +152,7 @@
   .fh-row-link {
     display: inline-block;
     min-height: 1.5rem;
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
   }
   .fh-row-link-out {
     display: inline-flex;
@@ -171,7 +171,7 @@
     margin-top: var(--space-3);
   }
   .fh-cron-run {
-    border-radius: 0.25rem;
+    border-radius: var(--radius-s-5);
   }
   .fh-panel-note,
   .fh-filter-frame {

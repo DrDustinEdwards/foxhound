@@ -383,7 +383,7 @@ body {
    mono upper-case badges with no glyph (their words say the state), and bare lists. */
 :root {
   --tile-figure-face: var(--font-dm-mono);
-  --tile-figure-size: 1.75rem;
+  --tile-figure-size: var(--title-2-5);
   --tile-figure-weight: var(--weight-medium);
   --tile-label-face: var(--font-dm-mono);
   --tile-label-size: 0.6875rem;
@@ -395,7 +395,7 @@ body {
   --tile-gap: var(--space-3);
   --tile-detail-space: var(--space-2);
   --tile-pad: var(--space-5);
-  --tile-radius: 0.5rem;
+  --tile-radius: var(--radius-m-5);
   --tiles-gap: var(--space-4);
   --tag-face: var(--font-dm-mono);
   --tag-size: 0.6875rem;
@@ -492,9 +492,9 @@ body {
   .fh-mkhead-wrap {
     margin-inline: auto;
     max-width: 1080px;
-    padding-inline: 1.25rem;
+    padding-inline: var(--space-5-5);
     padding-top: var(--space-9);
-    padding-bottom: 2.5rem;
+    padding-bottom: var(--space-7-5);
   }
   .fh-auditsec-grid,
   .fh-recovery-charts,
@@ -504,19 +504,19 @@ body {
     gap: var(--space-5);
   }
   .fh-hero {
-    font-size: 2.75rem;
+    font-size: var(--display-4);
   }
   .fh-statement {
     font-size: var(--title-1);
   }
   .fh-page-title {
-    font-size: 2rem;
+    font-size: var(--title-1-5);
   }
   .fh-display {
-    font-size: 1.75rem;
+    font-size: var(--title-2-5);
   }
   .fh-section {
-    font-size: 1.75rem;
+    font-size: var(--title-2-5);
   }
   .fh-item-title {
     font-size: 0.9375rem;
@@ -614,7 +614,7 @@ body {
     text-transform: uppercase;
   }
   .fh-relaxed {
-    line-height: 1.625;
+    line-height: var(--leading-relaxed-5);
   }
   .fh-center {
     text-align: center;
@@ -665,7 +665,7 @@ body {
   }
   /* Icon sizes and the finer stroke some icons were drawn at (lucide-react's size and strokeWidth). */
   .fh-icon-40 {
-    --icon-size: 2.5rem;
+    --icon-size: var(--display-5);
   }
   .fh-icon-12 {
     --icon-size: var(--fs-small);
@@ -711,7 +711,7 @@ body {
     transition-property:
       color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   .fh-wordmark-label {
     transition-property: opacity;
@@ -749,7 +749,7 @@ body {
     margin-top: var(--space-1);
   }
   .fh-auditsec-text-2 {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-auditsec-col {
     display: flex;
@@ -772,7 +772,7 @@ body {
   .fh-auditsec-block-4 {
     margin-top: var(--space-4);
     margin-bottom: var(--space-5);
-    margin-left: 1.25rem;
+    margin-left: var(--space-5-5);
   }
   .fh-auditsec-block-5 {
     margin-top: var(--space-3);
@@ -783,12 +783,12 @@ body {
   }
   .fh-auditsec-block-7 {
     margin-top: var(--space-2);
-    margin-left: 1.25rem;
+    margin-left: var(--space-5-5);
   }
   .fh-auditsec-block-8 {
     margin-top: var(--space-4);
     margin-bottom: var(--space-5);
-    margin-left: 1.25rem;
+    margin-left: var(--space-5-5);
   }
   :where(.fh-auditsec-block-8 > :not(:last-child)) {
     margin-block: 0 var(--space-3);
@@ -799,7 +799,7 @@ body {
     justify-content: space-between;
   }
   .fh-auditsec-block-9 {
-    margin-block: 1.25rem;
+    margin-block: var(--space-5-5);
     border-top: var(--line-w) solid var(--border);
   }
   .fh-mk-kicker {
@@ -808,13 +808,13 @@ body {
     text-transform: uppercase;
   }
   .fh-auditsec-block-10 {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
     border-top: var(--line-w) solid var(--border);
-    padding-top: 1.25rem;
+    padding-top: var(--space-5-5);
   }
   .fh-auditsec-grid,
   .fh-recovery-charts {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   @media (width >= 48rem) {
     .fh-auditsec-grid,
@@ -906,7 +906,7 @@ body {
   .fh-footer-wrap {
     margin-inline: auto;
     max-width: 1200px;
-    padding-inline: 1.25rem;
+    padding-inline: var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-footer-wrap {
@@ -916,7 +916,7 @@ body {
   .fh-footer-grid {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: 2.5rem;
+    gap: var(--space-7-5);
     padding-block: var(--space-8);
   }
   @media (width >= 40rem) {
@@ -1015,7 +1015,7 @@ body {
     gap: var(--space-2);
   }
   .fh-recprev-block-3 {
-    padding: 1.25rem;
+    padding: var(--space-5-5);
   }
   .fh-recprev-row {
     margin-bottom: var(--space-3);
@@ -1044,7 +1044,7 @@ body {
   }
   .fh-recprev-grid,
   .fh-payment-panels {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   @media (width >= 48rem) {
     .fh-recprev-grid {
@@ -1071,7 +1071,7 @@ body {
   }
   .fh-recprev-item {
     border-bottom: var(--line-w) solid var(--border);
-    padding: var(--space-5) 1.25rem;
+    padding: var(--space-5) var(--space-5-5);
   }
   .fh-recprev-item:last-child {
     border-bottom-style: solid;
@@ -1098,7 +1098,7 @@ body {
   .fh-tone-pills-col {
     flex-direction: column;
     gap: 0px;
-    border-radius: 0.5rem;
+    border-radius: var(--radius-m-5);
     padding: var(--space-2-5) var(--space-4);
   }
   .fh-wordmark-label {
@@ -1135,7 +1135,7 @@ body {
   }
   .fh-post-title {
     margin-bottom: var(--space-5);
-    line-height: 1.25;
+    line-height: var(--leading-tight-5);
     letter-spacing: -0.025em;
   }
   .fh-footer-link {
@@ -1180,7 +1180,7 @@ body {
   }
   .fh-wordmark-size {
     font-size: var(--fs-h3);
-    line-height: 1.75rem;
+    line-height: var(--line-box-7);
   }
   .fh-chrome-brand {
     color: var(--chrome-brand);

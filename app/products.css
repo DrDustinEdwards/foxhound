@@ -2,7 +2,7 @@
    (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-auditprev-block {
-    padding: 1.25rem;
+    padding: var(--space-5-5);
   }
   .fh-auditprev-label {
     margin-top: var(--space-1);
@@ -22,20 +22,20 @@
     justify-content: space-between;
     border-bottom: var(--line-w) solid var(--border);
     background-color: var(--surface2);
-    padding: var(--space-4) 1.25rem;
+    padding: var(--space-4) var(--space-5-5);
   }
   .fh-auditprev-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: var(--space-5);
-    padding: var(--space-4) 1.25rem;
+    padding: var(--space-4) var(--space-5-5);
   }
   .fh-dispprev-block {
     --tiles-columns: repeat(2, minmax(0, 1fr));
   }
   .fh-dispprev-block-2 {
-    padding: 1.25rem;
+    padding: var(--space-5-5);
   }
   .fh-dispprev-block-3 {
     margin-bottom: var(--space-7);
@@ -43,8 +43,8 @@
   .fh-intelprev-col {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
-    padding: 1.25rem;
+    gap: var(--space-5-5);
+    padding: var(--space-5-5);
   }
   .fh-intelprev-block {
     --tiles-columns: repeat(2, minmax(0, 1fr));
@@ -55,7 +55,7 @@
     }
   }
   .fh-intelprev-block-2 {
-    padding: 1.25rem;
+    padding: var(--space-5-5);
   }
   .fh-intelprev-grid {
     display: grid;
@@ -75,9 +75,9 @@
   }
   .fh-product-band {
     border-bottom: var(--line-w) solid var(--border);
-    padding: 5rem 1.25rem;
+    padding: var(--space-9-5) var(--space-5-5);
     /* Recova's 96px between feature blocks. */
-    --cap-features-gap: 6rem;
+    --cap-features-gap: var(--space-10);
   }
   @media (width >= 40rem) {
     .fh-product-band {
@@ -97,7 +97,7 @@
   }
   .fh-product-band-2 {
     border-bottom: var(--line-w) solid var(--border);
-    padding: var(--space-9) 1.25rem;
+    padding: var(--space-9) var(--space-5-5);
   }
   /* How it works: Capsomer's process steps at Recova's sizes, the step name 0.9375rem and its text 0.875rem. */
   .fh-product-band-2 .cap-process {
@@ -110,7 +110,7 @@
     }
   }
   .fh-product-title-2 {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-product-block-3 {
     margin-bottom: var(--space-9);
@@ -118,11 +118,11 @@
   .fh-product-band-3 {
     border-bottom: var(--line-w) solid var(--border);
     background-color: var(--surface);
-    padding: var(--space-9) 1.25rem;
+    padding: var(--space-9) var(--space-5-5);
     /* Recova's price card: the page ground on the surface band, p-8, a 48px price in the text
        color at medium weight, green checks. */
     --pad-card: var(--space-7);
-    --cap-price-size: 3rem;
+    --cap-price-size: var(--display-3);
     --cap-price-weight: var(--weight-medium);
     --cap-price-color: var(--text);
     --cap-price-label-size: var(--fs-body);
@@ -165,7 +165,7 @@
   .fh-products-wrap {
     margin-inline: auto;
     max-width: 720px;
-    padding-inline: 1.25rem;
+    padding-inline: var(--space-5-5);
     padding-bottom: var(--space-9);
   }
   @media (width >= 40rem) {
@@ -174,9 +174,9 @@
     }
   }
   .fh-mk-card {
-    border-radius: 0.5rem;
-    --gap: 1.25rem;
-    --pad-card: 1.25rem;
+    border-radius: var(--radius-m-5);
+    --gap: var(--space-5-5);
+    --pad-card: var(--space-5-5);
   }
   .fh-products-block {
     margin-bottom: var(--space-3);

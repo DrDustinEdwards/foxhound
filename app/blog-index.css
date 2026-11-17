@@ -6,14 +6,14 @@
   }
   .fh-blog-post-card-link {
     --card-lift: 0px;
-    --gap: 1.25rem;
-    --pad-card: 1.25rem;
+    --gap: var(--space-5-5);
+    --pad-card: var(--space-5-5);
   }
   .fh-blog-post-card-label {
     width: fit-content;
   }
   .fh-blog-post-card-block {
-    line-height: 1.375;
+    line-height: var(--leading-snug-5);
   }
   @media (width >= 40rem) {
     .fh-blog-wrap {
@@ -23,7 +23,7 @@
   .fh-mk-wide {
     margin-inline: auto;
     max-width: 80rem;
-    padding: 2.5rem var(--space-5);
+    padding: var(--space-7-5) var(--space-5);
   }
   @media (width >= 40rem) {
     .fh-mk-wide {
@@ -38,12 +38,12 @@
   .fh-archive-title {
     margin-top: var(--space-4);
     font-size: var(--title-3);
-    line-height: 2rem;
+    line-height: var(--line-box-8);
   }
   .fh-archive-text {
     margin-top: var(--space-2);
     font-size: var(--fs-body);
-    line-height: 1.25rem;
+    line-height: var(--line-box-5);
   }
   .fh-archive-nav {
     margin-top: var(--space-7);
@@ -51,7 +51,7 @@
   }
   .fh-archive-text-2 {
     font-size: var(--fs-body);
-    line-height: 1.25rem;
+    line-height: var(--line-box-5);
   }
   .fh-archive-col {
     display: flex;
@@ -65,7 +65,7 @@
     display: flex;
     align-items: flex-start;
     gap: var(--space-5);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-m-5);
     padding: var(--space-5) var(--space-3);
     text-decoration-line: none;
   }
@@ -76,12 +76,12 @@
   }
   .fh-archive-text-3 {
     font-size: var(--fs-body);
-    line-height: 1.375;
+    line-height: var(--leading-snug-5);
   }
   .fh-archive-text-4 {
     margin-top: var(--space-1);
     font-size: var(--fs-small);
-    line-height: 1rem;
+    line-height: var(--line-box-4);
   }
   @media (width >= 40rem) {
     .fh-blog-block-2 {
@@ -92,7 +92,7 @@
   }
   .fh-blog-link {
     flex-shrink: 0;
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
   }
   @media (hover: hover) {
     .fh-blog-link:hover {
@@ -104,7 +104,7 @@
     max-width: 36rem;
     padding-inline: var(--space-5);
     padding-top: var(--space-5);
-    padding-bottom: 5rem;
+    padding-bottom: var(--space-9-5);
   }
   @media (width >= 40rem) {
     .fh-blog-wrap-2 {
@@ -114,7 +114,7 @@
   .fh-blog-link-2 {
     margin-top: var(--space-5);
     display: inline-block;
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
   }
   @media (hover: hover) {
     .fh-blog-link-2:hover {
@@ -149,7 +149,7 @@
   .fh-blog-title {
     margin-top: var(--space-4);
     font-size: var(--title-2);
-    line-height: 1.25;
+    line-height: var(--leading-tight-5);
   }
   @media (width >= 64rem) {
     .fh-blog-title {
@@ -173,20 +173,16 @@
   .fh-blog-block-4 {
     margin-top: var(--space-6);
   }
-  .fh-blog-link-4 {
-    aspect-ratio: 16 / 9;
-    width: 100%;
-    overflow: hidden;
-    border-radius: 0.75rem;
-    border: var(--line-w) solid var(--border-sub);
-    background-color: var(--bg);
-  }
+  .fh-blog-link-4,
   .fh-blog-block-5 {
     aspect-ratio: 16 / 9;
     width: 100%;
     overflow: hidden;
-    border-radius: 0.75rem;
+    border-radius: var(--radius-l-5);
     border: var(--line-w) solid var(--border-sub);
+  }
+  .fh-blog-link-4 {
+    background-color: var(--bg);
   }
   .fh-blog-band-2 {
     border-bottom: var(--line-w) solid var(--border-sub);
@@ -197,7 +193,7 @@
     max-width: 42rem;
   }
   .fh-blog-link-5 {
-    line-height: 1.5rem;
+    line-height: var(--line-box-6);
   }
   .fh-blog-grid-2,
   .fh-blog-grid-3 {
@@ -239,7 +235,7 @@
     letter-spacing: -0.025em;
   }
   .fh-tag-text {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-tag-grid {
     display: grid;

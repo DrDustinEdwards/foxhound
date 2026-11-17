@@ -15,7 +15,7 @@
     }
   }
   .fh-welcome-head {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-welcome-title {
     margin-bottom: var(--space-3);
@@ -35,8 +35,8 @@
   .fh-help {
     margin-inline: auto;
     max-width: 720px;
-    padding-inline: 1.25rem;
-    padding-block: 2.5rem;
+    padding-inline: var(--space-5-5);
+    padding-block: var(--space-7-5);
   }
   @media (width >= 40rem) {
     .fh-help {
@@ -120,7 +120,7 @@
     border-color: var(--border);
   }
   .fh-team-invite {
-    padding-top: 1.25rem;
+    padding-top: var(--space-5-5);
   }
   .fh-field-gap {
     margin-top: var(--space-3);
@@ -151,13 +151,13 @@
     padding-top: var(--space-3);
   }
   .fh-email-block {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-email-group {
     margin-bottom: var(--space-6);
   }
   .fh-email-sequence {
-    margin-top: 2.5rem;
+    margin-top: var(--space-7-5);
   }
   .fh-email-sequence-title {
     margin-bottom: var(--space-4);
@@ -166,7 +166,7 @@
     margin-top: var(--space-5);
   }
   .fh-account-field {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-account-pair {
     display: flex;
@@ -188,8 +188,8 @@
     gap: var(--space-4);
   }
   .fh-settings-group {
-    margin-top: 1.25rem;
-    padding-top: 1.25rem;
+    margin-top: var(--space-5-5);
+    padding-top: var(--space-5-5);
   }
   .fh-danger-title {
     margin-bottom: var(--space-4);
@@ -201,10 +201,10 @@
     gap: var(--space-4);
   }
   .fh-account-top {
-    margin-bottom: 2.5rem;
+    margin-bottom: var(--space-7-5);
   }
   .fh-account-part {
-    margin-top: 2.5rem;
+    margin-top: var(--space-7-5);
   }
   @media (width >= 48rem) {
     .fh-phone-only {
@@ -239,11 +239,11 @@
     }
   }
   .fh-voice-first {
-    padding-bottom: 1.25rem;
+    padding-bottom: var(--space-5-5);
   }
   .fh-voice-row {
     border-top: var(--line-w) solid var(--border-sub);
-    padding-block: 1.25rem;
+    padding-block: var(--space-5-5);
   }
   .fh-voice-row:last-child {
     padding-bottom: 0;
@@ -252,7 +252,7 @@
     width: 0.5rem;
     height: 0.5rem;
     flex-shrink: 0;
-    border-radius: calc(infinity * 1px);
+    border-radius: calc(infinity * var(--radius-hair));
   }
   .fh-voice-dot[data-tone="blue"] {
     background-color: var(--blue);
@@ -285,7 +285,7 @@
     margin-top: var(--space-3-5);
   }
   .fh-voice-intro {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-voice-preview {
     margin-top: var(--space-6);
@@ -351,7 +351,7 @@
     border-block-width: var(--line-w);
     border-color: var(--border);
     padding-top: var(--space-5);
-    padding-bottom: 1.25rem;
+    padding-bottom: var(--space-5-5);
   }
   .fh-invoice {
     margin-inline: auto;
@@ -365,7 +365,7 @@
   .fh-customer-table,
   .fh-intel-table-wrap,
   .fh-list-table {
-    border-radius: 0.5rem;
+    border-radius: var(--radius-m-5);
     border-style: solid;
     border-width: var(--line-w);
     border-color: var(--border);
@@ -404,7 +404,7 @@
   .fh-billing {
     margin-inline: auto;
     max-width: 720px;
-    padding-inline: 1.25rem;
+    padding-inline: var(--space-5-5);
     padding-block: var(--space-7);
   }
   @media (width >= 40rem) {
@@ -414,7 +414,7 @@
   }
   @media (width >= 48rem) {
     .fh-billing {
-      padding-block: 2.5rem;
+      padding-block: var(--space-7-5);
     }
   }
   .fh-billing-head {
@@ -435,14 +435,14 @@
   @media (width >= 48rem) {
     .fh-console {
       padding-inline: var(--space-7);
-      padding-block: 2.5rem;
+      padding-block: var(--space-7-5);
     }
   }
   .fh-console-head {
     margin-bottom: var(--space-6);
   }
   .fh-console-section {
-    margin-top: 2.5rem;
+    margin-top: var(--space-7-5);
   }
   .fh-console-charts {
     margin-top: var(--space-5);
@@ -456,7 +456,7 @@
     margin-top: var(--space-5);
   }
   .fh-demo-badge {
-    border-radius: 0.25rem;
+    border-radius: var(--radius-s-5);
     border-style: solid;
     border-width: var(--line-w);
     border-color: var(--brand);
@@ -470,8 +470,8 @@
   }
   @media (width >= 48rem) {
     .fh-settings-main {
-      padding-inline: 2.5rem;
-      padding-block: 2.5rem;
+      padding-inline: var(--space-7-5);
+      padding-block: var(--space-7-5);
     }
   }
   .fh-settings-column {
@@ -507,7 +507,7 @@
     align-items: flex-end;
   }
   .fh-billing-box {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
     background-color: var(--bg);
     padding-inline: var(--space-5);
     padding-block: var(--space-5);
@@ -589,11 +589,11 @@
     gap: var(--space-4);
   }
   .fh-signin-providers {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-    padding-top: 1.25rem;
+    padding-top: var(--space-5-5);
   }
   .fh-split-center {
     display: flex;
@@ -668,7 +668,7 @@
     padding-block: var(--space-7);
   }
   .fh-alerts-table {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
     min-width: 0px;
   }
   .fh-alerts-form {
@@ -679,7 +679,7 @@
     margin-top: var(--space-5);
   }
   .fh-alerts-actions {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
   }
   .fh-dispute-fact {
     display: flex;
@@ -694,7 +694,7 @@
   }
   .fh-warnings {
     margin-top: var(--space-7);
-    scroll-margin-top: 6rem;
+    scroll-margin-top: var(--space-10);
   }
   .fh-warnings-head {
     margin-bottom: var(--space-5);
@@ -785,7 +785,7 @@
     padding-block: var(--space-4);
   }
   .fh-recpanel-figures {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-recpanel-figure-row {
     display: flex;
@@ -857,7 +857,7 @@
     gap: var(--space-2);
   }
   .fh-auditd-lookback {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
     min-width: 0px;
   }
   .fh-auditd-label {
@@ -878,7 +878,7 @@
     margin-bottom: var(--space-1);
   }
   .fh-auditd-block {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-auditd-page,
   .fh-payments {
@@ -886,7 +886,7 @@
     min-width: 0px;
     gap: 0px;
     padding-inline: var(--space-5);
-    padding-block: 2.5rem;
+    padding-block: var(--space-7-5);
   }
   @media (width >= 48rem) {
     .fh-auditd-page {
@@ -903,7 +903,7 @@
     margin-inline: auto;
     max-width: 960px;
     padding-inline: var(--space-5);
-    padding-block: 2.5rem;
+    padding-block: var(--space-7-5);
   }
   @media (width >= 48rem) {
     .fh-dispute {
@@ -1017,7 +1017,7 @@
   @media (width >= 48rem) {
     .fh-disputes {
       padding-inline: var(--space-7);
-      padding-block: 2.5rem;
+      padding-block: var(--space-7-5);
     }
   }
   .fh-disputes-head {
@@ -1082,7 +1082,7 @@
     margin-bottom: var(--space-5);
   }
   .fh-customer-links {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-customer-id-link {
     display: inline-flex;
@@ -1108,7 +1108,7 @@
     }
   }
   .fh-customer-arrow {
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   @media (hover: hover) {
     .fh-customer-stripe-link:hover .fh-customer-arrow {
@@ -1119,7 +1119,6 @@
     .fh-customer-arrow {
       transition-property: transform, translate, scale, rotate;
       transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-      transition-duration: 150ms;
     }
   }
   .fh-customer-panels,
@@ -1137,7 +1136,7 @@
     margin-top: var(--space-4);
   }
   .fh-customer-scope {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
     margin-bottom: var(--space-3);
   }
   .fh-customer-link {
@@ -1164,7 +1163,7 @@
     gap: var(--space-4);
   }
   .fh-customer-stats {
-    margin-top: 1.25rem;
+    margin-top: var(--space-5-5);
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: var(--space-5);
@@ -1215,7 +1214,7 @@
   @media (width >= 48rem) {
     .fh-intel-page-tall {
       padding-inline: var(--space-7);
-      padding-block: 2.5rem;
+      padding-block: var(--space-7-5);
     }
   }
   .fh-customers-count {
@@ -1245,7 +1244,7 @@
     height: 0.5rem;
     width: 0.5rem;
     flex-shrink: 0;
-    border-radius: calc(infinity * 1px);
+    border-radius: calc(infinity * var(--radius-hair));
     background-color: var(--red);
   }
   /* The page links under a paged list. */
@@ -1305,7 +1304,7 @@
   }
   .fh-empty-box {
     margin-top: var(--space-6);
-    border-radius: 0.5rem;
+    border-radius: var(--radius-m-5);
     border-width: var(--line-w);
     border-style: dashed;
     border-color: var(--border);
@@ -1339,19 +1338,19 @@
   @media (width >= 48rem) {
     .fh-recovery {
       padding-inline: var(--space-7);
-      padding-bottom: 2.5rem;
+      padding-bottom: var(--space-7-5);
     }
   }
   .fh-recovery-banner {
     margin-top: var(--space-6);
   }
   .fh-recovery-head {
-    margin-bottom: 1.75rem;
+    margin-bottom: var(--space-6-5);
     padding-top: var(--space-7);
   }
   @media (width >= 48rem) {
     .fh-recovery-head {
-      padding-top: 2.5rem;
+      padding-top: var(--space-7-5);
     }
   }
   .fh-recovery-head-end {
@@ -1361,10 +1360,10 @@
     gap: var(--space-2-5);
   }
   .fh-recovery-block {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-recovery-pair {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
     align-items: stretch;
@@ -1409,10 +1408,10 @@
     margin-inline: auto;
     max-width: 1000px;
     padding-inline: var(--space-7);
-    padding-block: 2.5rem;
+    padding-block: var(--space-7-5);
   }
   .fh-payment-header {
-    margin-bottom: 1.75rem;
+    margin-bottom: var(--space-6-5);
   }
   .fh-payment-back {
     margin-bottom: var(--space-5);
@@ -1422,7 +1421,7 @@
     text-decoration-line: none;
     transition-property: opacity;
     transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 150ms;
+    transition-duration: var(--dur-quick);
   }
   @media (hover: hover) {
     .fh-payment-back:hover {
@@ -1439,7 +1438,7 @@
     margin-bottom: var(--space-2);
   }
   .fh-payment-block {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   .fh-payment-chips {
     margin-bottom: var(--space-6);
@@ -1452,7 +1451,7 @@
     margin-bottom: var(--space-6);
   }
   .fh-payment-tiles {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   @media (width >= 40rem) {
     .fh-payment-tiles {
@@ -1488,8 +1487,8 @@
     gap: var(--space-3);
   }
   .fh-payment-outcome {
-    margin-bottom: 1.25rem;
-    border-radius: 0.5rem;
+    margin-bottom: var(--space-5-5);
+    border-radius: var(--radius-m-5);
     border-style: solid;
     border-width: var(--line-w);
     border-color: var(--brand);
@@ -1498,7 +1497,7 @@
   }
   .fh-payment-empty {
     padding-inline: var(--space-6);
-    padding-block: 2.5rem;
+    padding-block: var(--space-7-5);
   }
   .fh-payment-steps {
     padding-block: var(--space-3);
@@ -1548,7 +1547,7 @@
     flex-shrink: 0;
     align-items: center;
     justify-content: center;
-    border-radius: calc(infinity * 1px);
+    border-radius: calc(infinity * var(--radius-hair));
     border-style: solid;
     border-width: var(--line-w);
   }
@@ -1568,7 +1567,7 @@
     margin-bottom: var(--space-6);
   }
   .fh-payments-tiles {
-    margin-bottom: 1.25rem;
+    margin-bottom: var(--space-5-5);
   }
   @media (width >= 480px) {
     .fh-payments-tiles {
@@ -1670,7 +1669,7 @@
   }
   .fh-sequence-steps {
     display: flex;
-    gap: 1.25rem;
+    gap: var(--space-5-5);
   }
   .fh-sequence-meta {
     display: inline-flex;
@@ -1697,7 +1696,7 @@
   .fh-sequence {
     gap: 0px;
     padding-inline: var(--space-5);
-    padding-block: 2.5rem;
+    padding-block: var(--space-7-5);
   }
   @media (width >= 48rem) {
     .fh-sequence {
@@ -1711,7 +1710,7 @@
     margin-top: var(--space-6);
   }
   .fh-sequence-list {
-    margin-top: 2.5rem;
+    margin-top: var(--space-7-5);
   }
   .fh-winback-cell {
     display: flex;
@@ -1722,7 +1721,7 @@
   .fh-intel-stack {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: var(--space-5-5);
   }
   .fh-payment-note {
     margin-top: var(--space-3);
