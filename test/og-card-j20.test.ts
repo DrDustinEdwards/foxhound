@@ -13,16 +13,14 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 //      it), the tagline (24px below it) and the amber line (8px above it), so
 //      the line sits 32px under the tagline. Foxhound had 8px.
 //
-// workers-og's WASM cannot load under vitest, so ImageResponse is replaced by
-// a stand-in that records the HTML it was asked to draw; everything Foxhound's
+// Takumi's WASM cannot load under vitest, so the renderer is replaced by a
+// stand-in that records the HTML it was asked to draw; everything Foxhound's
 // own code does runs for real.
 const drawn: string[] = [];
-vi.mock("workers-og", () => ({
-  ImageResponse: class extends Response {
-    constructor(html: string) {
-      super(new Uint8Array([137, 80, 78, 71]), { headers: { "Content-Type": "image/png" } });
-      drawn.push(html);
-    }
+vi.mock("@dustinedwards/site-runtime/share-card-draw", () => ({
+  drawShareCard: async (html: string) => {
+    drawn.push(html);
+    return new Uint8Array([137, 80, 78, 71]);
   },
 }));
 
@@ -64,7 +62,7 @@ describe("Recova's /og URL shape (ruling 41)", () => {
   });
 });
 
-// workers-og parses the card from HTML, and a run of spaces and newlines
+// The renderer parses the card from HTML, and a run of spaces and newlines
 // between two tags becomes a text child of the flex box. Recova's card is JSX,
 // which has no such children. On the blog card those blank children took part
 // in justify-content:space-between: the footer's host sat at x=271 instead of

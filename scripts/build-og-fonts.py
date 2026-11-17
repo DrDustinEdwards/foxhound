@@ -4,14 +4,11 @@ Run once, by hand, when Capsomer's fonts/dm-sans-variable.woff2 changes:
 
     python3 scripts/build-og-fonts.py
 
-Why this exists. Satori (workers-og's layout engine) parses fonts with
-opentype.js, which cannot read WOFF2's compressed wrapper and cannot parse a
-variable font's fvar/gvar/avar/HVAR/STAT tables. Both failures are silent: the
-card renders as an empty PNG rather than erroring. That rules out the app's
-dm-sans-variable.woff2 FILE. It does not rule out the DM Sans typeface, which
-is the correction ruling 96 made to app/routes/files/og.ts, where the card had
-been switched wholesale to DM Mono and the switch recorded as a deliberate
-design choice without a ratification.
+Why this exists. The card was built and ratified with static per-weight TTFs
+(ruling 96: the card is DM Sans throughout, DM Mono for the wordmark only), and
+they are kept so the card's pixels do not move. The renderer that needed them
+(workers-og's Satori) could not read WOFF2 or a variable font; the current one
+(Takumi, through site-runtime's share-card-draw) can, but the files stay.
 
 The output is committed, not built in CI: og.ts imports the .ttf files with
 Vite's `?inline`, so they are baked into the worker bundle at build time and a
