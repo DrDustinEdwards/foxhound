@@ -121,9 +121,6 @@
     margin-top: var(--space-7-5);
     display: grid;
   }
-  .fh-audit-text-6 {
-    margin-bottom: var(--space-3);
-  }
   .fh-audit-text-7 {
     margin-bottom: var(--space-5-5);
   }

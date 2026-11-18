@@ -261,16 +261,11 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
     // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10.
     <div className="fh-sequence cap-admin-page" data-width="page">
       <div className="fh-sequence-head">
-        <PageHead
-          title="Recovery sequence"
-          lead="Live performance data from your recovery emails"
-        />
+        <PageHead title="Recovery sequence" />
       </div>
 
       {performance.totalSent === 0 ? (
-        <Empty kind="nothing-yet" title="No emails sent yet">
-          Recovery sequences start automatically when a payment fails.
-        </Empty>
+        <Empty kind="nothing-yet" title="No emails sent yet" />
       ) : (
         <StatRow performance={performance} />
       )}

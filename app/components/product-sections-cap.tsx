@@ -131,7 +131,6 @@ export function HowItWorks({ steps }: { steps: { title: string; body: React.Reac
 }
 
 export interface ProductFeatureBlock {
-  eyebrow: string;
   title: string;
   body: React.ReactNode;
   ui: React.ReactNode;
@@ -156,7 +155,6 @@ export function FeatureBlocks({
           {blocks.map((block) => (
             <FeatureBlock
               key={block.title}
-              eyebrow={block.eyebrow}
               title={block.title}
               body={block.body}
               media={block.ui}

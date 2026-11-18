@@ -66,7 +66,6 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <MarketingPageHeader
         trail={[{ label: "Decline codes", href: "/decline-codes" }, { label: view.displayName }]}
-        eyebrow="Decline code"
         title={view.displayName}
         subtext={content.meaning}
       />

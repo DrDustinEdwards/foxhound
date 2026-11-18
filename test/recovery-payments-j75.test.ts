@@ -65,7 +65,6 @@ function data(over: Partial<LoaderData> = {}): LoaderData {
     globalCounts: { all: 4, active: 1, recovered: 1, failedUnrecovered: 1, cancelled: 1 },
     globalRecoveryRatePct: 25,
     pillCounts: { all: 4, active: 1, recovered: 1, failedUnrecovered: 1, cancelled: 1 },
-    header: { atRisk: [{ currency: "usd", cents: 4999 }], recovered: [], ratePct: 0 },
     bounds: {
       minCents: 0,
       maxCents: 100_000,
@@ -102,35 +101,9 @@ function render(loaderData: LoaderData, actionData?: unknown): string {
   }
 }
 
-function text(html: string): string {
-  return html
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&amp;/g, "&")
-    .replace(/&#x27;|&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 // ---- The head ----
 
 describe("J75: Recova's head", () => {
-  it("never adds two currencies together (RULES.md 3.20)", () => {
-    const html = render(
-      data({
-        header: {
-          atRisk: [
-            { currency: "usd", cents: 2_000 },
-            { currency: "eur", cents: 1_000 },
-          ],
-          recovered: [],
-          ratePct: 0,
-        },
-      }),
-    );
-    expect(text(html)).toContain("$20 · €10 at risk");
-  });
-
   it("points Export CSV at the rows on screen: this page and this page size, as Recova exports its filtered rows", () => {
     const html = render(
       data({
@@ -236,26 +209,6 @@ describe("J75: the loader", () => {
     harness.db = db;
     runStatement(sqlite, db.insert(accounts).values({ id: A, name: "Alpha" }));
     runStatement(sqlite, db.insert(accounts).values({ id: B, name: "Beta" }));
-  });
-
-  it("totals the head over the rows on screen, by currency, as Recova's header does", async () => {
-    seed(sqlite, db, { amountCents: 1000, detectedAt: new Date(NOW - 1 * DAY) });
-    seed(sqlite, db, { amountCents: 2000, currency: "eur", detectedAt: new Date(NOW - 2 * DAY) });
-    seed(sqlite, db, {
-      amountCents: 5000,
-      status: "recovered",
-      detectedAt: new Date(NOW - 3 * DAY),
-    });
-    seed(sqlite, db, { amountCents: 7000, detectedAt: new Date(NOW - 4 * DAY) });
-    const out = await load("/recovery/payments?perPage=10&sort=newest");
-    expect(out.header.atRisk).toEqual(
-      expect.arrayContaining([
-        { currency: "usd", cents: 8000 },
-        { currency: "eur", cents: 2000 },
-      ]),
-    );
-    expect(out.header.recovered).toEqual([{ currency: "usd", cents: 5000 }]);
-    expect(out.header.ratePct).toBe(25);
   });
 
   it("names the next step by Foxhound's schedule and counts done of total", async () => {

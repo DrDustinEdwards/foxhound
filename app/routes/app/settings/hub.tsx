@@ -62,30 +62,27 @@ export function meta() {
 export interface SettingsHubEntry {
   to: string;
   label: string;
-  description: string;
 }
 
 /** Recova's twelve, in Recova's order, less three combined into others
  *  (Dustin, 2026-10-29): Features into Email, Alerts into Notifications, and
  *  Intelligence, which had no working control, removed. */
 export const SETTINGS_HUB_ENTRIES: SettingsHubEntry[] = [
-  { to: "/settings/stripe", label: "Stripe connections", description: "Connected accounts" },
+  { to: "/settings/stripe", label: "Stripe connections" },
   {
     to: "/settings/email",
     label: "Email",
-    description: "Sender name, reply-to, win-back, expiring cards",
   },
-  { to: "/settings/brand-voice", label: "Brand voice", description: "Per-category AI tone" },
-  { to: "/settings/disputes", label: "Disputes", description: "Auto-submit, product description" },
-  { to: "/settings/audit", label: "Audit", description: "Lookback period, auto-run" },
+  { to: "/settings/brand-voice", label: "Brand voice" },
+  { to: "/settings/disputes", label: "Disputes" },
+  { to: "/settings/audit", label: "Audit" },
   {
     to: "/settings/notifications",
     label: "Notifications and alerts",
-    description: "Email, Slack, digest, metric thresholds",
   },
-  { to: "/settings/team", label: "Team", description: "Members, invite, roles" },
-  { to: "/settings/api-keys", label: "API keys", description: "MCP server credentials" },
-  { to: "/settings/account", label: "My account", description: "Profile, sign out" },
+  { to: "/settings/team", label: "Team" },
+  { to: "/settings/api-keys", label: "API keys" },
+  { to: "/settings/account", label: "My account" },
 ];
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -128,8 +125,8 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
-/** One entry as a Capsomer row: the label is the row's one link, the
- *  description its detail, and Recova's chevron in the meta column. */
+/** One entry as a Capsomer row: the label is the row's one link, with Recova's
+ *  chevron in the meta column. */
 function EntryRow({ entry }: { entry: SettingsHubEntry }) {
   return (
     <Row
@@ -137,13 +134,10 @@ function EntryRow({ entry }: { entry: SettingsHubEntry }) {
       title={entry.label}
       href={entry.to}
       renderLink={routerRenderLink}
-      detail={entry.description}
       meta={<Icon d={iconChevronRight} className="fh-icon-16" />}
     />
   );
 }
-
-const CONFIG_HEADING_ID = "settings-configuration-heading";
 
 export default function SettingsHub({ loaderData }: Route.ComponentProps) {
   const { connectionCount, firstStripeUserId, activeSequences, openDisputes } = loaderData;
@@ -175,10 +169,7 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
       {/* Desktop: the overview. */}
       <div className="fh-wide-only">
         <div className="fh-hub-block">
-          <PageHead
-            title="Settings"
-            lead="Your account, integrations, and recovery configuration."
-          />
+          <PageHead title="Settings" />
         </div>
 
         <div className="fh-hub-block">
@@ -207,15 +198,7 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
           </StatTiles>
         </div>
 
-        {/* Recova's "Configuration" is a plain paragraph over the grid; here it
-            is the heading that names the grid. */}
-        <h2
-          id={CONFIG_HEADING_ID}
-          className="fh-hub-group-title fh-mono fh-tiny fh-regular fh-quiet fh-caps-wide"
-        >
-          Configuration
-        </h2>
-        <ul role="list" aria-labelledby={CONFIG_HEADING_ID} className="fh-hub-grid">
+        <ul role="list" aria-label="Configuration" className="fh-hub-grid">
           {SETTINGS_HUB_ENTRIES.map((entry) => (
             <li key={entry.to}>
               <RowList>

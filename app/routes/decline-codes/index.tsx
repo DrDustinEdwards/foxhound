@@ -47,11 +47,7 @@ export default function DeclineCodesIndex() {
 
   return (
     <div>
-      <MarketingPageHeader
-        eyebrow="Reference"
-        title="Stripe decline code library"
-        subtext="What each code means, why it happens, and how it gets recovered. No invented recovery-rate numbers, no platform history exists yet to project one from."
-      />
+      <MarketingPageHeader title="Stripe decline code library" />
 
       {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
           the cards' accent edge and the focus ring read the family. */}

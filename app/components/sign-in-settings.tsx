@@ -125,10 +125,6 @@ export function SignInMethodsPanel({
     <section className="cap-panel">
       <div className="cap-panel-body">
         <h2 className="fh-signin-title fh-small fh-semibold fh-text">Sign-in</h2>
-        <p className="fh-signin-intro fh-small fh-quiet">
-          A passkey signs you in with your face, fingerprint or device PIN. It only works on
-          Foxhound, so it cannot be phished. You can always sign in with an email link too.
-        </p>
 
         {initial.passkeys.length > 0 ? (
           <ul className="fh-signin-list">

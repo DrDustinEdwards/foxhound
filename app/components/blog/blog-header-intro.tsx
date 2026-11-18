@@ -1,5 +1,3 @@
-import { Eyebrow } from "capsomer/react/eyebrow";
-
 import "capsomer/eyebrow.css";
 
 // Ported from legacy app/(marketing)/blog/BlogHeaderIntro.tsx: the eyebrow /
@@ -14,20 +12,15 @@ import "capsomer/eyebrow.css";
 // component and useInView needs a client boundary) does not apply under React
 // Router, but the separation does.
 //
-// The three lines reveal one after another as a Capsomer reveal stack (capsomer/reveal.css, CSS only).
+// The title reveals as a Capsomer reveal stack (capsomer/reveal.css, CSS only).
 // The "All articles" link is rendered by the parent, as in legacy, so it sits
 // beside this stack in the flex row and is not part of the cascade.
 //
-// Text is at Recova's sizes: the 0.6875rem eyebrow, the 2rem title and the
-// 0.9375rem line.
+// The title is at Recova's size, 2rem.
 export function BlogHeaderIntro() {
   return (
     <div className="cap-reveal-stack">
-      <Eyebrow className="fh-blog-header-intro-block">Posts</Eyebrow>
       <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">Blog</h1>
-      <p className="fh-mk-measure fh-subhead fh-relaxed fh-soft">
-        Guides on Stripe payment recovery, dispute handling, and subscription intelligence.
-      </p>
     </div>
   );
 }

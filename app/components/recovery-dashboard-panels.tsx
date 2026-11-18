@@ -255,13 +255,11 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
       description={
         empty
           ? undefined
-          : `Recoveries where a Foxhound action preceded payment. This month counts every attributed recovery since the 1st; all time counts those that have held for ${RECOVERY_MATURITY_DAYS} days, which are the ones Foxhound bills. Stripe's own recoveries are never billed.`
+          : `All time counts recoveries that have held for ${RECOVERY_MATURITY_DAYS} days, the ones Foxhound bills. Stripe's own recoveries are never billed.`
       }
     >
       {empty ? (
-        <p className="fh-small fh-faint">
-          No attributed recoveries yet. Foxhound monitors every failed payment automatically.
-        </p>
+        <p className="fh-small fh-faint">No attributed recoveries yet.</p>
       ) : (
         <div className="fh-recpanel-pair">
           <div>
@@ -304,10 +302,6 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
               credits a reactivation to the win-back sequence named in the
               checkout the email's link opens, with no window
               (app/lib/recovery/winback-reactivation.server.ts). */}
-          <p className="fh-tiny fh-faint">
-            When a customer who canceled reactivates their subscription from a win-back email, it
-            appears here.
-          </p>
         </div>
       ) : (
         <div>
@@ -339,11 +333,7 @@ export function RecoveryQueue({
   hours: number;
 }) {
   if (w.upcomingSteps.length === 0) {
-    return (
-      <p className="fh-recpanel-empty fh-small fh-faint">
-        Nothing in the queue. All your recent payments came through clean.
-      </p>
-    );
+    return <p className="fh-recpanel-empty fh-small fh-faint">Nothing in the queue.</p>;
   }
   return (
     <Panel title={`Recovery queue · next ${hours}h`}>
@@ -455,9 +445,7 @@ export function PaymentsTable({
       }
     >
       {payments.length === 0 ? (
-        <Empty kind="nothing-yet" title="No failed payments yet" flush>
-          Failed payments will appear here when detected.
-        </Empty>
+        <Empty kind="nothing-yet" title="No failed payments yet" flush />
       ) : (
         <>
           {/* Recova's phone layout: one card per payment. */}

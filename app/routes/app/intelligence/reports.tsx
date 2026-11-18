@@ -32,10 +32,7 @@ export default function IntelligenceReportsPage({ loaderData }: Route.ComponentP
       <h1 className="fh-title fh-medium fh-text">Reports</h1>
 
       {reports.length === 0 ? (
-        <p className="fh-empty-box fh-body fh-quiet">
-          No narrative reports yet. The nightly Intelligence run generates one once there is enough
-          data to narrate honestly.
-        </p>
+        <p className="fh-empty-box fh-body fh-quiet">No reports yet.</p>
       ) : (
         <ol className="cap-stack fh-reports-list" data-gap="5">
           {reports.map((r) => (

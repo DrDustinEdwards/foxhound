@@ -164,9 +164,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
         flush
       >
         {recentActions.length === 0 ? (
-          <Empty kind="nothing-yet" title="No admin actions yet.">
-            Every admin action that changes production writes one here and in the audit log.
-          </Empty>
+          <Empty kind="nothing-yet" title="No admin actions yet." />
         ) : (
           <RowList label="Recent admin actions" primary={false}>
             {recentActions.map((a) => (

@@ -53,11 +53,7 @@ export const loader = siteUrlLoader;
 export default function ProductsIndexPage() {
   return (
     <>
-      <MarketingPageHeader
-        eyebrow="Products"
-        title="Four products"
-        subtext="Use them independently or together."
-      />
+      <MarketingPageHeader title="Four products" />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark.
           Recova's 720px column, in Capsomer's amber family with Foxhound's own

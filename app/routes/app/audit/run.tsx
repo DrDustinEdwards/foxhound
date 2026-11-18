@@ -128,7 +128,6 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
       <div className="fh-auditd-block">
         <PageHead
           title={`This audit was run on ${formatDate(run.runAt, { style: "medium" }) ?? ""}.`}
-          lead="Data reflects your Stripe account at that point in time."
           actions={
             <>
               <ButtonLink to="/audit/dashboard" variant="link">

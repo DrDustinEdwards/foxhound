@@ -76,9 +76,8 @@ export default function DemosPage() {
   return (
     <>
       <MarketingPageHeader
-        eyebrow="Live demo"
         title="The real product, with sample data"
-        subtext="This is not a screenshot tour. You'll be inside the actual Foxhound app, exploring a seeded account of 200 customers. No signup, nothing to connect, and nothing you do can change it."
+        subtext="A seeded account of 200 customers. Nothing you do can change it."
       />
 
       {/* Recova's 1200px column (px-4, md:px-8, pb-16), in Capsomer's amber
@@ -123,11 +122,6 @@ export default function DemosPage() {
             </div>
           ))}
         </div>
-
-        <p className="fh-demos-text-2 fh-center fh-small fh-faint">
-          The demo is read-only. When you're done, you can leave it from the banner at the top of
-          the app.
-        </p>
       </div>
     </>
   );

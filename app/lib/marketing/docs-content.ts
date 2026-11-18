@@ -82,8 +82,6 @@ export interface DocGuide {
   description: string;
   /** The page's h1, Recova's page heading ("Platform setup"). */
   heading: string;
-  /** The page's lead under the h1, Recova's page lead. */
-  lead: string;
   /**
    * ISO date the guide first shipped, for the TechArticle JSON-LD.
    *
@@ -111,7 +109,6 @@ export const DOC_GUIDES: DocGuide[] = [
     title: "Platform",
     description: "Connecting Stripe, settings, team management, and billing.",
     heading: "Platform setup",
-    lead: "Connecting Stripe, configuring settings, managing your team, and understanding billing.",
     sections: [
       {
         heading: "Getting started",
@@ -389,7 +386,6 @@ export const DOC_GUIDES: DocGuide[] = [
     description:
       "Free Stripe diagnostic. What Stripe already recovered, what is still dying, and what Foxhound would add.",
     heading: "Audit",
-    lead: "A free Stripe diagnostic that shows what your account is leaking. No signup required.",
     sections: [
       {
         heading: "How the Audit works",
@@ -479,7 +475,6 @@ export const DOC_GUIDES: DocGuide[] = [
     description:
       "Managing failed payments, reading sequences, and what each dashboard number means.",
     heading: "Recovery sequences",
-    lead: "Managing failed payments, reading sequences, understanding your dashboard, and troubleshooting.",
     sections: [
       {
         heading: "Managing payments",
@@ -771,7 +766,6 @@ export const DOC_GUIDES: DocGuide[] = [
     title: "Disputes",
     description: "Evidence drafted for you. You approve every submission, or turn on auto-submit.",
     heading: "Disputes",
-    lead: "Evidence building, triage scoring, review and submission for Stripe disputes.",
     sections: [
       {
         heading: "How Disputes works",
@@ -906,7 +900,6 @@ export const DOC_GUIDES: DocGuide[] = [
     title: "Intelligence",
     description: "Customer health scores, churn risk and MRR trends, free on every account.",
     heading: "Intelligence",
-    lead: "Customer health scoring, churn prediction, MRR trend analysis, and a monthly narrative.",
     sections: [
       {
         heading: "How Intelligence works",

@@ -26,10 +26,6 @@
     align-items: center;
     gap: var(--space-2-5);
   }
-  .fh-sample-label-2 {
-    margin-top: var(--space-1);
-    opacity: 80%;
-  }
   .fh-mk-centered {
     display: flex;
     justify-content: center;
@@ -249,11 +245,6 @@
       padding-inline: var(--space-7);
       padding-block: var(--space-10);
     }
-  }
-  .fh-home-text-4 {
-    margin-bottom: var(--space-6);
-    --cap-eyebrow-color: var(--dim);
-    --cap-eyebrow-weight: var(--weight-regular);
   }
   .fh-home-title-2 {
     line-height: var(--leading-none);

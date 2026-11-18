@@ -60,7 +60,7 @@ export function AdminMcpPanels({
           figure={String(summary.keysTotal)}
           detail="Merchant and admin, revoked included"
         />
-        <StatTile label="Active keys" figure={String(summary.keysActive)} detail="Not revoked" />
+        <StatTile label="Active keys" figure={String(summary.keysActive)} />
         <StatTile
           label="Calls"
           figure={String(summary.callsLast24h)}
@@ -82,11 +82,7 @@ export function AdminMcpPanels({
           description={`${plural(keys.length, "key", "keys")}, ${summary.keysActive} active, newest first.`}
           reflow
           isEmpty={keys.length === 0}
-          empty={
-            <Empty kind="nothing-yet" title="No API keys yet.">
-              A key appears here when a merchant creates one in their settings.
-            </Empty>
-          }
+          empty={<Empty kind="nothing-yet" title="No API keys yet." />}
           caption="API keys, newest first."
         >
           <thead>
@@ -158,11 +154,7 @@ export function AdminMcpPanels({
           description={`Up to the newest ${MCP_CALLS_SHOWN} merchant MCP calls, every account. Arguments are not shown.`}
           reflow
           isEmpty={calls.length === 0}
-          empty={
-            <Empty kind="nothing-yet" title="No MCP calls yet.">
-              Every tool call a merchant key makes is logged here.
-            </Empty>
-          }
+          empty={<Empty kind="nothing-yet" title="No MCP calls yet." />}
           caption="Merchant MCP calls, newest first."
         >
           <thead>

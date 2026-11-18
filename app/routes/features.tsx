@@ -14,7 +14,6 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { FEATURE_FILTER_CSS } from "~/lib/http/inline-styles";
 import {
   FEATURES_META_DESCRIPTION,
-  FEATURES_SUBTEXT,
   featureSections,
   healthBandExampleScores,
   healthBandSentence,
@@ -120,7 +119,7 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap fh-features" data-cap-site="foxhound" data-family="amber">
       <style>{FEATURE_FILTER_CSS}</style>
-      <MarketingPageHeader eyebrow="Platform" title="Features" subtext={FEATURES_SUBTEXT} />
+      <MarketingPageHeader title="Features" />
 
       <div className="fh-features-wrap">
         {/* Recova's FeatureFilterShell: the active value on the wrapper, which

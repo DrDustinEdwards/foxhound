@@ -129,7 +129,6 @@ export const AUDIT_SCOPES = [
 
 export const AUDIT_BLOCKS = {
   scopes: {
-    eyebrow: "What it checks",
     title: "Four scopes. One diagnostic.",
     // Truthfulness: Recova's failed-invoice clause continues "and estimates
     // what intelligent sequences would return", and its disputes show
@@ -137,7 +136,6 @@ export const AUDIT_BLOCKS = {
     body: "Failed invoices show what is unrecovered. Expiring cards show MRR at risk before the failure happens. Open disputes show the amount at stake and historical win rates. Business health shows MRR, ARR, and voluntary vs involuntary churn rate.",
   },
   summary: {
-    eyebrow: "Plain English",
     title: "A summary that tells you what matters.",
     // Truthfulness: Recova reads "an AI-generated 2-3 sentence interpretation
     // of the most significant finding. If your account is clean, it says so
@@ -149,7 +147,6 @@ export const AUDIT_BLOCKS = {
     body: `At the top of every audit result, an AI-generated ${summarySentences}-sentence interpretation: ${summaryPlan}. If the summary cannot be generated, a general note stands in its place.`,
   },
   history: {
-    eyebrow: "Track over time",
     title: "Results that do not disappear.",
     // Truthfulness: Recova reads "Without an account, results are accessible
     // at the URL for 30 days." and "every audit run saves permanently". An

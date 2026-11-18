@@ -53,9 +53,6 @@
     max-width: 760px;
     padding: var(--space-9) var(--space-6);
   }
-  .fh-doc-block {
-    margin-bottom: var(--space-4);
-  }
   .fh-doc-text {
     margin-bottom: var(--space-7-5);
   }
@@ -68,11 +65,8 @@
   .fh-doc-item {
     line-height: var(--line-box-6);
   }
-  .fh-doc-block-2 {
-    margin-top: var(--space-9);
-    margin-bottom: var(--space-3);
-  }
   .fh-doc-title {
+    margin-top: var(--space-9);
     margin-bottom: var(--space-6);
     scroll-margin-top: var(--space-9-5);
   }

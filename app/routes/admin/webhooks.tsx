@@ -108,9 +108,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
         headingId={HEADING_ID}
         reading={pending}
         description={
-          filtered
-            ? `${webhookCountWords(list.total)} match this filter, newest first.`
-            : `${webhookCountWords(list.total)} in the log, newest first.`
+          filtered ? `${webhookCountWords(list.total)} match.` : webhookCountWords(list.total)
         }
         flush
       >
@@ -174,9 +172,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
               }
             />
           ) : (
-            <Empty kind="nothing-yet" title="No webhook events recorded yet.">
-              Every event Stripe sends to Foxhound appears here as it arrives.
-            </Empty>
+            <Empty kind="nothing-yet" title="No webhook events recorded yet." />
           )
         ) : (
           <Table

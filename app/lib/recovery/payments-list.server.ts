@@ -1,31 +1,7 @@
-import { groupSumByCurrency } from "~/lib/money/totals";
 import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 import { sequenceStepLabel } from "~/lib/recovery/sequence-performance";
 
-import type { PaymentsHeaderStats } from "./payments-list";
-import { percent } from "capsomer/behavior/meter";
-
 // /recovery/payments: the loader's own arithmetic.
-
-/**
- * Recova's head figures (PaymentsClient.tsx filteredStats): at risk is the
- * active rows' amounts, recovered the recovered rows', and the rate recovered
- * rows over all rows, each over the rows on screen. Totals go through
- * groupSumByCurrency, so two currencies are never added.
- */
-export function paymentHeaderStats(
-  rows: readonly { status: string; amountCents: number; currency: string }[],
-): PaymentsHeaderStats {
-  const active = rows.filter((r) => r.status === "active");
-  const recovered = rows.filter((r) => r.status === "recovered");
-  return {
-    atRisk: groupSumByCurrency(active.map((r) => ({ currency: r.currency, cents: r.amountCents }))),
-    recovered: groupSumByCurrency(
-      recovered.map((r) => ({ currency: r.currency, cents: r.amountCents })),
-    ),
-    ratePct: percent(recovered.length, rows.length),
-  };
-}
 
 /**
  * A step's name in Recova's words, read from the payment's own category

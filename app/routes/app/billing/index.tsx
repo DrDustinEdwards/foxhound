@@ -192,7 +192,7 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
       horizontal padding at sm, not md, and starts from px-5 not px-4. Same
       720/px-5 kit legacy uses on /help and the legal pages. */}
       <div className="fh-billing-head">
-        <PageHead title="Billing" lead="Invoices, subscriptions, and payment method." />
+        <PageHead title="Billing" />
       </div>
 
       {actionData && "error" in actionData ? (
@@ -223,10 +223,7 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
 
         <Panel title="Evidence ledger">
           {entries.length === 0 ? (
-            <p className="fh-small fh-quiet">
-              Nothing to show yet. Every fee Foxhound ever charges, and every free recovery, will
-              appear here with its full evidence.
-            </p>
+            <p className="fh-small fh-quiet">Nothing to show yet.</p>
           ) : (
             <ol className="fh-ledger">{entries.map((e) => e.node)}</ol>
           )}

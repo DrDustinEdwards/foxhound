@@ -65,7 +65,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
       <ChartPanel
         title={title}
         empty={{
-          reason: "Not enough data yet. Recovery rate will appear after your first recovery.",
+          reason: "No recoveries yet.",
         }}
       />
     );

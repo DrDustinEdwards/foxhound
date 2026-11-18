@@ -58,9 +58,6 @@
   .fh-mkhead-block {
     margin-bottom: var(--space-6);
   }
-  .fh-mkhead-block-2 {
-    margin-bottom: var(--space-4);
-  }
   .fh-mk-big-button {
     padding-inline: var(--space-6);
     --cap-btn-h: 3rem;

@@ -1,6 +1,5 @@
 import { currencyExponent, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
-import { formatCurrencyTotalsShort } from "~/lib/dashboard/console";
 import type { FailedPaymentSort } from "~/lib/recovery/queries.server";
 import { isPaymentTimeRange, type PaymentTimeRange } from "~/lib/recovery/time-range";
 
@@ -78,21 +77,6 @@ export function sliderAmount(
 ): string {
   if (isMax && minor >= absoluteMax) return `${formatMoneyShort(absoluteMax, currency)}+`;
   return formatMoneyShort(minor, currency);
-}
-
-/** The head's figures, totaled per currency over the rows on screen, as
- *  Recova's PaymentsClient totals its `filtered` rows. */
-export interface PaymentsHeaderStats {
-  atRisk: { currency: string; cents: number }[];
-  recovered: { currency: string; cents: number }[];
-  ratePct: number;
-}
-
-/** Recova's PaymentsHeader line: "$X at risk · $Y recovered", then the rate
- *  only when it is above zero. Whole units, each currency on its own. */
-export function paymentsHeaderLine(stats: PaymentsHeaderStats): string {
-  const rate = stats.ratePct > 0 ? ` · ${stats.ratePct}% recovery rate` : "";
-  return `${formatCurrencyTotalsShort(stats.atRisk)} at risk · ${formatCurrencyTotalsShort(stats.recovered)} recovered${rate}`;
 }
 
 /** Recova clears the bulk result 3 seconds after it lands (PaymentsClient.tsx

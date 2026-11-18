@@ -1,9 +1,6 @@
 /* The parts only the blog's lists (index, archive, tag) use, as Recova laid them out. In the site layer
    (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
-  .fh-blog-header-intro-block {
-    margin-bottom: var(--space-4);
-  }
   .fh-blog-post-card-link {
     --card-lift: 0px;
     --gap: var(--space-5-5);
@@ -109,16 +106,6 @@
   @media (width >= 40rem) {
     .fh-blog-wrap-2 {
       padding-inline: var(--space-7);
-    }
-  }
-  .fh-blog-link-2 {
-    margin-top: var(--space-5);
-    display: inline-block;
-    line-height: var(--line-box-6);
-  }
-  @media (hover: hover) {
-    .fh-blog-link-2:hover {
-      opacity: 80%;
     }
   }
   .fh-blog-band {

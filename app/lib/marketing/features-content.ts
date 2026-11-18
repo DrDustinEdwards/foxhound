@@ -73,10 +73,6 @@ export interface FeatureFacts {
   merchantMcpToolCount: number;
 }
 
-/** Recova's header subtext, with Foxhound's name. */
-export const FEATURES_SUBTEXT =
-  "Everything Foxhound does. Organized by capability, tagged by product. Built to stay current as the platform grows.";
-
 /** Recova's meta description without its "129 features" count (parity/M10-FEATURES.md). */
 export const FEATURES_META_DESCRIPTION =
   "Features across automation, intelligence, email, visibility, control, integration, and security. Built for Stripe subscription businesses.";

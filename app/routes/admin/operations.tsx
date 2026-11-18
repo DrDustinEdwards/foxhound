@@ -147,18 +147,13 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
 
   return (
     <div className="cap-stack" data-gap="6">
-      <Panel
-        title="Recovery queue"
-        reading={pending}
-        description="Recovery work waiting on the recovery tick. Demo accounts are not counted."
-      >
+      <Panel title="Recovery queue" reading={pending} description="Demo accounts are not counted.">
         <dl className="fh-halves">
           <div>
             <dt className="fh-small fh-soft">Payments in recovery</dt>
             <dd className="fh-mono fh-title cap-num fh-text">
               {formatCount(queue.activePayments)}
             </dd>
-            <dd className="fh-small fh-soft">Failed payments in an active sequence.</dd>
           </div>
           <div>
             <dt className="fh-small fh-soft">Steps due now</dt>
@@ -225,13 +220,7 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         />
       </Panel>
 
-      <Panel
-        title="Table growth"
-        headingId={GROWTH_HEADING_ID}
-        reading={pending}
-        description="Rows in each table with a retention rule. The database reports only its whole size, so row counts are the signal per table."
-        flush
-      >
+      <Panel title="Table growth" headingId={GROWTH_HEADING_ID} reading={pending} flush>
         {growthTables.length === 0 ? (
           <Empty kind="nothing-yet" title="No tables with a retention rule." />
         ) : (
@@ -275,7 +264,7 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         reading={pending}
         description={
           migrations.rows.length > 0
-            ? `${migrationsSummaryWords(appliedCount, migrations.rows.length)} The deploy itself is not readable in the Worker, so this is the sign that code and data agree.`
+            ? migrationsSummaryWords(appliedCount, migrations.rows.length)
             : undefined
         }
         flush
@@ -327,7 +316,7 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         title="Settings"
         headingId={SETTINGS_HEADING_ID}
         reading={pending}
-        description="Whether each binding, variable and secret the Worker uses is set, and whether the Stripe key is a live one. Names only: values are never shown here."
+        description="Names only; values are never shown."
         flush
       >
         <Table

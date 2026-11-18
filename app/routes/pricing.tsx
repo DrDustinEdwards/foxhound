@@ -90,7 +90,6 @@ export default function PricingPage() {
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <Hero
         className="fh-page-hero"
-        eyebrow="Pricing"
         title="Pricing"
         lead="Two outcome-based products. Intelligence and Audit are always free."
       />

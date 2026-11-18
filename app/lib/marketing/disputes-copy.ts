@@ -63,7 +63,6 @@ export const DISPUTES_SECTION_LABEL = "What you see after connecting";
 
 export const DISPUTES_BLOCKS = {
   dashboard: {
-    eyebrow: "What you see after connecting",
     title: "Every dispute. Status. Deadline. Fee.",
     // Recova's words: a deadline inside the soon band is amber, as the
     // dashboard draws it (deadlineClassName, the caution token).
@@ -74,7 +73,6 @@ export const DISPUTES_BLOCKS = {
     body: `The disputes dashboard shows every open and closed dispute with customer, amount, reason, Foxhound's status, and deadline proximity. Deadlines inside ${DEADLINE_SOON_DAYS} days appear in amber. Inside ${DEADLINE_URGENT_DAYS} days, red.`,
   },
   numbers: {
-    eyebrow: "The numbers",
     // Truthfulness: Recova reads "Open disputes. At stake. Saved vs Stripe."
     // and "fees owed this month, and how much you saved compared to Stripe's
     // Smart Disputes (which charges 30% vs Recova's 20%)". Foxhound computes
@@ -87,7 +85,6 @@ export const DISPUTES_BLOCKS = {
   evidence: {
     // Recova's words. Its Stripe Radar link is plain text here, as the block
     // body is a string.
-    eyebrow: "Five evidence sources",
     title: "Built automatically before you open it.",
     body: "Prior charge history, recovery email history, AVS and CVV results, Stripe Radar score, and 3D Secure authentication. All staged before you see the dispute. The triage table shows fight/accept recommendation and confidence for every dispute.",
   },

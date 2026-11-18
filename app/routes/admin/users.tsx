@@ -46,17 +46,11 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
       title="People"
       headingId={HEADING_ID}
       reading={pending}
-      description={
-        users.length === 0
-          ? undefined
-          : `${usersCountSentence(users.length)} Each person is one row, newest first, with every account they belong to.`
-      }
+      description={users.length === 0 ? undefined : `${usersCountSentence(users.length)}`}
       flush
     >
       {users.length === 0 ? (
-        <Empty kind="nothing-yet" title="No users yet.">
-          A person appears here once they sign up for Foxhound.
-        </Empty>
+        <Empty kind="nothing-yet" title="No users yet." />
       ) : (
         <Table
           caption="Everyone who can sign in to Foxhound, one person per row"

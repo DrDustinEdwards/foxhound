@@ -75,10 +75,9 @@ import {
   bulkResultClearsItself,
   bulkResultLine,
   declineWord,
-  paymentsHeaderLine,
   sliderAmount,
 } from "~/lib/recovery/payments-list";
-import { paymentHeaderStats, paymentStepLabel } from "~/lib/recovery/payments-list.server";
+import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { showingCountFor } from "~/lib/recovery/payments-stats";
 import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import {
@@ -214,7 +213,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     globalCounts,
     globalRecoveryRatePct,
     pillCounts,
-    header: paymentHeaderStats(result.payments),
     bounds,
     nowMs,
     filters: {
@@ -422,16 +420,8 @@ function bulkCopy(intent: string) {
 }
 
 export default function RecoveryPayments({ loaderData, actionData }: Route.ComponentProps) {
-  const {
-    result,
-    globalCounts,
-    globalRecoveryRatePct,
-    pillCounts,
-    header,
-    bounds,
-    nowMs,
-    filters,
-  } = loaderData;
+  const { result, globalCounts, globalRecoveryRatePct, pillCounts, bounds, nowMs, filters } =
+    loaderData;
   const navigate = useNavigate();
   const submit = useSubmit();
 
@@ -564,7 +554,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       <div className="fh-payments-head">
         <PageHead
           title="Payments"
-          lead={paymentsHeaderLine(header)}
           actions={
             <ButtonLink to={exportHref(filters, bounds, result.page)} reloadDocument>
               Export CSV
@@ -831,9 +820,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       </nav>
 
       {rows.length === 0 ? (
-        <Empty kind="no-match" title="No payments match your filters">
-          Try adjusting your search or filters
-        </Empty>
+        <Empty kind="no-match" title="No payments match your filters" />
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">

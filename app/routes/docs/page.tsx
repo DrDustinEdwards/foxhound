@@ -26,13 +26,12 @@ import "~/docs.css";
 // (blobs 2b69517b, 3b1153b4, 6166a6be, 598fcbaa, e7f18266), read whole.
 //
 // LAYOUT IS RECOVA'S: the 760px column with px-6 and py-16, the breadcrumb, the
-// "User Guide" eyebrow, the page heading and lead, the Contents card with
-// "Part N." links in two columns from sm, and each Part's amber eyebrow over its
-// h2. LOOK IS CAPSOMER'S: the breadcrumb, the Contents card (a body-only
+// page heading, the Contents card with "Part N." links in two columns from sm,
+// and each Part's h2. LOOK IS CAPSOMER'S: the breadcrumb, the Contents card (a body-only
 // panel), the tables, callouts and pills, in the amber family, with text
 // at Recova's sizes. CONTENT is app/lib/marketing/docs-content.ts.
 //
-// The page heading and lead are Recova's page's own ("Platform setup",
+// The page heading is Recova's page's own ("Platform setup",
 // "Recovery sequences"), which differ from the /docs card's title and
 // description; the breadcrumb keeps the card's short title, as Recova's does.
 //
@@ -80,15 +79,12 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
     <div className="fh-doc-wrap fh-cap" data-cap-site="foxhound" data-family="amber">
       <SectionTrail items={[{ label: "Docs", href: "/docs" }, { label: guide.title }]} />
 
-      <div className="fh-doc-block fh-tiny fh-medium fh-quiet fh-caps-wide">User Guide</div>
-      <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">{guide.heading}</h1>
-      <p className="fh-doc-text fh-subhead fh-relaxed fh-soft">{guide.lead}</p>
+      <h1 className="fh-doc-text fh-mk-heading fh-page-title fh-medium fh-text">{guide.heading}</h1>
 
       {guide.sections.length > 1 ? (
         <nav aria-label="Contents" className="fh-doc-nav cap-panel">
           <div className="cap-panel-body">
             <div>
-              <div className="fh-mk-kicker-gap fh-mono fh-tiny fh-quiet">Contents</div>
               <ol className="fh-mk-grid-2">
                 {guide.sections.map((section, i) => (
                   <li key={section.heading} className="fh-doc-item fh-small">
@@ -105,9 +101,6 @@ export default function DocGuidePage({ loaderData }: Route.ComponentProps) {
 
       {guide.sections.map((section, i) => (
         <section key={section.heading}>
-          <div className="fh-doc-block-2 fh-tiny fh-medium fh-accent fh-caps-wide">
-            Part {i + 1}
-          </div>
           <h2 id={sectionIds[i]} className="fh-doc-title fh-title fh-medium fh-text">
             {section.heading}
           </h2>

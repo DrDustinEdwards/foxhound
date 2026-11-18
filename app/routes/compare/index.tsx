@@ -35,11 +35,7 @@ export const loader = siteUrlLoader;
 export default function CompareIndex() {
   return (
     <div>
-      <MarketingPageHeader
-        eyebrow="Compare"
-        title="How Foxhound compares"
-        subtext="Honest tables, including where Foxhound is newer or narrower than the incumbents. No fabricated competitor numbers."
-      />
+      <MarketingPageHeader title="How Foxhound compares" />
 
       {/* Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /blog):
           the cards' accent edge and the focus ring read the family. */}

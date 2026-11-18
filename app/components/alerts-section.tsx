@@ -88,9 +88,6 @@ export function AlertsSection({
         <h2 id="alerts-heading" className="fh-semibold fh-text">
           Alerts
         </h2>
-        <p className="fh-alerts-sub fh-small fh-soft">
-          Get notified when Recovery metrics cross a threshold.
-        </p>
       </div>
 
       {/* Recova's first card has no heading: a count line and a button lead
@@ -135,9 +132,7 @@ export function AlertsSection({
             </div>
 
             {alerts.length === 0 && !creating ? (
-              <p className="fh-alerts-empty fh-center fh-small fh-faint">
-                No alerts yet. Create one to get notified when metrics need attention.
-              </p>
+              <p className="fh-alerts-empty fh-center fh-small fh-faint">No alerts yet.</p>
             ) : null}
 
             {alerts.length > 0 ? (
@@ -220,9 +215,7 @@ export function AlertsSection({
       <div className="fh-alerts-head">
         <Panel title="Recent triggers">
           {history.length === 0 ? (
-            <p className="fh-small fh-faint">
-              No alerts have fired yet. Triggers will appear here when a threshold crosses.
-            </p>
+            <p className="fh-small fh-faint">No alerts have fired yet.</p>
           ) : (
             <Table caption="Recent triggers" captionHidden reflow>
               <thead>

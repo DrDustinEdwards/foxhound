@@ -23,14 +23,8 @@
   .fh-welcome-account {
     margin-bottom: var(--space-6);
   }
-  .fh-welcome-lede {
-    line-height: var(--leading-relaxed);
-  }
   .fh-welcome-steps {
     margin-bottom: var(--space-7);
-  }
-  .fh-welcome-note {
-    margin-top: var(--space-4);
   }
   .fh-help {
     margin-inline: auto;
@@ -55,7 +49,6 @@
   .fh-help-question {
     margin-bottom: var(--space-2);
   }
-  .fh-help-cards,
   .fh-console-charts,
   .fh-console-tiles,
   .fh-recpanel-hero,
@@ -64,11 +57,6 @@
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
     gap: var(--space-4);
-  }
-  @media (width >= 40rem) {
-    .fh-help-cards {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
   }
   .fh-help-contact {
     margin-bottom: var(--space-5);
@@ -172,9 +160,6 @@
     display: flex;
     gap: var(--space-5);
   }
-  .fh-account-intro {
-    margin-bottom: var(--space-5);
-  }
   .fh-account-alert {
     margin-top: var(--space-3);
   }
@@ -224,9 +209,6 @@
   }
   .fh-hub-block {
     margin-bottom: var(--space-6);
-  }
-  .fh-hub-group-title {
-    margin-bottom: var(--space-4);
   }
   .fh-hub-grid {
     display: grid;
@@ -284,9 +266,6 @@
   .fh-voice-control {
     margin-top: var(--space-3-5);
   }
-  .fh-voice-intro {
-    margin-bottom: var(--space-5-5);
-  }
   .fh-voice-preview {
     margin-top: var(--space-6);
   }
@@ -323,17 +302,11 @@
   .fh-dispute-help {
     margin-bottom: var(--space-3);
   }
-  .fh-dispute-foot {
-    padding-top: var(--space-5);
-  }
   .fh-field-block {
     margin-bottom: var(--space-5);
   }
   .fh-shrink {
     min-width: 0px;
-  }
-  .fh-audit-help {
-    margin-bottom: var(--space-2);
   }
   .fh-audit-switch {
     display: flex;
@@ -577,10 +550,7 @@
     margin-top: var(--space-3);
   }
   .fh-signin-title {
-    margin-bottom: var(--space-3);
-  }
-  .fh-signin-intro {
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--space-4);
   }
   .fh-signin-list {
     margin-bottom: var(--space-5);
@@ -1000,9 +970,6 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
-  .fh-dispute-help-text {
-    margin-top: var(--space-3);
-  }
   .fh-dispute-submit {
     margin-top: var(--space-6);
   }
@@ -1321,9 +1288,6 @@
     max-width: 72rem;
     padding-inline: var(--space-5);
     padding-block: var(--space-7);
-  }
-  .fh-list-page-sub {
-    margin-top: var(--space-2);
   }
   .fh-list-table {
     margin-top: var(--space-6);

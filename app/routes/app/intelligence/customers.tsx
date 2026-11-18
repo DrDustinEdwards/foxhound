@@ -7,14 +7,12 @@ import { FilterBar } from "capsomer/react/filter-bar";
 import { Empty } from "capsomer/react/empty";
 import { PageHead } from "capsomer/react/page-head";
 import { Pagination, pageHref, parsePage } from "capsomer/react/pagination";
-import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
 import "capsomer/empty.css";
 import "capsomer/field.css";
 import "capsomer/filter-bar.css";
 import "capsomer/page-head.css";
 import "capsomer/pagination.css";
-import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
@@ -185,14 +183,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
   return (
     <div className="fh-intel-page-tall cap-admin-page" data-width="page">
       <div className="fh-intel-head">
-        <PageHead
-          title={heading}
-          lead={
-            filters.sort === "mrr_desc"
-              ? "Sorted by MRR, highest first."
-              : "Sorted by health score, lowest first. Customers worth attention surface at the top."
-          }
-        />
+        <PageHead title={heading} />
         {/* Recova's count line, only when there are customers. /intelligence/
             churn has no equivalent, so it sits just below the head rather than
             in PageHead's actions slot, which is for controls. "1 customer" is
@@ -206,16 +197,13 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       </div>
 
       {noData ? (
-        // Recova's empty card is a heading and a line. Capsomer's Empty puts
-        // its title in a <p>, which would demote Recova's h2, so the nearest
-        // Capsomer part that keeps the heading is a Panel, as on /intelligence/
-        // churn (gap named in the J30 notes).
-        <Panel title="No customer data yet">
-          <p className="fh-small fh-quiet">
-            Intelligence populates as customers transact in your Stripe account. Check back as data
-            accumulates.
-          </p>
-        </Panel>
+        // Capsomer's Empty puts its title in a <p>, which would demote
+        // Recova's h2, so this is its markup with the h2.
+        <div className="cap-empty" data-kind="nothing-yet">
+          <div className="cap-empty-header">
+            <h2 className="cap-empty-title">No customer data yet</h2>
+          </div>
+        </div>
       ) : (
         <>
           <div className="fh-intel-head">
@@ -223,9 +211,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
           </div>
 
           {result.customers.length === 0 ? (
-            <Empty kind="no-match" title="No customers match these filters.">
-              Change or clear a filter to see more customers.
-            </Empty>
+            <Empty kind="no-match" title="No customers match these filters." />
           ) : (
             <div className="cap-panel">
               <div className="cap-panel-body" data-flush="">

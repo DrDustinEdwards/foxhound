@@ -36,15 +36,14 @@ import "capsomer/segmented.css";
 interface CategoryMeta {
   id: MarketingEmailCategory;
   label: string;
-  desc: string;
   tone?: "info" | "warn" | "crit";
 }
 
 const CATEGORIES: CategoryMeta[] = [
-  { id: "soft", label: "Soft decline", desc: "Insufficient funds", tone: "info" },
-  { id: "network", label: "Network error", desc: "Processing failure", tone: "warn" },
-  { id: "expired", label: "Expired card", desc: "Card needs updating" },
-  { id: "fraud", label: "Fraud flag", desc: "Bank flagged the charge", tone: "crit" },
+  { id: "soft", label: "Insufficient funds", tone: "info" },
+  { id: "network", label: "Processing failure", tone: "warn" },
+  { id: "expired", label: "Card needs updating" },
+  { id: "fraud", label: "Bank flagged the charge", tone: "crit" },
 ];
 
 export function EmailSamples() {
@@ -96,7 +95,6 @@ export function EmailSamples() {
             label: (
               <span className="fh-line fh-caption">
                 <span className="fh-line fh-medium">{c.label}</span>
-                <span className="fh-sample-label-2 fh-line fh-mono fh-source">{c.desc}</span>
               </span>
             ),
           }))}

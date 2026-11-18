@@ -87,7 +87,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   return (
     <div className="fh-intel-page cap-admin-page" data-width="page">
       <div className="fh-intel-head">
-        <PageHead title="Churn Risk" lead="MRR at risk by customer health band." />
+        <PageHead title="Churn Risk" />
       </div>
 
       {/* Rendered whenever it has data, independently of whether any customer is
@@ -107,13 +107,13 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
       ) : null}
 
       {view.scoredCustomerCount === 0 ? (
-        // Recova's empty card is a heading and a line. Capsomer's Empty puts
-        // its title in a <p>, which would demote Recova's h2, so the nearest
-        // Capsomer part that keeps the heading is a Panel (gap named in the
-        // J29 notes).
-        <Panel title="Health scores are being calculated.">
-          <p className="fh-small fh-quiet">Check back after the next Intelligence sync.</p>
-        </Panel>
+        // Capsomer's Empty puts its title in a <p>, which would demote
+        // Recova's h2, so this is its markup with the h2.
+        <div className="cap-empty" data-kind="nothing-yet">
+          <div className="cap-empty-header">
+            <h2 className="cap-empty-title">Health scores are being calculated.</h2>
+          </div>
+        </div>
       ) : (
         <>
           <div className="fh-churn-bands">
@@ -134,11 +134,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
           </div>
 
           {view.topHighRisk.length > 0 ? (
-            <Panel
-              title="High-risk customers by MRR"
-              description={`Top ${view.topHighRisk.length} customers in the high-risk band, sorted by monthly contribution.`}
-              flush
-            >
+            <Panel title="High-risk customers by MRR" flush>
               <Table caption="High-risk customers by MRR" captionHidden reflow>
                 <thead>
                   <tr>

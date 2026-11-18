@@ -97,17 +97,12 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   const [lookbackDays, setLookbackDays] = useState<string>(String(loaderData.lookbackDays));
   const [autoRun, setAutoRun] = useState<boolean>(loaderData.autoRun);
   const busy = useNavigation().state !== "idle";
-  const lookbackHelp = useId();
   const digestHelp = useId();
   const saved = actionData?.ok === true;
   const failed = actionData?.ok === false;
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="Audit"
-      lead="Lookback period and monthly digest options."
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="Audit">
       <DemoForm method="post">
         {/* Recova's AuditSection card has no heading, so this is Capsomer's
             panel markup with its body only, as /settings/alerts does. */}
@@ -128,13 +123,9 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                 <div className="fh-setting-label fh-small fh-text" aria-hidden="true">
                   Lookback period
                 </div>
-                <p id={lookbackHelp} className="fh-audit-help fh-tiny fh-faint">
-                  How far back we look when calculating your audit.
-                </p>
                 <Segmented
                   legend={<span className="cap-sr-only">Lookback period</span>}
                   name="audit_lookback_days"
-                  describedBy={lookbackHelp}
                   value={lookbackDays}
                   onChange={setLookbackDays}
                   options={LOOKBACK_OPTIONS.map((n) => ({ value: String(n), label: `${n} days` }))}
@@ -147,8 +138,7 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                     Monthly audit digest
                   </div>
                   <p id={digestHelp} className="fh-tiny fh-faint">
-                    On the 1st of each month, we run a fresh audit and email you a comparison versus
-                    the prior month. No extra charge.
+                    Monthly, on the 1st. No extra charge.
                   </p>
                 </div>
                 {/* Unchecked posts nothing, which the action reads as off, so

@@ -102,8 +102,8 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
           reading={pending}
           description={
             sentry.state === "ready" && sentry.issues.length > 0
-              ? `${plural(sentry.issues.length, "unresolved error", "unresolved errors")} seen in the last 14 days, most recent first.`
-              : "From Sentry, for the last 14 days."
+              ? `${plural(sentry.issues.length, "unresolved error", "unresolved errors")}, last 14 days.`
+              : "Last 14 days."
           }
           flush
         >
@@ -124,17 +124,12 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
         headingId={FAILED_HEADING_ID}
         reading={pending}
         description={
-          failed.length === 0
-            ? "From the audit log."
-            : `Showing the last ${plural(failed.length, "failed action", "failed actions")}, newest first.`
+          failed.length === 0 ? undefined : plural(failed.length, "failed action", "failed actions")
         }
         flush
       >
         {failed.length === 0 ? (
-          <Empty kind="nothing-yet" title="No failed actions in the audit log.">
-            An admin action that fails to apply, or a Stripe connection a deleted account could not
-            revoke, is listed here.
-          </Empty>
+          <Empty kind="nothing-yet" title="No failed actions in the audit log." />
         ) : (
           <Table
             caption="Failed actions from the audit log, newest first."
