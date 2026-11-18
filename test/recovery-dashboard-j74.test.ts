@@ -145,10 +145,10 @@ interface LoaderData {
 
 function makeRoi() {
   return {
-    thisMonth: roiColumn([{ amountCents: 10_000, currency: "usd" }]),
+    thisMonth: roiColumn([{ amountCents: 10_000, refundedCents: 0, currency: "usd" }]),
     allTime: roiColumn([
-      { amountCents: 10_000, currency: "usd" },
-      { amountCents: 40_000, currency: "usd" },
+      { amountCents: 10_000, refundedCents: 0, currency: "usd" },
+      { amountCents: 40_000, refundedCents: 0, currency: "usd" },
     ]),
   };
 }
@@ -219,9 +219,9 @@ describe("J74: display arithmetic", () => {
 
   it("ROI fees per recovery, summed per currency", () => {
     const col = roiColumn([
-      { amountCents: 1_001, currency: "usd" },
-      { amountCents: 1_001, currency: "usd" },
-      { amountCents: 500, currency: "eur" },
+      { amountCents: 1_001, refundedCents: 0, currency: "usd" },
+      { amountCents: 1_001, refundedCents: 0, currency: "usd" },
+      { amountCents: 500, refundedCents: 0, currency: "eur" },
     ]);
     expect(col.recovered).toEqual([
       { currency: "usd", cents: 2_002 },

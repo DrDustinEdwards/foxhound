@@ -403,18 +403,21 @@ export function buildInvoiceStripeRefUpdate(
   ];
 }
 
-/** Deterministic key for the credit note that reverses ONE fee line. Derived
- *  from the line's own id, so a redelivered refund replays the same key and
- *  Stripe returns the original note instead of issuing a second one. */
-export function creditNoteIdempotencyKey(lineItemId: string): string {
-  return `credit-note:${lineItemId}`;
+/** Deterministic key for the credit note that brings ONE fee line's credit up
+ *  to `creditedTotalCents`. A redelivered refund replays the same key and
+ *  Stripe returns the original note; a later, larger refund is a new total
+ *  and so a new note. */
+export function creditNoteIdempotencyKey(lineItemId: string, creditedTotalCents: number): string {
+  return `credit-note:${lineItemId}:${creditedTotalCents}`;
 }
 
 export interface CreditNoteInput {
   /** The Stripe invoice the fee was charged on. */
   stripeInvoiceId: string;
-  /** Minor units to credit, equal to the fee line being reversed. */
-  amountCents: number;
+  /** What this fee line's credit should come to in all, in minor units: the
+   *  whole fee for a full refund or a chargeback, the refunded share for a
+   *  partial refund. */
+  creditedTotalCents: number;
   /** Our billing_line_items.id for the fee, for the key and for reconciliation. */
   feeLineItemId: string;
   memo: string;
@@ -422,7 +425,7 @@ export interface CreditNoteInput {
 
 /**
  * Credit a fee line back on the platform invoice it was charged on
- * (PRICING.md rev 5 item 1).
+ * (PRICING.md rev 5 item 1), up to `creditedTotalCents` in all.
  *
  * `credit_amount` is Stripe's "apply this to the customer's balance" mode, as
  * opposed to `refund_amount`, which moves cash. That is the whole point of the
@@ -430,20 +433,23 @@ export interface CreditNoteInput {
  * draws it down on their next finalized invoice, so no money leaves and no
  * card is touched. A cash refund is Dustin's call and is not this path.
  *
- * THE INVOICE IS READ FIRST, because the idempotency key is not enough on a
- * retry. Stripe prunes v1 keys once they are at least 24 hours old and treats a
- * reused key after that as a new request, and the credit-note retry sweep runs
- * daily. If an earlier attempt's note landed but its ledger row did not, the
- * key alone would issue a second note. The note's own `fee_line_item_id`
- * metadata is what finds it instead. A note someone VOIDED is refused rather
- * than reissued: voiding is a person's decision, so the fee stays owed and the
- * sweep's alert puts it in front of one.
+ * A fee line can be credited more than once: each further partial refund
+ * credits its share. So the invoice's notes for this fee line are read and
+ * SUMMED first, and only the difference is issued. That read is also what
+ * makes a retry safe, because the idempotency key is not enough: Stripe prunes
+ * v1 keys once they are at least 24 hours old, and the credit-note retry sweep
+ * runs daily. If an earlier attempt's note landed but its ledger row did not,
+ * the sum already covers it and nothing new is issued. A note someone VOIDED
+ * is refused rather than reissued: voiding is a person's decision, so the fee
+ * stays owed and the sweep's alert puts it in front of one.
  */
 export async function createCreditNote(
   env: Env,
   input: CreditNoteInput,
 ): Promise<{ creditNoteId: string }> {
   const stripe = getStripe(env);
+  let credited = 0;
+  let latest: string | null = null;
   for await (const existing of stripe.creditNotes.list({
     invoice: input.stripeInvoiceId,
     limit: 100,
@@ -454,16 +460,21 @@ export async function createCreditNote(
         `credit note ${existing.id} for fee line ${input.feeLineItemId} was voided at Stripe`,
       );
     }
-    return { creditNoteId: existing.id };
+    credited += existing.amount ?? 0;
+    latest ??= existing.id;
   }
+  if (latest && credited >= input.creditedTotalCents) return { creditNoteId: latest };
   const note = await stripe.creditNotes.create(
     {
       invoice: input.stripeInvoiceId,
-      credit_amount: input.amountCents,
+      credit_amount: input.creditedTotalCents - credited,
       memo: input.memo,
-      metadata: { fee_line_item_id: input.feeLineItemId },
+      metadata: {
+        fee_line_item_id: input.feeLineItemId,
+        credited_total: String(input.creditedTotalCents),
+      },
     },
-    { idempotencyKey: creditNoteIdempotencyKey(input.feeLineItemId) },
+    { idempotencyKey: creditNoteIdempotencyKey(input.feeLineItemId, input.creditedTotalCents) },
   );
   if (!note.id) throw new Error("stripe credit note create returned no id");
   return { creditNoteId: note.id };

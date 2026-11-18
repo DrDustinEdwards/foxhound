@@ -53,14 +53,15 @@ describe("buildBillingInvoiceBatch", () => {
       db,
       baseInput({
         recoveries: [
-          { id: "rec_1", amountCents: 10_000 },
-          { id: "rec_2", amountCents: 5_000 },
+          { id: "rec_1", amountCents: 10_000, refundedCents: 0 },
+          // Half refunded: the fee is on the 2,500 kept (Dustin, 2026-11-18).
+          { id: "rec_2", amountCents: 5_000, refundedCents: 2_500 },
         ],
         disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
       }),
     );
-    // 2000 + 1000 + 10000 = 13000; 3 line items.
-    expect(totalCents).toBe(13_000);
+    // 2000 + 500 + 10000 = 12500; 3 line items.
+    expect(totalCents).toBe(12_500);
     expect(lineItemCount).toBe(3);
   });
 
@@ -68,7 +69,7 @@ describe("buildBillingInvoiceBatch", () => {
     const { lines } = buildBillingInvoiceBatch(
       db,
       baseInput({
-        recoveries: [{ id: "rec_1", amountCents: 10_000 }],
+        recoveries: [{ id: "rec_1", amountCents: 10_000, refundedCents: 0 }],
         disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
       }),
     );
@@ -93,8 +94,8 @@ describe("buildBillingInvoiceBatch", () => {
       db,
       baseInput({
         recoveries: [
-          { id: "rec_1", amountCents: 10_000 },
-          { id: "rec_2", amountCents: 10_000 },
+          { id: "rec_1", amountCents: 10_000, refundedCents: 0 },
+          { id: "rec_2", amountCents: 10_000, refundedCents: 0 },
         ],
         disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
       }),
