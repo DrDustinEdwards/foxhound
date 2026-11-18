@@ -282,18 +282,21 @@ export async function finalizeBillingSetupSession(
   const owned = assertSessionBelongsToAccount(session, input.expectedCustomerId);
   if (!owned.ok) return owned;
 
-  const setupIntent = session.setup_intent;
-  const paymentMethodId =
-    typeof setupIntent === "object" && setupIntent !== null
-      ? typeof setupIntent.payment_method === "string"
-        ? setupIntent.payment_method
-        : (setupIntent.payment_method?.id ?? null)
-      : null;
+  const paymentMethodId = setupSessionPaymentMethod(session);
   if (!paymentMethodId) {
     return { ok: false, error: "no payment method attached to setup intent" };
   }
   await setDefaultPaymentMethod(owned.customerId, paymentMethodId);
   return { ok: true };
+}
+
+/** The card a completed setup session collected, from its expanded
+ *  setup_intent; null when there is none. Pure. */
+export function setupSessionPaymentMethod(session: Stripe.Checkout.Session): string | null {
+  const setupIntent = session.setup_intent;
+  if (typeof setupIntent !== "object" || setupIntent === null) return null;
+  const pm = setupIntent.payment_method;
+  return typeof pm === "string" ? pm : (pm?.id ?? null);
 }
 
 /** The platform customer's default card, as Recova's Payment method section

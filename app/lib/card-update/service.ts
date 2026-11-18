@@ -4,7 +4,10 @@ import {
   WINBACK_SEQUENCE_METADATA_KEY,
   WINBACK_STEP_METADATA_KEY,
 } from "~/lib/recovery/winback-metadata";
-import { assertSessionBelongsToAccount } from "~/lib/billing/platform-customer";
+import {
+  assertSessionBelongsToAccount,
+  setupSessionPaymentMethod,
+} from "~/lib/billing/platform-customer";
 import { getConnectedStripe } from "~/lib/stripe/client";
 
 // Card-update payment-method collection (Phase 5 slice 5g, PRICING.md
@@ -100,13 +103,7 @@ export async function finalizeCardUpdateSession(input: {
   if (session.status !== "complete") {
     return { ok: false, error: "setup session not complete" };
   }
-  const setupIntent = session.setup_intent;
-  const paymentMethodId =
-    typeof setupIntent === "object" && setupIntent !== null
-      ? typeof setupIntent.payment_method === "string"
-        ? setupIntent.payment_method
-        : (setupIntent.payment_method?.id ?? null)
-      : null;
+  const paymentMethodId = setupSessionPaymentMethod(session);
   if (!paymentMethodId) {
     return { ok: false, error: "no payment method attached to setup intent" };
   }
