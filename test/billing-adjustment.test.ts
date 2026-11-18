@@ -1,12 +1,22 @@
 import { eq } from "drizzle-orm";
-import { describe, expect, it } from "vitest";
+import { RouterContextProvider } from "react-router";
+import { describe, expect, it, vi } from "vitest";
+
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Db, MoneyWrite } from "~/db";
 import * as schema from "~/db/schema";
+import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { SerialMoneyCommitter } from "~/lib/money/serializer";
 
-import { createInMemoryDb } from "./helpers/inmemory-db";
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
+
+const adjustmentHarness = vi.hoisted(() => ({ db: null as unknown }));
+vi.mock("~/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/db")>()),
+  getDb: () => adjustmentHarness.db,
+}));
 
 // Manual billing adjustments (admin Pass 2). Adjustments never touch Stripe
 // (PRICING.md/stripe-invoice.ts: only recovery_fee/dispute_fee/subscription are
@@ -174,5 +184,60 @@ describe("createAdjustment idempotency (same token yields exactly one ledger cre
 
     const lines = await adjustmentLines(db);
     expect(lines).toHaveLength(2);
+  });
+});
+
+describe("the merchant page's adjustment form reads the amount in the chosen currency", () => {
+  // Mythos billing review, finding 5: the amount was always parsed as dollars,
+  // so 100 yen was stored as 10,000. Any currency the merchant is not billed
+  // in is refused.
+  async function post(currency: string, amount: string) {
+    const made = createInMemoryDb();
+    adjustmentHarness.db = made.db;
+    made.sqlite
+      .prepare(
+        "INSERT INTO accounts (id, name, currency, created_at) VALUES ('acc_jp', 'Tokyo', 'jpy', 1000)",
+      )
+      .run();
+    const c = new RouterContextProvider();
+    c.set(cloudflareContext, {
+      env: { MONEY_WRITER: inMemoryMoneyWriter(() => made.sqlite).binding } as unknown as Env,
+      ctx: {} as ExecutionContext,
+    });
+    c.set(adminContext, { email: "admin@example.com" });
+    const body = new FormData();
+    for (const [k, v] of Object.entries({
+      intent: "create-adjustment",
+      direction: "correction",
+      currency,
+      amount,
+      description: "Correction",
+      idempotencyToken: "tok_1",
+    }))
+      body.append(k, v);
+    const { action } = await import("~/routes/admin/merchants/detail");
+    const result = (await (action as (a: unknown) => Promise<unknown>)({
+      request: new Request("https://foxhoundapp.com/admin/merchants/acc_jp", {
+        method: "POST",
+        body,
+      }),
+      context: c,
+      params: { id: "acc_jp" },
+    })) as { data: { ok: boolean } };
+    const lines = made.sqlite
+      .prepare("SELECT currency, amount_cents AS amount FROM billing_line_items")
+      .all();
+    return { ok: result.data.ok, lines };
+  }
+
+  it("100 yen is 100 minor units", async () => {
+    expect(await post("JPY", "100")).toEqual({
+      ok: true,
+      lines: [{ currency: "jpy", amount: 100 }],
+    });
+  });
+
+  it("refuses a currency the merchant has no invoices or home currency in", async () => {
+    expect(await post("eur", "5")).toEqual({ ok: false, lines: [] });
   });
 });
