@@ -65,7 +65,7 @@ import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding
 // that binding names; the public fetch handler never routes it (FH-20).
 //
 // TWO CREDENTIALS ON EVERY CALL. An `mcp_admin` key (the MCP Worker's, issued
-// with scripts/issue-admin-api-key.mjs) and the acting admin's email in the
+// in the admin area, Operations) and the acting admin's email in the
 // Foxhound-Acting-Admin header, which is re-checked against ADMIN_EMAIL on every
 // call. The key says the caller is the admin MCP; the email says which person it
 // is acting for, and a person dropped from ADMIN_EMAIL loses the API on their

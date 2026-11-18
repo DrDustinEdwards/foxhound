@@ -21,8 +21,10 @@ import { keyScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 //       mcp_admin    -> an Admin API key, platform-scoped: account_id is null;
 //                       not tied to any single tenant. The admin MCP Worker
 //                       signs in through Access and does not use these.
-//   - Issuance: Settings, API keys (createAccountApiKey) and the OAuth provider
-//     (app/lib/oauth/provider.server.ts). See docs/auth/mcp-tokens.md.
+//   - Issuance: merchant keys in Settings, API keys (createAccountApiKey) and
+//     the OAuth provider (app/lib/oauth/provider.server.ts); Admin API keys
+//     only in the admin area, /admin/operations (issueAdminApiKey). See
+//     docs/auth/mcp-tokens.md.
 //   - Revocation is a timestamp (api_keys.revoked_at); verification rejects it.
 //   - Expiry: api_keys.expires_at is null for a key made in Settings and
 //     set on the one-hour access token an OAuth grant issues (app/lib/oauth);
@@ -32,7 +34,7 @@ export const MCP_TOKEN_SCOPE = {
   MERCHANT: "mcp_merchant",
   ADMIN: "mcp_admin",
 } as const;
-export type McpTokenScope = (typeof MCP_TOKEN_SCOPE)[keyof typeof MCP_TOKEN_SCOPE];
+type McpTokenScope = (typeof MCP_TOKEN_SCOPE)[keyof typeof MCP_TOKEN_SCOPE];
 
 /** Identifying prefix so a leaked token is recognizable and greppable in scans. */
 export const MCP_TOKEN_PREFIX = "fox_mcp_";
@@ -69,12 +71,20 @@ export function mintMcpTokenValue(): string {
  * authenticated, role-checked endpoint.
  */
 export async function issueMcpToken(db: Db, input: IssueMcpTokenInput): Promise<IssuedMcpToken> {
+  const { issued, statement } = await buildMcpTokenInsert(db, input);
+  await statement;
+  return issued;
+}
+
+/** The token and its insert, NOT executed, so a caller can commit the key in
+ *  one batch with its audit row (the admin area's Admin API keys). */
+export async function buildMcpTokenInsert(db: Db, input: IssueMcpTokenInput) {
   const token = mintMcpTokenValue();
   const keyHash = await sha256Hex(token);
   const keyId = crypto.randomUUID();
   const accountId = input.scope === MCP_TOKEN_SCOPE.ADMIN ? null : input.accountId;
 
-  await db.insert(apiKeys).values({
+  const statement = db.insert(apiKeys).values({
     id: keyId,
     accountId,
     keyHash,
@@ -85,7 +95,8 @@ export async function issueMcpToken(db: Db, input: IssueMcpTokenInput): Promise<
     scopes: input.scope === MCP_TOKEN_SCOPE.MERCHANT ? [...MERCHANT_SCOPES.all] : null,
     createdAt: new Date(),
   });
-  return { keyId, token, scope: input.scope };
+  const issued: IssuedMcpToken = { keyId, token, scope: input.scope };
+  return { issued, statement };
 }
 
 export interface VerifiedMcpToken {

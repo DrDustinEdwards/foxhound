@@ -4,12 +4,7 @@ import { olderThan } from "@dustinedwards/site-runtime/d1";
 import type { Db } from "~/db";
 import { apiKeys, mcpCalls, oauthGrants } from "~/db";
 import { MCP_CALLS_SHOWN, maskSecretsInText } from "~/lib/admin/mcps";
-import {
-  MCP_TOKEN_SCOPE,
-  issueMcpToken,
-  type IssuedMcpToken,
-  type McpTokenScope,
-} from "~/lib/auth/mcp-tokens";
+import { MCP_TOKEN_SCOPE, issueMcpToken, type IssuedMcpToken } from "~/lib/auth/mcp-tokens";
 
 // S29's read model and its ACCOUNT-SCOPED writers.
 //
@@ -85,24 +80,17 @@ export async function listAccountApiKeys(
 }
 
 /**
- * Issue one key for this account.
- *
- * The SCOPE is decided by the caller's admin flag, never by the form alone.
- * Legacy's handler (app/api/settings/api-keys/route.ts, blob 81e694f5) checks
- * isAdminEmail too, and answers a non-admin's `scope: 'admin'` with 403; here
- * the same request gets a merchant key, which hands out nothing wider than the
- * caller already holds. `isAdmin` comes from the session.
+ * Issue one merchant key for this account. Settings never issues an Admin API
+ * key, whoever is signed in: that is the admin area's, behind Cloudflare
+ * Access (issueAdminApiKey; Mythos billing review, finding 4). A form's
+ * `scope` is not read at all.
  */
 export async function createAccountApiKey(
   db: Db,
   accountId: string,
   label: string,
-  wantsAdminScope: boolean,
-  isAdmin: boolean,
 ): Promise<IssuedMcpToken> {
-  const scope: McpTokenScope =
-    wantsAdminScope && isAdmin ? MCP_TOKEN_SCOPE.ADMIN : MCP_TOKEN_SCOPE.MERCHANT;
-  return issueMcpToken(db, { accountId, scope, label });
+  return issueMcpToken(db, { accountId, scope: MCP_TOKEN_SCOPE.MERCHANT, label });
 }
 
 /** Revoke one key, pinned to the account. Returns false when the id is not on

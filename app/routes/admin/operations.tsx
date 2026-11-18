@@ -19,7 +19,12 @@ import {
   OPERATIONS_PATH,
   settingKindWord,
 } from "~/lib/admin/operations";
-import { loadMcpOverview } from "~/lib/admin/mcps.server";
+import { issueAdminApiKey, loadMcpOverview, revokeAdminApiKey } from "~/lib/admin/mcps.server";
+import { adminContext } from "~/lib/admin/context";
+import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
+import { readForm } from "@dustinedwards/site-runtime/body";
+import { BODY_MAX_BYTES } from "~/lib/http/body";
+import { data } from "react-router";
 import { formatCount, plural } from "@drdustinedwards/site-helpers/text";
 import { type AdminHandle } from "~/lib/admin/page";
 import {
@@ -67,6 +72,55 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
+export interface AdminKeyActionResult {
+  intent: string;
+  ok: boolean;
+  error?: string;
+  /** The new Admin API key's plaintext, on the response that issued it only. */
+  rawKey?: string;
+}
+
+/** Issue and revoke the Admin API key, the admin area's alone (Mythos billing
+ *  review, finding 4). The admin layout's middleware has already checked
+ *  Access and the roster; each write commits with its audit row. */
+export async function action({ context, request }: Route.ActionArgs) {
+  const form = await readForm(request, BODY_MAX_BYTES);
+  const intent = String(form.get("intent") ?? "");
+  const { email } = context.get(adminContext);
+  const db = getDb(context.get(cloudflareContext).env);
+
+  if (intent === "issue-admin-key") {
+    const label = String(form.get("label") ?? "").trim();
+    if (!label || label.length > API_KEY_LABEL_MAX_LENGTH) {
+      return data<AdminKeyActionResult>(
+        {
+          intent,
+          ok: false,
+          error: `Name the key, in ${API_KEY_LABEL_MAX_LENGTH} characters or fewer.`,
+        },
+        { status: 400 },
+      );
+    }
+    const issued = await issueAdminApiKey(db, label, email);
+    return data<AdminKeyActionResult>({ intent, ok: true, rawKey: issued.token });
+  }
+
+  if (intent === "revoke-admin-key") {
+    const revoked = await revokeAdminApiKey(db, String(form.get("keyId") ?? ""), email);
+    return revoked
+      ? data<AdminKeyActionResult>({ intent, ok: true })
+      : data<AdminKeyActionResult>(
+          { intent, ok: false, error: "That is not a live Admin API key." },
+          { status: 400 },
+        );
+  }
+
+  return data<AdminKeyActionResult>(
+    { intent, ok: false, error: "Unknown action." },
+    { status: 400 },
+  );
+}
+
 const LOCKS_HEADING_ID = "admin-operations-locks-heading";
 const GROWTH_HEADING_ID = "admin-operations-growth-heading";
 const MIGRATIONS_HEADING_ID = "admin-operations-migrations-heading";
@@ -84,7 +138,7 @@ const SETTINGS_HEADING_ID = "admin-operations-settings-heading";
 // has no Cloudflare counterpart. Foxhound's own four panels follow: database
 // size, table growth, migrations and settings, then the MCP servers (once
 // /admin/mcps). Read only.
-export default function AdminOperations({ loaderData }: Route.ComponentProps) {
+export default function AdminOperations({ loaderData, actionData }: Route.ComponentProps) {
   const { queue, locks, sizeBytes, migrations, growthTables, envSanity, mcp } = loaderData;
   const pending = usePagePending(OPERATIONS_PATH);
   const share = sizeBytes / D1_CAP_BYTES;
@@ -313,7 +367,7 @@ export default function AdminOperations({ loaderData }: Route.ComponentProps) {
 
       {/* Once /admin/mcps, folded in here (Dustin, 2026-10-29). */}
       <h2 className="fh-section-title fh-semibold fh-text">MCP servers</h2>
-      <AdminMcpPanels data={mcp} reading={pending} />
+      <AdminMcpPanels data={mcp} reading={pending} keyAction={actionData} />
     </div>
   );
 }

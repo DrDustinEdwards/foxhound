@@ -1,4 +1,10 @@
+import { Alert } from "capsomer/react/banner";
+import { Field } from "capsomer/react/field";
 import { Link } from "capsomer/react/link";
+import { Form, useNavigation } from "react-router";
+import "capsomer/banner.css";
+import "capsomer/button.css";
+import "capsomer/field.css";
 import { Empty } from "capsomer/react/empty";
 import { TablePanel } from "capsomer/react/panel";
 import { StatTile, StatTiles } from "capsomer/react/stat-tile";
@@ -11,6 +17,9 @@ import type { AdminApiKeyRow, AdminMcpCallRow, loadMcpOverview } from "~/lib/adm
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { merchantHref } from "~/lib/admin/page";
 import { MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
+import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
+import { NewApiKey } from "~/components/new-api-key";
+import type { AdminKeyActionResult } from "~/routes/admin/operations";
 
 const KEYS_HEADING_ID = "admin-mcps-keys-heading";
 const TOOLS_HEADING_ID = "admin-mcps-tools-heading";
@@ -28,14 +37,18 @@ const LINK = "fh-row-link";
 // coverage. Its hard-coded server status, tool counts and list of workspace
 // connectors are not copied: the tools here are read
 // from the merchant MCP's live registry, and the merchant MCP call log is
-// Foxhound's own. Read only: nothing here issues or revokes a key, and no key
-// material is read (app/lib/admin/mcps.server.ts).
+// Foxhound's own. The Admin API key is issued and revoked here and nowhere
+// else, behind Access (Mythos billing review, finding 4); merchant keys are
+// the merchants', in Settings. No stored key material is read
+// (app/lib/admin/mcps.server.ts).
 export function AdminMcpPanels({
   data: { summary, keys, calls, tools },
   reading,
+  keyAction,
 }: {
   data: Awaited<ReturnType<typeof loadMcpOverview>>;
   reading?: boolean;
+  keyAction?: AdminKeyActionResult;
 }) {
   const writes = tools.filter((t) => t.writes).length;
 
@@ -84,6 +97,7 @@ export function AdminMcpPanels({
               <th scope="col">Status</th>
               <th scope="col">Created</th>
               <th scope="col">Last used</th>
+              <th scope="col">Change</th>
             </tr>
           </thead>
           <tbody>
@@ -92,6 +106,12 @@ export function AdminMcpPanels({
             ))}
           </tbody>
         </TablePanel>
+
+        {keyAction?.rawKey !== undefined ? (
+          <NewApiKey rawKey={keyAction.rawKey} />
+        ) : (
+          <IssueAdminKeyForm error={keyAction?.ok === false ? keyAction.error : undefined} />
+        )}
 
         <TablePanel
           title="Merchant tools"
@@ -199,7 +219,55 @@ function KeyRow({ apiKey: k }: { apiKey: AdminApiKeyRow }) {
       <td data-label="Last used">
         <Time at={k.lastUsedAt} empty="never" tip />
       </td>
+      <td data-label="Change">
+        {k.scope === MCP_TOKEN_SCOPE.ADMIN && !k.revokedAt ? (
+          <Form method="post">
+            <input type="hidden" name="intent" value="revoke-admin-key" />
+            <input type="hidden" name="keyId" value={k.id} />
+            <button type="submit" className="cap-btn" data-size="sm">
+              Revoke<span className="cap-sr-only"> {k.label ?? "this key"}</span>
+            </button>
+          </Form>
+        ) : (
+          <span className="fh-quiet">None</span>
+        )}
+      </td>
     </tr>
+  );
+}
+
+/** The one place an Admin API key is made: the key the admin MCP Worker
+ *  presents. Shown once, then given to that Worker as its secret. */
+function IssueAdminKeyForm({ error }: { error?: string }) {
+  const busy = useNavigation().state !== "idle";
+  return (
+    <section className="cap-panel">
+      <div className="cap-panel-body">
+        <Form method="post" className="cap-stack">
+          <input type="hidden" name="intent" value="issue-admin-key" />
+          {error ? <Alert>{error}</Alert> : null}
+          <Field
+            label="New Admin API key"
+            help="Platform-wide: it can reach every merchant account through the admin MCP. Give it to the admin MCP Worker as FOXHOUND_ADMIN_API_KEY, then revoke the old one."
+          >
+            <input
+              name="label"
+              type="text"
+              required
+              maxLength={API_KEY_LABEL_MAX_LENGTH}
+              defaultValue="foxhound-admin-mcp"
+              autoComplete="off"
+              className="cap-input"
+            />
+          </Field>
+          <div>
+            <button type="submit" disabled={busy} className="cap-btn" data-variant="primary">
+              Issue Admin API key
+            </button>
+          </div>
+        </Form>
+      </div>
+    </section>
   );
 }
 

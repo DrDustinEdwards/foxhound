@@ -146,10 +146,15 @@ describe("PLANT 2: the scope is the session's, not the form's", () => {
     expect(verified?.accountId).toBe(ACCOUNT);
   });
 
-  it("an admin posting scope=admin does get an admin key", async () => {
-    await post({ _action: "create", label: "ops", scope: "admin" }, true);
-    expect(keyRows(null)).toHaveLength(1);
-    expect(keyRows(null)[0].scope).toBe(MCP_TOKEN_SCOPE.ADMIN);
+  it("AN ADMIN POSTING scope=admin GETS A MERCHANT KEY TOO", async () => {
+    // Mythos billing review, finding 4: Settings sits outside Cloudflare
+    // Access, so an admin's stolen session here minted a platform-wide key.
+    // Admin API keys are made only on /admin/operations now.
+    const res = await post({ _action: "create", label: "ops", scope: "admin" }, true);
+    expect(keyRows(null)).toHaveLength(0);
+    expect(keyRows(ACCOUNT)[0].scope).toBe(MCP_TOKEN_SCOPE.MERCHANT);
+    const verified = await verifyMcpToken(db, String(res.body.rawKey));
+    expect(verified?.accountId).toBe(ACCOUNT);
   });
 });
 
