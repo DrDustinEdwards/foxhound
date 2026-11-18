@@ -561,6 +561,13 @@
       "when": 1794542736660,
       "tag": "0083_drop_api_keys_key_hash_idx",
       "breakpoints": true
+    },
+    {
+      "idx": 80,
+      "version": "6",
+      "when": 1794978547509,
+      "tag": "0084_partial_refunds",
+      "breakpoints": true
     }
   ]
 }
