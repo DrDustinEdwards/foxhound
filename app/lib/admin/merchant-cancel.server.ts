@@ -86,7 +86,7 @@ async function cancelMerchantLocal(
 
   // The admin's audit row commits in the same batch as the cancel, so the
   // cancel never stands without its record (Mythos billing review, finding 7).
-  const auditRow = audit
+  const auditInsert = audit
     ? [
         buildAdminAuditLogInsert(db, {
           ...audit,
@@ -100,7 +100,7 @@ async function cancelMerchantLocal(
     : [];
   const [stamped] = (await db.batch([
     ...buildCancelMerchantBatch(db, accountId, activeConnections, now),
-    ...auditRow,
+    ...auditInsert,
   ] as CancelBatch)) as unknown[];
   // A zero-row account UPDATE is a failure, not a cancel: no such account.
   if (!Array.isArray(stamped) || stamped.length === 0) {

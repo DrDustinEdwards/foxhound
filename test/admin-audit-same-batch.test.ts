@@ -75,7 +75,7 @@ function post(fields: Record<string, string>) {
 function accountRow() {
   return sqlite
     .prepare(
-      "SELECT billing_exempt AS exempt, processing_paused AS paused, cancelled_at AS cancelled FROM accounts WHERE id = 'acc_1'",
+      "SELECT billing_exempt AS exempt, processing_paused AS paused, cancelled_at AS canceled FROM accounts WHERE id = 'acc_1'",
     )
     .get();
 }
@@ -87,7 +87,7 @@ describe("an admin change on the merchant page never stands without its audit ro
     ["cancel", { intent: "cancel" }],
   ])("%s: a failed audit write changes nothing", async (_name, fields) => {
     await expect(post(fields)).rejects.toThrow();
-    expect(accountRow()).toEqual({ exempt: 0, paused: 0, cancelled: null });
+    expect(accountRow()).toEqual({ exempt: 0, paused: 0, canceled: null });
     expect(sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections").get()).toEqual({
       d: null,
     });
