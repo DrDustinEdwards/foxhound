@@ -5,6 +5,7 @@
 // which no address match would know.
 
 import { getDb } from "~/db";
+import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { merchantsInView, type MerchantView } from "~/lib/admin/merchants";
 import { getMerchantFigures, listAdminMerchants } from "~/lib/admin/merchants.server";
 
@@ -31,6 +32,8 @@ export async function loadMerchantsPage(env: Env, request: Request, view: Mercha
     view,
     merchants,
     counts,
+    // The Paused list's share the brake holds: exactly what its Release resumes.
+    brakePaused: paused.filter((m) => m.pauseReason === PAUSE_REASON_BRAKE).length,
     figures,
     confirmCancel: live ? { id: live.id, name: live.name } : null,
   };

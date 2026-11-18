@@ -146,6 +146,8 @@ describe("the loader, by address", () => {
     const counts = { all: 5, paused: 3, "billing-exempt": 2 };
     expect((await load(pausedRoute, "/admin/merchants/paused")).counts).toEqual(counts);
     expect((await load(indexRoute, "/admin/merchants")).counts).toEqual(counts);
+    // The Paused list's share the brake holds: what its Release would resume.
+    expect((await load(pausedRoute, "/admin/merchants/paused")).brakePaused).toBe(1);
   });
 
   it("reads the platform figures for All merchants only, as Recova's two lists had none", async () => {

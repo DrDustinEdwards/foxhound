@@ -60,7 +60,13 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
   const pending = usePagePending(AUDIT_LOG_PATH);
 
   return (
-    <Panel title="Operator actions" headingId={HEADING_ID} reading={pending} flush>
+    <Panel
+      title="Operator actions"
+      headingId={HEADING_ID}
+      reading={pending}
+      count={entries.length}
+      flush
+    >
       {entries.length === 0 ? (
         <Empty kind="nothing-yet" title="No audit log entries yet." />
       ) : (

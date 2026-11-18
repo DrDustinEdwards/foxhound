@@ -227,6 +227,9 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
           actions={
             data.connection ? (
               <div className="fh-recovery-head-end">
+                <p className="fh-tiny fh-faint">
+                  Connected &middot; {data.connection.name ?? data.connection.stripeUserId}
+                </p>
                 <RangeSelector range={range} />
                 {data.webhookHealth ? (
                   <Status tone={WEBHOOK_TONE[data.webhookHealth.tone]}>

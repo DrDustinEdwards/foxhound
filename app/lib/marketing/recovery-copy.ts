@@ -1,3 +1,4 @@
+import { AUDIT_ACCESS_CHIP } from "~/lib/marketing/audit-access";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import {
   EXPIRING_CARD_DAYS_AHEAD,
@@ -157,5 +158,5 @@ export const RECOVERY_FAQS = [
 
 export const RECOVERY_BOTTOM_CTA = {
   title: "See what is currently unrecovered.",
-  sub: "The free audit shows your failed invoices and estimates what recovery sequences would return.",
+  sub: `The free audit shows your failed invoices and estimates what recovery sequences would return. ${AUDIT_ACCESS_CHIP}.`,
 };

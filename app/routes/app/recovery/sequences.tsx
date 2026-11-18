@@ -24,7 +24,7 @@ import {
   SEQUENCE_CATEGORY_ORDER,
   sequenceRateClassName,
 } from "~/lib/recovery/sequence-categories";
-import { drawStepPerformance } from "~/lib/recovery/sequence-chart";
+import { drawStepPerformance, STEP_PERFORMANCE_NOTE } from "~/lib/recovery/sequence-chart";
 import {
   buildCategorySections,
   summarizeStepPerformance,
@@ -130,6 +130,7 @@ function StepPerformanceChart({ chart }: { chart: StepPerformanceSummary["chart"
   return (
     <ChartPanel
       title="Step performance"
+      src={STEP_PERFORMANCE_NOTE}
       gridlines="none"
       width={CHART_WIDTH}
       draw={(width, fit) => drawStepPerformance(chart, width, fit)}

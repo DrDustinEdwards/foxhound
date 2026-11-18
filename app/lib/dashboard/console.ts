@@ -160,3 +160,18 @@ export function mrrMovementAlt(m: MovementTotals, currency: string): string {
  * (accountProcessingEligible).
  */
 export type MrrSyncState = "eligible" | "unconnected" | "paused" | "cancelled";
+
+/** The empty MRR state's sentence, true for each sync state. Only an eligible
+ *  account is promised a snapshot date. */
+export function mrrEmptySentence(state: MrrSyncState, firstSnapshot: string): string {
+  switch (state) {
+    case "eligible":
+      return firstSnapshot;
+    case "unconnected":
+      return "MRR analytics start once Stripe is connected. Foxhound takes the first snapshot right after you connect, then one every day.";
+    case "paused":
+      return "Processing is paused for this account, so Foxhound is not taking MRR snapshots.";
+    case "cancelled":
+      return "This account is canceled, so Foxhound takes no MRR snapshots.";
+  }
+}

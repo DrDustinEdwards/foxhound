@@ -258,7 +258,9 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
           <p className="fh-small fh-quiet">
             What this does not stop: a canceled account still pays fees it already owed, because
             those were earned before it canceled and the brake has no lever over them. Everything
-            else, including billing-exempt accounts, stops.
+            else, including billing-exempt accounts, stops. Demo, canceled and already paused
+            accounts are left alone, and a release resumes only what the brake paused: merchants
+            paused by hand keep their pause.
           </p>
           <ConfirmForm
             intent="engage"

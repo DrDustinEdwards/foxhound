@@ -259,6 +259,10 @@ function StripeSection({
           </div>
         ) : null}
 
+        {isOwner ? null : (
+          <p className="fh-small fh-soft">Only the account owner can add or disconnect accounts.</p>
+        )}
+
         {connections.length === 0 ? (
           <div className="fh-setting-row">
             <p className="fh-small fh-text">No Stripe account connected</p>

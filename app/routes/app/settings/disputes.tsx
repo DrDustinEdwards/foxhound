@@ -177,7 +177,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 ) : null}
                 <SwitchRow
                   name={loaderData.isOwner ? "dispute_auto_submit" : undefined}
-                  label="Auto-submit disputes"
+                  label="Auto-submit disputes 24 hours before the deadline if you have not acted"
                   defaultChecked={loaderData.autoSubmit}
                   disabledReason={
                     loaderData.isOwner ? undefined : "Only the account owner can change this."

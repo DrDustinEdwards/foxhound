@@ -1,5 +1,6 @@
 import { barChart } from "enarratio/lite/bar";
 import type { ChartFit } from "capsomer/react/chart-frame";
+import { EMAIL_ENGAGEMENT_WINDOW_DAYS } from "~/lib/constants";
 
 import type { StepPerformancePoint } from "./sequence-performance";
 
@@ -7,6 +8,11 @@ import type { StepPerformancePoint } from "./sequence-performance";
 // Enarratio on /recovery/sequence in place of Recova's Recharts BarChart
 // (StepPerformanceChart.tsx edf8f83c). Pure, so the route draws and the tests
 // read the same rows.
+
+/** Beside the chart's title. Foxhound credits an email step only through
+ *  findAttributionSignals (attribution.ts): a click not flagged as suspect,
+ *  before the payment and inside the engagement window. */
+export const STEP_PERFORMANCE_NOTE = `Recovery counts a payment only when the customer clicked the email's link within ${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before paying. Clicks flagged as automated do not count.`;
 
 /** Recova's series, in its funnel order: each depends on the one before. */
 const STEP_PERFORMANCE_SERIES = ["Open rate", "Click rate", "Recovery rate"] as const;

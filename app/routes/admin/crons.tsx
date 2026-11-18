@@ -172,7 +172,13 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
         {done ? `${done.cronName} ${done.enabled ? "is on." : "is switched off."}` : null}
       </p>
 
-      <Panel title="Scheduled jobs" headingId={HEADING_ID} reading={pending} flush>
+      <Panel
+        title="Scheduled jobs"
+        headingId={HEADING_ID}
+        reading={pending}
+        count={crons.length}
+        flush
+      >
         {crons.length === 0 ? (
           <Empty kind="nothing-yet" title="No scheduled jobs are registered." />
         ) : (
