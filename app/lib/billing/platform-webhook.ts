@@ -1,8 +1,8 @@
-import { and, eq, notInArray } from "drizzle-orm";
+import { and, eq, isNull, notInArray, or } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { billingInvoices, getDb, webhookEvents } from "~/db";
+import { accounts, billingInvoices, getDb, webhookEvents } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { buildWebhookClaim, type WebhookClaimInput } from "~/lib/webhooks/batches";
@@ -63,16 +63,22 @@ interface PlatformBillingTarget {
   /** The row's status when resolved, so a stale event is claimed without applying. */
   currentStatus: string;
   status: string;
-  stripeInvoiceId: string | null;
+  stripeInvoiceId: string;
   hostedInvoiceUrl: string | null;
 }
 
 /**
  * Resolve which billing_invoices row an event applies to. Reads only, so it is
  * safe to run before the claim. Returns null when the event is not one we act on
- * (unmapped type, no billing_invoice_id metadata, or an id we have no row for);
- * a D1 failure THROWS, which is the point: an unresolvable event must not be
- * claimed.
+ * (unmapped type, no billing_invoice_id metadata, an id we have no row for, or
+ * an invoice that is not that row's); a D1 failure THROWS, which is the point:
+ * an unresolvable event must not be claimed.
+ *
+ * The metadata is only a pointer. Anyone can write billing_invoice_id on an
+ * invoice in their own Stripe account, and a merchant can read their own row
+ * id at /billing/invoices/:id, so the invoice must also be OURS for that row:
+ * billed to the account's platform customer, and the same Stripe invoice the
+ * row already names (Mythos billing review, finding 2).
  */
 async function resolvePlatformBillingTarget(
   env: Env,
@@ -83,23 +89,33 @@ async function resolvePlatformBillingTarget(
 
   const invoice = event.data.object as Stripe.Invoice;
   const billingInvoiceId = invoice.metadata?.billing_invoice_id ?? null;
-  if (!billingInvoiceId) return null;
+  if (!billingInvoiceId || !invoice.id) return null;
 
   const db = getDb(env);
   const rows = await db
-    .select({ accountId: billingInvoices.accountId, status: billingInvoices.status })
+    .select({
+      accountId: billingInvoices.accountId,
+      status: billingInvoices.status,
+      stripeInvoiceId: billingInvoices.stripeInvoiceId,
+      platformCustomerId: accounts.platformStripeCustomerId,
+    })
     .from(billingInvoices)
+    .innerJoin(accounts, eq(accounts.id, billingInvoices.accountId))
     .where(eq(billingInvoices.id, billingInvoiceId))
     .limit(1);
   const row = rows[0];
   if (!row) return null;
+
+  const customerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
+  if (!row.platformCustomerId || customerId !== row.platformCustomerId) return null;
+  if (row.stripeInvoiceId && row.stripeInvoiceId !== invoice.id) return null;
 
   return {
     accountId: row.accountId,
     billingInvoiceId,
     currentStatus: row.status,
     status,
-    stripeInvoiceId: invoice.id ?? null,
+    stripeInvoiceId: invoice.id,
     hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
   };
 }
@@ -132,6 +148,11 @@ function buildPlatformBillingBatch(
       .where(
         and(
           eq(billingInvoices.id, target.billingInvoiceId),
+          // Never repoint a row at a different Stripe invoice.
+          or(
+            isNull(billingInvoices.stripeInvoiceId),
+            eq(billingInvoices.stripeInvoiceId, target.stripeInvoiceId),
+          ),
           notInArray(billingInvoices.status, statusesAtOrAbove(target.status)),
         ),
       ),
@@ -149,6 +170,11 @@ export async function processPlatformWebhook(
   event: Stripe.Event,
   receivedAt: Date,
 ): Promise<WebhookOutcome> {
+  // A connected account's event has no business here. Ignore it WITHOUT a
+  // claim: the claim key is the Stripe event id, shared with the connected
+  // endpoint, so claiming here would make that endpoint skip it as a duplicate.
+  if (event.account) return { status: "ignored", reason: "connected_account_event" };
+
   try {
     const target = await resolvePlatformBillingTarget(env, event);
 

@@ -69,17 +69,22 @@ const { action } = await import("~/routes/webhooks/stripe-platform");
 const { cloudflareContext } = await import("@dustinedwards/site-runtime/context");
 const schema = await import("~/db/schema");
 
+const PLATFORM_CUSTOMER = "cus_platform_1";
+
 function invoicePaidEvent(
   eventId: string,
   billingInvoiceId: string | null,
   type = "invoice.paid",
+  over: { account?: string; customer?: string; invoiceId?: string } = {},
 ): Stripe.Event {
   return {
     id: eventId,
     type,
+    ...(over.account ? { account: over.account } : {}),
     data: {
       object: {
-        id: "in_platform_1",
+        id: over.invoiceId ?? "in_platform_1",
+        customer: over.customer ?? PLATFORM_CUSTOMER,
         hosted_invoice_url: "https://pay.stripe.com/platform",
         metadata: billingInvoiceId ? { billing_invoice_id: billingInvoiceId } : {},
       },
@@ -104,13 +109,16 @@ function post(): Promise<Response> {
   return action({ request, context } as never) as Promise<Response>;
 }
 
-async function seed() {
+async function seed(stripeInvoiceId: string | null = null) {
   const { sqlite, db } = createInMemoryDb();
   harness.db = db;
   harness.sqlite = sqlite;
-  await db
-    .insert(schema.accounts)
-    .values({ id: ACCOUNT_ID, name: "Platform Co", createdAt: RECEIVED_AT });
+  await db.insert(schema.accounts).values({
+    id: ACCOUNT_ID,
+    name: "Platform Co",
+    platformStripeCustomerId: PLATFORM_CUSTOMER,
+    createdAt: RECEIVED_AT,
+  });
   await db.insert(schema.billingInvoices).values({
     id: BILLING_INVOICE_ID,
     accountId: ACCOUNT_ID,
@@ -119,6 +127,7 @@ async function seed() {
     periodEnd: new Date("2026-08-01T00:00:00.000Z"),
     status: "finalized",
     totalCents: 2_000,
+    stripeInvoiceId,
     idempotencyKey: "billing:acc_platform:usd:2026-07",
     createdAt: RECEIVED_AT,
   });
@@ -200,6 +209,43 @@ describe("platform webhook: events with nothing to apply", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ received: true, outcome: "ignored" });
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(1);
+  });
+});
+
+describe("platform webhook: only our own invoice for that row is applied", () => {
+  // A merchant can read their billing_invoices id and put it in the metadata
+  // of an invoice in their own Stripe account. None of these may mark the fee paid.
+  it("ignores a connected account's event and leaves no claim for the connected endpoint to trip on", async () => {
+    const db = await seed();
+    harness.event = invoicePaidEvent("evt_connected", BILLING_INVOICE_ID, "invoice.paid", {
+      account: "acct_merchant",
+    });
+    const res = await post();
+    expect(await res.json()).toEqual({ received: true, outcome: "ignored" });
+    const [invoice] = await db.select().from(schema.billingInvoices);
+    expect(invoice.status).toBe("finalized");
+    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
+  });
+
+  it("ignores an invoice billed to a customer other than the account's platform customer", async () => {
+    const db = await seed();
+    harness.event = invoicePaidEvent("evt_other_customer", BILLING_INVOICE_ID, "invoice.paid", {
+      customer: "cus_someone_else",
+    });
+    expect(await (await post()).json()).toEqual({ received: true, outcome: "ignored" });
+    const [invoice] = await db.select().from(schema.billingInvoices);
+    expect(invoice.status).toBe("finalized");
+  });
+
+  it("ignores a different Stripe invoice than the one the row names, and never repoints the row", async () => {
+    const db = await seed("in_platform_1");
+    harness.event = invoicePaidEvent("evt_other_invoice", BILLING_INVOICE_ID, "invoice.paid", {
+      invoiceId: "in_forged",
+    });
+    expect(await (await post()).json()).toEqual({ received: true, outcome: "ignored" });
+    const [invoice] = await db.select().from(schema.billingInvoices);
+    expect(invoice.status).toBe("finalized");
+    expect(invoice.stripeInvoiceId).toBe("in_platform_1");
   });
 });
 
