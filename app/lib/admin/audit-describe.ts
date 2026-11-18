@@ -23,8 +23,12 @@ const ACTIONS: Record<string, string> = {
   "merchant.intelligence.grant": "Granted a merchant Intelligence",
   "merchant.intelligence.revoke": "Revoked a merchant's Intelligence",
   "merchant.cancel": "Canceled a merchant",
+<<<<<<< HEAD
   "admin_api_key.issue": "Issued an Admin API key",
   "admin_api_key.revoke": "Revoked an Admin API key",
+=======
+  "merchant.cancel.revoke_failed": "Could not revoke a canceled merchant's Stripe access",
+>>>>>>> origin/main
   "billing.adjustment.create": "Added a billing adjustment",
   "blog.create": "Created a blog post",
   "blog.update": "Edited a blog post",
@@ -198,6 +202,7 @@ export function auditDetail(entry: AuditEntryLike): string | null {
       const error = str(m.error);
       return error === null ? null : cut(error);
     }
+    case "merchant.cancel.revoke_failed":
     case "merchant.cancel": {
       const disconnected = count(m.connectionsDisconnected);
       const failed = Array.isArray(m.deauthorizeErrors) ? m.deauthorizeErrors.length : 0;

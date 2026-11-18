@@ -464,13 +464,12 @@ const ROUTES: ApiRoute[] = [
           `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
         );
       }
-      // Intent before state, as the /admin screens do.
-      await logAdminAction(db, {
+      // The audit row commits with the pause, as the /admin screens do.
+      await setProcessingPaused(db, accountId, true, {
         actorEmail: caller.actorEmail,
         action: "merchant.processing.pause",
         metadata: { accountId, via: "admin-api", keyId: caller.keyId },
       });
-      await setProcessingPaused(db, accountId, true);
       return { paused: accountId };
     },
   },
