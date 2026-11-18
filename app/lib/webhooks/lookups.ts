@@ -71,6 +71,23 @@ export async function resolveConnection(
   return rows[0] ?? null;
 }
 
+/** True when this Stripe account has a DISCONNECTED connection here (and, as
+ *  the caller already found, no live one): a merchant who disconnected, or
+ *  whose revoke at Stripe failed or lagged. Its events are not claimed, so the
+ *  missed-event sweep can replay them after a reconnect (Mythos billing
+ *  review, finding 6). */
+export async function hasDisconnectedConnection(
+  env: Env,
+  connectedAccountId: string,
+): Promise<boolean> {
+  const rows = await getDb(env)
+    .select({ id: stripeConnections.id })
+    .from(stripeConnections)
+    .where(eq(stripeConnections.stripeUserId, connectedAccountId))
+    .limit(1);
+  return rows.length > 0;
+}
+
 /** Find the current ACTIVE failed_payment for an invoice, if any: the per-invoice
  *  intake dedupe (Stripe emits one payment_failed per collection attempt, and
  *  only the first spawns a sequence). Deliberately narrower than

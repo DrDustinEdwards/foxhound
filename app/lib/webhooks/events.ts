@@ -29,7 +29,7 @@ import { stripeDate } from "~/lib/stripe/time";
 //   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
 //   invoice.marked_uncollectible -> stripe_gave_up (starts a parked sequence)
 //   invoice.voided             -> invoice_voided (stops recovery: nothing to collect)
-//   charge.refunded            -> stamp_refund (unbills the recovery, any refund)
+//   charge.refunded            -> stamp_refund (the fee shrinks by the refunded share)
 //   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
 //   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot),
 //                                 or inquiry_closed for an inquiry closed as warning_closed
@@ -111,7 +111,14 @@ export type WebhookIntent =
       kind: "winback_reactivate";
       sequenceId: string;
     }
-  | { kind: "stamp_refund"; paymentIntentId: string }
+  | {
+      kind: "stamp_refund";
+      paymentIntentId: string;
+      /** charge.amount_refunded: cumulative, so a late event never undoes a later one. */
+      refundedCents: number;
+      /** charge.refunded: the whole charge is refunded, so no fee at all. */
+      full: boolean;
+    }
   | {
       kind: "stamp_dispute";
       stripeDisputeId: string;
@@ -292,14 +299,17 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     }
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
-      // ANY refund disqualifies the recovery from billing, full or partial, with
-      // no proration (parity ruling 29: conservative and merchant-favorable,
-      // and there is no credit-note subsystem to unwind a fee after the fact).
-      // This used to gate on charge.refunded (full refunds only), which left a
-      // partially-refunded recovery fully billable.
+      // The fee shrinks by the refunded share and a full refund owes none
+      // (Dustin, 2026-11-18, replacing parity ruling 29's "any refund cancels
+      // the whole fee", which let a one-cent refund cancel a 20% fee).
       const paymentIntentId = asId(charge.payment_intent);
       if (!paymentIntentId) return { kind: "ignore", reason: "no_payment_intent" };
-      return { kind: "stamp_refund", paymentIntentId };
+      return {
+        kind: "stamp_refund",
+        paymentIntentId,
+        refundedCents: charge.amount_refunded ?? 0,
+        full: charge.refunded === true,
+      };
     }
     case "charge.dispute.created": {
       const dispute = event.data.object as Stripe.Dispute;

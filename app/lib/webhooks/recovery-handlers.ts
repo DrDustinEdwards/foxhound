@@ -385,8 +385,8 @@ export async function handleStampRefund(
   intent: IntentOf<"stamp_refund">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
-  // stamp_refund: ANY refund, full or partial, disqualifies the recovery from
-  // billing entirely (parity ruling 29). resolveRefundedFailedPayment THROWS
+  // stamp_refund: the fee shrinks by the refunded share, and a full refund
+  // owes none (buildRefundStampBatch). resolveRefundedFailedPayment THROWS
   // on a transient failure instead of resolving to null, and that asymmetry is
   // deliberate: claiming a refund we could not stamp is the one direction that
   // overcharges a merchant, so an unresolvable refund leaves the event
@@ -410,6 +410,8 @@ export async function handleStampRefund(
         accountId,
         failedPaymentId: refundedFailedPaymentId,
         at: receivedAt,
+        refundedCents: intent.refundedCents,
+        full: intent.full,
       }),
   });
 

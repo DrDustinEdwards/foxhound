@@ -180,6 +180,6 @@ describe("a billing exemption forgives the fees that came due while exempt", () 
     const asOf = day(120).getTime();
     expect(ids(await getBillableRecoveries(db, ACCOUNT, asOf))).toEqual([]);
     const roi = await listBillableRecoveredForRoi(db, ACCOUNT, asOf, null);
-    expect(roi).toEqual([{ amountCents: 10_000, currency: "usd" }]);
+    expect(roi).toEqual([{ amountCents: 10_000, refundedCents: 0, currency: "usd" }]);
   });
 });
