@@ -293,17 +293,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
   const revokeError = result?.action === "revoke" && !result.ok ? result.error : undefined;
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="API Keys"
-      lead={
-        <>
-          Agents connect at <span className="fh-mono">/mcp</span>. A key cannot move money, submit
-          dispute evidence, disconnect Stripe or cancel your account, and customer names and full
-          email addresses are never sent. Every change is logged with the key that made it.
-        </>
-      }
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="API Keys">
       <section className="cap-panel">
         <div className="cap-panel-body">
           <div className="fh-keys-head">

@@ -1,5 +1,4 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { iconRefresh } from "capsomer/react/icons";
 
 import {
   BottomCTA,
@@ -92,8 +91,6 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
-        productName="Recovery"
-        icon={iconRefresh}
         headline={RECOVERY_HERO.headline}
         sub={RECOVERY_HERO.sub}
         pricing={RECOVERY_HERO.pricing}
@@ -138,12 +135,7 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
         cta={AUDIT}
       />
       <ProductFAQ name="recovery-faq" faqs={RECOVERY_FAQS} />
-      <BottomCTA
-        title={RECOVERY_BOTTOM_CTA.title}
-        sub={RECOVERY_BOTTOM_CTA.sub}
-        cta={AUDIT}
-        note={RECOVERY_BOTTOM_CTA.note}
-      />
+      <BottomCTA title={RECOVERY_BOTTOM_CTA.title} sub={RECOVERY_BOTTOM_CTA.sub} cta={AUDIT} />
     </div>
   );
 }

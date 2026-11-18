@@ -191,7 +191,6 @@ export const AUDIT_FAQS = [
 export const AUDIT_BOTTOM_CTA = {
   title: "Your Stripe account is telling you something.",
   sub: "The audit shows you what. Free, reads only, 30 seconds.",
-  note: "No account required · Reads only · Results in 30 seconds",
 };
 
 /** The Plain English preview: an example summary in the prompt's plan, with

@@ -2,13 +2,7 @@
 // renders them), tested without a database. Its pending state is the admin's
 // shared usePagePending (Capsomer) and its account links are merchantHref (~/lib/admin/page).
 
-import { plural } from "@drdustinedwards/site-helpers/text";
 import type { UserMembership } from "~/lib/admin/users.server";
-
-/** "3 people can sign in to Foxhound." */
-export function usersCountSentence(n: number): string {
-  return `${plural(n, "person", "people")} can sign in to Foxhound.`;
-}
 
 /** What follows an account's name: the role for an active member, "invited"
  *  for a pending invite, "invite expired" for one that can no longer be

@@ -224,11 +224,6 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
       <div className="fh-recovery-head">
         <PageHead
           title="Dashboard"
-          lead={
-            data.connection
-              ? `Connected · ${data.connection.name ?? data.connection.stripeUserId}`
-              : "No Stripe account connected"
-          }
           actions={
             data.connection ? (
               <div className="fh-recovery-head-end">

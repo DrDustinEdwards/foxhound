@@ -118,7 +118,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
         foxhoundWinRate={foxhoundWinRate}
       />
     ) : null,
-    <AuditHealthSection key="health" run={run} when="stored" recoveryRatePct={recoveryRatePct} />,
+    <AuditHealthSection key="health" run={run} recoveryRatePct={recoveryRatePct} />,
   ].filter(Boolean);
 
   // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns

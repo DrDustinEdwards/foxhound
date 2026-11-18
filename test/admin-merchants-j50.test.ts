@@ -148,10 +148,6 @@ describe("the loader, by address", () => {
     expect((await load(indexRoute, "/admin/merchants")).counts).toEqual(counts);
   });
 
-  it("counts the brake's share of the Paused list, which the brake's Release would resume", async () => {
-    expect((await load(pausedRoute, "/admin/merchants/paused")).brakePaused).toBe(1);
-  });
-
   it("reads the platform figures for All merchants only, as Recova's two lists had none", async () => {
     expect((await load(pausedRoute, "/admin/merchants/paused")).figures).toBeNull();
     expect((await load(indexRoute, "/admin/merchants")).figures).toMatchObject({

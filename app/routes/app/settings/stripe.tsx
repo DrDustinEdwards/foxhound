@@ -353,11 +353,7 @@ export default function StripeSettings({ loaderData, actionData }: Route.Compone
   const result = actionData as DisconnectResult | undefined;
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="Stripe connections"
-      lead={isOwner ? undefined : "Only the account owner can add or disconnect accounts."}
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="Stripe connections">
       <StripeSection connections={connections} result={result} isOwner={isOwner} />
     </SettingsLayout>
   );

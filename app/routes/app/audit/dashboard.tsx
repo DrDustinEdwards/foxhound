@@ -440,11 +440,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   return (
     <div className="fh-auditd-page cap-admin-page" data-width="page">
       <div className="fh-auditd-head">
-        <PageHead
-          title="Audit history"
-          lead={`Last run ${formatDate(last.runAt, { style: "medium" }) ?? ""}`}
-          actions={<RunNewAudit>Run new audit</RunNewAudit>}
-        />
+        <PageHead title="Audit history" actions={<RunNewAudit>Run new audit</RunNewAudit>} />
       </div>
 
       <AuditSummary summary={last.summary} />

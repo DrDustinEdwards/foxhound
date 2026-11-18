@@ -144,16 +144,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   };
 }
 
-function formatRanAt(value: Date): string {
-  return value.toLocaleString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSavedReason | null }) {
   if (signedIn) {
     return (
@@ -212,16 +202,13 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
         <div className="fh-results-block-3 fh-mono fh-tiny fh-faint fh-caps-wide">
           Stripe Account Diagnostic
         </div>
-        <PageHead
-          title={`Analyzed last ${run.lookbackDays} days of payment history`}
-          lead={<span className="fh-mono fh-tiny fh-faint">Run at {formatRanAt(run.runAt)}</span>}
-        />
+        <PageHead title={`Analyzed last ${run.lookbackDays} days of payment history`} />
       </div>
 
       <AuditSummary summary={run.summary} />
       <AuditRecoverySection run={run} ctaState={ctaState} />
       {showDisputesSection(run) ? <AuditDisputesSection run={run} ctaState={ctaState} /> : null}
-      <AuditHealthSection run={run} when="live" />
+      <AuditHealthSection run={run} />
 
       <WhatsNext signedIn={signedIn} notSaved={notSaved} />
     </div>

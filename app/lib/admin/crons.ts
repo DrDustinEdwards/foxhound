@@ -1,7 +1,6 @@
 // Pure display helpers for /admin/platform/crons and the Overview's cron health, shared
 // by both pages (not a .server module: the components render them).
 
-import { plural } from "@drdustinedwards/site-helpers/text";
 import { ordinal } from "~/lib/billing/page";
 
 /** A run's id: its job and start (epoch ms), the key of its cron_run_log row. email_sends and audit_digest_runs
@@ -89,12 +88,6 @@ export const CRONS_PATH = "/admin/platform/crons";
  *  typed phrase; APPROVED-DIFFERENCES, 2026-09-19). */
 export function cronEnableHref(cronName: string): string {
   return `${CRONS_PATH}?enable=${encodeURIComponent(cronName)}`;
-}
-
-/** "19 scheduled jobs, 1 switched off.", "1 scheduled job, none switched off." */
-export function cronsSummaryWords(total: number, switchedOff: number): string {
-  const jobs = plural(total, "scheduled job");
-  return `${jobs}, ${switchedOff === 0 ? "none" : switchedOff} switched off.`;
 }
 
 /** "1 failed run in the last 24 hours", "3 failed runs in the last 24 hours". */

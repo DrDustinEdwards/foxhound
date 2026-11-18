@@ -253,10 +253,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         </div>
       </Panel>
 
-      <Panel
-        title="The brake: pause every merchant"
-        description="Pauses processing for every account except demo accounts, accounts already paused, and canceled accounts. Merchants paused outside the brake keep their pause and are never resumed by a release."
-      >
+      <Panel title="The brake: pause every merchant">
         <div className="cap-stack">
           <p className="fh-small fh-quiet">
             What this does not stop: a canceled account still pays fees it already owed, because
@@ -279,10 +276,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
         </div>
       </Panel>
 
-      <Panel
-        title="The harder stop: recovery tick"
-        description="Stops the loop itself, for everyone."
-      >
+      <Panel title="The harder stop: recovery tick">
         {status.tickEnabled ? (
           <ConfirmForm
             intent="tick-disable"

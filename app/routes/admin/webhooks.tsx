@@ -25,7 +25,6 @@ import {
   parseWebhookFilters,
   WEBHOOK_PAGE_SIZE,
   WEBHOOKS_PATH,
-  webhookCountWords,
 } from "~/lib/admin/webhooks";
 import {
   getWebhookHealthSummary,
@@ -103,15 +102,7 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
         />
       </StatTiles>
 
-      <Panel
-        title="Webhook events"
-        headingId={HEADING_ID}
-        reading={pending}
-        description={
-          filtered ? `${webhookCountWords(list.total)} match.` : webhookCountWords(list.total)
-        }
-        flush
-      >
+      <Panel title="Webhook events" headingId={HEADING_ID} reading={pending} flush>
         {/* Keyed by the filters so the fields show the address after Back. */}
         <div className="fh-filter-frame">
           <FilterBar

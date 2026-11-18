@@ -134,7 +134,4 @@ export const DISPUTES_FAQS = [
 export const DISPUTES_BOTTOM_CTA = {
   title: "Stop losing disputes to missed deadlines.",
   sub: "Connect Stripe and Foxhound starts building evidence on every new dispute automatically.",
-  // Truthfulness: Recova reads "Read-only Stripe access" under a /connect
-  // button. /connect asks for read and write.
-  note: `Read and write Stripe access · ${pct} only when you win`,
 };

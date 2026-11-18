@@ -287,13 +287,7 @@ function NrrCard({ series }: { series: Series }) {
   const sampled = useMemo(() => sampleEveryNth(series), [series]);
   const draw = useCallback((w: number, fit: ChartFit) => drawNrr(sampled, w, fit), [sampled]);
   if (!series.some((p) => (p.nrrPct ?? 0) > 0)) return null;
-  return (
-    <ChartPanel
-      title="Net Revenue Retention"
-      description="Above 100% means expansion exceeds churn (90 days)"
-      draw={draw}
-    />
-  );
+  return <ChartPanel title="Net Revenue Retention" draw={draw} />;
 }
 
 /** Recova's MRRMovementChart: its five series, its stacking and its gate on any

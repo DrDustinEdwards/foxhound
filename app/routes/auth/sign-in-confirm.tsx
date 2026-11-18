@@ -62,7 +62,7 @@ export default function SignInConfirm({ loaderData, actionData }: Route.Componen
     return (
       <AuthCard>
         <AuthHeading title={loaderData.title} />
-        <Alert tone={signedIn ? "ok" : "crit"}>{loaderData.text}</Alert>
+        {loaderData.text ? <Alert tone={signedIn ? "ok" : "crit"}>{loaderData.text}</Alert> : null}
         <AuthFootnote>
           {signedIn ? (
             <AuthLink to={DEFAULT_NEXT_PATH}>Go to Foxhound</AuthLink>

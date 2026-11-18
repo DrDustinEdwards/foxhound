@@ -15,7 +15,6 @@ import { UNSAVED_APPROVE_LINE } from "~/lib/disputes/detail";
 import {
   EVIDENCE_DELETE_FORM_ID,
   EVIDENCE_FILE_REMOVE_CONFIRM,
-  EVIDENCE_FILES_LIMITS_LINE,
   EVIDENCE_FILES_UNAVAILABLE_LINE,
   EVIDENCE_UPLOAD_FORM_ID,
   evidenceFileHref,
@@ -127,7 +126,7 @@ export function EvidenceFiles({
       : null;
 
   return (
-    <Panel title="Evidence files" description={EVIDENCE_FILES_LIMITS_LINE}>
+    <Panel title="Evidence files">
       <FileAttach
         files={files.map((f) => ({
           id: f.id,

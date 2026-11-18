@@ -24,7 +24,7 @@ import {
   type SentryIssue,
   type SentryState,
 } from "~/lib/admin/errors.server";
-import { capitalize, formatCount, plural } from "@drdustinedwards/site-helpers/text";
+import { capitalize, formatCount } from "@drdustinedwards/site-helpers/text";
 import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -96,17 +96,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
       <SentryNotice sentry={sentry} />
 
       {sentry.state === "ready" || sentry.state === "failed" ? (
-        <Panel
-          title="Unresolved errors"
-          headingId={ISSUES_HEADING_ID}
-          reading={pending}
-          description={
-            sentry.state === "ready" && sentry.issues.length > 0
-              ? `${plural(sentry.issues.length, "unresolved error", "unresolved errors")}, last 14 days.`
-              : "Last 14 days."
-          }
-          flush
-        >
+        <Panel title="Unresolved errors" headingId={ISSUES_HEADING_ID} reading={pending} flush>
           {sentry.state === "failed" ? (
             <Empty kind="failed" title="Could not read errors from Sentry.">
               {sentry.message}
@@ -119,15 +109,7 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
         </Panel>
       ) : null}
 
-      <Panel
-        title="Failed actions"
-        headingId={FAILED_HEADING_ID}
-        reading={pending}
-        description={
-          failed.length === 0 ? undefined : plural(failed.length, "failed action", "failed actions")
-        }
-        flush
-      >
+      <Panel title="Failed actions" headingId={FAILED_HEADING_ID} reading={pending} flush>
         {failed.length === 0 ? (
           <Empty kind="nothing-yet" title="No failed actions in the audit log." />
         ) : (

@@ -512,13 +512,9 @@ function DisputeFigures({
 
 export function AuditHealthSection({
   run,
-  when,
   recoveryRatePct = null,
 }: {
   run: AuditRunView;
-  /** "live" on /audit/results, "stored" on a saved run. Recova says "right
-   *  now" on both; on a saved run that is not true, so the line says when. */
-  when: "live" | "stored";
   /** A saved run only: the account's lifetime recovery rate now. Null when
    *  nothing has failed yet, which is not a 0%. */
   recoveryRatePct?: number | null;
@@ -535,14 +531,7 @@ export function AuditHealthSection({
 
   return (
     <div className="fh-auditsec-text-2">
-      <Panel
-        title="Business snapshot"
-        description={
-          when === "live"
-            ? "Your recurring-revenue picture right now."
-            : "Your recurring-revenue picture at the time of this run."
-        }
-      >
+      <Panel title="Business snapshot">
         {health === null ? (
           <Unread label="Subscriptions" />
         ) : !anyData ? (

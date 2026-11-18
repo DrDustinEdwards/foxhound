@@ -93,7 +93,7 @@ function renderRun(run: AuditRunView): string {
   return [
     render(createElement(AuditRecoverySection, { run, ctaState: "active" })),
     render(createElement(AuditDisputesSection, { run, ctaState: "active" })),
-    render(createElement(AuditHealthSection, { run, when: "stored" })),
+    render(createElement(AuditHealthSection, { run })),
   ].join("\n");
 }
 

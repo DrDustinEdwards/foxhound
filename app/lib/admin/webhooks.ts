@@ -9,8 +9,6 @@
 
 import { parsePage } from "capsomer/behavior/pagination";
 
-import { plural } from "@drdustinedwards/site-helpers/text";
-
 export const WEBHOOK_PAGE_SIZE = 50;
 export const WEBHOOKS_PATH = "/admin/platform/webhooks";
 
@@ -37,9 +35,4 @@ export function parseWebhookFilters(params: URLSearchParams): WebhookFilters {
 
 export function isFiltered(f: WebhookFilters): boolean {
   return f.type !== "" || f.errorsOnly || f.pendingOnly;
-}
-
-/** "120 events", "1 event": the whole log, or what the filter left. */
-export function webhookCountWords(total: number): string {
-  return plural(total, "event", "events");
 }

@@ -12,9 +12,8 @@ import { Status } from "capsomer/react/status";
 import "capsomer/table.css";
 
 import { Time } from "capsomer/react/time";
-import { MCP_CALLS_SHOWN, maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
+import { maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
 import type { AdminApiKeyRow, AdminMcpCallRow, loadMcpOverview } from "~/lib/admin/mcps.server";
-import { plural } from "@drdustinedwards/site-helpers/text";
 import { merchantHref } from "~/lib/admin/page";
 import { MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
@@ -50,8 +49,6 @@ export function AdminMcpPanels({
   reading?: boolean;
   keyAction?: AdminKeyActionResult;
 }) {
-  const writes = tools.filter((t) => t.writes).length;
-
   return (
     <div className="cap-stack" data-gap="6">
       <StatTiles label="MCP use">
@@ -79,7 +76,6 @@ export function AdminMcpPanels({
           title="API keys"
           headingId={KEYS_HEADING_ID}
           reading={reading}
-          description={`${plural(keys.length, "key", "keys")}, ${summary.keysActive} active, newest first.`}
           reflow
           isEmpty={keys.length === 0}
           empty={<Empty kind="nothing-yet" title="No API keys yet." />}
@@ -113,7 +109,6 @@ export function AdminMcpPanels({
           title="Merchant tools"
           headingId={TOOLS_HEADING_ID}
           reading={reading}
-          description={`${plural(tools.length, "tool", "tools")} in the merchant MCP's registry: ${tools.length - writes} read, ${writes} write.`}
           reflow
           isEmpty={tools.length === 0}
           empty={<Empty kind="nothing-yet" title="No merchant tools registered." />}
@@ -151,7 +146,6 @@ export function AdminMcpPanels({
           title="Recent calls"
           headingId={CALLS_HEADING_ID}
           reading={reading}
-          description={`Up to the newest ${MCP_CALLS_SHOWN} merchant MCP calls, every account. Arguments are not shown.`}
           reflow
           isEmpty={calls.length === 0}
           empty={<Empty kind="nothing-yet" title="No MCP calls yet." />}
