@@ -294,7 +294,12 @@ export async function resolveWinbackCopy(
         senderName: step.senderName || WINBACK_FALLBACKS.senderName,
         resubscribeUrl,
       },
-      { source: "winback_email", accountId: step.accountId, relatedId: step.stepId },
+      {
+        source: "winback_email",
+        accountId: step.accountId,
+        relatedId: step.stepId,
+        outcomeFeature: "winback-email",
+      },
     );
     if (!passesQualityGate(generated)) return template();
     if (!linksTo(generated.bodyHtml, resubscribeUrl)) return template();

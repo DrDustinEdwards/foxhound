@@ -1,3 +1,4 @@
+import { recordAiOutcome } from "@dustinedwards/site-runtime/health";
 import {
   messages,
   structured,
@@ -25,6 +26,8 @@ export interface AiCallMeter {
   source: string;
   accountId: string | null;
   relatedId?: string | null;
+  /** The name /health shows this feature's last failed call under (`ai-<name>`); unset, not checked. */
+  outcomeFeature?: string;
 }
 
 /** A call's input as input-priced tokens, rounded up: a cache read costs 0.1x the input
@@ -56,7 +59,10 @@ async function recordAiCall(env: Env, meter: AiCallMeter, record: CallRecord): P
 function metered(env: Env, meter: AiCallMeter, options: CallOptions) {
   let written: Promise<void> = Promise.resolve();
   const onResult = (record: CallRecord) => {
-    written = recordAiCall(env, meter, record);
+    written = Promise.all([
+      recordAiCall(env, meter, record),
+      meter.outcomeFeature ? recordAiOutcome(env.APP_KV, meter.outcomeFeature, record) : undefined,
+    ]).then(() => undefined);
     return written;
   };
   return { options: { ...options, feature: meter.source, onResult }, written: () => written };

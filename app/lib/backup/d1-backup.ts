@@ -51,7 +51,7 @@ import type { CronJobResult } from "~/lib/cron/run";
  *    (its own storage holds no money state); CRON_LOCK holds leases and
  *    CRON_TICKER an alarm, both rebuilt on the next tick; RATE_LIMITER and
  *    AUTH_RATE_LIMITER hold counters that expire in minutes.
- *  - BACKUPS is the copy itself. There is no KV namespace bound.
+ *  - BACKUPS is the copy itself. APP_KV holds only the last failed AI call, so it is not dumped.
  */
 const BACKUP_EXCLUDED_TABLES = [
   "session",
