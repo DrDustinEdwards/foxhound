@@ -159,9 +159,6 @@
     margin-top: var(--space-3);
     margin-bottom: var(--space-6);
   }
-  .fh-demos-text-2 {
-    margin-top: var(--space-7);
-  }
   .fh-products-wrap {
     margin-inline: auto;
     max-width: 720px;

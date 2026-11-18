@@ -281,7 +281,7 @@ export default function AdminBrake({ loaderData, actionData }: Route.ComponentPr
 
       <Panel
         title="The harder stop: recovery tick"
-        description="The brake pauses accounts. This stops the loop itself, for everyone, including accounts the brake skips. Use it when the problem is the engine rather than a merchant."
+        description="Stops the loop itself, for everyone."
       >
         {status.tickEnabled ? (
           <ConfirmForm

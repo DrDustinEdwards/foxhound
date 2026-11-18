@@ -162,15 +162,12 @@ describe("S32 THE READERS: NULL is off and empty, as Recova's ?? false and ?? ''
 });
 
 describe("THE DISPUTES SWITCH (gap 7): off means intake creates no dispute", () => {
-  it("off: the page shows the off line, the webhook commits only its claim, the import writes nothing", async () => {
+  it("off: the page says to enable it, the webhook commits only its claim, the import writes nothing", async () => {
     await applyDisputesEnabled(db, "a1", { enabled: false });
     expect(await readDisputeSettings(db, "a1")).toMatchObject({ enabled: false });
     expect((await readDisputeSettings(db, "a2")).enabled).toBe(true);
 
     const html = render({ enabled: false, productDescription: "", shipsPhysical: false });
-    expect(html).toContain(
-      "Enable Disputes above to configure auto-submit, product description, and shipping settings.",
-    );
     expect(html).toContain("Enable Disputes above to save these settings.");
 
     const claim = {

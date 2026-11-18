@@ -666,9 +666,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
               </div>
             ) : null}
           </div>
-        ) : (
-          <p className="fh-payment-note fh-small fh-soft">Still in recovery, no outcome yet.</p>
-        )}
+        ) : null}
       </div>
 
       {/* Recova's recovery timeline, PaymentDetailClient.tsx 423-571. */}
@@ -812,7 +810,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 className="cap-input"
                 aria-label="Internal notes for this payment"
                 defaultValue={failedPayment.notes ?? ""}
-                placeholder="Add a note about this payment or customer..."
+                placeholder="Add a note"
                 rows={3}
               />
               <div className="cap-cluster fh-payment-pull-gap" data-gap="4">

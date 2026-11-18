@@ -104,10 +104,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
 
   return (
     <div className="cap-stack" data-gap="6">
-      <p className="fh-body fh-quiet">
-        Changes the admin AI asked for that start or change money. Nothing here has happened yet.
-        Confirming one applies it now, under your name.
-      </p>
+      <p className="fh-body fh-quiet">Confirming applies it now, under your name.</p>
 
       {actionData && !actionData.ok && actionData.error ? <Alert>{actionData.error}</Alert> : null}
       {actionData && actionData.ok && actionData.message ? (

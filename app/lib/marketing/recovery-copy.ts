@@ -90,7 +90,6 @@ export const RECOVERY_SECTION_LABEL = "What you see after connecting";
 
 export const RECOVERY_BLOCKS = {
   categories: {
-    eyebrow: "Smarter than Smart Retries",
     title: `${DECLINE_CATEGORY_COUNT_WORD} categories. ${countWord(DISTINCT_SEQUENCE_COUNT)} different sequences.`,
     // Split around the Smart Retries link Recova embeds in this paragraph.
     bodyBefore: "Stripe's",
@@ -102,12 +101,10 @@ export const RECOVERY_BLOCKS = {
     bodyAfter: `treat all declines the same. Foxhound classifies every decline code, ${DECLINE_CATEGORY_PHRASE}, and runs the sequence set for its category. A fraud decline gets no retry steps. An expired card gets emails focused on updating payment info. A soft decline gets a silent retry first, then both emails and retries.`,
   },
   dashboard: {
-    eyebrow: "Full visibility",
     title: "Every payment. Every step. Every timestamp.",
     body: "The recovery dashboard shows recovered revenue, MRR at risk, recovery rate, the ROI breakdown, and each active payment with its sequence progress. Every step, scheduled, sent, pending, has exact timestamps and results. Email previews visible on every completed step.",
   },
   payments: {
-    eyebrow: "What you see after connecting",
     title: "Your failed payments, classified and in sequence.",
     body: "Every failed invoice appears in the payments table with the customer, amount, decline category and code, sequence progress, status, and detection date. Filter by status, search by customer, export to CSV.",
   },

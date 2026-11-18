@@ -298,14 +298,9 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
       title="API Keys"
       lead={
         <>
-          Connect an AI agent to this account&apos;s Foxhound data at{" "}
-          <span className="fh-mono">/mcp</span>. A key lets an agent read your audit runs, recovery,
-          disputes, billing and customer health, and change your settings: audit, features,
-          notifications, your sender name, your brand voice, your business context, and the alerts
-          it can create, switch off and delete. Leaving a field out of the brand voice or business
-          context leaves it as it is. Every change it makes is logged with the key that made it. It
-          cannot move money, submit dispute evidence, disconnect Stripe or cancel your account, and
-          customer names and full email addresses are never sent.
+          Agents connect at <span className="fh-mono">/mcp</span>. A key cannot move money, submit
+          dispute evidence, disconnect Stripe or cancel your account, and customer names and full
+          email addresses are never sent. Every change is logged with the key that made it.
         </>
       }
     >
@@ -339,7 +334,7 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
           </p>
 
           {keys && keys.length === 0 && !panelOpen ? (
-            <Empty kind="nothing-yet" flush title="No API keys yet. Generate one to get started." />
+            <Empty kind="nothing-yet" flush title="No API keys yet." />
           ) : null}
 
           {keys && keys.length > 0 ? (

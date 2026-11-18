@@ -54,11 +54,7 @@ export default function DocsIndexPage() {
 
   return (
     <>
-      <MarketingPageHeader
-        eyebrow="User guides"
-        title="Documentation"
-        subtext="Documentation for the Foxhound platform."
-      />
+      <MarketingPageHeader title="Documentation" />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark.
           Recova's 720px column, in Capsomer's amber family with Foxhound's own

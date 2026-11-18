@@ -78,10 +78,7 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
 
   return (
     <AuthCard>
-      <AuthHeading
-        title="You're signed in"
-        subtitle="Next time, skip the email. A passkey signs you in with your face, fingerprint or device PIN, and it only works on Foxhound, so it cannot be phished."
-      />
+      <AuthHeading title="You're signed in" subtitle="Add a passkey to skip the email next time." />
       <div className="fh-auth-form">
         <Button
           type="button"

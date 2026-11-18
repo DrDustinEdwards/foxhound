@@ -77,9 +77,6 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
       <div className="fh-welcome-head fh-center">
         <h1 className="fh-welcome-title fh-section fh-medium fh-text">You&apos;re connected.</h1>
         <div className="fh-welcome-account fh-mono fh-copy fh-quiet">{connectionLabel}</div>
-        <p className="fh-welcome-lede fh-subhead fh-text">
-          Recovery is active. No commitment. Nothing until we recover.
-        </p>
       </div>
 
       <div className="fh-welcome-steps">
@@ -89,7 +86,6 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
             {
               id: "sender",
               title: "Set your sender name",
-              detail: "The name customers see in recovery emails.",
               done: senderNameSet,
               action: (
                 <ButtonLink to="/settings" size="sm">
@@ -100,7 +96,6 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
             {
               id: "alerts",
               title: "Set your notification email",
-              detail: "We'll alert you when a payment is recovered.",
               done: notificationEmailSet,
               action: (
                 <ButtonLink to="/settings" size="sm">
@@ -121,11 +116,6 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
         >
           {allDone ? "Go to dashboard" : "Skip for now → Dashboard"}
         </ButtonLink>
-        {allDone ? null : (
-          <p className="fh-welcome-note fh-caption fh-faint">
-            You can finish these later from the dashboard.
-          </p>
-        )}
       </div>
     </div>
   );

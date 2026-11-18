@@ -182,9 +182,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
         flush
       >
         {crons.length === 0 ? (
-          <Empty kind="nothing-yet" title="No scheduled jobs are registered.">
-            Every job in Foxhound&apos;s cron registry appears here.
-          </Empty>
+          <Empty kind="nothing-yet" title="No scheduled jobs are registered." />
         ) : (
           <Table
             caption="Scheduled jobs, in the order the registry runs them, with each one's last run."

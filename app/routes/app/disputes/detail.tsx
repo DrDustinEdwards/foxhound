@@ -562,7 +562,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                         htmlFor="dispute_evidence_narrative"
                         className="fh-dispute-group-title fh-line fh-tiny fh-medium fh-quiet fh-caps"
                       >
-                        Evidence narrative (editable)
+                        Evidence narrative
                       </label>
                       <textarea
                         id="dispute_evidence_narrative"
@@ -611,8 +611,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   />
                 </div>
                 <p id="dispute_customer_ip_help" className="fh-dispute-input fh-tiny fh-faint">
-                  Only add if you have the actual IP from your own logs. Do not guess. Saved with
-                  your draft and included when you submit.
+                  From your own logs only.
                 </p>
                 {shippingEditable ? (
                   <div className="fh-dispute-more">
@@ -628,7 +627,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                           type="text"
                           className="cap-input fh-mono"
                           defaultValue={shipping[SHIPPING_TRACKING_FIELD]}
-                          aria-describedby="dispute_shipping_help"
                         />
                       </div>
                       <div className="cap-field">
@@ -641,7 +639,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                             name={SHIPPING_CARRIER_FIELD}
                             className="cap-select"
                             defaultValue={shipping[SHIPPING_CARRIER_FIELD]}
-                            aria-describedby="dispute_shipping_help"
                           >
                             <option value="">Select</option>
                             {SHIPPING_CARRIERS.map((c) => (
@@ -662,13 +659,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                           type="date"
                           className="cap-input"
                           defaultValue={shipping[SHIPPING_DATE_FIELD]}
-                          aria-describedby="dispute_shipping_help"
                         />
                       </div>
                     </div>
-                    <p id="dispute_shipping_help" className="fh-dispute-help-text fh-tiny fh-faint">
-                      Saved with your draft and included when you submit.
-                    </p>
                   </div>
                 ) : null}
                 {/* With no staged evidence Recova had no Save draft at all; the

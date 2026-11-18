@@ -758,11 +758,6 @@ body {
     font-size: var(--fs-body);
     color: var(--chrome-text-secondary);
   }
-  .fh-footer-text-2 {
-    margin-top: var(--space-4);
-    font-size: var(--fs-tiny-5);
-    color: var(--chrome-text-secondary);
-  }
   .fh-footer-grid-2 {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -267,11 +267,7 @@ export function AuditRecoverySection({
 
   return (
     <div className="fh-auditsec-text-2">
-      <Panel
-        title="Revenue leaking now"
-        description="What your Stripe account is losing or about to lose."
-        footer={<RecoveryCta state={ctaState} />}
-      >
+      <Panel title="Revenue leaking now" footer={<RecoveryCta state={ctaState} />}>
         {!anyData && !anyUnread ? (
           <NoneDetected />
         ) : (
@@ -421,11 +417,7 @@ export function AuditDisputesSection({
   const data = run.disputes;
   return (
     <div className="fh-auditsec-text-2">
-      <Panel
-        title="Disputes unmanaged"
-        description="Where responses were skipped or evidence was thin."
-        footer={<DisputesCta state={ctaState} />}
-      >
+      <Panel title="Disputes unmanaged" footer={<DisputesCta state={ctaState} />}>
         {data === null ? (
           <Unread label="Disputes" />
         ) : (
@@ -508,8 +500,7 @@ function DisputeFigures({
               evidence automatically". Foxhound builds the evidence on its own
               and the merchant approves it before it is sent. */}
           <p className="fh-tiny fh-faint">
-            Disputes you lost without submitting evidence. Foxhound builds structured evidence
-            automatically, and you approve it before it is submitted.
+            Disputes lost without evidence. You approve Foxhound's evidence before it is submitted.
           </p>
         </div>
       ) : null}
@@ -550,14 +541,6 @@ export function AuditHealthSection({
           when === "live"
             ? "Your recurring-revenue picture right now."
             : "Your recurring-revenue picture at the time of this run."
-        }
-        footer={
-          // Truthfulness fix: Recova's line adds "and forecasting", which
-          // Foxhound's Intelligence does not have. Cohort analysis it does
-          // (app/lib/intelligence/mrr.ts buildCohortBreakdown), so that stays.
-          <p className="fh-tiny fh-faint">
-            Full trend history and cohort analysis available in Intelligence.
-          </p>
         }
       >
         {health === null ? (

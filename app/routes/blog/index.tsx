@@ -133,12 +133,7 @@ export default function BlogIndexPage({ loaderData }: Route.ComponentProps) {
 
       {!hasAnyContent ? (
         <div className="fh-blog-wrap-2 fh-center">
-          <p className="fh-body fh-soft">
-            Nothing published yet. Check back soon, or read the product docs in the meantime.
-          </p>
-          <Link to="/docs" className="fh-blog-link-2 fh-small fh-accent">
-            Read the docs
-          </Link>
+          <p className="fh-body fh-soft">Nothing published yet.</p>
         </div>
       ) : null}
     </div>

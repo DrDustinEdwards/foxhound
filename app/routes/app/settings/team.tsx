@@ -255,11 +255,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   }, [actionData]);
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="Team"
-      lead="Members and pending invites for this account."
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="Team">
       <section className="cap-panel">
         <div className="cap-panel-body">
           {removeResult && !removeResult.error ? (

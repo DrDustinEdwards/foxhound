@@ -214,11 +214,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
   const saving = useNavigation().state === "submitting";
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="Brand voice"
-      lead="Set a different tone for each failure category. The AI uses the matching voice when writing recovery emails."
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="Brand voice">
       <DemoForm method="post">
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
@@ -226,10 +222,6 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
             {/* One child, so the body's grid gap does not add to Recova's
                 20px rhythm between the line and the rows. */}
             <div>
-              <p className="fh-voice-intro fh-tiny fh-faint">
-                Set a different tone for each failure category. The AI will use the matching voice
-                when writing recovery emails.
-              </p>
               {CATEGORY_VOICE_ROWS.map((row, i) => (
                 <CategoryVoice key={row.key} row={row} stored={stored[row.key]} first={i === 0} />
               ))}
@@ -240,7 +232,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
         <div className="fh-voice-preview">
           <Panel
             title="Sample emails"
-            description="Paste two to five emails you wrote to customers yourself. Recovery and win-back emails are written to sound like these, in the tone set above. A draft that copies a link, an address or a sentence from them is not sent. Leave out card numbers and anything private: the AI that writes your emails reads them."
+            description="Paste two to five emails you wrote yourself. Leave out card numbers and anything private: the AI reads them."
           >
             <div className="fh-voice-rows">
               {Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => (

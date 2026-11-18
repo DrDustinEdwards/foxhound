@@ -60,10 +60,6 @@ export function meta() {
   return [{ title: "Dispute settings - Foxhound" }, NOINDEX];
 }
 
-/** The page's line and the Disputes row's line, Recova's. */
-export const DISPUTES_SETTINGS_LINE =
-  "Automatically triage chargebacks, stage evidence, and submit responses to Stripe.";
-
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -141,7 +137,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
   const descriptionHelpId = `${id}-description-help`;
 
   return (
-    <SettingsLayout renderLink={routerRenderLink} title="Disputes" lead={DISPUTES_SETTINGS_LINE}>
+    <SettingsLayout renderLink={routerRenderLink} title="Disputes">
       {/* The switch's own form, as Recova's DisputesToggle posted on its own:
           it carries the new value, and the switch below sends it at once
           (SwitchRow submitOnChange; without script its Save button does).
@@ -166,7 +162,6 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                   {enabled ? <Pill tone="ok">Active</Pill> : null}
                 </span>
               }
-              help={DISPUTES_SETTINGS_LINE}
               checked={enabled}
               busy={toggling}
             />
@@ -183,7 +178,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 <SwitchRow
                   name={loaderData.isOwner ? "dispute_auto_submit" : undefined}
                   label="Auto-submit disputes"
-                  help="Foxhound will automatically submit your dispute response 24 hours before the deadline if you haven't acted. Off by default."
+                  help="Submits 24 hours before the deadline if you have not acted."
                   defaultChecked={loaderData.autoSubmit}
                   disabledReason={
                     loaderData.isOwner ? undefined : "Only the account owner can change this."
@@ -198,7 +193,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                     Product description
                   </label>
                   <p id={descriptionHelpId} className="fh-dispute-help fh-tiny fh-faint">
-                    Describe what your product or service is. Used in all dispute responses.
+                    Used in all dispute responses.
                   </p>
                   <textarea
                     id={`${id}-description`}
@@ -215,16 +210,11 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 <SwitchRow
                   name="dispute_ships_physical"
                   label="Ships physical goods"
-                  help="Enable if you ship physical products. Adds shipping evidence fields to dispute responses."
+                  help="Adds shipping evidence fields."
                   defaultChecked={loaderData.shipsPhysical}
                 />
               </>
-            ) : (
-              <p className="fh-dispute-foot fh-tiny fh-faint">
-                Enable Disputes above to configure auto-submit, product description, and shipping
-                settings.
-              </p>
-            )}
+            ) : null}
           </div>
         </section>
 

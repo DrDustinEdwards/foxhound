@@ -158,7 +158,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
   return (
     <div className="fh-intel-page-tall cap-admin-page" data-width="page">
       <div className="fh-intel-head">
-        <PageHead title="Dashboard" lead="MRR trends and customer health" />
+        <PageHead title="Dashboard" />
       </div>
 
       {!latest ? (
@@ -169,9 +169,6 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
           <div className="cap-panel-body fh-center">
             <p className="fh-body fh-medium fh-text">Syncing your MRR data</p>
             <p className="fh-small fh-quiet">{firstSnapshotSentence()}</p>
-            <p className="fh-small fh-quiet">
-              While you wait, walk through your recovery sequences or review any open disputes.
-            </p>
           </div>
         </div>
       ) : (
@@ -316,13 +313,7 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
       Math.round(toMajorUnits(p.churnMrrCents, currency)) !== 0,
   );
   if (!moved) return null;
-  return (
-    <ChartPanel
-      title="MRR movement"
-      description="New, expansion, contraction, and churn by week"
-      draw={draw}
-    />
-  );
+  return <ChartPanel title="MRR movement" draw={draw} />;
 }
 
 /**
@@ -347,13 +338,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
 function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["healthDistribution"] }) {
   const draw = useCallback((w: number, fit: ChartFit) => drawHealth(days, w, fit), [days]);
   if (days.length === 0) return null;
-  return (
-    <ChartPanel
-      title="Customer health distribution"
-      description="Customer count per health band over 90 days"
-      draw={draw}
-    />
-  );
+  return <ChartPanel title="Customer health distribution" draw={draw} />;
 }
 
 /**

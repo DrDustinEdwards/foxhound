@@ -1,4 +1,4 @@
-import { Alert, Banner } from "capsomer/react/banner";
+import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
 import { TextField } from "capsomer/react/field";
 import { PermissionList } from "capsomer/react/consent";
@@ -276,11 +276,15 @@ function ConnectFrame({ children }: { children: ReactNode }) {
   );
 }
 
-function ConnectHeading({ title, subtitle }: { title: string; subtitle: string }) {
+function ConnectHeading({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <>
-      <h1 className="fh-auth-title-sub fh-title fh-semibold fh-text">{title}</h1>
-      <p className="fh-auth-lede fh-small fh-faint">{subtitle}</p>
+      <h1
+        className={`${subtitle ? "fh-auth-title-sub" : "fh-auth-title"} fh-title fh-semibold fh-text`}
+      >
+        {title}
+      </h1>
+      {subtitle ? <p className="fh-auth-lede fh-small fh-faint">{subtitle}</p> : null}
     </>
   );
 }
@@ -296,10 +300,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
   if (!loaderData.hasAccount) {
     return (
       <ConnectFrame>
-        <ConnectHeading
-          title="Name your account"
-          subtitle="One more step before you connect Stripe."
-        />
+        <ConnectHeading title="Name your account" />
         <Form method="post" className="fh-connect-form">
           {actionData?.error ? <Alert tone="crit">{actionData.error}</Alert> : null}
           {/* The browser's required check, with no "Required" marker: this
@@ -325,13 +326,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
   if (loaderData.hasConnection) {
     return (
       <ConnectFrame>
-        <ConnectHeading
-          title="Stripe connected"
-          subtitle={`${loaderData.accountName ?? "Your account"} is ready.`}
-        />
-        <Banner tone="ok">
-          Your Stripe account is connected. Foxhound can now recover failed payments for you.
-        </Banner>
+        <ConnectHeading title="Stripe connected" subtitle={loaderData.accountName ?? undefined} />
         <p className="fh-auth-after fh-small">
           <AuthLink to="/console">Go to dashboard</AuthLink>
         </p>

@@ -104,21 +104,18 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
         sectionLabel={DISPUTES_SECTION_LABEL}
         blocks={[
           {
-            eyebrow: dashboard.eyebrow,
             title: dashboard.title,
             body: dashboard.body,
             ui: <DashboardPreview preview={preview} />,
             tallLabel: "Disputes dashboard preview",
           },
           {
-            eyebrow: numbers.eyebrow,
             title: numbers.title,
             body: numbers.body,
             ui: <NumbersPreview preview={preview} />,
             lifted: true,
           },
           {
-            eyebrow: evidence.eyebrow,
             title: evidence.title,
             body: evidence.body,
             ui: <DisputeTablePreview preview={preview} />,

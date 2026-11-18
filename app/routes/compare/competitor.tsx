@@ -58,7 +58,6 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           { label: "Compare", href: "/compare" },
           { label: `Foxhound vs ${competitor.name}` },
         ]}
-        eyebrow="Compare"
         title={`Foxhound vs ${competitor.name}`}
         subtext={competitor.oneLiner}
       />

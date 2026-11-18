@@ -47,10 +47,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
       <h1 className="fh-title fh-medium fh-text">Win-back</h1>
 
       {sequences.length === 0 ? (
-        <p className="fh-empty-box fh-body fh-quiet">
-          No cancellations yet. Foxhound reaches out to every customer who cancels, and lists them
-          here.
-        </p>
+        <p className="fh-empty-box fh-body fh-quiet">No cancellations yet.</p>
       ) : (
         <Table caption="Win-back customers" captionHidden reflow className="fh-list-table">
           <thead>

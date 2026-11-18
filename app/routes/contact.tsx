@@ -31,11 +31,7 @@ export const loader = siteUrlLoader;
 export default function ContactPage() {
   return (
     <div>
-      <MarketingPageHeader
-        eyebrow="Contact"
-        title="Contact support"
-        subtext="One inbox for billing, account and recovery questions."
-      />
+      <MarketingPageHeader title="Contact support" />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
       <div className="fh-mk-narrow">

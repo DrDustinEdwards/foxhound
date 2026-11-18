@@ -104,7 +104,7 @@ export function EarlyFraudWarnings({
       <Panel
         title={<span id="efw-heading">Early fraud warnings</span>}
         count={warnings.length}
-        description="Card issuers send these before a fraud dispute. Refunding the charge first avoids the dispute fee and keeps the dispute off your dispute rate."
+        description="Refunding first avoids the dispute fee."
         flush
       >
         {warnings.length === 0 ? (

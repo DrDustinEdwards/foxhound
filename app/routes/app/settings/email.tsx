@@ -264,25 +264,18 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       : undefined;
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="Email"
-      lead="Configure how recovery emails appear to your customers, and which ones are sent."
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="Email">
       <DemoForm method="post">
         <input type="hidden" name="_action" value="sender" />
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="fh-email-block">
-              {/* Recova puts help under the control. */}
               <TextField
-                helpPlacement="after"
                 announce
                 name="senderName"
                 type="text"
                 label="Sender name"
-                help="Name that appears in the From field of recovery emails"
                 defaultValue={senderName}
                 placeholder="e.g. Alex from Acme"
                 maxLength={SENDER_NAME_MAX_LENGTH}
@@ -298,7 +291,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
                 name="replyToEmail"
                 type="email"
                 label="Reply-to email"
-                help="Customer replies go here. Use your support inbox."
+                help="Customer replies go here."
                 defaultValue={replyToEmail}
                 placeholder="support@yourapp.com"
                 maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
@@ -341,13 +334,11 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             <SwitchRow
               name="winbackNotificationsEnabled"
               label="Win-back sequences"
-              help="Send re-engagement emails to customers who cancel their subscription"
               defaultChecked={loaderData.winbackNotificationsEnabled}
             />
             <SwitchRow
               name="expiringCardNotificationsEnabled"
               label="Expiring card alerts"
-              help="Email customers before their card expires to prevent future failures"
               defaultChecked={loaderData.expiringCardNotificationsEnabled}
             />
           </div>

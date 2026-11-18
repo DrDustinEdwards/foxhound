@@ -287,7 +287,6 @@ export function AuditSettingsForm({
   const [autoRun, setAutoRun] = useState(defaultAutoRun);
   const formRef = useRef<HTMLFormElement>(null);
   const digestLabel = useId();
-  const lookbackHelp = useId();
   const digestHelp = useId();
 
   // Recova clears "Saved." after three seconds and keeps a failure until the
@@ -317,13 +316,9 @@ export function AuditSettingsForm({
           <div className="fh-auditd-label fh-small fh-medium fh-text" aria-hidden="true">
             Lookback period
           </div>
-          <p id={lookbackHelp} className="fh-auditd-label fh-tiny fh-faint">
-            How far back we look when calculating your audit.
-          </p>
           <Segmented
             legend={<span className="cap-sr-only">Lookback period</span>}
             name="audit_lookback_days"
-            describedBy={lookbackHelp}
             value={lookbackDays}
             onChange={(next) => {
               if (next === lookbackDays) return;
@@ -343,8 +338,7 @@ export function AuditSettingsForm({
               Monthly audit digest
             </div>
             <p id={digestHelp} className="fh-tiny fh-faint">
-              On the 1st of each month, we run a fresh audit and email you a comparison versus the
-              prior month. No extra charge.
+              Monthly, on the 1st. No extra charge.
             </p>
           </div>
           {/* Unchecked posts nothing, which the action reads as off. */}
@@ -424,8 +418,6 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
           <div className="cap-empty" data-kind="nothing-yet">
             <div className="cap-empty-header">
               <h1 className="cap-empty-title">No audit runs yet</h1>
-              <p className="cap-empty-text">Run a full diagnostic of your Stripe account.</p>
-              <p className="cap-empty-text">Free, on demand, takes 30 seconds.</p>
             </div>
             <div className="cap-empty-content">
               <RunNewAudit>Run first audit</RunNewAudit>

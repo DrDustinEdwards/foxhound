@@ -65,17 +65,11 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
       title="Operator actions"
       headingId={HEADING_ID}
       reading={pending}
-      description={
-        entries.length === 0
-          ? "No entries yet."
-          : `Showing the last ${plural(entries.length, "entry", "entries")}, newest first.`
-      }
+      description={entries.length === 0 ? undefined : plural(entries.length, "entry", "entries")}
       flush
     >
       {entries.length === 0 ? (
-        <Empty kind="nothing-yet" title="No audit log entries yet.">
-          Every admin action that changes how Foxhound runs writes an entry here.
-        </Empty>
+        <Empty kind="nothing-yet" title="No audit log entries yet." />
       ) : (
         <Table caption="The audit log, newest first." captionHidden labelledBy={HEADING_ID} reflow>
           <thead>

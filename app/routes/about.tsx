@@ -45,11 +45,7 @@ export const loader = siteUrlLoader;
 export default function AboutPage() {
   return (
     <div>
-      <MarketingPageHeader
-        eyebrow="About"
-        title="Built by one person, held to Stripe's own numbers"
-        subtext="Foxhound is a small, US company built on Stripe Connect."
-      />
+      <MarketingPageHeader title="Built by one person, held to Stripe's own numbers" />
 
       {/* div, not main: marketing.tsx already renders this page's one main landmark. */}
       <div className="fh-mk-narrow">

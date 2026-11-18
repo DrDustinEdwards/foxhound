@@ -11,7 +11,6 @@ import "capsomer/source-line.css";
 // this page reads. The site header loads the same file; importing it here
 // keeps the page whole under any layout.
 import "~/site-header.css";
-import { Eyebrow } from "capsomer/react/eyebrow";
 import { jsonLd, faqPage } from "@drdustinedwards/site-helpers/schema";
 import { Link, ButtonLink } from "capsomer/react/link";
 import { SourceLine } from "capsomer/react/source-line";
@@ -246,7 +245,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="cap-reveal">
             <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>Stripe plus Foxhound</h2>
-              <p className="fh-subhead fh-soft">What Stripe does, and what Foxhound adds on top.</p>
             </div>
           </div>
           <div className="fh-home-block-6">
@@ -289,9 +287,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="fh-home-band-3">
         <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <Eyebrow variant="mono" className="fh-home-text-4 fh-center">
-              The gap Stripe leaves open
-            </Eyebrow>
             <h2 className="fh-home-title-2 fh-center fh-statement fh-semibold fh-text">
               {STRIPE_GAP} of failed payments
               <br />
@@ -315,7 +310,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="cap-reveal">
             <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>How it works</h2>
-              <p className="fh-subhead fh-soft">Live in an afternoon. No code, no setup fees.</p>
             </div>
           </div>
           {/* Recova's one bordered strip of three. Capsomer's panel, flush, holds it. */}
@@ -344,9 +338,8 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <div className="fh-home-block-11 fh-center">
               <h2 className={H2}>How much are you leaving on the table?</h2>
               <p className="fh-mk-lede fh-subhead fh-soft">
-                Adjust your MRR and see the estimated recovery. Foxhound takes{" "}
-                <span className="fh-mono">{RECOVERY_FEE}</span> of what it recovers. Nothing if it
-                recovers nothing.
+                Foxhound takes <span className="fh-mono">{RECOVERY_FEE}</span> of what it recovers.
+                Nothing if it recovers nothing.
               </p>
             </div>
           </div>
@@ -362,7 +355,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           <div className="cap-reveal">
             <div className="fh-home-block-4 fh-center">
               <h2 className={H2}>Start with recovery.</h2>
-              <p className="fh-subhead fh-soft">Add the rest when you need it.</p>
             </div>
           </div>
           <div className="fh-mk-cards-4">
@@ -402,10 +394,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   prompt on its own model (MODEL_MARKETING_EMAIL_SAMPLE) for a
                   fictional customer, so neither claim holds here. */}
               <h2 className={H2}>What a Foxhound recovery email looks like</h2>
-              <p className="fh-mk-lede fh-subhead fh-soft">
-                Pick a decline type and generate a real recovery email. Every account customizes its
-                own brand voice.
-              </p>
+              <p className="fh-mk-lede fh-subhead fh-soft">Pick a decline type.</p>
             </div>
           </div>
           <div className="fh-home-wrap-2">

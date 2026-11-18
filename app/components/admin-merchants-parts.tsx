@@ -56,26 +56,22 @@ type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
  *  billed (billing_exemption_periods, read by app/db/billable.ts). */
 const VIEW_WORDS: Record<
   MerchantView,
-  { caption: string; empty: string; emptyBody: string; describe: (n: number) => string }
+  { caption: string; empty: string; describe: (n: number) => string }
 > = {
   all: {
     caption: "Every merchant account, newest first, with its actions",
     empty: "No merchants yet.",
-    emptyBody: "A merchant appears here once they sign up for Foxhound.",
-    describe: (n) =>
-      `${plural(n, "account", "accounts")}, newest first. Billing exempt and pause take effect at once and can be undone.`,
+    describe: (n) => plural(n, "account", "accounts"),
   },
   paused: {
     caption: "Every paused merchant, newest first, with its actions",
     empty: "No merchants are paused.",
-    emptyBody: "A merchant paused here, or by the emergency brake, appears on this list.",
     describe: (n) =>
       `${plural(n, "merchant is", "merchants are")} paused, newest first. A paused merchant is neither processed nor billed while paused; fees already earned are billed at the first billing run after it is resumed. Resume takes effect at once and can be undone, except for a merchant the emergency brake paused.`,
   },
   "billing-exempt": {
     caption: "Every billing exempt merchant, newest first, with its actions",
     empty: "No merchants are billing exempt.",
-    emptyBody: "A merchant set exempt here appears on this list.",
     describe: (n) =>
       `${plural(n, "merchant is", "merchants are")} billing exempt, newest first. A billing exempt merchant is processed as usual and is not billed while exempt. Fees that come due while exempt are forgiven: they are never billed, even after the exemption ends. Ending an exemption takes effect at once and can be undone.`,
   },
@@ -140,17 +136,13 @@ export function MerchantsList({
       >
         {merchants.length === 0 ? (
           view === "all" ? (
-            <Empty kind="nothing-yet" title={words.empty}>
-              {words.emptyBody}
-            </Empty>
+            <Empty kind="nothing-yet" title={words.empty} />
           ) : (
             <Empty
               kind="no-match"
               title={words.empty}
               action={<ButtonLink to={MERCHANTS_PATH}>Show all merchants</ButtonLink>}
-            >
-              {words.emptyBody}
-            </Empty>
+            />
           )
         ) : (
           <Table caption={words.caption} captionHidden labelledBy={HEADING_ID} reflow="wide">

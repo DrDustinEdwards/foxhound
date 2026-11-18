@@ -1,12 +1,15 @@
 import { relative } from "capsomer/behavior/time";
 import { Table } from "capsomer/react/table";
 import type { ReactNode } from "react";
-import { Link } from "capsomer/react/link";
+import { routerRenderLink } from "capsomer/react/link";
+import { Icon, iconChevronRight } from "capsomer/react/icons";
+import { Row, RowList } from "capsomer/react/row-list";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
 import { Status, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/page-head.css";
 import "capsomer/panel.css";
+import "capsomer/row-list.css";
 import "capsomer/table.css";
 import "capsomer/status.css";
 // Capsomer's tokens and the amber family, which the components above read. The
@@ -118,28 +121,22 @@ export const QUICK_ANSWERS = [
 // both surfaces. Product order matches the docs index: Audit first because it
 // is the lowest-friction surface.
 //
-// Slugs are Foxhound's own /docs routes; the descriptions are legacy's, which
-// are terser than the docs index's own and are what legacy's help page renders.
-// ONE IS CORRECTED: legacy says the audit has "four scopes" and Foxhound's
-// engine has SIX (app/lib/audit/engine.ts). Class (c).
+// Slugs are Foxhound's own /docs routes.
 const PLATFORM_GUIDE = {
   href: "/docs/platform",
   title: "Platform",
-  desc: "Connecting Stripe, settings, team management, and billing",
 };
 
 const PRODUCT_GUIDES = [
-  { href: "/docs/audit", title: "Audit", desc: "Free Stripe diagnostic, six scopes" },
+  { href: "/docs/audit", title: "Audit" },
   {
     href: "/docs/recovery",
     title: "Recovery",
-    desc: "Sequences, payments, dashboard, troubleshooting",
   },
-  { href: "/docs/disputes", title: "Disputes", desc: "Evidence building, triage, submission" },
+  { href: "/docs/disputes", title: "Disputes" },
   {
     href: "/docs/intelligence",
     title: "Intelligence",
-    desc: "Health scores, churn risk, MRR trends",
   },
 ];
 
@@ -180,7 +177,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
   return (
     <div className="fh-help">
       <div className="fh-help-head">
-        <PageHead title="Help" lead="Quick answers, guides, and platform status." />
+        <PageHead title="Help" />
       </div>
 
       {/* Section 1: Quick answers. Prose, so no shared component: a heading and
@@ -197,23 +194,21 @@ export default function Help({ loaderData }: Route.ComponentProps) {
         </div>
       </section>
 
-      {/* Section 2: Docs by product. Each guide is a Capsomer Panel whose h3
-          title is the guide link, with the description in the body, the same
-          pattern as Contact. Not a row-list row: its detail line never wraps
-          and cut legacy's descriptions short, and Recova is the spec for
-          content. Legacy's arrangement (Platform full width, the four products
-          two to a row from sm) is the page's own grid, one panel per cell, and
-          no Capsomer class is restyled. */}
+      {/* Section 2: Docs by product, one row per guide. */}
       <section className="fh-help-section">
         <h2 className={SECTION_LABEL}>Guides</h2>
-        <div className="cap-stack" data-gap="4">
-          <GuideCard guide={PLATFORM_GUIDE} />
-          <div className="fh-help-cards">
-            {PRODUCT_GUIDES.map((guide) => (
-              <GuideCard key={guide.href} guide={guide} />
-            ))}
-          </div>
-        </div>
+        <RowList label="Guides" gap="xs">
+          {[PLATFORM_GUIDE, ...PRODUCT_GUIDES].map((guide) => (
+            <Row
+              key={guide.href}
+              variant="outline"
+              title={guide.title}
+              href={guide.href}
+              renderLink={routerRenderLink}
+              meta={<Icon d={iconChevronRight} className="fh-icon-16" />}
+            />
+          ))}
+        </RowList>
       </section>
 
       {/* Section 3: Platform status. Two Capsomer panels, each holding a
@@ -275,8 +270,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
       <section>
         <h2 className={SECTION_LABEL}>Contact</h2>
         <Panel title={<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>} level={3}>
-          Email for billing questions, account issues, or anything not covered in the guides.
-          Responses within 24 hours on business days.
+          Replies within 24 hours on business days.
         </Panel>
       </section>
     </div>
@@ -334,17 +328,6 @@ function StatusTable({
         </thead>
         <tbody>{children}</tbody>
       </Table>
-    </Panel>
-  );
-}
-
-/** One guide card: a Capsomer Panel titled by the guide's link (a React
- *  Router Link, so it is a client-side navigation), the description in the
- *  body, where it wraps and always shows in full. */
-function GuideCard({ guide }: { guide: { href: string; title: string; desc: string } }) {
-  return (
-    <Panel title={<Link to={guide.href}>{guide.title}</Link>} level={3}>
-      {guide.desc}
     </Panel>
   );
 }

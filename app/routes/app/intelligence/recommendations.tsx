@@ -66,7 +66,6 @@ export function meta() {
 
 interface Section {
   title: string;
-  subtitle: string;
   actions: RecommendedAction[];
 }
 
@@ -74,12 +73,10 @@ interface Section {
 const SECTIONS: Section[] = [
   {
     title: "Reach out personally",
-    subtitle: "High-value customers where automated email is unlikely to be enough.",
     actions: ["personal_outreach"],
   },
   {
     title: "Watch closely",
-    subtitle: "Continue the automated path but keep a human eye on these.",
     actions: ["continue_automated_priority"],
   },
 ];
@@ -112,7 +109,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
   return (
     <div className="fh-intel-page cap-admin-page" data-width="page">
       <div className="fh-intel-head">
-        <PageHead title="Recommendations" lead="Customers that need your attention right now." />
+        <PageHead title="Recommendations" />
       </div>
 
       {totalCount === 0 ? (
@@ -158,10 +155,6 @@ function NothingToDo() {
           </div>
           <div className="cap-empty-header">
             <h2 className="cap-empty-title">No action needed right now.</h2>
-            <p className="cap-empty-text">
-              All customers are on track. We will surface them here as soon as one needs a closer
-              look.
-            </p>
           </div>
         </div>
       </div>
@@ -171,7 +164,7 @@ function NothingToDo() {
 
 function SectionTable({ section, rows }: { section: Section; rows: RecommendationRow[] }) {
   return (
-    <Panel title={section.title} description={section.subtitle} flush>
+    <Panel title={section.title} flush>
       <Table caption={section.title} captionHidden reflow="medium">
         <thead>
           <tr>

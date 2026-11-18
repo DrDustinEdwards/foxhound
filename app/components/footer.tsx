@@ -29,12 +29,6 @@ import { Wordmark } from "./wordmark";
 // condition is met and which nobody moved is a block held past its own terms,
 // so this is a fix TOWARD legacy rather than a Foxhound addition.
 
-/**
- * Legacy's MCP line, verbatim. Exported so the copy is assertable by test, the
- * same reason help.tsx exports SECTIONS.
- */
-const MCP_LINE = "Connect via MCP from any AI client";
-
 export const COLUMNS: { heading: string; links: { to: string; label: string }[] }[] = [
   {
     heading: "Product",
@@ -150,10 +144,6 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
                 <Wordmark tone="chrome" />
               </Link>
               <p className="fh-footer-text fh-relaxed">The recovery layer for Stripe merchants.</p>
-              {/* Legacy's own line and legacy's own treatment, read from
-                  components/SiteFooter.tsx: a plain <p> under the blurb, not a
-                  link, mt-3 font-mono at 0.6875rem on chrome-text-secondary. */}
-              <p className="fh-footer-text-2 fh-mono">{MCP_LINE}</p>
             </div>
             <div className="fh-footer-grid-2">
               {COLUMNS.map((col) => (

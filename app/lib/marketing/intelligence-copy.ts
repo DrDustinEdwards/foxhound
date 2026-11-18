@@ -128,7 +128,6 @@ export const INTELLIGENCE_SECTION_LABEL = "What you see after connecting";
 export function intelligenceBlocks(activeCustomers: string) {
   return {
     dashboard: {
-      eyebrow: "Daily from Stripe",
       title: "MRR trends, plan breakdown, monthly narrative.",
       // Truthfulness: Recova's narrative is "delivered in the weekly digest"
       // and Foxhound's is on the dashboard. "Day-over-day MRR delta shown on
@@ -138,7 +137,6 @@ export function intelligenceBlocks(activeCustomers: string) {
       body: `MRR tracked across ${activeCustomers} active customers. Per-plan breakdown with bar proportions. Monthly narrative summarizing what happened and what to watch, on the dashboard. Day-over-day MRR delta shown on every load.`,
     },
     score: {
-      eyebrow: "0-100 per customer",
       // Truthfulness: Recova reads "A score that tells you what to do." The
       // score itself ranks; the recommended action comes from Recova's bands,
       // not from the score (recommend.ts).
@@ -148,7 +146,6 @@ export function intelligenceBlocks(activeCustomers: string) {
       body: `The health score is derived from ${signalCount.toLowerCase()} independent signals: ${signalList}. The score is not a black box, every signal that moved it is shown separately. Customers sorted by health score ascending so worst-health customers surface first.`,
     },
     churn: {
-      eyebrow: "MRR at risk",
       title: "See your at-risk MRR by band.",
       body: "The Churn page distributes your MRR across three health bands, high risk, medium, and healthy. High-risk customers are sorted by MRR contribution descending so your highest-value at-risk customers surface first.",
     },

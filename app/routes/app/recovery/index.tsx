@@ -217,12 +217,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
           {onboarding.needed ? (
             <SetupChecklist steps={onboardingSteps(onboarding)} ready={ONBOARDING_READY} />
           ) : null}
-          {watchingForFailures ? (
-            <Banner tone="neutral" title="We're watching for failed payments.">
-              Stripe is connected. The first failed renewal or one-time charge will appear here
-              within minutes of the decline. No action needed until then.
-            </Banner>
-          ) : null}
+          {watchingForFailures ? <Banner tone="neutral" title="No failed payments yet." /> : null}
         </div>
       ) : null}
 

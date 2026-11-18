@@ -131,8 +131,7 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
               title="You've been invited"
               subtitle={
                 <>
-                  Join <strong className="fh-text">{loaderData.accountName ?? "a team"}</strong> on
-                  Foxhound
+                  Join <strong className="fh-text">{loaderData.accountName ?? "a team"}</strong>
                 </>
               }
             />

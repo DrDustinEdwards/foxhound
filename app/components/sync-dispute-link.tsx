@@ -70,16 +70,15 @@ export const SYNC_RESULT_MESSAGES: Record<string, SyncDisputeResult> = {
  *  props; the control is one. */
 const SYNC_LIST_COPY = {
   linkLabel: "Sync dispute from Stripe",
-  note: "Use this for disputes that came in before you connected to Foxhound.",
 };
-export const SYNC_DETAIL_COPY = { linkLabel: "Sync a different dispute from Stripe", note: null };
+export const SYNC_DETAIL_COPY = { linkLabel: "Sync a different dispute from Stripe" };
 
 export function SyncDisputeLink({
   result,
   copy = SYNC_LIST_COPY,
 }: {
   result?: SyncDisputeResult;
-  copy?: { linkLabel: string; note: string | null };
+  copy?: { linkLabel: string };
 }) {
   // Reopened when the last submit came back with something to say, so an error
   // is never reported behind a collapsed link.
@@ -153,7 +152,6 @@ export function SyncDisputeLink({
           <div role="status" className="fh-sync-note fh-tiny">
             {shown ? <Status tone={shown.ok ? "ok" : "crit"}>{shown.message}</Status> : null}
           </div>
-          {copy.note ? <div className="fh-sync-note fh-tiny fh-faint">{copy.note}</div> : null}
         </div>
       </Form>
     </div>

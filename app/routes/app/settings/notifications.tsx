@@ -223,11 +223,7 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
     result && !result.ok && !result.field ? (result.error ?? SAVE_FAILED) : undefined;
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="Notifications"
-      lead="Email, Slack, and digest delivery preferences, and alerts on your metrics."
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="Notifications">
       <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
@@ -239,21 +235,18 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
                 name="notificationEmail"
                 type="email"
                 label="Notification email"
-                help="Where all notifications are sent: recovery alerts, sequence updates, and weekly digest. Leave it blank and no notification emails are sent."
+                help="Leave blank to turn notification emails off."
                 defaultValue={loaderData.notificationEmail}
               />
             </div>
 
             {/* The rule under the webhook field stands above the first switch row. */}
             <div className="fh-notify-group">
-              {/* Recova puts help under the control. */}
               <TextField
-                helpPlacement="after"
                 announce
                 name="slackWebhookUrl"
                 type="text"
                 label="Slack webhook URL"
-                help="Get notified in Slack when payments are recovered"
                 defaultValue={loaderData.slackWebhookUrl}
                 placeholder={SLACK_WEBHOOK_PLACEHOLDER}
                 error={webhookError}
@@ -263,25 +256,22 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
             <SwitchRow
               name="slackNotificationsEnabled"
               label="Slack notifications"
-              help="Notify when a payment is recovered or an email is sent"
               defaultChecked={loaderData.slackNotificationsEnabled}
             />
             <SwitchRow
               name="digestEnabled"
               label="Weekly digest"
-              help="Monday summary of recovered revenue and active sequences"
+              help="Mondays."
               defaultChecked={loaderData.digestEnabled}
             />
             <SwitchRow
               name="recoveryNotificationsEnabled"
               label="Payment recovered notification"
-              help="Email me when a payment is successfully recovered"
               defaultChecked={loaderData.recoveryNotificationsEnabled}
             />
             <SwitchRow
               name="sequenceCompleteNotificationsEnabled"
               label="Sequence complete notification"
-              help="Email me when a recovery sequence ends without recovering the payment"
               defaultChecked={loaderData.sequenceCompleteNotificationsEnabled}
             />
           </div>

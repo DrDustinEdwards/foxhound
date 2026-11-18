@@ -105,7 +105,6 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
         sectionLabel={RECOVERY_SECTION_LABEL}
         blocks={[
           {
-            eyebrow: categories.eyebrow,
             title: categories.title,
             body: (
               <>
@@ -119,14 +118,12 @@ export default function RecoveryProductPage({ loaderData }: Route.ComponentProps
             ui: <CategorySequencePreview />,
           },
           {
-            eyebrow: dashboard.eyebrow,
             title: dashboard.title,
             body: dashboard.body,
             ui: <DashboardPreview preview={preview} />,
             lifted: true,
           },
           {
-            eyebrow: payments.eyebrow,
             title: payments.title,
             body: payments.body,
             ui: <PaymentsPreview preview={preview} />,

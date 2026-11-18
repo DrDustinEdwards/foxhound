@@ -256,9 +256,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       </div>
 
       {pagination.total === 0 ? (
-        <Empty kind="nothing-yet" title="No disputes yet.">
-          When a customer disputes a charge, Foxhound automatically builds your response.
-        </Empty>
+        <Empty kind="nothing-yet" title="No disputes yet." />
       ) : (
         <div className="cap-panel">
           <div className="cap-panel-body" data-flush="">

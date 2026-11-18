@@ -509,8 +509,6 @@ function ProfileForm({
           <TextField
             announce
             label="Account name"
-            help="Your business or product name"
-            helpPlacement="after"
             error={fieldError("name")}
             name="name"
             defaultValue={account.name ?? ""}
@@ -640,9 +638,6 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   return (
     <section className="cap-panel">
       <div className="cap-panel-body">
-        <p className="fh-account-intro fh-small fh-quiet">
-          Choose how Foxhound looks. Saved to your account and synced across devices.
-        </p>
         <Segmented
           // Recova's group is named "Theme" (aria-label) with no visible
           // label. The name is visually hidden inside the legend, not with
@@ -871,11 +866,7 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
   const result = actionData as ActionResult | undefined;
 
   return (
-    <SettingsLayout
-      renderLink={routerRenderLink}
-      title="My account"
-      lead="Profile, appearance, and account controls."
-    >
+    <SettingsLayout renderLink={routerRenderLink} title="My account">
       {/* Recova's mb-10 under the form. */}
       <div className="fh-account-top">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />

@@ -224,11 +224,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         See everything leaking from your Stripe account
       </h1>
 
-      <p className="fh-audit-text fh-product-sub fh-faint">
-        Enter your MRR and customer count for a directional estimate. No signup, no credit card, 30
-        seconds.
-      </p>
-
       {/* The estimator: Foxhound's own working surface, which Recova has no
           counterpart for. */}
       <div className="fh-audit-grid">
@@ -338,7 +333,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         </div>
       </div>
 
-      <p className="fh-audit-text-5 fh-small fh-faint">Want to see the app before connecting?</p>
       {/* A 24px target (min-h-6) for a link that stands alone. */}
       <a href="/demos/recovery" rel="nofollow" className="fh-audit-link-2 fh-copy fh-accent">
         View live demo &rarr;
@@ -352,9 +346,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 what the RESULTS page offers afterwards, which is where Recova
                 puts it too. */}
             <div>
-              <p className="fh-audit-text-6 fh-body fh-medium fh-text">
-                Want your real numbers instead of an estimate?
-              </p>
               <p className="fh-audit-text-7 fh-small fh-relaxed fh-soft">
                 Connect Stripe and Foxhound runs the full audit on the spot: what failed and why,
                 what is expiring, where your disputes stand, and your recurring revenue. No account

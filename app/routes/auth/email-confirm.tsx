@@ -109,10 +109,7 @@ export default function EmailConfirm({ loaderData, actionData }: Route.Component
 
   return (
     <AuthCard>
-      <AuthHeading
-        title="Confirm your email change"
-        subtitle="Nothing changes until you press the button. Once both addresses confirm, your Foxhound sign-in moves to the new one."
-      />
+      <AuthHeading title="Confirm your email change" subtitle="Both addresses must confirm." />
       {/* A plain form: it posts to this URL, token and all, and the browser follows the redirect. */}
       <form method="post" className="fh-auth-form">
         {actionData?.limited ? (

@@ -81,14 +81,7 @@ export default function Login({ loaderData, actionData }: Route.ComponentProps) 
 
   return (
     <AuthCard>
-      <AuthHeading
-        title={loaderData.reauth ? "Sign in again" : "Welcome back"}
-        subtitle={
-          loaderData.reauth
-            ? "To change how you sign in, sign in again."
-            : "Sign in to your Foxhound account"
-        }
-      />
+      <AuthHeading title={loaderData.reauth ? "Sign in again" : "Welcome back"} />
 
       {actionData?.sent ? (
         <SignInLinkSent

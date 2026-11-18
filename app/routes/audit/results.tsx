@@ -160,9 +160,6 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
       <Panel title="What's next">
         {notSaved === null ? (
           <>
-            <p className="fh-results-text fh-small fh-soft">
-              This run is saved to your audit history. Trends show up after the second run.
-            </p>
             <ButtonLink to="/audit/dashboard">View audit history</ButtonLink>
           </>
         ) : (
@@ -217,13 +214,7 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
         </div>
         <PageHead
           title={`Analyzed last ${run.lookbackDays} days of payment history`}
-          lead={
-            <span className="fh-mono fh-tiny fh-faint">
-              Subscription health and disputes reflect current account state.
-              <br />
-              Run at {formatRanAt(run.runAt)}
-            </span>
-          }
+          lead={<span className="fh-mono fh-tiny fh-faint">Run at {formatRanAt(run.runAt)}</span>}
         />
       </div>
 
