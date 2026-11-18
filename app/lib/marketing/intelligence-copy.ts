@@ -210,5 +210,4 @@ export const INTELLIGENCE_FAQS = [
 export const INTELLIGENCE_BOTTOM_CTA = {
   title: "Your highest-value customers are telling you they are at risk.",
   sub: "Intelligence surfaces them before they churn.",
-  note: "The free audit shows your current MRR and involuntary churn rate",
 };

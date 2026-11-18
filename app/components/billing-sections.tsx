@@ -29,11 +29,7 @@ import {
 } from "~/lib/billing/page";
 import type { AccountBillingState } from "~/lib/billing/preview.server";
 import type { CurrencyAmount } from "~/lib/money/totals";
-import {
-  BILLING_RUN_DAY_OF_MONTH,
-  DISPUTE_FEE_CAP_CENTS,
-  RECOVERY_MATURITY_DAYS,
-} from "~/lib/constants";
+import { BILLING_RUN_DAY_OF_MONTH, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // /billing's five sections, in Recova's order and with Recova's
@@ -166,15 +162,7 @@ export function RecoverySection({
 }) {
   const stateNote = billingStateNote(accountBillingState);
   return (
-    <Panel
-      title="Recovery"
-      description={
-        // An exempt account is never invoiced (review F4), so it is not told the day.
-        accountBillingState.billingExempt
-          ? `${RECOVERY_FEE_PERCENT}% of attributed recoveries`
-          : `${RECOVERY_FEE_PERCENT}% of attributed recoveries · Invoiced on the ${INVOICE_DAY}`
-      }
-    >
+    <Panel title="Recovery">
       <SummaryBox>
         <div className="cap-stack" data-gap="3">
           <SummaryRow label="Recovered this month" value={attributedThisMonth} />
@@ -247,19 +235,10 @@ export function DisputeFeesSection({
   rows: DisputeFeeRow[];
 }) {
   const stateNote = billingStateNote(accountBillingState);
-  const cap = formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd");
   // Disputes needs no enabling in Foxhound (every account has it, app/lib/nav/
   // manifest.ts), so Recova's disputesActive branch is always the one shown.
   return (
-    <Panel
-      title="Dispute Fees"
-      description={
-        // Truthfulness fix: Recova's sentence left out the cap, which Foxhound's
-        // engine applies (PRICING.md: "$500, converted at Stripe's rate on the
-        // day the dispute resolves").
-        `Foxhound charges ${DISPUTE_FEE_PERCENT}% of disputes we win on your behalf, capped at ${cap} per dispute, converted at Stripe's rate on the day the dispute resolves. Disputes won by Stripe Smart Disputes or submitted by you are not charged.`
-      }
-    >
+    <Panel title="Dispute Fees">
       <SummaryBox>
         <SummaryRow label="Pending fees this month" value={estimatedDisputeFees} fee />
         <p className="fh-billing-fine fh-tiny fh-faint">

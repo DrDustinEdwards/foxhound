@@ -14,7 +14,6 @@ import {
   describeAuditAction,
 } from "~/lib/admin/audit-describe";
 import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
-import { plural } from "@drdustinedwards/site-helpers/text";
 import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -61,13 +60,7 @@ export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
   const pending = usePagePending(AUDIT_LOG_PATH);
 
   return (
-    <Panel
-      title="Operator actions"
-      headingId={HEADING_ID}
-      reading={pending}
-      description={entries.length === 0 ? undefined : plural(entries.length, "entry", "entries")}
-      flush
-    >
+    <Panel title="Operator actions" headingId={HEADING_ID} reading={pending} flush>
       {entries.length === 0 ? (
         <Empty kind="nothing-yet" title="No audit log entries yet." />
       ) : (

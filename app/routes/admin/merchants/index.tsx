@@ -202,7 +202,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 // same actions (Recova's Resume and Remove exemption are the row's own
 // buttons), each form posting to the list it is on.
 export default function AdminMerchants({ loaderData, actionData }: Route.ComponentProps) {
-  const { view, merchants, counts, brakePaused, figures, confirmCancel } = loaderData;
+  const { view, merchants, counts, figures, confirmCancel } = loaderData;
 
   if (confirmCancel) {
     const who = confirmCancel.name ?? confirmCancel.id;
@@ -237,7 +237,6 @@ export default function AdminMerchants({ loaderData, actionData }: Route.Compone
         view={view}
         merchants={merchants}
         counts={counts}
-        brakePaused={brakePaused}
         figures={figures}
         actionData={actionData}
       />

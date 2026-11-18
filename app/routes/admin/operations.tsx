@@ -12,13 +12,7 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { formatBytes } from "capsomer/behavior/format";
 import { D1_ALERT_THRESHOLD, D1_CAP_BYTES } from "~/lib/admin/format";
-import {
-  LOCK_STATUS,
-  lockSummaryWords,
-  migrationsSummaryWords,
-  OPERATIONS_PATH,
-  settingKindWord,
-} from "~/lib/admin/operations";
+import { LOCK_STATUS, OPERATIONS_PATH, settingKindWord } from "~/lib/admin/operations";
 import { issueAdminApiKey, loadMcpOverview, revokeAdminApiKey } from "~/lib/admin/mcps.server";
 import { adminContext } from "~/lib/admin/context";
 import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
@@ -143,11 +137,10 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
   const pending = usePagePending(OPERATIONS_PATH);
   const share = sizeBytes / D1_CAP_BYTES;
   const overHalf = share >= D1_ALERT_THRESHOLD;
-  const appliedCount = migrations.rows.filter((m) => m.applied).length;
 
   return (
     <div className="cap-stack" data-gap="6">
-      <Panel title="Recovery queue" reading={pending} description="Demo accounts are not counted.">
+      <Panel title="Recovery queue" reading={pending}>
         <dl className="fh-halves">
           <div>
             <dt className="fh-small fh-soft">Payments in recovery</dt>
@@ -172,17 +165,12 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         </dl>
       </Panel>
 
-      <Panel
-        title="Cron locks"
-        headingId={LOCKS_HEADING_ID}
-        reading={pending}
-        description={locks.length > 0 ? lockSummaryWords(locks) : undefined}
-        flush
-      >
+      <Panel title="Cron locks" headingId={LOCKS_HEADING_ID} reading={pending} flush>
         {locks.length === 0 ? (
-          <Empty kind="nothing-yet" title="No crons are registered, so there are no locks to read.">
-            Each cron in Foxhound&apos;s registry takes its own lock while it runs.
-          </Empty>
+          <Empty
+            kind="nothing-yet"
+            title="No crons are registered, so there are no locks to read."
+          />
         ) : (
           <Table
             caption="Cron locks, one per cron in the registry's order. A lock not released ran out while still stored: its run stopped without releasing it, or is running past its lease. The next run takes it anyway."
@@ -258,17 +246,7 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         )}
       </Panel>
 
-      <Panel
-        title="Migrations"
-        headingId={MIGRATIONS_HEADING_ID}
-        reading={pending}
-        description={
-          migrations.rows.length > 0
-            ? migrationsSummaryWords(appliedCount, migrations.rows.length)
-            : undefined
-        }
-        flush
-      >
+      <Panel title="Migrations" headingId={MIGRATIONS_HEADING_ID} reading={pending} flush>
         {migrations.unexpectedApplied.length > 0 ? (
           <p className="fh-panel-note fh-small fh-error">
             {plural(migrations.unexpectedApplied.length, "migration is", "migrations are")} applied
@@ -312,13 +290,7 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         )}
       </Panel>
 
-      <Panel
-        title="Settings"
-        headingId={SETTINGS_HEADING_ID}
-        reading={pending}
-        description="Names only; values are never shown."
-        flush
-      >
+      <Panel title="Settings" headingId={SETTINGS_HEADING_ID} reading={pending} flush>
         <Table
           caption="Each setting the Worker uses, its kind, and whether it is set."
           captionHidden

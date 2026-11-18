@@ -237,14 +237,3 @@ export const SECURITY_CHIPS = [
   "CAN-SPAM compliant",
   "US company, US jurisdiction",
 ];
-
-/** Recova's compatibility line. Multi-account is back (parity audit,
- *  2026-11-10): one login holds several accounts, each with its own Stripe
- *  connection (/connect/additional and the header's account switcher). */
-export const COMPAT_TAGS = [
-  "Stripe Billing",
-  "Stripe Checkout",
-  "Custom invoices",
-  "Stripe Subscriptions",
-  "Multi-account",
-];

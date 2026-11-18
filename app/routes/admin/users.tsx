@@ -7,7 +7,7 @@ import { Panel } from "capsomer/react/panel";
 import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { listPlatformUsers } from "~/lib/admin/users.server";
-import { membershipWord, usersCountSentence } from "~/lib/admin/users";
+import { membershipWord } from "~/lib/admin/users";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { merchantHref, type AdminHandle } from "~/lib/admin/page";
 
@@ -42,13 +42,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const pending = usePagePending("/admin/users");
 
   return (
-    <Panel
-      title="People"
-      headingId={HEADING_ID}
-      reading={pending}
-      description={users.length === 0 ? undefined : `${usersCountSentence(users.length)}`}
-      flush
-    >
+    <Panel title="People" headingId={HEADING_ID} reading={pending} flush>
       {users.length === 0 ? (
         <Empty kind="nothing-yet" title="No users yet." />
       ) : (

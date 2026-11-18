@@ -13,14 +13,12 @@ import "~/components/charts.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import { mrrEmptySentence } from "~/lib/dashboard/console";
 import { drawCohorts, drawLatestMovement } from "~/lib/dashboard/console-charts";
 import { getConsoleView } from "~/lib/dashboard/console.server";
 import { formatCurrencyTotals, RECOVERY_FEE_LABEL } from "~/lib/dashboard/recovery-dashboard";
 import { recoveryRateStatusTone } from "~/lib/dashboard/recovery-rate";
 import { getMrrAnalytics, getRecoveryStats } from "~/lib/dashboard/stats.server";
 import { drawMrrTrend } from "~/lib/intelligence/dashboard-charts";
-import { firstSnapshotSentence } from "~/lib/intelligence/dashboard";
 import { isCohortRows } from "~/lib/intelligence/mrr";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
@@ -183,9 +181,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
                 daily run, but only for an account with Stripe connected that
                 is neither paused nor canceled. Only that account is promised
                 a date; the others are told why none is coming. */}
-            <Empty kind="nothing-yet" title="No MRR data yet">
-              {mrrEmptySentence(consoleView.mrrSync, firstSnapshotSentence())}
-            </Empty>
+            <Empty kind="nothing-yet" title="No MRR data yet" />
           </div>
         )}
       </section>

@@ -29,7 +29,6 @@ import { blogStripCards } from "~/lib/marketing/blog-strip";
 import {
   citation,
   COMPARISON_ROWS,
-  COMPAT_TAGS,
   BILLING_FAQ_QUESTION,
   FAQS,
   HERO_LEAD,
@@ -519,31 +518,23 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         quiet
         className="fh-closing-band fh-closing-home"
         title="See what your Stripe account is leaking"
-        actions={<ConnectStripeAction />}
-        note={
+        actions={
           <>
-            <span className="fh-home-block-15 fh-line fh-mono fh-caption fh-faint">
-              No account required &middot; Results in 30 seconds &middot; Disconnect anytime
-            </span>
-            <span className="fh-home-block-16 fh-line fh-mono fh-caption fh-faint">
-              {COMPAT_TAGS.join(" · ")}
-            </span>
-            <span className="fh-home-row-4">
-              <Link
-                to="/demos/recovery"
-                rel="nofollow"
-                className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
-              >
-                View Recovery demo <Arrow />
-              </Link>
-              <Link
-                to="/demos/disputes"
-                rel="nofollow"
-                className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
-              >
-                View Disputes demo <Arrow />
-              </Link>
-            </span>
+            <ConnectStripeAction />
+            <Link
+              to="/demos/recovery"
+              rel="nofollow"
+              className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
+            >
+              View Recovery demo <Arrow />
+            </Link>
+            <Link
+              to="/demos/disputes"
+              rel="nofollow"
+              className="fh-mk-quiet-link fh-hover-group fh-copy fh-soft"
+            >
+              View Disputes demo <Arrow />
+            </Link>
           </>
         }
       >

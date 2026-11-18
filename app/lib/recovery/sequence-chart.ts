@@ -1,6 +1,5 @@
 import { barChart } from "enarratio/lite/bar";
 import type { ChartFit } from "capsomer/react/chart-frame";
-import { EMAIL_ENGAGEMENT_WINDOW_DAYS } from "~/lib/constants";
 
 import type { StepPerformancePoint } from "./sequence-performance";
 
@@ -34,18 +33,6 @@ function stepPerformanceAlt(chart: readonly StepPerformancePoint[]): string {
   );
   return `Open, click and recovery rate for each recovery email step: ${parts.join("; ")}.`;
 }
-
-/**
- * The note under the chart's title, in the place of Recova's caveat. Recova's
- * read "Recovery includes customers who updated payment after reading the
- * email, even without clicking the tracked link", true of Recova, which counted
- * any recovered result on an email step. Foxhound credits an email step only
- * through findAttributionSignals (attribution.ts): a click that is not flagged
- * as suspect, before the payment and inside the engagement window
- * (webhooks/process.ts resolveRecoveryAttribution). A truthfulness fix,
- * reported to Dustin in the J12 pull request.
- */
-export const STEP_PERFORMANCE_NOTE = `Recovery counts a payment only when the customer clicked the email's link within ${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before paying. Clicks flagged as automated do not count.`;
 
 // Recova's plot is 220px high (StepPerformanceChart.tsx, h-[220px]).
 const CHART_HEIGHT = 220;

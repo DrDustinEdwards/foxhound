@@ -29,7 +29,6 @@ import {
   cronEnableHref,
   cronRunAnchor,
   CRONS_PATH,
-  cronsSummaryWords,
   describeCronSchedule,
   failedRunsWords,
 } from "~/lib/admin/crons";
@@ -164,7 +163,6 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
   }
 
   const done = actionData && "ok" in actionData && actionData.ok ? actionData : null;
-  const switchedOff = crons.filter((c) => !c.enabled).length;
 
   return (
     <div className="cap-stack" data-gap="6">
@@ -174,13 +172,7 @@ export default function AdminCrons({ loaderData, actionData }: Route.ComponentPr
         {done ? `${done.cronName} ${done.enabled ? "is on." : "is switched off."}` : null}
       </p>
 
-      <Panel
-        title="Scheduled jobs"
-        headingId={HEADING_ID}
-        reading={pending}
-        description={crons.length > 0 ? cronsSummaryWords(crons.length, switchedOff) : undefined}
-        flush
-      >
+      <Panel title="Scheduled jobs" headingId={HEADING_ID} reading={pending} flush>
         {crons.length === 0 ? (
           <Empty kind="nothing-yet" title="No scheduled jobs are registered." />
         ) : (

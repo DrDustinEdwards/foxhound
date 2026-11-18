@@ -178,7 +178,6 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 <SwitchRow
                   name={loaderData.isOwner ? "dispute_auto_submit" : undefined}
                   label="Auto-submit disputes"
-                  help="Submits 24 hours before the deadline if you have not acted."
                   defaultChecked={loaderData.autoSubmit}
                   disabledReason={
                     loaderData.isOwner ? undefined : "Only the account owner can change this."
@@ -210,7 +209,6 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 <SwitchRow
                   name="dispute_ships_physical"
                   label="Ships physical goods"
-                  help="Adds shipping evidence fields."
                   defaultChecked={loaderData.shipsPhysical}
                 />
               </>

@@ -81,14 +81,12 @@ export function MerchantsList({
   view,
   merchants,
   counts,
-  brakePaused,
   figures,
   actionData,
 }: {
   view: MerchantView;
   merchants: AdminMerchantRow[];
   counts: Record<MerchantView, number>;
-  brakePaused: number;
   figures: Figures | null;
   actionData: ActionData | undefined;
 }) {
@@ -113,27 +111,7 @@ export function MerchantsList({
         ))}
       </TabsNav>
 
-      <Panel
-        title="Merchants"
-        headingId={HEADING_ID}
-        reading={pending}
-        description={
-          merchants.length === 0 ? undefined : (
-            <>
-              {words.describe(merchants.length)}
-              {view === "paused" && brakePaused > 0 ? (
-                <>
-                  {" "}
-                  {brakePaused} of them {brakePaused === 1 ? "is" : "are"} held by the{" "}
-                  <Link to="/admin/brake">emergency brake</Link>, whose Release resumes{" "}
-                  {brakePaused === 1 ? "it" : "them"}.
-                </>
-              ) : null}
-            </>
-          )
-        }
-        flush
-      >
+      <Panel title="Merchants" headingId={HEADING_ID} reading={pending} flush>
         {merchants.length === 0 ? (
           view === "all" ? (
             <Empty kind="nothing-yet" title={words.empty} />
@@ -180,7 +158,7 @@ export function MerchantsList({
 function PlatformFigures({ figures, reading }: { figures: Figures; reading: boolean }) {
   const mrrAccounts = figures.mrrByCurrency.reduce((n, m) => n + m.accountCount, 0);
   return (
-    <Panel title="Platform" reading={reading} description="Demo accounts are not counted.">
+    <Panel title="Platform" reading={reading}>
       <dl className="fh-halves" data-cols="5">
         <Figure
           label="Estimated MRR"

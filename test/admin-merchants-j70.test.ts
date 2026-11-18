@@ -744,7 +744,6 @@ function render(
     view: "all",
     merchants,
     counts,
-    brakePaused: 0,
     figures: FIGURES,
     confirmCancel: over.confirmCancel ?? null,
   };

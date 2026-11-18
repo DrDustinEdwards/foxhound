@@ -1,5 +1,4 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { iconScanSearch } from "capsomer/react/icons";
 
 import { AISummaryPreview, AuditHistoryPreview, AuditScopeCard } from "~/components/audit-previews";
 import {
@@ -78,8 +77,6 @@ export default function AuditProductPage() {
     // ring inside the page, as on the other three spokes.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
-        productName="Audit"
-        icon={iconScanSearch}
         headline={AUDIT_HERO.headline}
         sub={AUDIT_HERO.sub}
         pricing={AUDIT_HERO.pricing}
@@ -102,12 +99,7 @@ export default function AuditProductPage() {
         cta={AUDIT}
       />
       <ProductFAQ name="audit-faq" faqs={AUDIT_FAQS} />
-      <BottomCTA
-        title={AUDIT_BOTTOM_CTA.title}
-        sub={AUDIT_BOTTOM_CTA.sub}
-        cta={AUDIT}
-        note={AUDIT_BOTTOM_CTA.note}
-      />
+      <BottomCTA title={AUDIT_BOTTOM_CTA.title} sub={AUDIT_BOTTOM_CTA.sub} cta={AUDIT} />
     </div>
   );
 }

@@ -5,7 +5,6 @@
 // which no address match would know.
 
 import { getDb } from "~/db";
-import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { merchantsInView, type MerchantView } from "~/lib/admin/merchants";
 import { getMerchantFigures, listAdminMerchants } from "~/lib/admin/merchants.server";
 
@@ -23,9 +22,6 @@ export async function loadMerchantsPage(env: Env, request: Request, view: Mercha
     paused: paused.length,
     "billing-exempt": merchantsInView(all, "billing-exempt").length,
   };
-  // The Paused list's share the brake holds: exactly what its Release resumes
-  // (brakePausedCondition: paused and carrying the brake's marker).
-  const brakePaused = paused.filter((m) => m.pauseReason === PAUSE_REASON_BRAKE).length;
   // ?cancel=<id> opens the confirm page for a merchant that can still be
   // canceled. An unknown or already canceled one opens nothing, so a stale
   // link lands on the table rather than on a confirmation of nothing.
@@ -35,7 +31,6 @@ export async function loadMerchantsPage(env: Env, request: Request, view: Mercha
     view,
     merchants,
     counts,
-    brakePaused,
     figures,
     confirmCancel: live ? { id: live.id, name: live.name } : null,
   };

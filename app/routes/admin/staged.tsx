@@ -115,17 +115,7 @@ export default function AdminStaged({ loaderData, actionData }: Route.ComponentP
         <Empty kind="all-clear" title="Nothing is waiting." />
       ) : (
         pending.map((row) => (
-          <Panel
-            key={row.id}
-            title={row.summary}
-            description={
-              <>
-                Asked for by {row.requestedBy} via {row.requestedVia},{" "}
-                <Time at={row.requestedAt} empty="never" tip />
-                {row.note ? `: ${row.note}` : ""}
-              </>
-            }
-          >
+          <Panel key={row.id} title={row.summary}>
             <div className="cap-cluster">
               <Form method="post">
                 <input type="hidden" name="intent" value="confirm" />

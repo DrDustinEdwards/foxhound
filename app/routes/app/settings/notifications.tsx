@@ -261,7 +261,6 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
             <SwitchRow
               name="digestEnabled"
               label="Weekly digest"
-              help="Mondays."
               defaultChecked={loaderData.digestEnabled}
             />
             <SwitchRow

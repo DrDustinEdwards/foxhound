@@ -1,5 +1,4 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { iconShield } from "capsomer/react/icons";
 
 import {
   DashboardPreview,
@@ -91,8 +90,6 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
-        productName="Disputes"
-        icon={iconShield}
         headline={DISPUTES_HERO.headline}
         sub={DISPUTES_HERO.sub}
         pricing={DISPUTES_HERO.pricing}
@@ -130,12 +127,7 @@ export default function DisputesProductPage({ loaderData }: Route.ComponentProps
         cta={CONNECT}
       />
       <ProductFAQ name="disputes-faq" faqs={DISPUTES_FAQS} />
-      <BottomCTA
-        title={DISPUTES_BOTTOM_CTA.title}
-        sub={DISPUTES_BOTTOM_CTA.sub}
-        cta={CONNECT}
-        note={DISPUTES_BOTTOM_CTA.note}
-      />
+      <BottomCTA title={DISPUTES_BOTTOM_CTA.title} sub={DISPUTES_BOTTOM_CTA.sub} cta={CONNECT} />
     </div>
   );
 }

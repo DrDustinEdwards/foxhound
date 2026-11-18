@@ -5,7 +5,6 @@ import { PriceCard, PriceGrid } from "capsomer/react/price-card";
 import { ProcessSteps } from "capsomer/react/process";
 import { CtaBand } from "capsomer/react/cta-band";
 import { Hero } from "capsomer/react/hero";
-import { Pill } from "capsomer/react/status";
 import { Link, ButtonLink } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
 import { FaqList } from "~/components/faq-list";
@@ -18,7 +17,6 @@ import "capsomer/panel.css";
 import "capsomer/price-card.css";
 import "capsomer/process.css";
 import "capsomer/button.css";
-import "capsomer/status.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part
 // below reads. The site header loads the same file; importing it here keeps
 // the page whole under any layout.
@@ -72,16 +70,12 @@ function SectionLabel({ children, className }: { children: React.ReactNode; clas
 }
 
 export function ProductHero({
-  productName,
-  icon,
   headline,
   sub,
   pricing,
   primaryCTA,
   secondaryCTA,
 }: {
-  productName: string;
-  icon: string;
   headline: string;
   sub: string;
   pricing: string;
@@ -92,12 +86,6 @@ export function ProductHero({
     <Hero
       className="speakable-hero fh-product-hero"
       align="center"
-      eyebrow={
-        <Pill variant="outline">
-          <Icon d={icon} className="fh-product-icon fh-accent" />
-          {productName}
-        </Pill>
-      }
       title={headline}
       lead={<span className="speakable-description">{sub}</span>}
       actions={
@@ -213,24 +201,13 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a:
   );
 }
 
-export function BottomCTA({
-  title,
-  sub,
-  cta,
-  note,
-}: {
-  title: string;
-  sub: string;
-  cta: CTA;
-  note: string;
-}) {
+export function BottomCTA({ title, sub, cta }: { title: string; sub: string; cta: CTA }) {
   return (
     <CtaBand
       quiet
       className="fh-closing-band fh-closing-product"
       title={title}
       actions={<PrimaryLink cta={cta} />}
-      note={note}
     >
       {sub}
     </CtaBand>

@@ -9,7 +9,6 @@ import "capsomer/cta-band.css";
 import "capsomer/hero.css";
 
 import { CARD, ConnectStripeAction } from "~/components/marketing-card";
-import { AUDIT_GRANT_MINUTES, AUDIT_SCOPE_WORDS } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
   PRICING_FAQS,
@@ -181,23 +180,6 @@ export default function PricingPage() {
         className="fh-closing-band fh-closing-pricing"
         title="See what your Stripe account is leaking"
         actions={<ConnectStripeAction />}
-        note={
-          <>
-            {/* 376 item 20: this line used to read "No account required . No Stripe
-              connection needed . Results in 30 seconds" directly under a button
-              that says Connect Stripe. Both halves were true of DIFFERENT
-              products, which is what made the pair a contradiction: the
-              estimator needs no connection, the full audit is a connection. The
-              line now names which is which. Same element, same separators, same
-              place: only the words changed. */}
-            <span className="fh-pricing-block-4 fh-line fh-mono fh-caption fh-faint">
-              Estimator: no account, no Stripe connection &middot; Full audit: Stripe grants{" "}
-              {AUDIT_SCOPE_WORDS}
-              access, Foxhound only reads and disconnects itself after {AUDIT_GRANT_MINUTES}{" "}
-              minutes, no account, 30 seconds
-            </span>
-          </>
-        }
       >
         Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
         business health. Results in <span className="fh-mono">30</span> seconds.

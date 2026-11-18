@@ -1,5 +1,4 @@
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { iconTrendingUp } from "capsomer/react/icons";
 
 import {
   ChurnBandsPreview,
@@ -98,8 +97,6 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <ProductHero
-        productName="Intelligence"
-        icon={iconTrendingUp}
         headline={INTELLIGENCE_HERO.headline}
         sub={INTELLIGENCE_HERO.sub}
         pricing={INTELLIGENCE_HERO.pricing}
@@ -126,7 +123,6 @@ export default function IntelligenceProductPage({ loaderData }: Route.ComponentP
         title={INTELLIGENCE_BOTTOM_CTA.title}
         sub={INTELLIGENCE_BOTTOM_CTA.sub}
         cta={AUDIT}
-        note={INTELLIGENCE_BOTTOM_CTA.note}
       />
     </div>
   );
