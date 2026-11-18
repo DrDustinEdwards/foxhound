@@ -6,7 +6,7 @@ import {
   HOUR_MS,
   RECOVERY_FEE_BPS,
 } from "~/lib/constants";
-import { recoveryFeeCents } from "~/lib/billing/fees";
+import { recoveryFeeCents, unrefundedCents } from "~/lib/billing/fees";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { formatMoney, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
@@ -41,12 +41,18 @@ export interface RoiColumn {
  * manual recovery; Foxhound never bills a manual or Stripe-baseline recovery,
  * so those claims are not copied (ROWS-S S5, 181).
  */
-export function roiColumn(rows: readonly { amountCents: number; currency: string }[]): RoiColumn {
-  const recovered = groupSumByCurrency(
-    rows.map((r) => ({ currency: r.currency, cents: r.amountCents })),
-  );
+export function roiColumn(
+  rows: readonly { amountCents: number; refundedCents: number; currency: string }[],
+): RoiColumn {
+  // A partly refunded recovery counts for what the merchant kept of it, and
+  // its fee is taken on that, as the billing run takes it.
+  const net = rows.map((r) => ({
+    currency: r.currency,
+    cents: unrefundedCents(r.amountCents, r.refundedCents),
+  }));
+  const recovered = groupSumByCurrency(net);
   const fee = groupSumByCurrency(
-    rows.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.amountCents) })),
+    net.map((r) => ({ currency: r.currency, cents: recoveryFeeCents(r.cents) })),
   );
   const kept = recovered.map((r) => ({
     currency: r.currency,

@@ -42,6 +42,7 @@ const harness = vi.hoisted(() => ({
     id: string;
     invoice: string;
     status: string;
+    amount: number;
     metadata: Record<string, string>;
   }[],
 }));
@@ -61,13 +62,15 @@ vi.mock("~/lib/stripe/client", () => ({
           id: `cn_${harness.creditNoteCalls.length}`,
           invoice: args.invoice as string,
           status: "issued",
+          amount: args.credit_amount as number,
           metadata: args.metadata as Record<string, string>,
         };
         harness.stripeNotes.push(note);
         return note;
       },
+      // Newest first, as Stripe lists them.
       list: async function* (params: { invoice: string }) {
-        yield* harness.stripeNotes.filter((n) => n.invoice === params.invoice);
+        yield* harness.stripeNotes.filter((n) => n.invoice === params.invoice).reverse();
       },
     },
   }),
@@ -181,6 +184,15 @@ async function lines(db: Awaited<ReturnType<typeof seed>>) {
     .where(eq(schema.billingLineItems.type, "credit"));
 }
 
+/** Stamp the recovery as the refund webhook would: `cents` refunded so far,
+ *  and refunded_at once it is all of it. */
+async function refund(db: Awaited<ReturnType<typeof seed>>, cents = 10_000) {
+  await db
+    .update(schema.recoveredPayments)
+    .set({ refundedCents: cents, ...(cents >= 10_000 ? { refundedAt: REFUNDED_AT } : {}) })
+    .where(eq(schema.recoveredPayments.id, RECOVERY));
+}
+
 const RECOVERY_EVIDENCE = { recoveredPaymentId: RECOVERY };
 const DISPUTE_EVIDENCE = { disputeId: DISPUTE };
 const OPTS = { now: REFUNDED_AT, description: "Refunded recovery: fee credited" };
@@ -196,6 +208,7 @@ beforeEach(() => {
 describe("a refund AFTER the fee was invoiced", () => {
   it("issues exactly one credit note and writes exactly one credit line", async () => {
     const db = await seed();
+    await refund(db);
 
     const outcome = await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
     expect(outcome.credited).toBe(true);
@@ -207,7 +220,7 @@ describe("a refund AFTER the fee was invoiced", () => {
     // in that currency, and no cash moves. That distinction is the ruling.
     expect(call.args.credit_amount).toBe(FEE_CENTS);
     expect(call.args.refund_amount).toBeUndefined();
-    expect(call.options?.idempotencyKey).toBe(`credit-note:${FEE_LINE}`);
+    expect(call.options?.idempotencyKey).toBe(`credit-note:${FEE_LINE}:${FEE_CENTS}`);
 
     const credits = await lines(db);
     expect(credits).toHaveLength(1);
@@ -221,6 +234,7 @@ describe("a refund AFTER the fee was invoiced", () => {
 
   it("does not rewrite the invoice it credits", async () => {
     const db = await seed();
+    await refund(db);
     await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
 
     const [invoice] = await db.select().from(schema.billingInvoices);
@@ -234,11 +248,12 @@ describe("a refund AFTER the fee was invoiced", () => {
 describe("a SECOND refund event on the same line", () => {
   it("yields no second note and no second line", async () => {
     const db = await seed();
+    await refund(db);
     await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
 
     const second = await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
 
-    expect(second).toEqual({ credited: false, reason: "no_charged_fee_line" });
+    expect(second).toEqual({ credited: false, reason: "nothing_owed" });
     expect(harness.creditNoteCalls).toHaveLength(1);
     expect(await lines(db)).toHaveLength(1);
   });
@@ -247,6 +262,7 @@ describe("a SECOND refund event on the same line", () => {
 describe("the failure shape", () => {
   it("a Stripe failure writes no credit line and never throws at the caller", async () => {
     const db = await seed();
+    await refund(db);
     harness.failCreditNote = true;
 
     const outcome = await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
@@ -262,12 +278,7 @@ describe("the failure shape", () => {
 // duplicate that skips the clawback, so before the sweep a failed Stripe call
 // kept the fee for good.
 describe("the daily credit-note-retry sweep", () => {
-  async function stampRefund(db: Awaited<ReturnType<typeof seed>>) {
-    await db
-      .update(schema.recoveredPayments)
-      .set({ refundedAt: REFUNDED_AT })
-      .where(eq(schema.recoveredPayments.id, RECOVERY));
-  }
+  const stampRefund = (db: Awaited<ReturnType<typeof seed>>) => refund(db);
 
   it("credits a fee the webhook failed to credit, exactly once", async () => {
     const db = await seed();
@@ -312,6 +323,7 @@ describe("the daily credit-note-retry sweep", () => {
       id: "cn_earlier",
       invoice: "in_platform_1",
       status: "issued",
+      amount: FEE_CENTS,
       metadata: { fee_line_item_id: FEE_LINE },
     });
 
@@ -329,6 +341,7 @@ describe("the daily credit-note-retry sweep", () => {
       id: "cn_voided",
       invoice: "in_platform_1",
       status: "void",
+      amount: FEE_CENTS,
       metadata: { fee_line_item_id: FEE_LINE },
     });
 
@@ -336,6 +349,51 @@ describe("the daily credit-note-retry sweep", () => {
     expect(result.failed.map((f) => f.lineItemId)).toEqual([FEE_LINE]);
     expect(harness.creditNoteCalls).toHaveLength(0);
     expect(await lines(db)).toHaveLength(0);
+  });
+});
+
+// Dustin, 2026-11-18: "reduce the fee by the refunded share. A full refund
+// means no fee." Mythos billing review, finding 1: any refund used to cancel
+// the whole fee, so a one-cent refund cost Foxhound 20%.
+describe("a PARTIAL refund after the fee was invoiced credits the refunded share", () => {
+  it("credits the share, raises the same credit line as more is refunded, and the whole fee at a full refund", async () => {
+    const db = await seed();
+
+    // 2,500 of 10,000 refunded: the fee on the 7,500 kept is 1,500, so 500 back.
+    await refund(db, 2_500);
+    expect((await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS)).credited).toBe(
+      true,
+    );
+    // Half refunded in all: 1,000 owed back, 500 of it new.
+    await refund(db, 5_000);
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(1);
+    // All of it: the whole fee.
+    await refund(db, 10_000);
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(1);
+
+    expect(harness.creditNoteCalls.map((c) => c.args.credit_amount)).toEqual([500, 500, 1_000]);
+    const credits = await lines(db);
+    expect(credits).toHaveLength(1);
+    expect(credits[0].amountCents).toBe(-FEE_CENTS);
+    // Settled: nothing more is owed or found.
+    expect((await creditOwedFeeLines({} as Env, REFUNDED_AT)).credited).toBe(0);
+    expect(harness.creditNoteCalls).toHaveLength(3);
+  });
+
+  it("a refund too small to move the fee credits nothing and stops being looked for", async () => {
+    const db = await seed();
+    await refund(db, 1);
+
+    expect(await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS)).toEqual({
+      credited: false,
+      reason: "nothing_owed",
+    });
+    expect(harness.creditNoteCalls).toHaveLength(0);
+    const [fee] = await db
+      .select()
+      .from(schema.billingLineItems)
+      .where(eq(schema.billingLineItems.id, FEE_LINE));
+    expect(fee.refundedCents).toBe(1);
   });
 });
 

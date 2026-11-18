@@ -271,6 +271,9 @@ export interface GuardedRecoveryLineInput {
   currency: string;
   recoveredPaymentId: string;
   feeCents: number;
+  /** The recovery's refunded_cents the fee was computed net of. A refund
+   *  that changed it since the read selects zero rows. */
+  refundedCents: number;
   description: string;
   createdAt: Date;
   /** The same asOf the billable read used, so the batch re-evaluates the SAME
@@ -326,11 +329,13 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
         // an omission is a runtime error, not a type error.
         stripeCreditNoteId: sql<string | null>`null`.as("stripe_credit_note_id"),
         creditsLineItemId: sql<string | null>`null`.as("credits_line_item_id"),
+        refundedCents: recoveredPayments.refundedCents,
       })
       .from(recoveredPayments)
       .where(
         and(
           eq(recoveredPayments.id, input.recoveredPaymentId),
+          eq(recoveredPayments.refundedCents, input.refundedCents),
           billableRecoveryRowConditions(input.accountId, input.asOfMs),
           exemptionForgaveRecovery(input.asOfMs),
         ),

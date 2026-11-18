@@ -83,6 +83,8 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
   // and writing: the value is resolved at insert time, in this same atomic batch.
   // See buildRefundStampBatch for the other half and why the pair is exhaustive.
   const refundedAtFromMarker = sql`(select ${failedPayments.refundSignalAt} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId})`;
+  // And born with the refunded amount so far, for a partial refund.
+  const refundedCentsFromMarker = sql`coalesce((select ${failedPayments.refundSignalCents} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId}), 0)`;
   // Born DISPUTED the same way: dispute intake stamps dispute_signal_at on the
   // failed payment whether or not this row exists yet (buildDisputedAtStamp in
   // webhooks/batches.ts), and the same DO ordering makes the pair exhaustive.
@@ -137,6 +139,7 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
       // Attributed recoveries stamp attributed_at; baseline stays null (free).
       attributedAt: attributed ? input.recoveredAt : null,
       refundedAt: refundedAtFromMarker,
+      refundedCents: refundedCentsFromMarker,
       disputedAt: disputedAtFromMarker,
       stripeBalanceTransactionId: input.chargeFee?.stripeBalanceTransactionId ?? null,
       stripeFeeCents: input.chargeFee?.stripeFeeCents ?? null,

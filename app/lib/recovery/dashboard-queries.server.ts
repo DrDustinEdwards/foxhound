@@ -369,7 +369,7 @@ export async function listBillableRecoveredForRoi(
   accountId: string,
   nowMs: number,
   windowStartMs: number | null,
-): Promise<{ amountCents: number; currency: string }[]> {
+): Promise<{ amountCents: number; refundedCents: number; currency: string }[]> {
   const conditions = [
     billableRecoveryRowConditions(accountId, nowMs),
     // A row already invoiced stays, whatever exemption came later; one not yet
@@ -388,7 +388,11 @@ export async function listBillableRecoveredForRoi(
   if (windowStartMs !== null)
     conditions.push(gte(recoveredPayments.recoveredAt, new Date(windowStartMs)));
   return db
-    .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
+    .select({
+      amountCents: recoveredPayments.amountCents,
+      refundedCents: recoveredPayments.refundedCents,
+      currency: recoveredPayments.currency,
+    })
     .from(recoveredPayments)
     .where(and(...conditions));
 }
@@ -402,9 +406,13 @@ export async function listAttributedRecoveredSince(
   db: Db,
   accountId: string,
   sinceMs: number,
-): Promise<{ amountCents: number; currency: string }[]> {
+): Promise<{ amountCents: number; refundedCents: number; currency: string }[]> {
   return db
-    .select({ amountCents: recoveredPayments.amountCents, currency: recoveredPayments.currency })
+    .select({
+      amountCents: recoveredPayments.amountCents,
+      refundedCents: recoveredPayments.refundedCents,
+      currency: recoveredPayments.currency,
+    })
     .from(recoveredPayments)
     .where(
       and(

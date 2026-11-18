@@ -10,7 +10,7 @@ import {
   BILLING_RUN_DAY_OF_MONTH,
   BILLING_RUN_HOUR_UTC,
 } from "~/lib/constants";
-import { recoveryFeeCents } from "~/lib/billing/fees";
+import { recoveryFeeCents, unrefundedCents } from "~/lib/billing/fees";
 
 // The /billing fee preview: what the next monthly run will invoice,
 // shown to the merchant before the invoice exists. Strictly read-only.
@@ -156,7 +156,7 @@ export async function getBillingPreview(
 
   const recoveryFeeRows = billableRecoveries.map((r) => ({
     currency: r.currency,
-    cents: recoveryFeeCents(r.amountCents),
+    cents: recoveryFeeCents(unrefundedCents(r.amountCents, r.refundedCents)),
   }));
   // Mirrors runAccountBilling exactly: the stored cap-applied fee, and an
   // unpriced win (no stored fee) is not pending, because the run skips it.

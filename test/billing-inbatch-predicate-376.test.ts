@@ -83,7 +83,7 @@ async function runBatch(
     idempotencyKey: `billing:${ACCOUNT}:usd:2026-07`,
     createdAt: NOW,
     asOfMs: NOW.getTime(),
-    recoveries: [{ id: RECOVERY, amountCents: AMOUNT_CENTS }],
+    recoveries: [{ id: RECOVERY, amountCents: AMOUNT_CENTS, refundedCents: 0 }],
     disputes: [],
   });
 
@@ -118,6 +118,19 @@ describe("the billable predicate is evaluated inside the batch", () => {
 
     expect(await committedLines(db)).toHaveLength(0);
     // And the invoice does not claim money it has no line for.
+    expect(await invoiceTotal(db)).toBe(0);
+  });
+
+  it("a partial refund in the same window bills nothing this run, so no fee is taken on refunded money", async () => {
+    const db = await seedBillableRecovery();
+    await runBatch(db, async () => {
+      await db
+        .update(recoveredPayments)
+        .set({ refundedCents: 1_000 })
+        .where(eq(recoveredPayments.id, RECOVERY));
+    });
+
+    expect(await committedLines(db)).toHaveLength(0);
     expect(await invoiceTotal(db)).toBe(0);
   });
 

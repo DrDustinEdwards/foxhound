@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, notInArray } from "drizzle-orm";
+import { and, eq, inArray, isNull, notInArray, sql } from "drizzle-orm";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import {
@@ -326,17 +326,22 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
 
 /**
  * charge.refunded: claim + the refund MARKER on failed_payments + the
- * recovered_payments stamp. Fires on ANY refund, full or partial.
- * All three in one atomic batch, so a claim without its marker is impossible.
+ * recovered_payments stamp, in one atomic batch, so a claim without its marker
+ * is impossible.
+ *
+ * WHAT IS STAMPED. refunded_cents is the charge's cumulative amount_refunded,
+ * and the fee is 20% of what is left (Dustin, 2026-11-18: "reduce the fee by
+ * the refunded share. A full refund means no fee."). refunded_at is stamped
+ * only once the charge is FULLY refunded, which takes the recovery out of
+ * billing altogether. Stripe sends a cumulative figure on every event and may
+ * deliver them out of order, so the amount only ever grows (max) and the
+ * first full refund's time is kept.
  *
  * TWO writes, not one, because the stamp alone is order-dependent. The stamp is
  * an UPDATE, so it can only work once a recovered_payments row exists. A refund
  * processed BEFORE invoice.payment_succeeded matched zero rows, committed its
- * claim regardless (the claim insert succeeds either way), returned 200, and was
- * never redelivered: the recovery was then recorded with refunded_at null and
- * billed at maturity. That is the overcharge this whole path exists to prevent,
- * and it was reachable from a single transient 500 on the success webhook, not
- * just from Stripe reordering events. Review HIGH-1.
+ * claim regardless, returned 200, and was never redelivered: the recovery was
+ * then recorded unrefunded and billed at maturity. Review HIGH-1.
  *
  * The marker closes it from the other side: it is written unconditionally, and
  * buildRecoveryBatch reads it when inserting, so a later recovery is born
@@ -345,36 +350,44 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
  * runs one commit at a time, so exactly one of these holds:
  *   marker commits first  -> the recovery insert's subquery sees it
  *   recovery commits first -> the stamp below finds the row
- * There is no interleaving in which both miss, so there is no residual to accept.
- *
- * Both writes take the first refund and keep it: the isNull guards make a second
- * partial refund a no-op rather than moving the disqualification later.
  */
 export function buildRefundStampBatch(
   db: Db,
-  input: { claim: WebhookClaimInput; accountId: string; failedPaymentId: string; at: Date },
+  input: {
+    claim: WebhookClaimInput;
+    accountId: string;
+    failedPaymentId: string;
+    at: Date;
+    refundedCents: number;
+    full: boolean;
+  },
 ): MoneyWriteBatch {
+  const at = input.at.getTime();
   return [
     buildWebhookClaim(db, input.claim),
     db
       .update(failedPayments)
-      .set({ refundSignalAt: input.at })
+      .set({
+        refundSignalCents: sql`max(coalesce(${failedPayments.refundSignalCents}, 0), ${input.refundedCents})`,
+        ...(input.full
+          ? { refundSignalAt: sql`coalesce(${failedPayments.refundSignalAt}, ${at})` }
+          : {}),
+      })
       .where(
         and(
           eq(failedPayments.id, input.failedPaymentId),
           eq(failedPayments.accountId, input.accountId),
-          isNull(failedPayments.refundSignalAt),
         ),
       ),
     db
       .update(recoveredPayments)
-      .set({ refundedAt: input.at })
-      .where(
-        and(
-          eq(recoveredPayments.failedPaymentId, input.failedPaymentId),
-          isNull(recoveredPayments.refundedAt),
-        ),
-      ),
+      .set({
+        refundedCents: sql`max(${recoveredPayments.refundedCents}, ${input.refundedCents})`,
+        ...(input.full
+          ? { refundedAt: sql`coalesce(${recoveredPayments.refundedAt}, ${at})` }
+          : {}),
+      })
+      .where(eq(recoveredPayments.failedPaymentId, input.failedPaymentId)),
   ];
 }
 
