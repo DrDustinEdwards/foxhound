@@ -23,12 +23,9 @@ const ACTIONS: Record<string, string> = {
   "merchant.intelligence.grant": "Granted a merchant Intelligence",
   "merchant.intelligence.revoke": "Revoked a merchant's Intelligence",
   "merchant.cancel": "Canceled a merchant",
-<<<<<<< HEAD
+  "merchant.cancel.revoke_failed": "Could not revoke a canceled merchant's Stripe access",
   "admin_api_key.issue": "Issued an Admin API key",
   "admin_api_key.revoke": "Revoked an Admin API key",
-=======
-  "merchant.cancel.revoke_failed": "Could not revoke a canceled merchant's Stripe access",
->>>>>>> origin/main
   "billing.adjustment.create": "Added a billing adjustment",
   "blog.create": "Created a blog post",
   "blog.update": "Edited a blog post",
