@@ -77,6 +77,7 @@ function expectedRender(to: string, url: string, code: string) {
 
 let sqlite: Database.Database;
 let sent: SentMessage[];
+let asked = "";
 
 function makeEnv(
   email: unknown = { send: async (m: SentMessage) => (sent.push(m), { id: "msg_1" }) },
@@ -113,6 +114,7 @@ beforeEach(() => {
   harness.db = db;
   harness.renderThrows = false;
   sent = [];
+  asked = "";
   const realFetch = globalThis.fetch;
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) =>
     String(input instanceof Request ? input.url : input).startsWith(
@@ -130,7 +132,7 @@ afterEach(() => {
 
 /** What /login sends: the page's own path to Better Auth's handler. */
 async function ask(env: Env, email = TO) {
-  return requestSignInLink(
+  const answer = await requestSignInLink(
     await getAuth(env),
     new Request(`${BASE}/login`, { method: "POST", headers: { origin: BASE } }),
     {
@@ -141,6 +143,14 @@ async function ask(env: Env, email = TO) {
       errorCallbackURL: new URL("/sign-in/confirm", env.BETTER_AUTH_URL).toString(),
     },
   );
+  // The browser keeps the cookie that says it asked, and sends it with the code.
+  if (answer.status === "sent") {
+    asked = answer.headers
+      .getSetCookie()
+      .map((c) => c.split(";")[0])
+      .join("; ");
+  }
+  return answer.status;
 }
 
 /** The six-digit code the mail's text part carries on its own line. */
@@ -153,7 +163,7 @@ function codeIn(m: SentMessage): string {
 /** A typed code from `ip` (Better Auth limits a code to three tries a minute
  *  from one address, beside the code's own three). */
 async function typeCode(env: Env, code: string, ip = "203.0.113.1") {
-  const headers = { origin: BASE, "cf-connecting-ip": ip };
+  const headers = { origin: BASE, "cf-connecting-ip": ip, cookie: asked };
   return signInWithCode(
     await getAuth(env),
     new Request(`${BASE}/login?code`, { method: "POST", headers }),

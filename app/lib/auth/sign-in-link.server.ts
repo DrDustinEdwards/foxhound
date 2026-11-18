@@ -57,5 +57,5 @@ export async function answerSignInForm(env: Env, request: Request, form: FormDat
     next: { fallback: DEFAULT_NEXT_PATH },
   });
   if ("location" in answer) throw redirect(answer.location, { headers: answer.headers });
-  return data(answer.state, { status: answer.status });
+  return data(answer.state, { status: answer.status, headers: answer.headers });
 }
