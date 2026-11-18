@@ -88,11 +88,7 @@ export default function PricingPage() {
   return (
     // Capsomer's amber family with Foxhound's neutrals.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
-      <Hero
-        className="fh-page-hero"
-        title="Pricing"
-        lead="Two outcome-based products. Intelligence and Audit are always free."
-      />
+      <Hero className="fh-page-hero" title="Pricing" />
 
       {/* Legacy's pricing card grid is max-w-[1200px], NOT the 1100px the home
           page uses. The container width is a per-page value, not a site-wide
