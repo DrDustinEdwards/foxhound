@@ -24,6 +24,7 @@ import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import {
   getMerchantDetail,
+  listAdjustmentCurrencies,
   setBillingExempt,
   setProcessingPaused,
 } from "~/lib/admin/merchants.server";
@@ -133,7 +134,10 @@ export async function action({ context, request, params }: Route.ActionArgs) {
       .trim()
       .toLowerCase();
     const description = String(form.get("description") ?? "").trim();
-    const magnitudeCents = parseMoneyInput(String(form.get("amount") ?? ""), "usd");
+    // Read in the chosen currency's minor units: 100 yen is 100, not 10,000.
+    const magnitudeCents = currency
+      ? parseMoneyInput(String(form.get("amount") ?? ""), currency)
+      : null;
     const idempotencyToken = String(form.get("idempotencyToken") ?? "");
 
     if (
@@ -145,6 +149,16 @@ export async function action({ context, request, params }: Route.ActionArgs) {
     ) {
       return data<ActionResult>(
         { ok: false, error: "Enter a nonzero amount, a currency, and a reason." },
+        { status: 400 },
+      );
+    }
+
+    if (!(await listAdjustmentCurrencies(db, accountId)).has(currency)) {
+      return data<ActionResult>(
+        {
+          ok: false,
+          error: `This merchant has no invoices in ${currency.toUpperCase()}. Use their home currency or one they are billed in.`,
+        },
         { status: 400 },
       );
     }

@@ -296,6 +296,26 @@ export interface MerchantDetail {
 
 const DISPUTE_OPEN_STATES = ["draft", "pending_review", "approved", "submitted"] as const;
 
+/** The currencies an admin adjustment may be in for this account: its home
+ *  currency and every currency it has a fee invoice in, lowercase. An
+ *  adjustment lands on an invoice in its currency, so any other is a typo, and
+ *  the amount is read in that currency's minor units (Mythos billing review,
+ *  finding 5). An account with neither gets usd, the form's default. */
+export async function listAdjustmentCurrencies(db: Db, accountId: string): Promise<Set<string>> {
+  const [account, invoices] = await Promise.all([
+    db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)),
+    db
+      .selectDistinct({ currency: billingInvoices.currency })
+      .from(billingInvoices)
+      .where(eq(billingInvoices.accountId, accountId)),
+  ]);
+  const found = [account[0]?.currency, ...invoices.map((r) => r.currency)].flatMap((c) =>
+    c ? [c.toLowerCase()] : [],
+  );
+  // No home currency and never billed: the form's own default.
+  return new Set(found.length > 0 ? found : ["usd"]);
+}
+
 export async function getMerchantDetail(db: Db, accountId: string): Promise<MerchantDetail | null> {
   const accountRows = await db.select().from(accounts).where(eq(accounts.id, accountId)).limit(1);
   const account = accountRows[0];
