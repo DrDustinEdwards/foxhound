@@ -24,6 +24,8 @@ import {
   sql,
   type SQL,
 } from "drizzle-orm";
+import { buildAdminAuditLogInsert, type LogAdminActionInput } from "~/lib/admin/audit.server";
+import type { MoneyWriteBatch } from "~/db/money-write";
 import {
   type Db,
   accountMembers,
@@ -410,6 +412,8 @@ export async function setBillingExempt(
   accountId: string,
   exempt: boolean,
   now: Date,
+  /** The admin's audit row, committed in the same batch as the change. */
+  audit?: LogAdminActionInput,
 ): Promise<boolean> {
   const db = getDb(env);
   const changeId = crypto.randomUUID();
@@ -445,8 +449,8 @@ export async function setBillingExempt(
   await executeMoneyWrite(env, {
     accountId,
     idempotencyKey: `billing-exempt:${accountId}:${changeId}`,
-    build: (bdb) =>
-      exempt
+    build: (bdb) => {
+      const batch: MoneyWriteBatch = exempt
         ? [
             newPeriod(bdb, changeId, flagIs(false)),
             bdb.update(accounts).set({ billingExempt: true }).where(flagIs(false)),
@@ -471,7 +475,10 @@ export async function setBillingExempt(
                 ),
               ),
             bdb.update(accounts).set({ billingExempt: false }).where(flagIs(true)),
-          ],
+          ];
+      if (audit) batch.push(buildAdminAuditLogInsert(bdb, audit).statement);
+      return batch;
+    },
   });
 
   const landed = await db
@@ -571,10 +578,23 @@ export async function setProcessingPaused(
   db: Db,
   accountId: string,
   paused: boolean,
-  reason: string | null = null,
-  guard?: SQL,
+  /** The admin's audit row, committed in the same batch as the change. */
+  audit?: LogAdminActionInput,
 ): Promise<void> {
-  await buildSetProcessingPaused(db, accountId, paused, reason, guard);
+  await withAudit(db, buildSetProcessingPaused(db, accountId, paused), audit);
+}
+
+/** Run one write, and the admin's audit row with it in one batch when there is
+ *  one, so a change never stands without its record (Mythos billing review,
+ *  finding 7). Returns the write's RETURNING rows. */
+async function withAudit(
+  db: Db,
+  write: ReturnType<typeof buildSetProcessingPaused>,
+  audit: LogAdminActionInput | undefined,
+): Promise<{ id: string }[]> {
+  if (!audit) return write;
+  const [rows] = await db.batch([write, buildAdminAuditLogInsert(db, audit).statement]);
+  return rows;
 }
 
 /** Pauses or resumes one merchant only when the flag holds the other value,
@@ -586,13 +606,17 @@ export async function setProcessingPausedIfChanged(
   db: Db,
   accountId: string,
   paused: boolean,
-  { undoOfPause = false }: { undoOfPause?: boolean } = {},
+  { undoOfPause = false, audit }: { undoOfPause?: boolean; audit?: LogAdminActionInput } = {},
 ): Promise<boolean> {
   const from = eq(accounts.processingPaused, !paused);
   const guard =
     !paused && undoOfPause
       ? (and(from, eq(accounts.pauseReason, PAUSE_REASON_MANUAL)) as SQL)
       : from;
-  const rows = await buildSetProcessingPaused(db, accountId, paused, null, guard);
+  const rows = await withAudit(
+    db,
+    buildSetProcessingPaused(db, accountId, paused, null, guard),
+    audit,
+  );
   return rows.length > 0;
 }
