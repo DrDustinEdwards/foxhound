@@ -34,7 +34,7 @@ export const MCP_TOKEN_SCOPE = {
   MERCHANT: "mcp_merchant",
   ADMIN: "mcp_admin",
 } as const;
-export type McpTokenScope = (typeof MCP_TOKEN_SCOPE)[keyof typeof MCP_TOKEN_SCOPE];
+type McpTokenScope = (typeof MCP_TOKEN_SCOPE)[keyof typeof MCP_TOKEN_SCOPE];
 
 /** Identifying prefix so a leaked token is recognizable and greppable in scans. */
 export const MCP_TOKEN_PREFIX = "fox_mcp_";

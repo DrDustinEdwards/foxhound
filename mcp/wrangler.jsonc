@@ -50,7 +50,7 @@
     "ACCESS_TEAM_DOMAIN": "dustinedwards.cloudflareaccess.com"
   }
   // Secrets, set with `npx wrangler secret put <NAME> --config mcp/wrangler.jsonc`:
-  //   FOXHOUND_ADMIN_API_KEY     issued in the admin area, Operations
+  //   FOXHOUND_ADMIN_API_KEY     from scripts/issue-admin-api-key.mjs
   //   ACCESS_SAAS_CLIENT_ID      the Access for SaaS application
   //   ACCESS_SAAS_CLIENT_SECRET  ditto
 }

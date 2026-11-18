@@ -84,11 +84,10 @@ export interface AdminKeyActionResult {
  *  review, finding 4). The admin layout's middleware has already checked
  *  Access and the roster; each write commits with its audit row. */
 export async function action({ context, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(adminContext);
-  const db = getDb(env);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
+  const { email } = context.get(adminContext);
+  const db = getDb(context.get(cloudflareContext).env);
 
   if (intent === "issue-admin-key") {
     const label = String(form.get("label") ?? "").trim();
@@ -102,12 +101,12 @@ export async function action({ context, request }: Route.ActionArgs) {
         { status: 400 },
       );
     }
-    const issued = await issueAdminApiKey(db, label, auth.email);
+    const issued = await issueAdminApiKey(db, label, email);
     return data<AdminKeyActionResult>({ intent, ok: true, rawKey: issued.token });
   }
 
   if (intent === "revoke-admin-key") {
-    const revoked = await revokeAdminApiKey(db, String(form.get("keyId") ?? ""), auth.email);
+    const revoked = await revokeAdminApiKey(db, String(form.get("keyId") ?? ""), email);
     return revoked
       ? data<AdminKeyActionResult>({ intent, ok: true })
       : data<AdminKeyActionResult>(
