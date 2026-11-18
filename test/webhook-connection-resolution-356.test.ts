@@ -99,17 +99,12 @@ function claimedAccountIds(): (string | null)[] {
   ).map((r) => r.a);
 }
 
-describe("PLANT 2: every row disconnected takes the EXISTING no-connection path", () => {
-  it("claims the event with a null account and reports unknown_account", async () => {
-    seedConnection({ id: "conn_a", accountId: ACCOUNT_A, disconnectedAt: 2_000 });
-
+describe("PLANT 2: a Stripe account with no live connection", () => {
+  it("a never-seen account: claims the event with a null account and reports unknown_account", async () => {
     const outcome = await processConnectedWebhook({} as Env, event("evt_3"), RECEIVED_AT);
 
-    // PINNED AS READ, NOT INVENTED. `processConnectedWebhook` already had this
-    // branch for a Stripe account Foxhound has never seen: claim through a
-    // PLAIN insert rather than a money write, so replays short-circuit on the
-    // unique index, then ignore. A fully disconnected merchant now arrives at
-    // the same place, which is the correct answer and needed no new handling.
+    // Claimed through a PLAIN insert rather than a money write, so replays
+    // short-circuit on the unique index, then ignored.
     expect(outcome).toEqual({ status: "ignored", reason: "unknown_account" });
     expect(harness.writes).toEqual([]);
     expect(claimedAccountIds()).toEqual([null]);
@@ -123,12 +118,28 @@ describe("PLANT 2: every row disconnected takes the EXISTING no-connection path"
     expect(row).toEqual({ p: 1, t: "customer.created", payload: "{}" });
   });
 
-  it("is idempotent on a replay, as the pre-existing path already was", async () => {
+  it("a disconnected merchant: answers but claims nothing, so the missed-event sweep replays it after a reconnect", async () => {
+    // Mythos billing review, finding 6: claiming here lost a refund, dispute
+    // or recovery that arrived while the merchant was disconnected, for good.
     seedConnection({ id: "conn_a", accountId: ACCOUNT_A, disconnectedAt: 2_000 });
 
-    await processConnectedWebhook({} as Env, event("evt_4"), RECEIVED_AT);
-    await processConnectedWebhook({} as Env, event("evt_4"), RECEIVED_AT);
+    const outcome = await processConnectedWebhook({} as Env, event("evt_4"), RECEIVED_AT);
 
+    expect(outcome).toEqual({ status: "ignored", reason: "disconnected_account" });
+    expect(harness.writes).toEqual([]);
+    expect(claimedAccountIds()).toEqual([]);
+  });
+
+  it("a disconnected merchant's deauthorization is still claimed, so a replay cannot cut a new connection", async () => {
+    seedConnection({ id: "conn_a", accountId: ACCOUNT_A, disconnectedAt: 2_000 });
+    const deauth = {
+      ...event("evt_5"),
+      type: "account.application.deauthorized",
+    } as unknown as Stripe.Event;
+
+    const outcome = await processConnectedWebhook({} as Env, deauth, RECEIVED_AT);
+
+    expect(outcome).toEqual({ status: "ignored", reason: "unknown_account" });
     expect(claimedAccountIds()).toEqual([null]);
   });
 
