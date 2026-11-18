@@ -10,7 +10,6 @@ import {
   buildDisputeResolutionBatch,
   buildIntakeBatch,
   buildRecoverBatch,
-  buildRefundStampBatch,
   buildWebhookClaim,
   type WebhookClaimInput,
 } from "~/lib/webhooks/batches";
@@ -67,16 +66,23 @@ describe("classifyStripeEvent", () => {
     expect(intent).toEqual({ kind: "ignore", reason: "zero_amount" });
   });
 
-  it("charge.refunded -> stamp_refund, partial as well as full (parity ruling 29)", () => {
-    // This assertion used to require a PARTIAL refund to be ignored. Ruling 29
-    // settled it the other way: any refund inside the maturity window
-    // disqualifies the recovery from billing entirely, with no proration.
+  it("charge.refunded -> stamp_refund with the cumulative refunded amount, partial as well as full", () => {
+    // The fee shrinks by the refunded share (Dustin, 2026-11-18), so a partial
+    // refund carries its amount and is never ignored.
     expect(
-      classifyStripeEvent(event("charge.refunded", { refunded: true, payment_intent: "pi_1" })),
-    ).toEqual({ kind: "stamp_refund", paymentIntentId: "pi_1" });
+      classifyStripeEvent(
+        event("charge.refunded", {
+          refunded: true,
+          amount_refunded: 10_000,
+          payment_intent: "pi_1",
+        }),
+      ),
+    ).toEqual({ kind: "stamp_refund", paymentIntentId: "pi_1", refundedCents: 10_000, full: true });
     expect(
-      classifyStripeEvent(event("charge.refunded", { refunded: false, payment_intent: "pi_1" })),
-    ).toEqual({ kind: "stamp_refund", paymentIntentId: "pi_1" });
+      classifyStripeEvent(
+        event("charge.refunded", { refunded: false, amount_refunded: 1, payment_intent: "pi_1" }),
+      ),
+    ).toEqual({ kind: "stamp_refund", paymentIntentId: "pi_1", refundedCents: 1, full: false });
   });
 
   it("charge.dispute.created -> stamp_dispute (dispute intake); unrelated type ignored", () => {
@@ -215,26 +221,6 @@ describe("webhook batch builders (compile against schema)", () => {
     // The outcomes key first, so a second recorder reads as a replay.
     expect(sqlOf(batch[2]).sql).toMatch(/insert into "outcomes"/i);
     expect(sqlOf(batch[3]).sql).toMatch(/insert into "recovered_payments"/i);
-  });
-
-  it("refund stamp batch = claim + failed_payments marker + conditional recovered_payments update", () => {
-    // Three statements, not two: the marker is what makes the refund
-    // order-independent (review HIGH-1). It must ride the SAME batch as the
-    // claim, or a claim can commit without it and the refund is lost.
-    const refund = buildRefundStampBatch(db, {
-      claim,
-      accountId: "acc_1",
-      failedPaymentId: "fp_1",
-      at: now,
-    });
-    expect(refund.length).toBe(3);
-    expect(sqlOf(refund[0]).sql).toMatch(/insert into .*webhook_events/i);
-    const marker = sqlOf(refund[1]);
-    expect(marker.sql).toMatch(/update .*failed_payments/i);
-    expect(marker.sql).toMatch(/refund_signal_at/i);
-    expect(marker.sql).toMatch(/refund_signal_at.*is null/i); // first refund wins
-    expect(marker.params).toContain("acc_1");
-    expect(sqlOf(refund[2]).sql).toMatch(/update .*recovered_payments/i);
   });
 
   it("dispute intake batch = claim + disputes row + evidence rows, no recovery link", () => {

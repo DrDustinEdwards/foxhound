@@ -14,7 +14,7 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 
 import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 import { ChargeGuardReadError, runChargeRetrySweep, type ChargeRetryDeps } from "./charge-retry";
-import { feeForCurrency, recoveryFeeCents } from "./fees";
+import { feeForCurrency, recoveryFeeCents, unrefundedCents } from "./fees";
 import {
   buildPlatformCustomerUpdate,
   ensurePlatformCustomer,
@@ -72,6 +72,8 @@ export function computeBillingPeriod(nowMs: number): BillingPeriod {
 interface BillableRecoveryLite {
   id: string;
   amountCents: number;
+  /** Refunded so far; the fee is taken on the rest. */
+  refundedCents: number;
 }
 interface BillableDisputeLite {
   id: string;
@@ -158,11 +160,17 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
   let total = 0;
 
   for (const r of input.recoveries) {
-    const fee = feeForCurrency(recoveryFeeCents(r.amountCents), input.currency);
+    const fee = feeForCurrency(
+      recoveryFeeCents(unrefundedCents(r.amountCents, r.refundedCents)),
+      input.currency,
+    );
+    // Refunded down to nothing chargeable: no line, as for a full refund.
+    if (fee <= 0) continue;
     total += fee;
     // GUARDED: the predicate is re-evaluated by the database as this row is
     // written, inside the batch. A refund landing between the
-    // billable read and this write selects zero rows and bills nothing.
+    // billable read and this write selects zero rows and bills nothing; the
+    // next run bills what is left.
     lineItems.push(
       buildGuardedRecoveryLineInsert(db, {
         lineItemId: crypto.randomUUID(),
@@ -171,6 +179,7 @@ export function buildBillingInvoiceBatch(db: Db, input: InvoiceBatchInput): Buil
         currency: input.currency,
         recoveredPaymentId: r.id,
         feeCents: fee,
+        refundedCents: r.refundedCents,
         description: "Recovery fee",
         createdAt: input.createdAt,
         asOfMs: input.asOfMs,
@@ -355,7 +364,7 @@ export async function runAccountBilling(
   for (const currency of currencies) {
     const cr: BillableRecoveryLite[] = recoveries
       .filter((r) => r.currency === currency)
-      .map((r) => ({ id: r.id, amountCents: r.amountCents }));
+      .map((r) => ({ id: r.id, amountCents: r.amountCents, refundedCents: r.refundedCents }));
     // The billable query already leaves out an unpriced win; this filter is
     // the same rule restated where the fee is read, so a null can never become
     // a computed number on an invoice.

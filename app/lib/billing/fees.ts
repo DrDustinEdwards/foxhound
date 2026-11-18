@@ -8,6 +8,13 @@ import { currencyExponent } from "@dustinedwards/site-runtime/money";
 
 const BPS_DIVISOR = 10_000;
 
+/** What a recovery's fee is taken on: the recovered amount less what the
+ *  merchant has refunded of it, never below zero (Dustin, 2026-11-18: "reduce
+ *  the fee by the refunded share. A full refund means no fee."). */
+export function unrefundedCents(amountCents: number, refundedCents: number): number {
+  return Math.max(0, amountCents - refundedCents);
+}
+
 /** Recovery fee: 20% of the recovered amount, rounded to the nearest minor unit. */
 export function recoveryFeeCents(recoveredAmountCents: number): number {
   return Math.round((recoveredAmountCents * RECOVERY_FEE_BPS) / BPS_DIVISOR);
