@@ -18,6 +18,6 @@ interface ServiceBinding {
 export interface AdminMcpEnv extends DoorEnv {
   /** Service binding to the foxhound Worker. The only route to Foxhound. */
   FOXHOUND: ServiceBinding;
-  /** The mcp_admin key (scripts/issue-admin-api-key.mjs). Secret. */
+  /** The mcp_admin key (issued in the admin area, Operations). Secret. */
   FOXHOUND_ADMIN_API_KEY?: string;
 }

@@ -1,5 +1,3 @@
-import { execFileSync } from "node:child_process";
-import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
@@ -142,25 +140,5 @@ describe("the wiring around the API", () => {
     expect(read("workers/app.ts")).not.toContain("handleAdminApiRequest");
     expect(read("workers/app.ts")).toContain('export { AdminApi } from "./admin-api"');
     expect(read("workers/admin-api.ts")).toContain("handleAdminApiRequest(request, this.env)");
-  });
-
-  it("scripts/issue-admin-api-key.mjs prints a key once and the SQL that stores only its hash", () => {
-    const out = execFileSync(
-      "node",
-      [fileURLToPath(new URL("scripts/issue-admin-api-key.mjs", ROOT))],
-      {
-        encoding: "utf8",
-      },
-    );
-    const token = /fox_mcp_[A-Za-z0-9_-]{40,}/.exec(out)?.[0];
-    expect(token).toBeDefined();
-    const hash = createHash("sha256").update(token!).digest("hex");
-    expect(out).toContain(hash);
-    expect(out).toContain("'mcp_admin'");
-    // The plaintext appears once, and never inside the SQL.
-    const sql = out.slice(out.indexOf("INSERT INTO"));
-    expect(sql).not.toContain(token!);
-    expect(out).not.toContain("--remote-confirm");
-    expect(out).toContain("--remote");
   });
 });

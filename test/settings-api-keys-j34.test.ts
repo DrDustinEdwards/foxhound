@@ -63,7 +63,6 @@ function render(
   opts: {
     keys?: KeyRow[] | null;
     loadError?: boolean;
-    isAdmin?: boolean;
     actionData?: Record<string, unknown>;
     url?: string;
   } = {},
@@ -71,7 +70,6 @@ function render(
   const loaderData = {
     keys: opts.keys === undefined ? KEYS : opts.keys,
     loadError: opts.loadError ?? false,
-    isAdmin: opts.isAdmin ?? false,
     callLog: { state: "owner-only" },
   };
   const Stub = createRoutesStub([

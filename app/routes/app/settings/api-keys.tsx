@@ -1,27 +1,22 @@
 import { Table } from "capsomer/react/table";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
 import { logEvent } from "@dustinedwards/site-runtime/log";
 import { Link, routerRenderLink, ButtonLink } from "capsomer/react/link";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
-import { CopyButton } from "capsomer/react/copy";
 import { Empty } from "capsomer/react/empty";
 import { Field } from "capsomer/react/field";
 import { SettingsLayout } from "capsomer/react/settings-row";
 import { Panel } from "capsomer/react/panel";
-import { SecretReveal } from "capsomer/react/secret-reveal";
-import { Segmented } from "capsomer/react/segmented";
 import "capsomer/banner.css";
-import "capsomer/copy.css";
 import "capsomer/empty.css";
-import "capsomer/secret-reveal.css";
-import "capsomer/segmented.css";
 import "capsomer/table.css";
 
 import { DemoForm } from "~/lib/demo/use-demo-guard";
+import { NewApiKey } from "~/components/new-api-key";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
@@ -47,7 +42,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // d0d306ba).
 //
 // J34 rebuilt it from Capsomer 0.9.0's parts under Dustin's
-// Q10 and Q11 answers of 2026-10-14: PageHead, Panel, Table, Field, Segmented,
+// Q10 and Q11 answers of 2026-10-14: PageHead, Panel, Table, Field,
 // Button, Empty and Alert, amber throughout. Recova stays the spec for what is
 // here and in what order: the phone-only back link, the title and its line,
 // one card holding the count and Generate new key, the load failure, the empty
@@ -56,9 +51,11 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 //
 // THE BACKEND CAME FIRST HERE, like S28: `issueMcpToken`, `verifyMcpToken` and
 // `revokeMcpToken` have existed since Phase 3. This is the merchant-facing half.
-// The scope is the session's (`createAccountApiKey`) and a revoke is pinned to
-// the account (`revokeAccountApiKey`); legacy's handlers check both too, and
-// both are pinned in test/settings-api-keys-s29.test.ts.
+// Every key made here is a merchant key (`createAccountApiKey`): Recova's admin
+// scope picker is gone, because an Admin API key is the admin area's, behind
+// Access (Mythos billing review, finding 4). A revoke is pinned to the account
+// (`revokeAccountApiKey`), as legacy's handler is; both are pinned in
+// test/settings-api-keys-s29.test.ts.
 //
 // THE SAME RESULT THROUGH A DIFFERENT SHAPE: legacy opens the
 // form and reveals the key in client state over a JSON API; here the form opens
@@ -121,13 +118,13 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const callLog = await readCallLog(env, auth.membership.accountId, isOwner(auth), request);
   try {
     const keys = await listAccountApiKeys(getDb(env), auth.membership.accountId);
-    return { keys, loadError: false, isAdmin: auth.isAdmin, isOwner: isOwner(auth), callLog };
+    return { keys, loadError: false, isOwner: isOwner(auth), callLog };
   } catch (err) {
     // Legacy's page shows "Couldn't load your API keys" when its read fails,
     // rather than an error page; this is that state. The message names the
     // failure only, never a key.
     console.error("api keys read failed:", err instanceof Error ? err.message : "unknown error");
-    return { keys: null, loadError: true, isAdmin: auth.isAdmin, isOwner: isOwner(auth), callLog };
+    return { keys: null, loadError: true, isOwner: isOwner(auth), callLog };
   }
 }
 
@@ -176,14 +173,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         { status: 400 },
       );
     }
-    // `auth.isAdmin` is the session's, never the form's.
-    const issued = await createAccountApiKey(
-      db,
-      accountId,
-      label,
-      String(form.get("scope") ?? "") === "admin",
-      auth.isAdmin,
-    );
+    const issued = await createAccountApiKey(db, accountId, label);
     return data<ActionResult>({
       action: intent,
       ok: true,
@@ -247,58 +237,7 @@ function GenerateDisabled() {
   );
 }
 
-function ScopePicker() {
-  const [scope, setScope] = useState<"merchant" | "admin">("merchant");
-  const warning = useId();
-  return (
-    <div>
-      <Segmented
-        legend="Scope"
-        name="scope"
-        value={scope}
-        onChange={setScope}
-        describedBy={scope === "admin" ? warning : undefined}
-        options={[
-          { value: "merchant", label: "Merchant" },
-          { value: "admin", label: "Admin" },
-        ]}
-      />
-      {scope === "admin" ? (
-        <p id={warning} className="cap-field-help">
-          Admin keys are platform-wide and can access any merchant account. Use with care.
-        </p>
-      ) : null}
-    </div>
-  );
-}
-
-/** The new key, shown once, in Capsomer's SecretReveal inside the card it
- *  always had, with Capsomer's CopyButton beside the Done link. */
-function NewKey({ rawKey }: { rawKey: string }) {
-  return (
-    <section className="cap-panel">
-      <div className="cap-panel-body">
-        <SecretReveal
-          title="Your new API key"
-          secret={rawKey}
-          note="This key will not be shown again. Copy it now and store it somewhere safe."
-          copy={
-            <div className="cap-cluster" data-gap="4">
-              <CopyButton text={rawKey} variant="default">
-                Copy key
-              </CopyButton>
-              <ButtonLink to="?" variant="quiet">
-                Done
-              </ButtonLink>
-            </div>
-          }
-        />
-      </div>
-    </section>
-  );
-}
-
-function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) {
+function GenerateForm({ error }: { error?: string }) {
   const navigation = useNavigation();
   const generating =
     navigation.state !== "idle" && navigation.formData?.get("_action") === "create";
@@ -326,7 +265,6 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
             autoComplete="off"
           />
         </Field>
-        {isAdmin ? <ScopePicker /> : null}
         <div className="cap-cluster" data-gap="4">
           <Button type="submit" variant="primary" pending={generating}>
             {generating ? "Generating..." : "Generate key"}
@@ -341,7 +279,7 @@ function GenerateForm({ isAdmin, error }: { isAdmin: boolean; error?: string }) 
 }
 
 export default function ApiKeySettings({ loaderData, actionData }: Route.ComponentProps) {
-  const { keys, loadError, isAdmin, isOwner: owner, callLog } = loaderData;
+  const { keys, loadError, isOwner: owner, callLog } = loaderData;
   const result = actionData as ActionResult | undefined;
   const navigation = useNavigation();
   const revoking =
@@ -440,10 +378,8 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
             </Table>
           ) : null}
 
-          {rawKey !== undefined ? <NewKey rawKey={rawKey} /> : null}
-          {owner && creating && rawKey === undefined ? (
-            <GenerateForm isAdmin={isAdmin} error={createError} />
-          ) : null}
+          {rawKey !== undefined ? <NewApiKey rawKey={rawKey} /> : null}
+          {owner && creating && rawKey === undefined ? <GenerateForm error={createError} /> : null}
         </div>
       </section>
 

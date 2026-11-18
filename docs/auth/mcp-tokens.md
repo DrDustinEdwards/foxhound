@@ -26,11 +26,14 @@ Every token is a row in `api_keys`. Helpers are in `app/lib/auth/mcp-tokens.ts`.
 recognizable in logs and secret scans and lets `verifyMcpToken` reject other
 input before any DB access. The plaintext is shown once, at issuance.
 
-## Two ways a token is issued
+## Three ways a token is issued
 
 - **Settings, API keys** (`app/routes/app/settings/api-keys.tsx`, through
-  `createAccountApiKey`): a key for the active account. The scope is merchant
-  unless the session is a platform admin asking for admin scope.
+  `createAccountApiKey`): a merchant key for the active account, always, even
+  for a platform admin.
+- **Admin, Operations** (`app/routes/admin/operations.tsx`, through
+  `issueAdminApiKey`): the Admin API key the admin MCP Worker presents, behind
+  Cloudflare Access. Issuing and revoking each commit with their audit row.
 - **OAuth** (`app/lib/oauth/provider.server.ts`, migration 0031): dynamic
   client registration, authorization code with PKCE S256, rotating 30-day
   refresh tokens. The access token is an ordinary merchant-scope `fox_mcp_` key

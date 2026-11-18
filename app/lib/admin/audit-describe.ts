@@ -5,6 +5,7 @@
 // looks up (merchant names, post titles).
 
 import { merchantHref } from "~/lib/admin/page";
+import { OPERATIONS_PATH } from "~/lib/admin/operations";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
@@ -22,6 +23,8 @@ const ACTIONS: Record<string, string> = {
   "merchant.intelligence.grant": "Granted a merchant Intelligence",
   "merchant.intelligence.revoke": "Revoked a merchant's Intelligence",
   "merchant.cancel": "Canceled a merchant",
+  "admin_api_key.issue": "Issued an Admin API key",
+  "admin_api_key.revoke": "Revoked an Admin API key",
   "billing.adjustment.create": "Added a billing adjustment",
   "blog.create": "Created a blog post",
   "blog.update": "Edited a blog post",
@@ -133,6 +136,10 @@ export function auditTarget(entry: AuditEntryLike, lookups: AuditLookups): Audit
   if (entry.action.startsWith("staged.")) {
     const summary = str(m.summary);
     return { label: summary ?? "A staged change", href: "/admin/staged" };
+  }
+
+  if (entry.action.startsWith("admin_api_key.")) {
+    return { label: str(m.label) ?? "Admin API key", href: OPERATIONS_PATH };
   }
 
   if (entry.action === "brake.engage" || entry.action === "brake.release") {
