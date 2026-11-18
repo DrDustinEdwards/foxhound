@@ -69,6 +69,10 @@ export const billingLineItems = sqliteTable(
      *  rather than a bare flag, because "one credit note per fee line" is only
      *  enforceable if the pairing is a column a unique index can sit on. */
     creditsLineItemId: text("credits_line_item_id"),
+    /** recovery_fee lines only: the recovery's refunded_cents this fee and its
+     *  credit already account for. A larger refunded_cents on the recovery is
+     *  a refund not yet reflected, which the credit path settles. */
+    refundedCents: integer("refunded_cents").notNull().default(0),
   },
   (t) => [
     index("billing_line_items_invoice_idx").on(t.invoiceId),

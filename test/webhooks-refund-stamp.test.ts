@@ -16,7 +16,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // Two distinct defects are pinned here, and each assertion below fails against
 // the pre-fix code:
 //   1. classifyStripeEvent dropped PARTIAL refunds entirely
-//      (`if (!charge.refunded) return ignore`), against parity ruling 29.
+//      (`if (!charge.refunded) return ignore`).
 //   2. processConnectedWebhook's stamp_refund branch claimed the event and
 //      returned "stamp_refund_resolution_deferred" without ever stamping.
 
@@ -149,7 +149,7 @@ beforeEach(() => {
   harness.invoicePaymentsError = null;
 });
 
-describe("classifyStripeEvent on charge.refunded (parity ruling 29)", () => {
+describe("classifyStripeEvent on charge.refunded", () => {
   it("ignores a refund with no payment intent to resolve against", () => {
     const event = refundEvent("evt_no_pi", true) as unknown as {
       data: { object: { payment_intent: null } };
@@ -159,6 +159,29 @@ describe("classifyStripeEvent on charge.refunded (parity ruling 29)", () => {
       kind: "ignore",
       reason: "no_payment_intent",
     });
+  });
+});
+
+describe("a partial refund reduces the fee base; a full refund ends it", () => {
+  it("keeps the largest refunded amount when Stripe's events arrive out of order", async () => {
+    const { db } = await seedRecoveredPayment();
+    await processConnectedWebhook({} as Env, refundEvent("evt_full", true), REFUNDED_AT);
+    await processConnectedWebhook({} as Env, refundEvent("evt_partial_late", false), REFUNDED_AT);
+
+    const [recovery] = await db.select().from(schema.recoveredPayments);
+    expect(recovery.refundedCents).toBe(10_000);
+    expect(recovery.refundedAt).toEqual(REFUNDED_AT);
+    expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
+  });
+
+  it("a partial refund leaves the recovery billable on what is left", async () => {
+    const { db } = await seedRecoveredPayment();
+    await processConnectedWebhook({} as Env, refundEvent("evt_partial", false), REFUNDED_AT);
+
+    const [recovery] = await db.select().from(schema.recoveredPayments);
+    expect(recovery.refundedAt).toBeNull();
+    expect(recovery.refundedCents).toBe(2_500);
+    expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(1);
   });
 });
 
@@ -244,43 +267,44 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
     } as unknown as Stripe.Event;
   }
 
-  for (const [label, fullyRefunded] of [
-    ["fully", true],
-    ["partially", false],
-  ] as const) {
-    it(`records the recovery already refunded, and never bills it, when ${label} refunded first`, async () => {
-      const db = await seedAwaitingRecovery();
+  it("records the recovery already refunded, and never bills it, when fully refunded first", async () => {
+    const db = await seedAwaitingRecovery();
 
-      // 1. The refund lands with nothing to stamp.
-      expect(
-        await processConnectedWebhook(
-          {} as Env,
-          refundEvent(`evt_early_${label}`, fullyRefunded),
-          REFUND_BEFORE_AT,
-        ),
-      ).toEqual({ status: "applied" });
+    // 1. The refund lands with nothing to stamp.
+    expect(
+      await processConnectedWebhook({} as Env, refundEvent("evt_early", true), REFUND_BEFORE_AT),
+    ).toEqual({ status: "applied" });
 
-      const [payment] = await db.select().from(schema.failedPayments);
-      expect(payment.refundSignalAt).toEqual(REFUND_BEFORE_AT);
-      expect(await db.select().from(schema.recoveredPayments)).toHaveLength(0);
+    const [payment] = await db.select().from(schema.failedPayments);
+    expect(payment.refundSignalAt).toEqual(REFUND_BEFORE_AT);
+    expect(await db.select().from(schema.recoveredPayments)).toHaveLength(0);
 
-      // 2. The recovery lands afterwards and is born refunded.
-      expect(
-        await processConnectedWebhook(
-          {} as Env,
-          paymentSucceeded(`evt_late_${label}`),
-          RECOVERED_AT,
-        ),
-      ).toEqual({ status: "applied" });
+    // 2. The recovery lands afterwards and is born refunded.
+    expect(
+      await processConnectedWebhook({} as Env, paymentSucceeded("evt_late"), RECOVERED_AT),
+    ).toEqual({ status: "applied" });
 
-      const [recovery] = await db.select().from(schema.recoveredPayments);
-      expect(recovery.attributionKind).toBe("email_engaged"); // billable kind
-      expect(recovery.refundedAt).toEqual(REFUND_BEFORE_AT);
+    const [recovery] = await db.select().from(schema.recoveredPayments);
+    expect(recovery.attributionKind).toBe("email_engaged"); // billable kind
+    expect(recovery.refundedAt).toEqual(REFUND_BEFORE_AT);
 
-      // Pre-fix this was refunded_at null and a billable row: 20% of refunded money.
-      expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
-    });
-  }
+    // Pre-fix this was refunded_at null and a billable row: 20% of refunded money.
+    expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
+  });
+
+  it("records a partial refund that came first, so the fee is taken on what is left", async () => {
+    // Mythos billing review, finding 1: any refund used to cancel the whole
+    // fee. Now the recovery is born with the refunded amount and stays billable.
+    const db = await seedAwaitingRecovery();
+    await processConnectedWebhook({} as Env, refundEvent("evt_early", false), REFUND_BEFORE_AT);
+    await processConnectedWebhook({} as Env, paymentSucceeded("evt_late"), RECOVERED_AT);
+
+    const [recovery] = await db.select().from(schema.recoveredPayments);
+    expect(recovery.refundedAt).toBeNull();
+    expect(recovery.refundedCents).toBe(2_500);
+    const billable = await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime());
+    expect(billable.map((r) => [r.amountCents, r.refundedCents])).toEqual([[10_000, 2_500]]);
+  });
 
   it("records the recovery already disputed when the dispute intake landed first", async () => {
     const db = await seedAwaitingRecovery();

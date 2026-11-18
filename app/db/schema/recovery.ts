@@ -72,6 +72,14 @@ export const failedPayments = sqliteTable(
      */
     refundSignalAt: ts("refund_signal_at"),
     /**
+     * How much of the paying charge has been refunded, cumulative, as Stripe
+     * reports it (charge.amount_refunded), from the largest charge.refunded
+     * seen. The order-independent half of refunded_cents below, read by
+     * buildRecoveryBatch the same way refund_signal_at is. refund_signal_at
+     * is set only once the charge is FULLY refunded.
+     */
+    refundSignalCents: integer("refund_signal_cents"),
+    /**
      * When a dispute arrived for this payment's charge. The dispute twin of
      * refund_signal_at: recovered_payments.disputed_at can only be stamped once
      * that row exists, so dispute intake also writes this, and buildRecoveryBatch
@@ -159,7 +167,14 @@ export const recoveredPayments = sqliteTable(
     recoveryAttemptNumber: integer("recovery_attempt_number"),
     recoveryTrigger: text("recovery_trigger"),
     accountId: accountRef(),
+    /** Set when the charge is FULLY refunded: no fee is owed at all. */
     refundedAt: ts("refunded_at"),
+    /**
+     * How much of this recovery the merchant has refunded, cumulative. The fee
+     * is 20% of amount_cents minus this (Dustin, 2026-11-18: "reduce the fee
+     * by the refunded share. A full refund means no fee.").
+     */
+    refundedCents: integer("refunded_cents").notNull().default(0),
     // Attribution spine (SCHEMA.md #1). CHECK enforces the four canon values.
     attributionKind: text("attribution_kind").notNull().default("stripe_baseline"),
     attributionRef: text("attribution_ref"),

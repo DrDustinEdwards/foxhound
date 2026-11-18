@@ -5,7 +5,7 @@ import { getBillableRecoveries } from "~/db/billable";
 import { byAccountActive } from "~/db/scope";
 import type { Db } from "~/db";
 import { failedPayments, mrrSnapshots, recoveredPayments } from "~/db";
-import { recoveryFeeCents } from "~/lib/billing/fees";
+import { recoveryFeeCents, unrefundedCents } from "~/lib/billing/fees";
 import { DAY_MS } from "~/lib/constants";
 import { rollUpByMonth } from "~/lib/intelligence/mrr";
 import { percent } from "capsomer/behavior/meter";
@@ -58,7 +58,7 @@ export async function getRecoveryStats(
 
   const feeRows = billable.map((r) => ({
     currency: r.currency,
-    cents: recoveryFeeCents(r.amountCents),
+    cents: recoveryFeeCents(unrefundedCents(r.amountCents, r.refundedCents)),
   }));
 
   return {
