@@ -219,11 +219,8 @@ function stripeKeyProblem(key: unknown): string | null {
 export function getEnvSanity(env: Env): EnvSanityRow[] {
   const rows: Array<[string, EnvSanityKind]> = [
     ["DB", "binding"],
-    // APP_KV was listed here until 310. The binding is gone from wrangler.jsonc
-    // because `env.APP_KV` had ZERO consumers, and leaving it enumerated would
-    // report a permanently-unset binding forever. This surface exists to show
-    // what is MISSING, so a row that can never be set is noise that trains a
-    // reader to ignore the column. The namespace itself is retained, unbound.
+    // Holds the last failed AI call (site-runtime recordAiOutcome). Unset means /health cannot show an AI failure.
+    ["APP_KV", "binding"],
     ["MONEY_WRITER", "binding"],
     ["CRON_LOCK", "binding"],
     // The five-minute ticker (app/lib/cron/ticker.ts). Unset means recovery,

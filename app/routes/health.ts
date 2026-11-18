@@ -2,6 +2,7 @@ import { auditLogCheck } from "@dustinedwards/site-runtime/audit-log";
 import { cronCheck } from "@dustinedwards/site-runtime/cron";
 import { deployedAt, deployedSha } from "@dustinedwards/site-runtime/deploy";
 import {
+  aiOutcomeCheck,
   authSpikeCheck,
   durableObjectCheck,
   emailCheck,
@@ -57,6 +58,8 @@ export async function loader({ context }: Route.LoaderArgs) {
       durableObjectCheck("auth-rate-limiter", env.AUTH_RATE_LIMITER),
       cronJobsCheck(env),
       authSpikeCheck(env.DB),
+      // The last real winback email call failed (a spend cap, a revoked key); no model is run here.
+      aiOutcomeCheck("winback-email", env.APP_KV),
       // The merchant MCP's tool-call log (area 11, L8): a call started and never finished, a spike, or rows not
       // copied to AUDIT_BUCKET for two days.
       auditLogCheck(env),

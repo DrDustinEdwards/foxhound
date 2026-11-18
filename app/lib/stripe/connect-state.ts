@@ -16,8 +16,7 @@
 // WHERE THE MINT RECORD LIVES: the existing state cookie
 // (`stripe_oauth_state`, HttpOnly, Secure, SameSite=Lax, 600s), which is set
 // server-side at flow start and never readable or writable by a client. No new
-// store, and none available: `env.APP_KV` was unbound at ruling 310 with zero
-// consumers. The cookie holding the SAME string the URL carries is what makes
+// store: APP_KV holds only the last failed AI call. The cookie holding the SAME string the URL carries is what makes
 // "did we mint this?" answerable: an attacker can put anything in the query
 // param and cannot put the matching value in an HttpOnly cookie.
 //
