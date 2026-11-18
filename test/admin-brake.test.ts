@@ -20,7 +20,7 @@ import {
   listBrakePausedAccountIds,
   releaseBrake,
 } from "~/lib/admin/brake.server";
-import { setProcessingPaused } from "~/lib/admin/merchants.server";
+import { buildSetProcessingPaused, setProcessingPaused } from "~/lib/admin/merchants.server";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -296,7 +296,7 @@ describe("a manual pause is positively marked and never claimed by release", () 
       .insert(schema.accounts)
       .values({ id: "acc_1", name: "Acme", billingExempt: false, processingPaused: false });
 
-    await setProcessingPaused(db, "acc_1", true, BRAKE_PAUSE_REASON);
+    await buildSetProcessingPaused(db, "acc_1", true, BRAKE_PAUSE_REASON);
     await setProcessingPaused(db, "acc_1", false);
 
     expect(await paused(db, "acc_1")).toEqual({ processingPaused: false, pauseReason: null });

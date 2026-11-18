@@ -5,6 +5,11 @@
 import { and, eq, exists, isNull } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type Db, accounts, getDb, stripeConnections } from "~/db";
+import {
+  buildAdminAuditLogInsert,
+  logAdminAction,
+  type LogAdminActionInput,
+} from "~/lib/admin/audit.server";
 import { deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { revokeDisconnectedGrants } from "~/lib/stripe/deauthorize-retry.server";
@@ -72,15 +77,31 @@ async function cancelMerchantLocal(
   db: Db,
   accountId: string,
   now: Date,
+  audit?: LogAdminActionInput,
 ): Promise<CancelledConnection[]> {
   const activeConnections = await db
     .select({ id: stripeConnections.id, stripeUserId: stripeConnections.stripeUserId })
     .from(stripeConnections)
     .where(activeConnectionWhere(accountId));
 
-  const [stamped] = (await db.batch(
-    buildCancelMerchantBatch(db, accountId, activeConnections, now),
-  )) as unknown[];
+  // The admin's audit row commits in the same batch as the cancel, so the
+  // cancel never stands without its record (Mythos billing review, finding 7).
+  const auditRow = audit
+    ? [
+        buildAdminAuditLogInsert(db, {
+          ...audit,
+          metadata: {
+            ...audit.metadata,
+            accountId,
+            connectionsDisconnected: activeConnections.length,
+          },
+        }).statement,
+      ]
+    : [];
+  const [stamped] = (await db.batch([
+    ...buildCancelMerchantBatch(db, accountId, activeConnections, now),
+    ...auditRow,
+  ] as CancelBatch)) as unknown[];
   // A zero-row account UPDATE is a failure, not a cancel: no such account.
   if (!Array.isArray(stamped) || stamped.length === 0) {
     throw new Error(`cancelMerchant: no account ${accountId} to cancel`);
@@ -96,7 +117,12 @@ export interface CancelMerchantResult {
 }
 
 export interface CancelMerchantDeps {
-  cancelLocal: (env: Env, accountId: string, now: Date) => Promise<CancelledConnection[]>;
+  cancelLocal: (
+    env: Env,
+    accountId: string,
+    now: Date,
+    audit?: LogAdminActionInput,
+  ) => Promise<CancelledConnection[]>;
   deauthorize: (env: Env, stripeUserId: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
@@ -118,14 +144,25 @@ export async function cancelMerchant(
   env: Env,
   accountId: string,
   deps: Partial<CancelMerchantDeps> = {},
+  /** An admin's cancel: its audit row commits with the local cancel. */
+  audit?: LogAdminActionInput,
 ): Promise<CancelMerchantResult> {
-  const cancelLocal = deps.cancelLocal ?? ((e, id, now) => cancelMerchantLocal(getDb(e), id, now));
+  const cancelLocal =
+    deps.cancelLocal ?? ((e, id, now, a) => cancelMerchantLocal(getDb(e), id, now, a));
   const deauthorize = deps.deauthorize ?? deauthorizeConnectedAccount;
   const now = new Date();
 
-  const disconnected = await cancelLocal(env, accountId, now);
+  const disconnected = await cancelLocal(env, accountId, now, audit);
 
   const deauthorizeErrors = await revokeDisconnectedGrants(env, disconnected, now, deauthorize);
+  // The revoke runs after the commit, so its failures are their own row.
+  if (audit && deauthorizeErrors.length > 0) {
+    await logAdminAction(getDb(env), {
+      actorEmail: audit.actorEmail,
+      action: "merchant.cancel.revoke_failed",
+      metadata: { accountId, deauthorizeErrors },
+    });
+  }
 
   return { cancelledAt: now, connectionsDisconnected: disconnected.length, deauthorizeErrors };
 }

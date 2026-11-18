@@ -8,7 +8,6 @@ import { data } from "react-router";
 import { ConfirmPage } from "capsomer/react/confirm-dialog";
 import { MessageProvider } from "capsomer/react/message";
 import { getDb } from "~/db";
-import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
 import { loadMerchantsPage } from "~/lib/admin/merchants-page.server";
@@ -92,16 +91,13 @@ export async function action({ context, request }: Route.ActionArgs) {
     if (!isCancelConfirmValid(String(form.get("confirm") ?? ""))) {
       return refuse(intent, `Type ${CANCEL_CONFIRM_WORD} to cancel this merchant.`);
     }
-    const result = await cancelMerchant(env, accountId);
-    await logAdminAction(db, {
-      actorEmail: auth.email,
-      action: "merchant.cancel",
-      metadata: {
-        accountId,
-        connectionsDisconnected: result.connectionsDisconnected,
-        deauthorizeErrors: result.deauthorizeErrors,
-      },
-    });
+    // The audit row commits with the cancel itself (Mythos billing review, finding 7).
+    const result = await cancelMerchant(
+      env,
+      accountId,
+      {},
+      { actorEmail: auth.email, action: "merchant.cancel" },
+    );
     const failed = result.deauthorizeErrors.length;
     return data<ActionData>({
       ok: true,
@@ -126,10 +122,10 @@ export async function action({ context, request }: Route.ActionArgs) {
   const undo = form.get("undo") === "1";
   const who = target.name ?? target.id;
 
-  // Intent before state (review LOW-4, as the crons page and the brake do): a
-  // failed audit insert leaves the flag as it was, never changed with no record.
-  // The row records the attempt; a guarded write that matched nothing changes
-  // nothing and the answer says so.
+  // The audit row commits in the same batch as the change (Mythos billing
+  // review, finding 7), so neither stands without the other. The row records
+  // the attempt; a guarded write that matched nothing changes nothing and the
+  // answer says so.
   const wasBrakePause =
     !value && target.processingPaused && target.pauseReason === PAUSE_REASON_BRAKE;
   // Whether the write will change anything, as read just before it, so a
@@ -145,7 +141,7 @@ export async function action({ context, request }: Route.ActionArgs) {
       !value &&
       target.pauseReason !== PAUSE_REASON_MANUAL
     );
-  await logAdminAction(db, {
+  const audit = {
     actorEmail: auth.email,
     action:
       intent === "billing-exempt"
@@ -158,11 +154,11 @@ export async function action({ context, request }: Route.ActionArgs) {
     metadata: undo
       ? { accountId, undo: true, changed: willChange }
       : { accountId, changed: willChange },
-  });
+  };
   const changed =
     intent === "billing-exempt"
-      ? await setBillingExempt(env, accountId, value, new Date())
-      : await setProcessingPausedIfChanged(db, accountId, value, { undoOfPause: undo });
+      ? await setBillingExempt(env, accountId, value, new Date(), audit)
+      : await setProcessingPausedIfChanged(db, accountId, value, { undoOfPause: undo, audit });
 
   if (undo && !changed) {
     return refuse(
