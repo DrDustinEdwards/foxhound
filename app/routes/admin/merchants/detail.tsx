@@ -20,7 +20,6 @@ import { data, Form, useNavigation } from "react-router";
 
 import { ViewAsForm } from "~/components/admin-merchants-parts";
 import { getDb } from "~/db";
-import { logAdminAction } from "~/lib/admin/audit.server";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import {
   getMerchantDetail,
@@ -83,10 +82,11 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
 
+  // Each change and its audit row commit as one batch, so a change never
+  // stands without its record (Mythos billing review, finding 7).
   if (intent === "toggle-billing-exempt") {
     const nextExempt = String(form.get("nextExempt") ?? "") === "true";
-    await setBillingExempt(env, accountId, nextExempt, new Date());
-    await logAdminAction(db, {
+    await setBillingExempt(env, accountId, nextExempt, new Date(), {
       actorEmail: auth.email,
       action: nextExempt ? "merchant.billing_exempt.enable" : "merchant.billing_exempt.disable",
       metadata: { accountId },
@@ -96,8 +96,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
 
   if (intent === "toggle-processing-paused") {
     const nextPaused = String(form.get("nextPaused") ?? "") === "true";
-    await setProcessingPaused(db, accountId, nextPaused);
-    await logAdminAction(db, {
+    await setProcessingPaused(db, accountId, nextPaused, {
       actorEmail: auth.email,
       action: nextPaused ? "merchant.processing.pause" : "merchant.processing.resume",
       metadata: { accountId },
@@ -106,16 +105,12 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   }
 
   if (intent === "cancel") {
-    const result = await cancelMerchant(env, accountId);
-    await logAdminAction(db, {
-      actorEmail: auth.email,
-      action: "merchant.cancel",
-      metadata: {
-        accountId,
-        connectionsDisconnected: result.connectionsDisconnected,
-        deauthorizeErrors: result.deauthorizeErrors,
-      },
-    });
+    const result = await cancelMerchant(
+      env,
+      accountId,
+      {},
+      { actorEmail: auth.email, action: "merchant.cancel" },
+    );
     if (result.deauthorizeErrors.length > 0) {
       return data<ActionResult>({
         ok: true,
