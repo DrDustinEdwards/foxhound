@@ -105,6 +105,9 @@ export function resolveConnectionForFailedPayment(
 
 /** What both modes resolve to: enough to open a Checkout session and finalize it. */
 interface CardUpdateTarget {
+  /** The link's own row: the failed payment, or the alert. A Checkout session
+   *  carries it, so the return leg accepts only a session made for this link. */
+  linkRef: string;
   /** Present in recovery mode only; alert mode records no attribution signal. */
   failedPaymentId: string | null;
   stripeCustomerId: string;
@@ -150,6 +153,7 @@ async function loadAlertTarget(
   const alert = alertRows[0];
   if (!alert || alert.deletedAt) return null;
   return {
+    linkRef: alert.id,
     failedPaymentId: null,
     stripeCustomerId: alert.stripeCustomerId,
     subscriptionId: null,
@@ -252,6 +256,7 @@ async function resolveTarget(
     );
     if (!failedPayment) return null;
     return {
+      linkRef: failedPayment.id,
       failedPaymentId: failedPayment.id,
       stripeCustomerId: failedPayment.stripeCustomerId,
       subscriptionId: failedPayment.subscriptionId,
@@ -377,6 +382,8 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
       const result = await finalizeCardUpdateSession({
         accessToken,
         sessionId,
+        customerId: target.stripeCustomerId,
+        linkRef: target.linkRef,
         subscriptionId: target.subscriptionId,
         invoiceId: target.invoiceId ?? null,
       });
@@ -444,6 +451,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
     const session = await createCardUpdateSession({
       accessToken,
       customerId: target.stripeCustomerId,
+      linkRef: target.linkRef,
       currency: target.currency,
       successUrl: `${url.origin}/p/${token}?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${url.origin}/p/${token}`,

@@ -4,6 +4,10 @@ import {
   WINBACK_SEQUENCE_METADATA_KEY,
   WINBACK_STEP_METADATA_KEY,
 } from "~/lib/recovery/winback-metadata";
+import {
+  assertSessionBelongsToAccount,
+  setupSessionPaymentMethod,
+} from "~/lib/billing/platform-customer";
 import { getConnectedStripe } from "~/lib/stripe/client";
 
 // Card-update payment-method collection (Phase 5 slice 5g, PRICING.md
@@ -35,6 +39,8 @@ async function customerCurrency(stripe: Stripe, customerId: string): Promise<str
 export async function createCardUpdateSession(input: {
   accessToken: string;
   customerId: string;
+  /** The link's own row (failed payment or alert id), checked on return. */
+  linkRef: string;
   /** The failed payment's currency; absent in alert mode, where nothing failed. */
   currency?: string;
   successUrl: string;
@@ -44,6 +50,7 @@ export async function createCardUpdateSession(input: {
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: input.customerId,
+    client_reference_id: input.linkRef,
     // Endive removed payment_method_types from Checkout. A setup session now
     // takes a currency instead, and allowed_payment_method_types keeps it to
     // cards, as before.
@@ -66,10 +73,20 @@ export interface FinalizeCardUpdateResult {
 /** Called on the success_url return: retrieves the completed setup session
  *  and sets the collected payment method as the customer's default, and the
  *  subscription's default if one is known, so the next recovery retry uses
- *  the new card. */
+ *  the new card.
+ *
+ *  session_id comes from the URL, so the session must be the one THIS link
+ *  made: setup mode, this link's reference, this link's customer. Without it,
+ *  any completed setup session on the merchant's account (an older one of the
+ *  customer's own) recorded a billable card_update with no new card (Mythos
+ *  billing review, finding 3). Billing setup has had the customer check
+ *  (assertSessionBelongsToAccount) all along. */
 export async function finalizeCardUpdateSession(input: {
   accessToken: string;
   sessionId: string;
+  /** The link's customer and reference, as passed to createCardUpdateSession. */
+  customerId: string;
+  linkRef: string;
   subscriptionId?: string | null;
   /** Read for its subscription when `subscriptionId` is not known. */
   invoiceId?: string | null;
@@ -78,21 +95,19 @@ export async function finalizeCardUpdateSession(input: {
   const session = await stripe.checkout.sessions.retrieve(input.sessionId, {
     expand: ["setup_intent"],
   });
-  if (session.status !== "complete" || !session.customer) {
+  if (session.mode !== "setup" || session.client_reference_id !== input.linkRef) {
+    return { ok: false, error: "setup session was not made for this link" };
+  }
+  const owned = assertSessionBelongsToAccount(session, input.customerId);
+  if (!owned.ok) return owned;
+  if (session.status !== "complete") {
     return { ok: false, error: "setup session not complete" };
   }
-  const setupIntent = session.setup_intent;
-  const paymentMethodId =
-    typeof setupIntent === "object" && setupIntent !== null
-      ? typeof setupIntent.payment_method === "string"
-        ? setupIntent.payment_method
-        : (setupIntent.payment_method?.id ?? null)
-      : null;
+  const paymentMethodId = setupSessionPaymentMethod(session);
   if (!paymentMethodId) {
     return { ok: false, error: "no payment method attached to setup intent" };
   }
-  const customerId = typeof session.customer === "string" ? session.customer : session.customer.id;
-  await stripe.customers.update(customerId, {
+  await stripe.customers.update(owned.customerId, {
     invoice_settings: { default_payment_method: paymentMethodId },
   });
   // A subscription's own default card outranks the customer's, so a retry

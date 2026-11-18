@@ -1,13 +1,29 @@
 import { drizzle } from "drizzle-orm/d1";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import * as schema from "~/db/schema";
+import { finalizeCardUpdateSession } from "~/lib/card-update/service";
 import { buildCardUpdateSignal } from "~/lib/card-update/signal";
 import { signCardUpdateToken, verifyCardUpdateToken } from "~/lib/card-update/token";
 import {
   resolveConnectionForFailedPayment,
   type ConnectionCandidate,
 } from "~/routes/utility/card-update";
+
+const stripe = vi.hoisted(() => ({
+  session: {} as Record<string, unknown>,
+  updated: [] as string[],
+}));
+vi.mock("~/lib/stripe/client", () => ({
+  getConnectedStripe: () => ({
+    checkout: { sessions: { retrieve: async () => stripe.session } },
+    customers: {
+      update: async (id: string) => {
+        stripe.updated.push(id);
+      },
+    },
+  }),
+}));
 
 const db = drizzle({} as never, { schema });
 function sqlOf(item: unknown): { sql: string; params: unknown[] } {
@@ -57,5 +73,38 @@ describe("buildCardUpdateSignal (compiles against schema)", () => {
     expect(params).toContain("fp_1");
     expect(params).toContain("acc_1");
     expect(params).toContain(now.getTime());
+  });
+});
+
+describe("finalizeCardUpdateSession: only the session this link made", () => {
+  // Mythos billing review, finding 3. session_id is a URL parameter, and any
+  // completed setup session on the merchant's account used to be accepted, so
+  // a billable card_update was recorded with no new card.
+  const link = { accessToken: "tok", sessionId: "cs_1", customerId: "cus_link", linkRef: "fp_1" };
+  const made = {
+    mode: "setup",
+    status: "complete",
+    customer: "cus_link",
+    client_reference_id: "fp_1",
+    setup_intent: { payment_method: "pm_new" },
+  };
+
+  it.each([
+    ["another customer's session", { customer: "cus_other" }],
+    ["a session made for another link", { client_reference_id: "fp_2" }],
+    ["a session with no link reference", { client_reference_id: null }],
+    ["a payment-mode session", { mode: "payment" }],
+  ])("refuses %s and changes nothing", async (_name, over) => {
+    stripe.session = { ...made, ...over };
+    stripe.updated = [];
+    expect((await finalizeCardUpdateSession(link)).ok).toBe(false);
+    expect(stripe.updated).toEqual([]);
+  });
+
+  it("accepts the session this link made", async () => {
+    stripe.session = made;
+    stripe.updated = [];
+    expect(await finalizeCardUpdateSession(link)).toEqual({ ok: true });
+    expect(stripe.updated).toEqual(["cus_link"]);
   });
 });
