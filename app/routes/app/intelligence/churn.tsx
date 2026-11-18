@@ -97,7 +97,10 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
           daily snapshots, every 7th kept (getChurnView). */}
       {hasRateData ? (
         <div className="fh-intel-head">
-          <Panel title="Churn rate over time">
+          <Panel
+            title="Churn rate over time"
+            meta="Last 90 days · involuntary is payment failures, voluntary is cancellations"
+          >
             <ChurnRateChart points={view.ratePoints} />
           </Panel>
         </div>

@@ -1,6 +1,7 @@
 import { redirect } from "react-router";
 import { ButtonLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
+import { Time } from "capsomer/react/time";
 import { Panel } from "capsomer/react/panel";
 import "capsomer/button.css";
 import "capsomer/page-head.css";
@@ -200,7 +201,7 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
     <div className="fh-results-block fh-cap cap-page" data-cap-site="foxhound" data-family="amber">
       <div className="fh-results-block-2">
         <div className="fh-results-block-3 fh-mono fh-tiny fh-faint fh-caps-wide">
-          Stripe Account Diagnostic
+          Stripe Account Diagnostic &middot; <Time at={run.runAt} tip />
         </div>
         <PageHead title={`Analyzed last ${run.lookbackDays} days of payment history`} />
       </div>

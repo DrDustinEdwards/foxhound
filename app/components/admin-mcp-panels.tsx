@@ -12,7 +12,7 @@ import { Status } from "capsomer/react/status";
 import "capsomer/table.css";
 
 import { Time } from "capsomer/react/time";
-import { maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
+import { MCP_CALLS_SHOWN, maskSecretsInText, outcomeWords, scopeWords } from "~/lib/admin/mcps";
 import type { AdminApiKeyRow, AdminMcpCallRow, loadMcpOverview } from "~/lib/admin/mcps.server";
 import { merchantHref } from "~/lib/admin/page";
 import { MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
@@ -49,6 +49,7 @@ export function AdminMcpPanels({
   reading?: boolean;
   keyAction?: AdminKeyActionResult;
 }) {
+  const writes = tools.filter((t) => t.writes).length;
   return (
     <div className="cap-stack" data-gap="6">
       <StatTiles label="MCP use">
@@ -107,6 +108,8 @@ export function AdminMcpPanels({
 
         <TablePanel
           title="Merchant tools"
+          count={tools.length}
+          meta={`${tools.length - writes} read, ${writes} write`}
           headingId={TOOLS_HEADING_ID}
           reading={reading}
           reflow
@@ -144,6 +147,7 @@ export function AdminMcpPanels({
 
         <TablePanel
           title="Recent calls"
+          meta={`Newest ${MCP_CALLS_SHOWN}, every account · arguments not shown`}
           headingId={CALLS_HEADING_ID}
           reading={reading}
           reflow

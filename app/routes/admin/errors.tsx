@@ -96,7 +96,14 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
       <SentryNotice sentry={sentry} />
 
       {sentry.state === "ready" || sentry.state === "failed" ? (
-        <Panel title="Unresolved errors" headingId={ISSUES_HEADING_ID} reading={pending} flush>
+        <Panel
+          title="Unresolved errors"
+          headingId={ISSUES_HEADING_ID}
+          reading={pending}
+          count={sentry.state === "ready" ? sentry.issues.length : undefined}
+          meta="Last 14 days"
+          flush
+        >
           {sentry.state === "failed" ? (
             <Empty kind="failed" title="Could not read errors from Sentry.">
               {sentry.message}
@@ -109,7 +116,13 @@ export default function AdminErrors({ loaderData }: Route.ComponentProps) {
         </Panel>
       ) : null}
 
-      <Panel title="Failed actions" headingId={FAILED_HEADING_ID} reading={pending} flush>
+      <Panel
+        title="Failed actions"
+        headingId={FAILED_HEADING_ID}
+        reading={pending}
+        count={failed.length}
+        flush
+      >
         {failed.length === 0 ? (
           <Empty kind="nothing-yet" title="No failed actions in the audit log." />
         ) : (

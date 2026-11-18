@@ -42,7 +42,7 @@ export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const pending = usePagePending("/admin/users");
 
   return (
-    <Panel title="People" headingId={HEADING_ID} reading={pending} flush>
+    <Panel title="People" headingId={HEADING_ID} reading={pending} count={users.length} flush>
       {users.length === 0 ? (
         <Empty kind="nothing-yet" title="No users yet." />
       ) : (

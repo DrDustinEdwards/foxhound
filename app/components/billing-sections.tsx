@@ -29,7 +29,11 @@ import {
 } from "~/lib/billing/page";
 import type { AccountBillingState } from "~/lib/billing/preview.server";
 import type { CurrencyAmount } from "~/lib/money/totals";
-import { BILLING_RUN_DAY_OF_MONTH, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
+import {
+  BILLING_RUN_DAY_OF_MONTH,
+  DISPUTE_FEE_CAP_CENTS,
+  RECOVERY_MATURITY_DAYS,
+} from "~/lib/constants";
 import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 // /billing's five sections, in Recova's order and with Recova's
@@ -162,7 +166,7 @@ export function RecoverySection({
 }) {
   const stateNote = billingStateNote(accountBillingState);
   return (
-    <Panel title="Recovery">
+    <Panel title="Recovery" meta={`${RECOVERY_FEE_PERCENT}% of attributed recoveries`}>
       <SummaryBox>
         <div className="cap-stack" data-gap="3">
           <SummaryRow label="Recovered this month" value={attributedThisMonth} />
@@ -238,7 +242,17 @@ export function DisputeFeesSection({
   // Disputes needs no enabling in Foxhound (every account has it, app/lib/nav/
   // manifest.ts), so Recova's disputesActive branch is always the one shown.
   return (
-    <Panel title="Dispute Fees">
+    <Panel
+      title="Dispute Fees"
+      meta={`${DISPUTE_FEE_PERCENT}% of disputes won, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} each`}
+      footer={
+        // PRICING.md: "$500, converted at Stripe's rate on the day the dispute resolves".
+        <p className="fh-billing-fine fh-tiny fh-faint">
+          Converted at Stripe&apos;s rate on the day the dispute resolves. Disputes won by Stripe
+          Smart Disputes or submitted by you are not charged.
+        </p>
+      }
+    >
       <SummaryBox>
         <SummaryRow label="Pending fees this month" value={estimatedDisputeFees} fee />
         <p className="fh-billing-fine fh-tiny fh-faint">

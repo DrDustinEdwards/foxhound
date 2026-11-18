@@ -312,6 +312,11 @@ export default function ApiKeySettings({ loaderData, actionData }: Route.Compone
               </ButtonLink>
             )}
           </div>
+          <p className="fh-small fh-soft">
+            Agents connect at <span className="fh-mono">/mcp</span>. A key cannot move money, submit
+            dispute evidence, disconnect Stripe or cancel your account, and customer names and full
+            email addresses are never sent. Every change is logged with the key that made it.
+          </p>
 
           {loadError ? (
             <Alert tone="crit">

@@ -180,6 +180,8 @@ describe("review fixes (PR #68 review F1 to F5)", () => {
         }),
       ),
     );
+    expect(html).toContain("20% of attributed recoveries");
+    expect(html).toContain("20% of disputes won, capped at $500 each");
     expect(html).not.toContain("Invoiced on the 1st");
   });
 });

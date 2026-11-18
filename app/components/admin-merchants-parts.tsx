@@ -54,26 +54,20 @@ type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
  *  what matured meanwhile (PR 144 review). An exemption forgives them, as
  *  Recova's did (Dustin, 2026-10-25): a fee earned or due while exempt is never
  *  billed (billing_exemption_periods, read by app/db/billable.ts). */
-const VIEW_WORDS: Record<
-  MerchantView,
-  { caption: string; empty: string; describe: (n: number) => string }
-> = {
+const VIEW_WORDS: Record<MerchantView, { caption: string; empty: string; rule?: string }> = {
   all: {
     caption: "Every merchant account, newest first, with its actions",
     empty: "No merchants yet.",
-    describe: (n) => plural(n, "account", "accounts"),
   },
   paused: {
     caption: "Every paused merchant, newest first, with its actions",
     empty: "No merchants are paused.",
-    describe: (n) =>
-      `${plural(n, "merchant is", "merchants are")} paused, newest first. A paused merchant is neither processed nor billed while paused; fees already earned are billed at the first billing run after it is resumed. Resume takes effect at once and can be undone, except for a merchant the emergency brake paused.`,
+    rule: "A paused merchant is neither processed nor billed while paused; fees already earned are billed at the first billing run after it is resumed. Resume takes effect at once and can be undone, except for a merchant the emergency brake paused.",
   },
   "billing-exempt": {
     caption: "Every billing exempt merchant, newest first, with its actions",
     empty: "No merchants are billing exempt.",
-    describe: (n) =>
-      `${plural(n, "merchant is", "merchants are")} billing exempt, newest first. A billing exempt merchant is processed as usual and is not billed while exempt. Fees that come due while exempt are forgiven: they are never billed, even after the exemption ends. Ending an exemption takes effect at once and can be undone.`,
+    rule: "A billing exempt merchant is processed as usual and is not billed while exempt. Fees that come due while exempt are forgiven: they are never billed, even after the exemption ends. Ending an exemption takes effect at once and can be undone.",
   },
 };
 
@@ -81,12 +75,14 @@ export function MerchantsList({
   view,
   merchants,
   counts,
+  brakePaused,
   figures,
   actionData,
 }: {
   view: MerchantView;
   merchants: AdminMerchantRow[];
   counts: Record<MerchantView, number>;
+  brakePaused: number;
   figures: Figures | null;
   actionData: ActionData | undefined;
 }) {
@@ -111,7 +107,20 @@ export function MerchantsList({
         ))}
       </TabsNav>
 
-      <Panel title="Merchants" headingId={HEADING_ID} reading={pending} flush>
+      <Panel
+        title="Merchants"
+        headingId={HEADING_ID}
+        reading={pending}
+        meta={
+          view === "paused" && brakePaused > 0 ? (
+            <Link to="/admin/brake">{brakePaused} held by the emergency brake</Link>
+          ) : undefined
+        }
+        footer={
+          merchants.length > 0 && words.rule ? <p className="fh-small">{words.rule}</p> : undefined
+        }
+        flush
+      >
         {merchants.length === 0 ? (
           view === "all" ? (
             <Empty kind="nothing-yet" title={words.empty} />
@@ -158,7 +167,7 @@ export function MerchantsList({
 function PlatformFigures({ figures, reading }: { figures: Figures; reading: boolean }) {
   const mrrAccounts = figures.mrrByCurrency.reduce((n, m) => n + m.accountCount, 0);
   return (
-    <Panel title="Platform" reading={reading}>
+    <Panel title="Platform" reading={reading} meta="Demo accounts not counted">
       <dl className="fh-halves" data-cols="5">
         <Figure
           label="Estimated MRR"

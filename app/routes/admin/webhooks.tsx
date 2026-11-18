@@ -102,7 +102,14 @@ export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
         />
       </StatTiles>
 
-      <Panel title="Webhook events" headingId={HEADING_ID} reading={pending} flush>
+      <Panel
+        title="Webhook events"
+        headingId={HEADING_ID}
+        reading={pending}
+        count={list.total}
+        meta={filtered ? "match" : undefined}
+        flush
+      >
         {/* Keyed by the filters so the fields show the address after Back. */}
         <div className="fh-filter-frame">
           <FilterBar

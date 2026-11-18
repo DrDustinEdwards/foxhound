@@ -9,6 +9,7 @@ import "capsomer/cta-band.css";
 import "capsomer/hero.css";
 
 import { CARD, ConnectStripeAction } from "~/components/marketing-card";
+import { AUDIT_GRANT_MINUTES, AUDIT_SCOPE_WORDS } from "~/lib/marketing/audit-access";
 import {
   PRICING_CARDS,
   PRICING_FAQS,
@@ -182,7 +183,9 @@ export default function PricingPage() {
         actions={<ConnectStripeAction />}
       >
         Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
-        business health. Results in <span className="fh-mono">30</span> seconds.
+        business health. Results in <span className="fh-mono">30</span> seconds. The estimator needs
+        no Stripe connection. The full audit has Stripe grant {AUDIT_SCOPE_WORDS} access, which
+        Foxhound only reads and drops after {AUDIT_GRANT_MINUTES} minutes.
       </CtaBand>
     </div>
   );

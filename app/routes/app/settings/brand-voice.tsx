@@ -230,7 +230,10 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
         </section>
 
         <div className="fh-voice-preview">
-          <Panel title="Sample emails">
+          <Panel
+            title="Sample emails"
+            meta="Two to five you wrote yourself. Leave out card numbers and anything private: the AI reads them."
+          >
             <div className="fh-voice-rows">
               {Array.from({ length: MAX_VOICE_SAMPLES }, (_, i) => (
                 <textarea

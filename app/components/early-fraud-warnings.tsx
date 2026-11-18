@@ -104,6 +104,7 @@ export function EarlyFraudWarnings({
       <Panel
         title={<span id="efw-heading">Early fraud warnings</span>}
         count={warnings.length}
+        meta="Refunding first avoids the dispute fee"
         flush
       >
         {warnings.length === 0 ? (

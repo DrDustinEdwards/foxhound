@@ -140,7 +140,7 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
 
   return (
     <div className="cap-stack" data-gap="6">
-      <Panel title="Recovery queue" reading={pending}>
+      <Panel title="Recovery queue" reading={pending} meta="Demo accounts not counted">
         <dl className="fh-halves">
           <div>
             <dt className="fh-small fh-soft">Payments in recovery</dt>
@@ -165,7 +165,13 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         </dl>
       </Panel>
 
-      <Panel title="Cron locks" headingId={LOCKS_HEADING_ID} reading={pending} flush>
+      <Panel
+        title="Cron locks"
+        headingId={LOCKS_HEADING_ID}
+        reading={pending}
+        count={locks.length}
+        flush
+      >
         {locks.length === 0 ? (
           <Empty
             kind="nothing-yet"
@@ -246,7 +252,13 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         )}
       </Panel>
 
-      <Panel title="Migrations" headingId={MIGRATIONS_HEADING_ID} reading={pending} flush>
+      <Panel
+        title="Migrations"
+        headingId={MIGRATIONS_HEADING_ID}
+        reading={pending}
+        meta={`${migrations.rows.filter((m) => m.applied).length} of ${migrations.rows.length} applied`}
+        flush
+      >
         {migrations.unexpectedApplied.length > 0 ? (
           <p className="fh-panel-note fh-small fh-error">
             {plural(migrations.unexpectedApplied.length, "migration is", "migrations are")} applied
@@ -290,7 +302,13 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
         )}
       </Panel>
 
-      <Panel title="Settings" headingId={SETTINGS_HEADING_ID} reading={pending} flush>
+      <Panel
+        title="Settings"
+        headingId={SETTINGS_HEADING_ID}
+        reading={pending}
+        meta="Names only, values never shown"
+        flush
+      >
         <Table
           caption="Each setting the Worker uses, its kind, and whether it is set."
           captionHidden

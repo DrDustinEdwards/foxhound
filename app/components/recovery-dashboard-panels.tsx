@@ -250,7 +250,14 @@ function RoiLine({ label, value, strong }: { label: string; value: string; stron
 export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiColumn } }) {
   const empty = roi.thisMonth.recovered.length === 0 && roi.allTime.recovered.length === 0;
   return (
-    <Panel title="Foxhound-attributed revenue">
+    <Panel
+      title="Foxhound-attributed revenue"
+      meta={
+        empty
+          ? undefined
+          : `All time counts recoveries held ${RECOVERY_MATURITY_DAYS} days, the ones Foxhound bills`
+      }
+    >
       {empty ? (
         <p className="fh-small fh-faint">No attributed recoveries yet.</p>
       ) : (

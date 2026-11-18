@@ -133,5 +133,5 @@ export const DISPUTES_FAQS = [
 
 export const DISPUTES_BOTTOM_CTA = {
   title: "Stop losing disputes to missed deadlines.",
-  sub: "Connect Stripe and Foxhound starts building evidence on every new dispute automatically.",
+  sub: `Connect Stripe and Foxhound starts building evidence on every new dispute automatically. Read and write Stripe access, and ${pct} only when you win.`,
 };
