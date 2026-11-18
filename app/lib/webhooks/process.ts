@@ -22,7 +22,7 @@ import {
 import { handleRenewalCardCheck } from "./renewal-check";
 import { handleWinbackReactivate, handleWinbackStart } from "./winback-handlers";
 import { handleRecordSubscriptionChange } from "./intelligence-handlers";
-import { resolveConnection } from "./lookups";
+import { hasDisconnectedConnection, resolveConnection } from "./lookups";
 
 // Connected-account webhook processor. Resolves the account, applies per-invoice
 // dedupe and attribution reads (safe before the batch; the per-account DO
@@ -53,9 +53,21 @@ export async function processConnectedWebhook(
   }
   const resolved = await resolveConnection(env, connectedAccountId);
   if (!resolved) {
-    // Unknown account: claim via a plain insert (not a money write) so replays
-    // short-circuit, then ignore. The unique index makes the claim idempotent.
     try {
+      // A merchant who disconnected here: answer 200 but claim NOTHING. Stripe
+      // stops retrying, and the missed-event sweep (missed-events.server.ts)
+      // replays the event after a reconnect because it is not in
+      // webhook_events. Claiming it lost a refund, dispute or recovery in the
+      // gap for good. The deauthorization itself IS claimed: it belongs to the
+      // old grant, and replayed after a reconnect it would cut the new one.
+      if (
+        event.type !== "account.application.deauthorized" &&
+        (await hasDisconnectedConnection(env, connectedAccountId))
+      ) {
+        return { status: "ignored", reason: "disconnected_account" };
+      }
+      // Unknown account: claim via a plain insert (not a money write) so replays
+      // short-circuit, then ignore. The unique index makes the claim idempotent.
       await claimUnknownAccount(env, event, receivedAt);
     } catch (err) {
       return {
