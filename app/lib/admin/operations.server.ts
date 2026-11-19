@@ -219,8 +219,6 @@ function stripeKeyProblem(key: unknown): string | null {
 export function getEnvSanity(env: Env): EnvSanityRow[] {
   const rows: Array<[string, EnvSanityKind]> = [
     ["DB", "binding"],
-    // Holds the last failed AI call (site-runtime recordAiOutcome). Unset means /health cannot show an AI failure.
-    ["APP_KV", "binding"],
     ["MONEY_WRITER", "binding"],
     ["CRON_LOCK", "binding"],
     // The five-minute ticker (app/lib/cron/ticker.ts). Unset means recovery,

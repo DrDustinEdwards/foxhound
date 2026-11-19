@@ -11,6 +11,7 @@ import {
   queueCheck,
   r2Check,
 } from "@dustinedwards/site-runtime/health";
+import { d1FireStore } from "@dustinedwards/site-runtime/routine";
 
 import { cronConfig, getDb } from "~/db";
 import { backupStatus } from "~/lib/backup/d1-backup";
@@ -59,7 +60,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       cronJobsCheck(env),
       authSpikeCheck(env.DB),
       // The last real winback email call failed (a spend cap, a revoked key); no model is run here.
-      aiOutcomeCheck("winback-email", env.APP_KV),
+      aiOutcomeCheck("winback-email", d1FireStore(env.DB, "ai_outcomes")),
       // The merchant MCP's tool-call log (area 11, L8): a call started and never finished, a spike, or rows not
       // copied to AUDIT_BUCKET for two days.
       auditLogCheck(env),
