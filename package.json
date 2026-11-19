@@ -32,7 +32,7 @@
     "@better-auth/passkey": "1.7.17",
     "@cloudflare/workers-oauth-provider": "1.2.4",
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.63.1",
-    "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.16.1",
+    "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.16.2",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.45.0",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.169.1",
     "@modelcontextprotocol/server": "2.4.0",
