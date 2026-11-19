@@ -175,16 +175,13 @@ describe("the generation route's edges (review round 1)", () => {
     expect(result.init?.status).toBe(429);
   });
 
-  it("a body that is not a form answers 400, not an unhandled 500", async () => {
-    const result = (await generateEmailSample({
-      request: post("not a multipart body"),
-      context: actionContext({} as Env),
-      params: {},
-    } as unknown as Parameters<typeof generateEmailSample>[0])) as {
-      data: unknown;
-      init?: { status?: number };
-    };
-    expect(result.data).toEqual({ error: true });
-    expect(result.init?.status).toBe(400);
+  it("a body that is not a form is refused with the reader's 400, not an unhandled 500", async () => {
+    await expect(
+      generateEmailSample({
+        request: post("not a multipart body"),
+        context: actionContext({} as Env),
+        params: {},
+      } as unknown as Parameters<typeof generateEmailSample>[0]),
+    ).rejects.toMatchObject({ status: 400 });
   });
 });

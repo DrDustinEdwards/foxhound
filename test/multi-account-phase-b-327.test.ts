@@ -114,11 +114,14 @@ function request(opts: {
   accountId?: string;
   referer?: string;
   json?: boolean;
+  emptyForm?: boolean;
 }): Request {
   const headers = new Headers();
   if (opts.referer) headers.set("referer", opts.referer);
   let body: BodyInit | undefined;
-  if (opts.accountId !== undefined) {
+  if (opts.emptyForm) {
+    body = new FormData();
+  } else if (opts.accountId !== undefined) {
     if (opts.json) {
       headers.set("content-type", "application/json");
       body = JSON.stringify({ accountId: opts.accountId });
@@ -172,7 +175,7 @@ describe("the switch action ports legacy's validation, in legacy's order", () =>
   it("400 with no accountId in the body", async () => {
     seedTwoAccounts();
     signIn("sess_1");
-    const res = await run({});
+    const res = await run({ emptyForm: true });
     expect(res.status).toBe(400);
     expect(await res.json()).toEqual({ error: "Missing accountId" });
     expect(markerOf("sess_1")).toBeNull();
