@@ -65,6 +65,13 @@ export const cronConfig = sqliteTable("cron_config", {
 // and the gates in app/lib/cron/run.ts) and each run kept (the admin Crons page, the alerts).
 export { cronRunLog, cronRuns } from "@dustinedwards/site-runtime/drizzle";
 
+// The outcome of each AI feature's last failed model call, kept by site-runtime's recordAiOutcome through d1FireStore
+// (./routine) and read by /health's aiOutcomeCheck.
+export const aiOutcomes = sqliteTable("ai_outcomes", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+});
+
 // global
 export const adminAuditLog = sqliteTable("admin_audit_log", {
   id: id(),

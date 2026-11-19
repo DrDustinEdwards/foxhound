@@ -1,4 +1,5 @@
 import { recordAiOutcome } from "@dustinedwards/site-runtime/health";
+import { d1FireStore } from "@dustinedwards/site-runtime/routine";
 import {
   messages,
   structured,
@@ -61,7 +62,9 @@ function metered(env: Env, meter: AiCallMeter, options: CallOptions) {
   const onResult = (record: CallRecord) => {
     written = Promise.all([
       recordAiCall(env, meter, record),
-      meter.outcomeFeature ? recordAiOutcome(env.APP_KV, meter.outcomeFeature, record) : undefined,
+      meter.outcomeFeature
+        ? recordAiOutcome(d1FireStore(env.DB, "ai_outcomes"), meter.outcomeFeature, record)
+        : undefined,
     ]).then(() => undefined);
     return written;
   };

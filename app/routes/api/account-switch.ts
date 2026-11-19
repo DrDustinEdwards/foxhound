@@ -78,8 +78,8 @@ export async function action({ request, context }: Route.ActionArgs) {
  *  Legacy reads `await req.json()` only, because its switcher posts with fetch.
  *  Both are accepted here so phase (e) can render either a plain Form (which
  *  works with no JavaScript, and is what the redirect above is shaped for) or a
- *  fetch, without this route needing a second look. A body that is neither
- *  yields null and the 400 above. */
+ *  fetch, without this route needing a second look. A form or JSON body
+ *  without it yields null and the 400 above; a body of any other type is the reader's 415. */
 async function readAccountId(request: Request): Promise<string | null> {
   const contentType = request.headers.get("content-type") ?? "";
   try {

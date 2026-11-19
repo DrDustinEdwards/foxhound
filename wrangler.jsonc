@@ -161,17 +161,6 @@
   "images": {
     "binding": "IMAGES"
   },
-  // The one KV consumer: site-runtime's recordAiOutcome keeps whether an AI feature's last real call worked
-  // (ai-outcome:<feature>, one key, a day's TTL) and /health reads it (aiOutcomeCheck). This is the namespace
-  // ruling 310 unbound on 2026-08-15 when nothing read it, re-bound as that ruling said to: KV id 8ff1871...
-  // (dashboard title "foxhound", renamed by ruling 303). Never delete the namespace (rule 7).
-  "kv_namespaces": [
-    {
-      "binding": "APP_KV",
-      "id": "8ff1871236394486bd5aac4b408a4253"
-    }
-  ],
-
   // Cloudflare Email Service send binding (TASK-foxhound-email-provisioning.md).
   // Three domains onboarded, Enabled + DNS Configured: foxhoundapp.com (apex),
   // send.foxhoundapp.com (EMAIL_SEND_DOMAIN, dunning), auth.foxhoundapp.com
