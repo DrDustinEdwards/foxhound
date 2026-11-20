@@ -636,7 +636,7 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
 describe("gate review 7.4: an aborted sweep is visible, and stops exactly where it should", () => {
   // The sweep aborts rather than continuing when it cannot read the billing
   // gate. Until the run summary carried that, the abort was a console.error and
-  // nothing else: cron_run_history read "N accounts, M invoices" and status
+  // nothing else: cron_run_log read "N accounts, M invoices" and status
   // success whether the sweep had found nothing stranded or had never looked.
   //
   // These pin three separate things: that the abort is NAMED, that it does not

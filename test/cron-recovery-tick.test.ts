@@ -240,7 +240,7 @@ describe("RECOVERY_TICK_LIMIT is inside an honest subrequest budget", () => {
   });
 
   it("leaves headroom for the fixed per-run costs on top of the steps", () => {
-    // Selection query + exhausted sweep (2 queries) + one cron_run_history write.
+    // Selection query + exhausted sweep (2 queries) + one cron_run_log write.
     const fixed = 4;
     expect(RECOVERY_TICK_LIMIT * PER_STEP_SUBREQUESTS + fixed).toBeLessThan(SUBREQUEST_BUDGET);
   });
