@@ -22,7 +22,7 @@ import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 //      nothing would have said so.
 //   B. foxhound-email-dlq had ZERO consumers (measured against the account), so
 //      a dunning email that exhausted its retries was discarded with no trace.
-//   C. Nothing joined email_sends to cron_run_history, so "which run sent this"
+//   C. Nothing joined email_sends to cron_run_log, so "which run sent this"
 //      meant correlating timestamps.
 //
 // The sends are faked at the EMAIL binding, never at the alert module, so what
