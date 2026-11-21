@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   drift:
-    uses: DrDustinEdwards/devkit/.github/workflows/access-drift.yml@d44675809ea4be692d8c24225337386e257956b2 # v0.55.1
+    uses: DrDustinEdwards/devkit/.github/workflows/access-drift.yml@a1a0d42e4438f7bb9e4084c84889f4506a01f01d # v0.55.2
     with:
       app: foxhound-login
       admins-url: https://foxhoundapp.com/admin/access-drift
