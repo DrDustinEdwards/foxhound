@@ -24,6 +24,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 vi.mock("@dustinedwards/site-runtime/context", () => ({
   cloudflareContext: Symbol("cloudflare") as unknown,
+  previewContext: () => Symbol("preview") as unknown,
 }));
 
 const { loader } = await import("~/routes/blog/post");
@@ -33,7 +34,10 @@ function loaderArgs(slug: string) {
   return {
     params: { slug },
     request: new Request(`https://foxhoundapp.com/blog/${slug}`),
-    context: { get: () => ({ env: { DB: {} } }) },
+    // Only the Cloudflare context holds anything; the preview draft is null, as on a reader's request.
+    context: {
+      get: (key: symbol) => (String(key) === "Symbol(cloudflare)" ? { env: { DB: {} } } : null),
+    },
   } as unknown as Parameters<typeof loader>[0];
 }
 
