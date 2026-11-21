@@ -200,8 +200,11 @@ export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | nu
     .from(blogPosts)
     .where(and(eq(blogPosts.slug, slug), eq(blogPosts.published, true)))
     .limit(1);
-  const r = rows[0];
-  if (!r) return null;
+  return rows[0] ? toPost(rows[0]) : null;
+}
+
+/** A post row as the post page reads it, the stored one or Carrel's draft in its place. */
+export function toPost(r: typeof blogPosts.$inferSelect): BlogPost {
   return {
     ...toSummary(r),
     body: r.body,

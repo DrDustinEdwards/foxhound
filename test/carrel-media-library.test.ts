@@ -10,7 +10,7 @@ import { serializePostSource } from "~/lib/carrel/source";
 import { loader as mediaLoader } from "~/routes/files/media";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
-import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over, renderDraft } from "./helpers/inmemory-db";
 
 // The media route reads the index through getDb(env).
 const route = vi.hoisted(() => ({ db: undefined as unknown }));
@@ -167,7 +167,7 @@ function setup() {
   } as unknown as Env;
   const api = createSiteApi({
     adapter: {
-      ...carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite))),
+      ...carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)), { renderDocument: renderDraft }),
       media: carrelMediaAdapter(env, db),
     },
     key: KEY,

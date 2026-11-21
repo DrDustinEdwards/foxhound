@@ -13,6 +13,7 @@ import type { ServerBuild } from "react-router";
 
 import { markdownCopies } from "@drdustinedwards/site-helpers/markdown-copy";
 import { setPageRenderer } from "~/lib/page-dates.server";
+import { draftPostContext } from "~/lib/preview-context";
 import { siteFiles } from "~/lib/seo/files";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { codePagePaths } from "~/routes/files/sitemap";
@@ -67,12 +68,10 @@ const rateLimit: GatewayStep<Env> = (request, env) => enforceRateLimit(request, 
  */
 const carrel = siteApiStep<Env>(async (env, kit) => {
   const { carrelSiteApi } = await import("~/lib/carrel/handler.server");
-  // The root's stylesheets, then the blog post route's (its prose blocks), so a preview is drawn as /blog/<slug> draws
-  // the post.
-  return carrelSiteApi(env, [
-    ...(await kit.stylesheets()),
-    ...((await serverBuild()).assets.routes["routes/blog/post"]?.css ?? []),
-  ]);
+  // A preview renders the draft through the post's own route in-process (kit.render), never stored.
+  return carrelSiteApi(env, (request, draft) =>
+    kit.render(request, { set: (context) => context.set(draftPostContext, draft) }),
+  );
 });
 
 /**

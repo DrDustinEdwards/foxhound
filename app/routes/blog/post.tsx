@@ -32,6 +32,7 @@ import {
   getPreviousPost,
 } from "~/lib/blog/queries.server";
 import { articleJsonLd, organizationJsonLd, personJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { draftPostContext } from "~/lib/preview-context";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
@@ -68,7 +69,8 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   );
   if (gone) throw gone;
 
-  const post = await getPostBySlug(db, params.slug);
+  // Carrel's preview renders its draft here, in-process (workers/app.ts); no request from outside sets it.
+  const post = context.get(draftPostContext) ?? (await getPostBySlug(db, params.slug));
   if (!post) throw new Response("Not found", { status: 404 });
 
   const [{ html, toc, faq, version }, cover, share, previous, next, related] = await Promise.all([

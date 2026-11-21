@@ -2,7 +2,6 @@ import {
   ContentTag,
   contentVersion,
   NotFoundError,
-  previewDocument,
   RefusedError,
   VersionConflictError,
   type ContentDoc,
@@ -15,7 +14,6 @@ import {
 import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
-import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import { and, desc, eq, isNull, like, ne } from "drizzle-orm";
 
 import { blogPostLinks, blogPostVersions, blogPosts, type Db } from "~/db";
@@ -27,12 +25,13 @@ import {
   setTrashed,
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
-import { renderMarkdown } from "~/lib/blog/markdown.server";
 import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
 
 import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
+import { toPost, type BlogPost } from "~/lib/blog/queries.server";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { isSlug, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
+import { readingMinutes, wordCount } from "@drdustinedwards/site-helpers/text";
 
 // The Carrel site adapter over Foxhound's blog. Posts live in
 // D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
@@ -73,6 +72,9 @@ import { isSlug, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
 // where site-api leaves the address answering 410 (workers/app.ts, tombstoned), and Carrel warns first with the posts
 // `backlinks` names, since a delete drops the post's further-reading links. Each write's revision is credited to the
 // actor Carrel sends.
+//
+// PREVIEW. The draft renders through /blog/<slug> itself, in-process (workers/app.ts, kit.render, with the draft on
+// draftPostContext), so it has the site's header, footer and everything the page shows, as on Germomics.
 //
 // The media group is media-adapter.server.ts (the blog's media library), joined
 // to this adapter in handler.server.ts. Cover addresses stay as they are:
@@ -211,11 +213,14 @@ function notTrashed(row: PostRow) {
   if (row.trashedAt) throw new RefusedError("This post is in the trash. Restore it first.");
 }
 
-/** `stylesheets` are the root route's, for the preview; the cron passes none. */
+/** The site's own render of a route (workers/app.ts), with the draft on its context; nothing stored or cached. */
+export type RenderDocument = (request: Request, draft: BlogPost) => Promise<Response>;
+
+/** `renderDocument` draws the preview through the post's own route; the cron has none. */
 export function carrelAdapter(
   db: Db,
   schedules: D1ScheduledUpdates,
-  stylesheets: string[] = [],
+  options: { renderDocument?: RenderDocument } = {},
 ): SiteAdapter {
   async function load(id: string): Promise<Post | null> {
     const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
@@ -675,19 +680,54 @@ export function carrelAdapter(
 
     renderVersion: RENDER_VERSION,
 
-    // The body as /blog/<slug> renders it, in the site's own stylesheets: an
-    // unsaved source has no row for the route to load.
+    // The draft through the post's own route and layout, in-process (workers/app.ts), so it has the site's header and
+    // footer and everything the page shows.
     preview: {
-      async render(input) {
-        const post = parse(input.source, { preview: true });
-        const { html } = await renderMarkdown(db, post.body);
-        return previewDocument({
-          title: post.title,
-          body: `<main class="fh-post-preview"><article class="h-entry"><h1 class="fh-post-title fh-page-title fh-medium fh-text">${escapeHtml(post.title)}</h1><div class="blog-prose e-content" data-context="prose">${html}</div></article></main>`,
-          origin: SITE_ORIGIN,
-          stylesheets,
-          attributes: { "data-theme": "light" },
-        });
+      async render({ id, source }) {
+        const { renderDocument } = options;
+        if (!renderDocument) throw new Error("the document renderer is not on this request");
+        const post = parse(source, { preview: true });
+        const current = id ? ((await load(id))?.row ?? null) : null;
+        const slug = current?.slug ?? post.slug ?? (id && isSlug(id) ? id : "preview");
+        const now = new Date();
+        const response = await renderDocument(
+          new Request(new URL(`/blog/${slug}`, SITE_ORIGIN), { headers: { Accept: "text/html" } }),
+          toPost({
+            id: current?.id ?? id ?? slug,
+            slug,
+            title: post.title,
+            excerpt: post.excerpt,
+            body: post.body,
+            coverImageUrl: current?.coverImageUrl ?? null,
+            coverImageAlt: current?.coverImageAlt ?? null,
+            published: current?.published ?? false,
+            publishedAt: current?.publishedAt ?? null,
+            createdAt: current?.createdAt ?? now,
+            updatedAt: current?.updatedAt ?? now,
+            author: post.author,
+            tags: post.tags,
+            ogTitle: post.searchTitle ?? null,
+            ogDescription: post.description ?? null,
+            canonicalUrl: post.canonical ?? null,
+            ogImageUrl: post.image ?? null,
+            ogImageAlt: post.imageAlt ?? null,
+            noindex: post.noindex ?? false,
+            showUpdatedAt: current?.showUpdatedAt ?? true,
+            showPublishedAt: current?.showPublishedAt ?? true,
+            featured: post.featured,
+            readingMinutes: readingMinutes(wordCount(post.body)),
+            trashedAt: null,
+          }),
+        );
+        if (!response.ok)
+          throw new RefusedError(
+            `The preview did not render: /blog/${slug} answered ${response.status}.`,
+          );
+        // The page's own robots tag indexes it; the strictest wins, so this keeps a preview out of every index.
+        return (await response.text()).replace(
+          /<head\b[^>]*>/i,
+          (head) => `${head}<meta name="robots" content="noindex, nofollow">`,
+        );
       },
     },
   };

@@ -11,7 +11,7 @@ import { getPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
 import { parsePostSource, serializePostSource } from "~/lib/carrel/source";
 
-import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
+import { createInMemoryDb, d1Over, renderDraft } from "./helpers/inmemory-db";
 
 const KEY = "k".repeat(40);
 const ORIGIN = "https://foxhoundapp.com";
@@ -20,7 +20,9 @@ const BASE = `${ORIGIN}/api/carrel/v1`;
 function setup(limit = () => true) {
   const { db, sqlite } = createInMemoryDb();
   let adapterCalls = 0;
-  const adapter = carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)));
+  const adapter = carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)), {
+    renderDocument: renderDraft,
+  });
   const counted = new Proxy(adapter.content, {
     get(target, prop, receiver) {
       adapterCalls++;
