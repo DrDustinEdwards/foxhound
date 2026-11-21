@@ -17,15 +17,6 @@
       padding-block: var(--space-9-5);
     }
   }
-  .fh-audit-block {
-    margin-bottom: var(--space-6);
-  }
-  .fh-audit-label {
-    letter-spacing: var(--tracking-widest);
-    --_bg: color-mix(in srgb, var(--primary) 13%, transparent);
-    --_fg: var(--accent-text);
-    --_line: color-mix(in srgb, var(--primary) 27%, transparent);
-  }
   .fh-audit-title {
     margin-bottom: var(--space-5-5);
     font-size: clamp(var(--title-2-5), 5vw, var(--display-4));

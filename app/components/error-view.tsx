@@ -51,22 +51,16 @@ export function recovaWords(error: unknown, isDev: boolean): { title: string; te
   if (isRouteErrorResponse(error) && error.status === 404) {
     return {
       title: "Page not found",
-      text: "The page you're looking for doesn't exist or has been moved.",
+      text: "Nothing is at this address.",
     };
   }
   return { title: "Something went wrong", text: errorDetails(error, isDev) };
 }
 
-// Recova's ways out beyond home (its not-found.tsx and error.tsx): the dashboard, and on a 404 the
-// demo, in ErrorPage's own row after Go home (its `actions`). ErrorPage draws Go home (and Try again
-// on a server error) itself.
-export function errorActions(notFound: boolean) {
-  return (
-    <>
-      <ButtonLink href="/recovery/dashboard">Go to dashboard</ButtonLink>
-      {notFound ? <ButtonLink href="/demos/recovery">View demo</ButtonLink> : null}
-    </>
-  );
+// The way out beyond home on a server error: the dashboard, in ErrorPage's own row after Go home
+// (its `actions`). A 404 is the family's: title, one line and Go home.
+export function errorActions() {
+  return <ButtonLink href="/recovery/dashboard">Go to dashboard</ButtonLink>;
 }
 
 // 410 IS THE WITHDRAWAL STATUS IN THIS APP, and the only thrower is the blog post route. It is a
@@ -97,7 +91,7 @@ export function MarketingError({ error }: { error: unknown }) {
         {...words}
         homeLabel={HOME_LABEL}
         gone={GONE}
-        actions={status === 410 ? undefined : errorActions(status === 404)}
+        actions={status === 410 || status === 404 ? undefined : errorActions()}
         dev={import.meta.env.DEV}
       />
     </div>

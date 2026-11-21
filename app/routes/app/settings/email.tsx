@@ -286,12 +286,10 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             <div className="fh-email-group">
               {/* Recova puts help under the control. */}
               <TextField
-                helpPlacement="after"
                 announce
                 name="replyToEmail"
                 type="email"
                 label="Reply-to email"
-                help="Customer replies go here."
                 defaultValue={replyToEmail}
                 placeholder="support@yourapp.com"
                 maxLength={REPLY_TO_EMAIL_MAX_LENGTH}
