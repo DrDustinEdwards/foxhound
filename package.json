@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.69.1",
-    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.53.2",
+    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.53.3",
     "@modelcontextprotocol/conformance": "0.2.0-alpha.12",
     "@react-router/dev": "8.5.1",
     "@types/better-sqlite3": "7.6.13",
@@ -79,7 +79,7 @@
     "playwright": "1.64.1",
     "typescript": "5.9.3",
     "vite": "8.3.8",
-    "vitest": "3.2.7",
+    "vitest": "4.1.12",
     "wrangler": "4.152.0"
   }
 }
