@@ -112,6 +112,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
         width={SIDE_WIDTH}
         draw={drawWith(barChart, {
           title,
+          source: { name: "Stripe payments recovered by Foxhound" },
           data: rows,
           x: "Day" as const,
           xType: "time" as const,
@@ -132,7 +133,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
           height: REVENUE_HEIGHT,
         })}
       >
-        <div className="fh-recchart-axis fh-tiny fh-quiet">
+        <div className="fh-recchart-axis fh-caption fh-quiet">
           <span>{days}d ago</span>
           <span>Today</span>
         </div>
