@@ -39,7 +39,7 @@ jobs:
       pull-requests: write
       id-token: write
       checks: write
-    uses: DrDustinEdwards/devkit/.github/workflows/pr.yml@4005284e04e658021f274855ea982bb98fdba112 # v0.55.7
+    uses: DrDustinEdwards/devkit/.github/workflows/pr.yml@2dafea855b9156133ea1bb6310ff95c7dab8f58e # v0.55.9
     with:
       review: true
       # ci.yml's verify job runs devkit-no-bloat (npm run check:bloat).
