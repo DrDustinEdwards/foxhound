@@ -557,8 +557,6 @@ function ProfileForm({
             <Field
               announce
               label="Monthly Recurring Revenue"
-              help="Used to personalize recovery emails."
-              helpPlacement="after"
               error={fieldError("merchantMrrSelfReported")}
             >
               {(p) => (

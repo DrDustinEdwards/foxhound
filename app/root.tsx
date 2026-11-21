@@ -157,7 +157,7 @@ export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
         className="fh-root-block-3"
         siteHeader={<ErrorBar />}
         siteFooter={<ErrorFooter />}
-        actions={errorActions(routeError?.status === 404)}
+        actions={routeError?.status === 404 ? undefined : errorActions()}
         dev={import.meta.env.DEV}
       />
     </div>

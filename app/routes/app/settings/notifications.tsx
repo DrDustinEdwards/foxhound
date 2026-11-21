@@ -235,7 +235,6 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
                 name="notificationEmail"
                 type="email"
                 label="Notification email"
-                help="Leave blank to turn notification emails off."
                 defaultValue={loaderData.notificationEmail}
               />
             </div>
