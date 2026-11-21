@@ -89,9 +89,7 @@ function Stat({
 }) {
   return (
     <div className="fh-queue-block">
-      <div className="fh-label fh-queue-block-2 fh-queue-label-text">
-        {label}
-      </div>
+      <div className="fh-label fh-queue-block-2 fh-queue-label-text">{label}</div>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
@@ -136,16 +134,10 @@ export function RecoveryQueueDemo() {
         decorative
         description="An illustration of the recovery queue working three sample failed payments. A Foxhound email sequence runs, a retry is attempted, and two of the three payments are recovered."
         address="foxhoundapp.com/recovery/dashboard"
-        foot={
-          <span className="fh-label fh-queue-label-text">
-            Sample data
-          </span>
-        }
+        foot={<span className="fh-label fh-queue-label-text">Sample data</span>}
       >
         <div className="fh-queue-row-2">
-          <span className="fh-label">
-            Recovery queue
-          </span>
+          <span className="fh-label">Recovery queue</span>
           <div className="fh-mk-inline-wide">
             <span
               className="fh-queue-label"

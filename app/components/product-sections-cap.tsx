@@ -60,11 +60,7 @@ function PrimaryLink({ cta }: { cta: CTA }) {
 
 /** A section's name as its heading, centered, as Recova's. */
 function SectionLabel({ children, className }: { children: React.ReactNode; className: string }) {
-  return (
-    <h2 className={`fh-label ${className} fh-center`}>
-      {children}
-    </h2>
-  );
+  return <h2 className={`fh-label ${className} fh-center`}>{children}</h2>;
 }
 
 export function ProductHero({

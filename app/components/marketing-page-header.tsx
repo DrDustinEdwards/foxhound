@@ -1,6 +1,5 @@
 import { SectionTrail } from "~/components/section-trail";
 
-
 // Ported from legacy components/MarketingPageHeader.tsx: the shared
 // eyebrow/title/subtext block. Legacy uses it on exactly seven marketing pages
 // (pricing, products, demos, docs, features, privacy, terms), verified against
