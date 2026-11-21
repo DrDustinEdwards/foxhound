@@ -982,7 +982,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                     Previous
                   </Link>
                 ) : (
-                  // oxlint-disable-next-line jsx-a11y/anchor-is-valid, jsx-a11y/no-redundant-roles -- a disabled page link: no href, role="link" and aria-disabled keep it announced as a link
+                  // oxlint-disable-next-line jsx-a11y/anchor-is-valid -- a disabled page link: no href, role="link" and aria-disabled keep it announced as a link
                   <a className="cap-page" data-kind="prev" role="link" aria-disabled="true">
                     Previous
                   </a>
@@ -999,7 +999,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                     Next
                   </Link>
                 ) : (
-                  // oxlint-disable-next-line jsx-a11y/anchor-is-valid, jsx-a11y/no-redundant-roles -- a disabled page link: no href, role="link" and aria-disabled keep it announced as a link
+                  // oxlint-disable-next-line jsx-a11y/anchor-is-valid -- a disabled page link: no href, role="link" and aria-disabled keep it announced as a link
                   <a className="cap-page" data-kind="next" role="link" aria-disabled="true">
                     Next
                   </a>
