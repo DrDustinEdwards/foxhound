@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 
+import { blogSlugRedirects } from "~/db/schema";
+
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // 391: TWO POSTS ARE WITHDRAWN, AND THE OLD URL SAYS SO.
@@ -73,5 +75,20 @@ describe("PLANT 2: the withdrawal does not catch anything else", () => {
     // statement.
     const res = (await thrownFrom("a-post-that-never-existed")) as Response;
     expect(res.status).toBe(404);
+  });
+});
+
+describe("PLANT 3: a renamed post's old address moves permanently", () => {
+  it("answers 301 to the new slug, query kept, where no live post holds the old one", async () => {
+    const args = loaderArgs("why-cards-fail");
+    await (harness.db as ReturnType<typeof createInMemoryDb>["db"])
+      .insert(blogSlugRedirects)
+      .values({ fromSlug: "why-cards-fail", toSlug: "why-cards-decline", createdAt: new Date() });
+    args.request = new Request("https://foxhoundapp.com/blog/why-cards-fail?ref=a");
+    const res = (await loader(args).catch((err: unknown) => err)) as Response;
+    expect([res.status, res.headers.get("location")]).toEqual([
+      301,
+      "https://foxhoundapp.com/blog/why-cards-decline?ref=a",
+    ]);
   });
 });
