@@ -14,6 +14,7 @@ import type { Route } from "./+types/root";
 import { ErrorPage } from "capsomer/react/error-page";
 import { LinkPrefetch } from "capsomer/react/link";
 import "./app.css";
+import { SITE_SCRIPT } from "virtual:islands";
 import {
   ErrorBar,
   ErrorFooter,
@@ -124,7 +125,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </>
         ) : (
           // Same-origin, so script-src 'self' allows it; the nonce is renewed per reader like every other.
-          <script src="/site.js" defer nonce={nonce} />
+          <script {...SITE_SCRIPT} defer nonce={nonce} />
         )}
       </body>
     </html>

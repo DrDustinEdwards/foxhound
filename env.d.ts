@@ -110,3 +110,11 @@ interface EmailSendMessage {
 interface EmailSendBinding {
   send(message: EmailSendMessage): Promise<{ id?: string; messageId?: string } | void>;
 }
+
+declare module "virtual:islands" {
+  export const SITE_SCRIPT: Readonly<{
+    src: string;
+    integrity?: string;
+    crossOrigin?: "anonymous";
+  }>;
+}
