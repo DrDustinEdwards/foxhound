@@ -112,7 +112,7 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
           data-gap="5"
           data-ruled={variant === "marketing" ? "" : undefined}
         >
-          <img src="/favicon.svg" alt="" width={28} height={28} decoding="async" aria-hidden />
+          <span className="fh-footer-mark" aria-hidden />
           <span className="cap-site-footer-note fh-mono fh-tiny">{copyright("Foxhound")}.</span>
           {variant === "auth" ? (
             <nav
