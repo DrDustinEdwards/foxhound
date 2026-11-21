@@ -5,7 +5,7 @@ import { d1SiteApiStore } from "@dustinedwards/site-api/store";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
-import { blogPostVersions, blogPosts } from "~/db";
+import { blogPostLinks, blogPostVersions, blogPosts } from "~/db";
 import { updatePostWithVersion } from "~/lib/blog/admin-queries.server";
 import { getPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
@@ -330,6 +330,67 @@ describe("content round trip against the real schema", () => {
     // Its address now holds a tombstone (the Worker answers 410 through site-api's tombstoned()); one never published does not.
     expect(await d1SiteApiStore(d1Over(t.sqlite)).isGone("/blog/why-cards-decline")).toBe(true);
     expect(await d1SiteApiStore(d1Over(t.sqlite)).isGone("/blog/never-existed")).toBe(false);
+  });
+
+  it("a delete is warned by the posts that link to the post, and a revision names who saved it", async () => {
+    const t = setup();
+    const put = (id: string, body: string, slug: string, actor?: { name: string }) =>
+      t.call(`/content/${id}/draft`, {
+        method: "PUT",
+        body: JSON.stringify({
+          source: serializePostSource({
+            title: id,
+            slug,
+            excerpt: "x",
+            author: "Foxhound",
+            tags: [],
+            featured: false,
+            body,
+          }),
+          expectedVersion: null,
+          changeId: `c-${id}`,
+          actor,
+        }),
+      });
+    await put("target", "Text.\n", "target");
+    await put("in-text", "See [the target](/blog/target).\n", "in-text");
+    await put("further", "Nothing here.\n", "further");
+    await put("unrelated", "See /blog/target-two.\n", "unrelated");
+    await t.db.insert(blogPostLinks).values({
+      id: "l1",
+      sourceId: "further",
+      targetId: "target",
+      position: 0,
+      createdAt: new Date(),
+    });
+    const { items } = (await (await t.call("/content/target/backlinks")).json()) as {
+      items: Array<{ id: string }>;
+    };
+    expect(items.map((i) => i.id)).toEqual(["further", "in-text"]);
+
+    const [row] = await t.db.select().from(blogPosts).where(eq(blogPosts.id, "target"));
+    const saved = await t.call("/content/target/draft", {
+      method: "PUT",
+      body: JSON.stringify({
+        source: serializePostSource({
+          title: "target",
+          slug: "target",
+          excerpt: "x",
+          author: "Foxhound",
+          tags: [],
+          featured: false,
+          body: "Edited.\n",
+        }),
+        expectedVersion: String(row.updatedAt.getTime()),
+        changeId: "c-edit",
+        actor: { name: "Julie" },
+      }),
+    });
+    expect(saved.status).toBe(200);
+    const revisions = (await (await t.call("/content/target/revisions")).json()) as {
+      items: Array<{ author: string }>;
+    };
+    expect(revisions.items[1]!.author).toBe("Julie");
   });
 
   it("the package's own conformance suite passes against the adapter", async () => {

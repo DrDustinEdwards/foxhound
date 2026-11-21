@@ -16,9 +16,9 @@ import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
 import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
 import { escapeHtml } from "@dustinedwards/site-runtime/html";
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, like, ne } from "drizzle-orm";
 
-import { blogPostVersions, blogPosts, type Db } from "~/db";
+import { blogPostLinks, blogPostVersions, blogPosts, type Db } from "~/db";
 import {
   createPost,
   deletePost,
@@ -68,6 +68,12 @@ import { isSlug, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
 // through Prelum on every read (markdown.server.ts), so the render version meta
 // names is the installed one.
 //
+// LIVE SAVES AND DELETES. A save of a live post edits it live (there is no separate draft row), as on Foxing and
+// Germomics; Carrel counts that write as a publish and asks for the publish role. A delete is only from the trash,
+// where site-api leaves the address answering 410 (workers/app.ts, tombstoned), and Carrel warns first with the posts
+// `backlinks` names, since a delete drops the post's further-reading links. Each write's revision is credited to the
+// actor Carrel sends.
+//
 // The media group is media-adapter.server.ts (the blog's media library), joined
 // to this adapter in handler.server.ts. Cover addresses stay as they are:
 // Carrel's post source does not carry them. The search fields it does carry
@@ -82,6 +88,8 @@ const CARREL_SITE = {
 } as const;
 
 const KIND = "post";
+/** The signed-in person Carrel sends with a write (site-api C2). */
+type Actor = { name: string };
 const DEFAULT_AUTHOR = "Foxhound";
 const REVISION_PREFIX = "rev-";
 /** Every schedule is due by then, so `due` at this time lists every row. A
@@ -246,6 +254,7 @@ export function carrelAdapter(
     source: string,
     expectedVersion: string | null,
     changeId: string,
+    actor?: Actor,
   ) {
     // Version checks come BEFORE parsing, so a stale or mismatched write is a
     // 409 whatever its body holds (the conformance suite sends one with a
@@ -287,15 +296,15 @@ export function carrelAdapter(
       return;
     }
     const { row: current } = await mustMatch(id, expectedVersion);
-    await writeSource(current, parse(source), changeId);
+    await writeSource(current, parse(source), changeId, actor);
   }
 
-  async function writeSource(current: PostRow, post: PostSource, changeId: string) {
+  async function writeSource(current: PostRow, post: PostSource, changeId: string, actor?: Actor) {
     keepSlug(post, current);
     const saved = await updatePostWithVersion(
       db,
       current.id,
-      `carrel:${changeId}`,
+      actor?.name ?? `carrel:${changeId}`,
       current.updatedAt,
       {
         title: post.title,
@@ -395,7 +404,7 @@ export function carrelAdapter(
       },
 
       async saveDraft(id, input) {
-        await save(id, input.source, input.expectedVersion, input.changeId);
+        await save(id, input.source, input.expectedVersion, input.changeId, input.actor);
         // A draft that was scheduled goes back to draft when it is edited.
         const post = await load(id);
         if (post && !post.row.published && post.pending) await schedules.remove(id).run();
@@ -405,7 +414,7 @@ export function carrelAdapter(
       async publish(id, input) {
         notTrashed((await mustMatch(id, input.expectedVersion)).row);
         if (input.source !== undefined) {
-          await save(id, input.source, input.expectedVersion, input.changeId);
+          await save(id, input.source, input.expectedVersion, input.changeId, input.actor);
         }
         // What goes live is this publish, so a waiting schedule is dropped.
         await schedules.remove(id).run();
@@ -429,7 +438,8 @@ export function carrelAdapter(
           input.publishAt,
           input.changeId,
         );
-        if (input.source !== undefined) await writeSource(row, parse(input.source), input.changeId);
+        if (input.source !== undefined)
+          await writeSource(row, parse(input.source), input.changeId, input.actor);
         return writeResult(id, input.changeId);
       },
 
@@ -443,7 +453,7 @@ export function carrelAdapter(
       // The tags field of the post's source, written alone. A live post's page changes with it.
       async setTags(id, input) {
         const { row } = await held(id, input.expectedVersion);
-        await writeSource(row, { ...sourceOf(row), tags: input.tags }, input.changeId);
+        await writeSource(row, { ...sourceOf(row), tags: input.tags }, input.changeId, input.actor);
         return writeResult(id, input.changeId);
       },
 
@@ -512,6 +522,44 @@ export function carrelAdapter(
           await schedules.remove(id).run();
         }
         return { ...(await writeResult(newId, input.changeId)), previousPath };
+      },
+
+      // The posts that link to this one, by a further-reading link or by its address in their text, so a trash or a
+      // delete warns first (a delete drops the further-reading links).
+      async backlinks(id) {
+        const post = await load(id);
+        if (!post) return [];
+        const { slug } = post.row;
+        const linked = await db
+          .select({ id: blogPosts.id, title: blogPosts.title, slug: blogPosts.slug })
+          .from(blogPostLinks)
+          .innerJoin(blogPosts, eq(blogPosts.id, blogPostLinks.sourceId))
+          .where(and(eq(blogPostLinks.targetId, id), isNull(blogPosts.trashedAt)));
+        const inText = new RegExp(
+          `(?:\\]\\(|href=")(?:${SITE_ORIGIN.replace(/[.]/g, "\\.")})?/blog/${slug}(?=[/?#)"\\s]|$)`,
+        );
+        const mentioning = (
+          await db
+            .select({
+              id: blogPosts.id,
+              title: blogPosts.title,
+              slug: blogPosts.slug,
+              body: blogPosts.body,
+            })
+            .from(blogPosts)
+            .where(
+              and(
+                ne(blogPosts.id, id),
+                isNull(blogPosts.trashedAt),
+                like(blogPosts.body, `%/blog/${slug}%`),
+              ),
+            )
+        ).filter((r) => inText.test(r.body));
+        const byId = new Map([...linked, ...mentioning].map((r) => [r.id, r]));
+        return [...byId.values()]
+          .filter((r) => r.id !== id)
+          .sort((a, b) => a.slug.localeCompare(b.slug))
+          .map((r) => ({ id: r.id, title: r.title, path: `/blog/${r.slug}` }));
       },
 
       async revisions(id) {
