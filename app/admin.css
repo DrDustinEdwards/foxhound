@@ -75,13 +75,16 @@
    trigger is neither, so it is raised the same way or a pointer could never
    reach it. Capsomer's time keeps the exact time out of rows for the sake of
    the row's single tab stop; the review's hover wins here, at the cost of one
-   more stop per row. A time in a table cell gets the same 24 px target (the
-   span only: a focusable payload <pre> in a cell keeps its block layout). */
-.fh-admin .cap-row .cap-row-meta [tabindex],
-.fh-admin .cap-table td > span[tabindex] {
+   more stop per row. */
+.fh-admin .cap-row .cap-row-meta [tabindex] {
   position: relative;
   z-index: 1;
-  /* A 24 px target (WCAG 2.2, 2.5.8) without growing the row. */
+}
+
+/* A time in a row or table cell gets a 24 px target (WCAG 2.2, 2.5.8) without growing the
+   row (the span only: a focusable payload <pre> in a cell keeps its block layout). */
+.fh-admin .cap-row .cap-row-meta [tabindex],
+.fh-admin .cap-table td > span[tabindex] {
   display: inline-block;
   min-block-size: 24px;
   line-height: var(--line-box-6);
@@ -108,10 +111,6 @@
     min-height: 1.5rem;
     align-items: center;
     gap: var(--space-2);
-  }
-  .fh-above-row {
-    position: relative;
-    z-index: 1;
   }
   .fh-cron-schedule {
     margin-left: var(--space-3);
