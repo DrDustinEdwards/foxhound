@@ -164,7 +164,7 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@86b2b7c4d1a750a506a706ead3f6a1c9485eb856 # v0.53.3
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@d44675809ea4be692d8c24225337386e257956b2 # v0.55.1
     with:
       worker-name: foxhound
       # site-runtime withAdminIdle's key and audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
@@ -195,7 +195,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@86b2b7c4d1a750a506a706ead3f6a1c9485eb856 # v0.53.3
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@d44675809ea4be692d8c24225337386e257956b2 # v0.55.1
     with:
       worker-name: foxhound-admin-mcp
       # site-runtime audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
