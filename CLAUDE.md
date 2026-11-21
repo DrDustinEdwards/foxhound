@@ -2,12 +2,21 @@
 
 Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscription intelligence for Stripe merchants, the Cloudflare-native rebuild of Recova. React Router 8 on Workers, Drizzle on D1, Durable Objects for money writes, Queues for email events and audits, Access for the admin. The legacy Recova app is the separate, frozen repo DrDustinEdwards/recova.
 
-## Rules that come first
+## Rules every repo shares
 
-- Tests: keep the minimal set (a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
-- Read `foxhound/core.md` in Capsid with this file. Before writing anything another site might have, read what the sites share: https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's shared-code check fails on a copy). Fees are `foxhound/PRICING.md`; read it before touching billing.
-- UI copy: let the layout explain. No eyebrows, restating subtitles, "this page lets you" intros, descriptions under obvious buttons, hints a label already gives, repeated captions or empty-state essays; labels, accessible names, errors, one-way warnings and legal text stay (Dustin, 2026-11-18; Capsid capsid/conventions.md).
-- Browser support: devkit's docs/browser-support.md (Baseline Widely available freely; Newly available with a small fallback; Limited only feature-detected; no polyfills).
+- **Tests.** Keep the minimal set (a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives), and remove any test that pins design, repeats coverage or has never caught a real mistake, unless it guards a harm that cannot be undone.
+- **UI copy.** Let the layout explain. No eyebrows, restating subtitles, "this page lets you" intros, descriptions under obvious buttons, hints a label already gives, repeated captions or empty-state essays; labels, accessible names, errors, one-way warnings and legal text stay (Dustin, 2026-11-18; Capsid capsid/conventions.md).
+- **Shared code.** Before writing anything another site might have, read https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md (CI's shared-code check fails on a copy). Change shared code in place and delete what a change replaces in the same PR.
+- **Browser support.** devkit's docs/browser-support.md (Baseline Widely available freely; Newly available with a small fallback; Limited only feature-detected; no polyfills).
+- **Secrets.** Never commit or print a key, token, `.dev.vars` or `.env`.
+- **Reproduce first.** A report that something is broken names a cause; reproduce the failure before fixing it, and report red before and green after.
+- **Deploys.** A merge to the default branch deploys (CI's deploy job); never deploy from a session.
+- **D1.** Migrations are additive: CI applies the ones that only add and refuses a drop, rename or row delete for a hand run; never hand-run production DDL. `wrangler d1 export` fails on FTS5 tables, so back up and restore with d1-dump (its README); never export an `*_fts` table. Checking backups, backing up now and running a scheduled job now are Capsid Admin's, for every site (`/api/operator`, site-runtime `./operator`).
+- **Site copy and AI.** Copy describes only what the current build does. An AI provider key stays on the server, never in a client.
+
+## Rules for this repo
+
+- Read `foxhound/core.md` in Capsid with this file. Fees are `foxhound/PRICING.md`; read it before touching billing.
 - Recova is the spec (Dustin: "I want the new site to be like the old site, except built to be native on Cloudflare"): its content, layout, widths, text sizes and features, with Capsomer's components in Recova's amber and the shared family pieces in place of Foxhound's own. Shared pieces, their defaults, not copying Recova's bugs, and plain improvements need no ruling; a change people can see is approved the way every visual PR is, by Dustin's yes on its screenshots. Only dropping a Recova feature or content needs his quoted word in `foxhound/parity/APPROVED-DIFFERENCES.md`, which also lists what is deliberately not built.
 
 ## Commands
@@ -15,7 +24,7 @@ Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscri
 - `npm run check:all` (typecheck, lint, test, tokens, gates) before a push. `npm run db:generate` and `npm run db:migrate` for migrations.
 - One Worker `foxhound` and one D1 `foxhound`, no `--env` anywhere: every deploy is production. The only second Worker is the admin MCP in `mcp/`, whose only bindings are a service binding to `foxhound`, its own OAuth KV, rate limit and tool-call log, and the R2 bucket for that log's copies, so it can never touch Stripe, D1 or money.
 - Read legacy code through Capsid's repo tools (`repo: "legacy"` or `"legacy-mcp"`), never by cloning it here. Legacy Supabase is read-only reference.
-- Public repo: never commit a key or real merchant data.
+- Public repo: never commit real merchant data.
 
 ## Hard rules
 
