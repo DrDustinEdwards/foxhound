@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
+import type { RecoveryTickDeps } from "~/lib/cron/recovery-tick";
 
 // Recova stopped card retries for a customer who won a dispute against the
 // merchant (handleDisputeClosed, process-recovery). This drives the real due-step
@@ -76,7 +77,7 @@ async function seed(disputeState: string) {
   return db;
 }
 
-const deps = (runRetry: ReturnType<typeof vi.fn>) => ({
+const deps = (runRetry: RecoveryTickDeps["runRetry"]) => ({
   runRetry,
   checkGuards: async () => ({ tickEnabled: true, accountEligible: true }),
   flipExhausted: async () => [],
