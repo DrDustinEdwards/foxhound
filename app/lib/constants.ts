@@ -918,9 +918,14 @@ export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * DAY_MS;
  *  repo, so it could not be read; this is Foxhound's own. */
 export const OAUTH_CODE_TTL_MS = 10 * MINUTE_MS;
 
-/** Recova's four OAuth limits (lib/constants.ts lines 116 to 119), unchanged:
- *  approve is per signed-in user, the other three per IP. */
+/** Recova's OAuth limits (lib/constants.ts lines 116 to 119): approve is per
+ *  signed-in user, token and revoke per IP. */
 export const RATE_LIMIT_OAUTH_APPROVE = { max: 20, windowMs: 60 * 1000 } as const;
 export const RATE_LIMIT_OAUTH_TOKEN = { max: 30, windowMs: 60 * 1000 } as const;
-export const RATE_LIMIT_OAUTH_REGISTER = { max: 10, windowMs: 60 * 60 * 1000 } as const;
+/** Registration: site-runtime's registrationLimited numbers, the limit every
+ *  family MCP door runs: five an hour from one address, counting every
+ *  registration, and thirty a day from everyone, counting only the allowlisted
+ *  ones (each of those writes an oauth_clients row). */
+export const RATE_LIMIT_OAUTH_REGISTER = { max: 5, windowMs: 60 * 60 * 1000 } as const;
+export const RATE_LIMIT_OAUTH_REGISTER_DAILY = { max: 30, windowMs: 24 * 60 * 60 * 1000 } as const;
 export const RATE_LIMIT_OAUTH_REVOKE = { max: 30, windowMs: 60 * 1000 } as const;

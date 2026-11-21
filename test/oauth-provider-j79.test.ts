@@ -36,6 +36,9 @@ const harness = vi.hoisted(() => ({
   db: null as unknown,
   session: null as unknown,
   allowed: true,
+  /** Buckets the limiter refuses, and whether it is down. */
+  limitedBuckets: [] as string[],
+  limiterDown: false,
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -80,7 +83,13 @@ function env(): Env {
     TOOL_CALL_LOG: toolCallLogStub(),
     RATE_LIMITER: {
       idFromName: (n: string) => n,
-      get: () => ({ hit: async () => ({ ok: harness.allowed, retryAfterSeconds: 60 }) }),
+      get: (name: string) => ({
+        hit: async () => {
+          if (harness.limiterDown) throw new Error("limiter down");
+          const ok = harness.allowed && !harness.limitedBuckets.includes(name.split(":")[0]);
+          return { ok, retryAfterSeconds: 60 };
+        },
+      }),
     },
   } as unknown as Env;
 }
@@ -95,6 +104,8 @@ beforeEach(() => {
   ({ sqlite, db } = createInMemoryDb());
   harness.db = db;
   harness.allowed = true;
+  harness.limitedBuckets = [];
+  harness.limiterDown = false;
   sqlite
     .prepare(
       "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
@@ -318,19 +329,27 @@ describe("registration (RFC 7591)", () => {
     expect(isAcceptableRedirectUri("not a url")).toBe(false);
   });
 
-  it("the route answers 201 and 429 once over Recova's 10 an hour", async () => {
-    const call = async () =>
+  it("the route limits per address, caps allowlisted registrations a day, and fails closed", async () => {
+    const call = async (redirect = CLAUDE_REDIRECT) =>
       (await registerRoute.action({
         request: new Request(`${ORIGIN}/api/oauth/register`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ client_name: "Claude", redirect_uris: [CLAUDE_REDIRECT] }),
+          body: JSON.stringify({ client_name: "Claude", redirect_uris: [redirect] }),
         }),
         context: context(),
         params: {},
       } as never)) as Response;
     expect((await call()).status).toBe(201);
-    harness.allowed = false;
+    // The daily cap counts only registrations the allowlist would take, so an
+    // unlisted one is still answered 400 for what it is.
+    harness.limitedBuckets = ["oauth-register-all"];
+    expect((await call()).status).toBe(429);
+    expect((await call("https://evil.example/cb")).status).toBe(400);
+    harness.limitedBuckets = ["oauth-register"];
+    expect((await call("https://evil.example/cb")).status).toBe(429);
+    harness.limitedBuckets = [];
+    harness.limiterDown = true;
     expect((await call()).status).toBe(429);
   });
 });
