@@ -213,6 +213,31 @@ function notTrashed(row: PostRow) {
   if (row.trashedAt) throw new RefusedError("This post is in the trash. Restore it first.");
 }
 
+/** A post's source as the columns a save writes; the cover and the date toggles are the post's own, which a source does not carry. */
+function fieldsOf(
+  post: PostSource,
+  kept: Pick<PostRow, "coverImageUrl" | "coverImageAlt" | "showUpdatedAt" | "showPublishedAt">,
+) {
+  return {
+    title: post.title,
+    excerpt: post.excerpt,
+    body: post.body,
+    author: post.author,
+    tags: post.tags,
+    featured: post.featured,
+    coverImageUrl: kept.coverImageUrl,
+    coverImageAlt: kept.coverImageAlt,
+    ogTitle: post.searchTitle ?? null,
+    ogDescription: post.description ?? null,
+    canonicalUrl: post.canonical ?? null,
+    ogImageUrl: post.image ?? null,
+    ogImageAlt: post.imageAlt ?? null,
+    noindex: post.noindex ?? false,
+    showUpdatedAt: kept.showUpdatedAt,
+    showPublishedAt: kept.showPublishedAt,
+  };
+}
+
 /** The site's own render of a route (workers/app.ts), with the draft on its context; nothing stored or cached. */
 export type RenderDocument = (request: Request, draft: BlogPost) => Promise<Response>;
 
@@ -311,24 +336,7 @@ export function carrelAdapter(
       current.id,
       actor?.name ?? `carrel:${changeId}`,
       current.updatedAt,
-      {
-        title: post.title,
-        excerpt: post.excerpt,
-        body: post.body,
-        author: post.author,
-        tags: post.tags,
-        featured: post.featured,
-        coverImageUrl: current.coverImageUrl,
-        coverImageAlt: current.coverImageAlt,
-        ogTitle: post.searchTitle ?? null,
-        ogDescription: post.description ?? null,
-        canonicalUrl: post.canonical ?? null,
-        ogImageUrl: post.image ?? null,
-        ogImageAlt: post.imageAlt ?? null,
-        noindex: post.noindex ?? false,
-        showUpdatedAt: current.showUpdatedAt,
-        showPublishedAt: current.showPublishedAt,
-      },
+      fieldsOf(post, current),
     );
     if (!saved) throw new VersionConflictError((await load(current.id))?.version ?? null);
   }
@@ -695,26 +703,16 @@ export function carrelAdapter(
           toPost({
             id: current?.id ?? id ?? slug,
             slug,
-            title: post.title,
-            excerpt: post.excerpt,
-            body: post.body,
-            coverImageUrl: current?.coverImageUrl ?? null,
-            coverImageAlt: current?.coverImageAlt ?? null,
+            ...fieldsOf(post, {
+              coverImageUrl: current?.coverImageUrl ?? null,
+              coverImageAlt: current?.coverImageAlt ?? null,
+              showUpdatedAt: current?.showUpdatedAt ?? true,
+              showPublishedAt: current?.showPublishedAt ?? true,
+            }),
             published: current?.published ?? false,
             publishedAt: current?.publishedAt ?? null,
             createdAt: current?.createdAt ?? now,
             updatedAt: current?.updatedAt ?? now,
-            author: post.author,
-            tags: post.tags,
-            ogTitle: post.searchTitle ?? null,
-            ogDescription: post.description ?? null,
-            canonicalUrl: post.canonical ?? null,
-            ogImageUrl: post.image ?? null,
-            ogImageAlt: post.imageAlt ?? null,
-            noindex: post.noindex ?? false,
-            showUpdatedAt: current?.showUpdatedAt ?? true,
-            showPublishedAt: current?.showPublishedAt ?? true,
-            featured: post.featured,
             readingMinutes: readingMinutes(wordCount(post.body)),
             trashedAt: null,
           }),

@@ -332,12 +332,11 @@ describe("content round trip against the real schema", () => {
     // Its address now holds a tombstone (the Worker answers 410 through site-api's tombstoned()); one never published does not.
     expect(await d1SiteApiStore(d1Over(t.sqlite)).isGone("/blog/why-cards-decline")).toBe(true);
     expect(await d1SiteApiStore(d1Over(t.sqlite)).isGone("/blog/never-existed")).toBe(false);
-  });
 
-  it("a delete is warned by the posts that link to the post, and a revision names who saved it", async () => {
-    const t = setup();
+    // A delete is warned by the posts that link to the post, and a revision names who saved it.
+    const u = setup();
     const put = (id: string, body: string, slug: string, actor?: { name: string }) =>
-      t.call(`/content/${id}/draft`, {
+      u.call(`/content/${id}/draft`, {
         method: "PUT",
         body: JSON.stringify({
           source: serializePostSource({
@@ -358,20 +357,20 @@ describe("content round trip against the real schema", () => {
     await put("in-text", "See [the target](/blog/target).\n", "in-text");
     await put("further", "Nothing here.\n", "further");
     await put("unrelated", "See /blog/target-two.\n", "unrelated");
-    await t.db.insert(blogPostLinks).values({
+    await u.db.insert(blogPostLinks).values({
       id: "l1",
       sourceId: "further",
       targetId: "target",
       position: 0,
       createdAt: new Date(),
     });
-    const { items } = (await (await t.call("/content/target/backlinks")).json()) as {
+    const { items } = (await (await u.call("/content/target/backlinks")).json()) as {
       items: Array<{ id: string }>;
     };
     expect(items.map((i) => i.id)).toEqual(["further", "in-text"]);
 
-    const [row] = await t.db.select().from(blogPosts).where(eq(blogPosts.id, "target"));
-    const saved = await t.call("/content/target/draft", {
+    const [row] = await u.db.select().from(blogPosts).where(eq(blogPosts.id, "target"));
+    const saved = await u.call("/content/target/draft", {
       method: "PUT",
       body: JSON.stringify({
         source: serializePostSource({
@@ -389,7 +388,7 @@ describe("content round trip against the real schema", () => {
       }),
     });
     expect(saved.status).toBe(200);
-    const revisions = (await (await t.call("/content/target/revisions")).json()) as {
+    const revisions = (await (await u.call("/content/target/revisions")).json()) as {
       items: Array<{ author: string }>;
     };
     expect(revisions.items[1]!.author).toBe("Julie");
