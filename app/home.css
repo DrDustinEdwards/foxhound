@@ -81,11 +81,11 @@
   }
   .fh-queue-block-3 {
     width: 100%;
-    /* The queue's mono labels are Recova's regular weight; its address and footnotes are faint. */
-    --cap-eyebrow-weight: var(--weight-regular);
+    /* The queue's labels are Recova's regular weight; its address and footnotes are faint. */
+    --fh-label-weight: var(--weight-regular);
   }
   .fh-queue-label-text {
-    --cap-eyebrow-color: var(--dim);
+    color: var(--dim);
   }
   .fh-queue-row-2 {
     display: flex;

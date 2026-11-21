@@ -1,14 +1,12 @@
 import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { useState } from "react";
 import { AiSample, type AiSampleResult } from "capsomer/react/ai-sample";
-import { Eyebrow } from "capsomer/react/eyebrow";
 import { Segmented } from "capsomer/react/segmented";
 
 import { generateEmailSample, type MarketingEmailCategory } from "~/lib/marketing/email-sample";
 
 import "capsomer/ai-sample.css";
 import "capsomer/button.css";
-import "capsomer/eyebrow.css";
 import "capsomer/segmented.css";
 
 // The home page's live email generator. Recova's spec is
@@ -84,7 +82,7 @@ export function EmailSamples() {
         hint="A live AI call on a sample failed payment, for a fictional customer."
       >
         <Segmented
-          legend={<Eyebrow as="span">Decline type</Eyebrow>}
+          legend={<span className="fh-label">Decline type</span>}
           name="decline-type"
           layout="cards"
           value={category}

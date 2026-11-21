@@ -100,10 +100,13 @@ body {
 .fh-cap {
   --fs-page: 1rem;
 }
-/* Capsomer's eyebrow at Recova's section labels: medium weight in the tertiary text color. */
-[data-cap-site="foxhound"] {
-  --cap-eyebrow-weight: var(--weight-medium);
-  --cap-eyebrow-color: var(--muted);
+/* Recova's section labels: small, medium weight, tertiary text color. */
+.fh-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--fs-detail);
+  font-weight: var(--fh-label-weight, var(--weight-medium));
+  line-height: var(--leading-compact);
 }
 /* Recova's column had a 32px side margin from 768px up (px-4 md:px-8), the width of the header's
    own padding, so the page starts under the logo. Capsomer's page class defaults to 16px. */

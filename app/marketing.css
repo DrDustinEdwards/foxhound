@@ -350,13 +350,6 @@
 .fh-product-hero .cap-hero-text {
   max-inline-size: 680px;
 }
-.fh-product-hero .cap-hero-eyebrow {
-  margin: 0 0 var(--space-6);
-  color: inherit;
-  font: inherit;
-  letter-spacing: normal;
-  text-transform: none;
-}
 .fh-product-hero .cap-hero-title {
   margin: 0 0 var(--space-5);
   font-weight: var(--weight-medium);
@@ -390,12 +383,6 @@
 }
 .fh-page-hero .cap-hero-text {
   max-inline-size: none;
-}
-.fh-page-hero .cap-hero-eyebrow {
-  margin: 0 0 var(--space-4);
-  color: var(--dim);
-  font: var(--weight-medium) var(--fs-tiny-5) / var(--leading-snug) var(--ui);
-  letter-spacing: var(--tracking-sign);
 }
 .fh-page-hero .cap-hero-title {
   margin: 0 0 var(--space-4);

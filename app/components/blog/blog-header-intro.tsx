@@ -1,4 +1,3 @@
-import "capsomer/eyebrow.css";
 
 // Ported from legacy app/(marketing)/blog/BlogHeaderIntro.tsx: the eyebrow /
 // title / subtext stack at the top of /blog.

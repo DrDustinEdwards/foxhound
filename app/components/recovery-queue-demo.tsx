@@ -1,7 +1,6 @@
 import { Icon, iconCheck, iconClose, iconRefresh } from "capsomer/react/icons";
 import { useEffect, useState } from "react";
 import { AppFrame } from "capsomer/react/app-frame";
-import { Eyebrow } from "capsomer/react/eyebrow";
 import { usePrefersReducedMotion } from "capsomer/react/hooks";
 
 import {
@@ -20,7 +19,6 @@ import {
 } from "~/lib/marketing/queue-demo-frames";
 
 import "capsomer/app-frame.css";
-import "capsomer/eyebrow.css";
 
 // The home hero visual: a looping, self-running view of the recovery queue
 // working a batch of failed payments (ruling 6, adapted from legacy's animated
@@ -91,9 +89,9 @@ function Stat({
 }) {
   return (
     <div className="fh-queue-block">
-      <Eyebrow variant="mono" className="fh-queue-block-2 fh-queue-label-text">
+      <div className="fh-label fh-queue-block-2 fh-queue-label-text">
         {label}
-      </Eyebrow>
+      </div>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
@@ -139,15 +137,15 @@ export function RecoveryQueueDemo() {
         description="An illustration of the recovery queue working three sample failed payments. A Foxhound email sequence runs, a retry is attempted, and two of the three payments are recovered."
         address="foxhoundapp.com/recovery/dashboard"
         foot={
-          <Eyebrow as="span" variant="mono" className="fh-queue-label-text">
+          <span className="fh-label fh-queue-label-text">
             Sample data
-          </Eyebrow>
+          </span>
         }
       >
         <div className="fh-queue-row-2">
-          <Eyebrow as="span" variant="mono">
+          <span className="fh-label">
             Recovery queue
-          </Eyebrow>
+          </span>
           <div className="fh-mk-inline-wide">
             <span
               className="fh-queue-label"
