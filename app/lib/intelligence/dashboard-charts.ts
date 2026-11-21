@@ -143,6 +143,7 @@ export function drawMovement(
 ): string {
   return barChart({
     title: "MRR movement by week",
+    source: { name: "Stripe subscriptions" },
     data: movementRows(points, currency),
     x: "Week",
     // One bar per week (weeklyMovements), named by its Monday.
@@ -174,7 +175,7 @@ export function drawPlans(
   currency: string,
   width: number,
   fit: ChartFit = {},
-  source?: { name: string },
+  source: { name: string } = { name: "Stripe subscriptions" },
 ): string {
   const yLabel = `MRR (${unit(currency)})`;
   return barChart({
@@ -216,6 +217,7 @@ export function drawHealth(days: readonly HealthDay[], width: number, fit: Chart
     formatDate(new Date(`${d.date}T00:00:00Z`), { style: "monthDay" }) ?? "";
   return barChart({
     title: "Customer health distribution",
+    source: { name: "Stripe subscriptions" },
     data: days.flatMap((d) => [
       { Day: label(d), band: "High risk", count: d.atRisk },
       { Day: label(d), band: "Medium risk", count: d.watch },

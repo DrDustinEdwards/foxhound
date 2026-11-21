@@ -76,6 +76,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
       width={HALF_WIDTH}
       draw={drawWith(areaChart, {
         title,
+        source: { name: "Stripe payments recovered by Foxhound" },
         data: rows,
         x: "Day" as const,
         y: "rate" as const,
@@ -233,6 +234,7 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
       width={SIDE_WIDTH}
       draw={drawWith(barChart, {
         title,
+        source: { name: "Foxhound recovery emails" },
         data: rows,
         x: "Category" as const,
         y: "rate" as const,
@@ -269,6 +271,7 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
       width={HALF_WIDTH}
       draw={drawWith(barChart, {
         title,
+        source: { name: "Stripe payments recovered by Foxhound" },
         data: rows,
         x: "Bucket" as const,
         y: "share" as const,

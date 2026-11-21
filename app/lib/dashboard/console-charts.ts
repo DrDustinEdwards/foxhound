@@ -65,6 +65,7 @@ export function drawCohorts(rows: readonly CohortRow[], width: number, fit: Char
   const yLabel = "Still paying (%)";
   return barChart({
     title: "Customer cohorts still paying",
+    source: { name: "Stripe subscriptions" },
     data: rows.map((r) => ({ Cohort: r.label, share: r.values[0] ?? 0 })),
     x: "Cohort",
     xDomain: rows.map((r) => r.label),
