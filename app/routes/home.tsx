@@ -5,7 +5,6 @@ import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
-import "capsomer/eyebrow.css";
 import "capsomer/source-line.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here

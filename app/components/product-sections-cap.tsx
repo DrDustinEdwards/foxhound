@@ -1,4 +1,3 @@
-import { Eyebrow } from "capsomer/react/eyebrow";
 import { FeatureBlock, Features } from "capsomer/react/feature";
 import { Icon, iconArrowRight } from "capsomer/react/icons";
 import { PriceCard, PriceGrid } from "capsomer/react/price-card";
@@ -9,7 +8,6 @@ import { Link, ButtonLink } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
 import { FaqList } from "~/components/faq-list";
 
-import "capsomer/eyebrow.css";
 import "capsomer/feature.css";
 import "capsomer/cta-band.css";
 import "capsomer/hero.css";
@@ -60,13 +58,9 @@ function PrimaryLink({ cta }: { cta: CTA }) {
   );
 }
 
-/** A section's name: Capsomer's eyebrow as the section heading, centered, as Recova's. */
+/** A section's name as its heading, centered, as Recova's. */
 function SectionLabel({ children, className }: { children: React.ReactNode; className: string }) {
-  return (
-    <Eyebrow as="h2" className={`${className} fh-center`}>
-      {children}
-    </Eyebrow>
-  );
+  return <h2 className={`fh-label ${className} fh-center`}>{children}</h2>;
 }
 
 export function ProductHero({
