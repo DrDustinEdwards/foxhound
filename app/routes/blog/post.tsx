@@ -9,7 +9,7 @@ import "capsomer/related-links.css";
 import "~/blog-prose.css";
 
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
-import { goneResponse } from "@dustinedwards/site-runtime/url";
+import { goneResponse, renameRedirect } from "@dustinedwards/site-runtime/url";
 import { Picture } from "capsomer/react/picture";
 import "capsomer/picture.css";
 import { SectionTrail } from "~/components/section-trail";
@@ -30,6 +30,7 @@ import {
   getPostBySlug,
   getPostLinks,
   getPreviousPost,
+  getSlugRedirect,
 } from "~/lib/blog/queries.server";
 import { articleJsonLd, organizationJsonLd, personJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { draftPostContext } from "~/lib/preview-context";
@@ -71,7 +72,16 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 
   // Carrel's preview renders its draft here, in-process (workers/app.ts); no request from outside sets it.
   const post = context.get(draftPostContext) ?? (await getPostBySlug(db, params.slug));
-  if (!post) throw new Response("Not found", { status: 404 });
+  if (!post) {
+    // A post Carrel renamed keeps its old address, permanently moved (blog_slug_redirects); site-runtime's renameRedirect
+    // keeps the query and answers a method other than GET with a 308.
+    const moved = await renameRedirect(request, {
+      prefix: "/blog/",
+      renames: (slug) => getSlugRedirect(db, slug),
+    });
+    if (moved) throw moved;
+    throw new Response("Not found", { status: 404 });
+  }
 
   const [{ html, toc, faq, version }, cover, share, previous, next, related] = await Promise.all([
     renderMarkdown(db, post.body),
