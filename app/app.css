@@ -22,6 +22,8 @@
 @import "capsomer/links.css";
 /* Capsomer's scroll reveal (the home page, the page headers and the audit run). */
 @import "capsomer/reveal.css";
+/* Capsomer's site footer (the footer's band, hairline, links row and small print). */
+@import "capsomer/site-footer.css";
 /* Capsomer's icons (Foxhound's entry draws them at Lucide's stroke, 2). Before any page's admin-shell.css, so
    the shell's menu icon sizes win. */
 @import "capsomer/icons.css";
@@ -523,8 +525,6 @@ body {
    title), as Recova laid them out. The public pages' own parts are in marketing.css. */
 @layer site {
   /* The color and opacity fades, one rule each. */
-  .fh-footer-link-2,
-  .fh-footer-link,
   .fh-mk-quiet-link,
   .fh-archive-link,
   .fh-archive-text-3,
@@ -711,108 +711,49 @@ body {
     width: 100%;
     padding: var(--space-6);
   }
-  .fh-footer-title {
-    margin-bottom: var(--space-4);
-    font-size: var(--fs-tiny-5);
-    letter-spacing: var(--tracking-widest);
-    color: var(--chrome-text-secondary);
-    text-transform: uppercase;
+  /* The footer is Capsomer's site footer on the chrome, dark in both modes: the chrome's ink for
+     links, its secondary ink for labels and small print, amber for the current page and the pointer.
+     The columns are the one layout Capsomer has no part for. */
+  .fh-footer {
+    --site-footer-bg: var(--chrome);
+    --site-footer-pad: 0;
+    --muted: var(--chrome-text-secondary);
+    --accent-text: var(--header-brand);
+    --page-max: 75rem;
+    color: var(--chrome-text);
   }
-  :where(.fh-footer-list > :not(:last-child)) {
-    margin-block: 0 var(--space-3);
-  }
-  .fh-footer-footer {
-    border-top: var(--line-w) solid var(--line);
-    background-color: var(--chrome);
-  }
-  .fh-footer-wrap {
-    margin-inline: auto;
-    max-width: 1200px;
-    padding-inline: var(--space-5-5);
-  }
-  @media (width >= 40rem) {
-    .fh-footer-wrap {
-      padding-inline: var(--space-7);
-    }
-  }
-  .fh-footer-grid {
-    display: grid;
-    grid-template-columns: repeat(1, minmax(0, 1fr));
-    gap: var(--space-7-5);
-    padding-block: var(--space-8);
-  }
-  @media (width >= 40rem) {
-    .fh-footer-grid {
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-    }
-  }
-  @media (width >= 64rem) {
-    .fh-footer-grid {
-      grid-template-columns: repeat(5, minmax(0, 1fr));
-    }
-  }
-  .fh-footer-home {
+  .fh-footer a {
+    color: var(--chrome-text);
     text-decoration-line: none;
+    &:hover,
+    &[aria-current="page"] {
+      color: var(--header-brand);
+    }
   }
-  .fh-footer-text {
-    margin-top: var(--space-4);
-    max-width: 240px;
-    font-size: var(--fs-body);
-    color: var(--chrome-text-secondary);
+  .fh-footer .cap-site-footer-links a {
+    color: var(--muted);
   }
-  .fh-footer-grid-2 {
+  .fh-footer-columns {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-6);
-  }
-  @media (width >= 40rem) {
-    .fh-footer-grid-2 {
-      grid-column: span 3 / span 3;
+    gap: var(--space-7-5) var(--space-6);
+    padding-block: var(--space-8);
+    & > :first-child {
+      grid-column: 1 / -1;
     }
   }
   @media (width >= 64rem) {
-    .fh-footer-grid-2 {
-      grid-column: span 4 / span 4;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+    .fh-footer-columns {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      & > :first-child {
+        grid-column: auto;
+      }
     }
   }
-  .fh-footer-row {
-    display: flex;
-    min-width: 0px;
-    align-items: center;
-    gap: var(--space-5);
-  }
-  .fh-footer-row-2 {
-    display: flex;
-    min-width: 0px;
-    align-items: center;
-    gap: var(--space-3-5);
-  }
-  .fh-footer-block {
-    width: 1.75rem;
-    height: 1.75rem;
-    flex-shrink: 0;
-  }
-  .fh-footer-label {
-    font-size: var(--fs-tiny-5);
-    color: var(--chrome-text-secondary);
-  }
-  .fh-footer-row-3 {
-    display: flex;
-    align-items: center;
-    gap: var(--space-5);
-  }
-  .fh-footer-link-2 {
-    display: inline-flex;
-    min-height: 1.5rem;
-    flex-shrink: 0;
-    align-items: center;
-    color: var(--chrome-text-secondary);
-    text-decoration-line: none;
-  }
-  @media (hover: hover) {
-    .fh-footer-link-2:hover {
-      color: var(--header-brand);
+  .fh-footer-bar {
+    min-block-size: 3.5rem;
+    &[data-ruled] {
+      border-block-start: var(--line-w) solid var(--line);
     }
   }
   .fh-mk-kicker-gap {
@@ -954,28 +895,6 @@ body {
     margin-bottom: var(--space-5);
     line-height: var(--leading-tight-5);
     letter-spacing: var(--tracking-tight);
-  }
-  .fh-footer-link {
-    font-size: var(--fs-body);
-    color: var(--chrome-text);
-    text-decoration-line: none;
-  }
-  @media (hover: hover) {
-    .fh-footer-link:hover {
-      color: var(--header-brand);
-    }
-  }
-  .fh-footer-current {
-    color: var(--header-brand);
-  }
-  .fh-footer-bar {
-    display: flex;
-    height: 3.5rem;
-    align-items: center;
-    justify-content: space-between;
-  }
-  .fh-footer-bar-ruled {
-    border-top: var(--line-w) solid var(--line);
   }
   .fh-pill-edge {
     --_line: var(--_fg);
