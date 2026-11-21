@@ -117,7 +117,6 @@ export function Footer({ variant = "marketing" }: { variant?: FooterVariant } = 
             alt=""
             width={28}
             height={28}
-            loading="lazy"
             decoding="async"
             aria-hidden
           />
