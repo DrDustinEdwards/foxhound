@@ -204,19 +204,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       data-density="comfortable"
     >
       {/* Bespoke hero, restored per ruling 64: Recova's /audit sits OUTSIDE
-          (marketing) and never used MarketingPageHeader. The pill is
-          Capsomer's badge in Recova's treatment: mono at 0.75rem with 0.06em
-          tracking, amber words on a 13% amber tint inside a 27% amber edge. */}
-      <div className="fh-audit-block">
-        <span
-          className="fh-audit-label cap-pill fh-mono fh-caption fh-regular"
-          data-variant="tag"
-          data-family="amber"
-        >
-          FREE LOST REVENUE AUDIT
-        </span>
-      </div>
-
+          (marketing) and never used MarketingPageHeader. */}
       {/* Recova's clamp(28px,5vw,44px) h1, in rem. The words are Recova's,
           drift fixed on sight: they describe the audit, not the
           estimator, so they hold in every state of the form below. */}
@@ -230,10 +218,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         <section className="cap-panel">
           <div className="cap-panel-body">
             <div className="cap-stack fh-left" data-gap="5">
-              <h2 className="fh-mono fh-tiny fh-regular fh-quiet fh-caps">
-                Free leakage estimator
-              </h2>
-
               {/* A standing notice, not a failure the visitor caused: an info
                   banner (role="status"), never a critical alert. */}
               {!turnstileAvailable ? (
