@@ -222,8 +222,6 @@ async function mintGrant(stripeUserId: string = STRIPE_A): Promise<string> {
   return cookie.split(";")[0].slice(AUDIT_TOKEN_COOKIE.length + 1);
 }
 
-// ---------------------------------------------------------------------------
-
 describe("PLANT 1: THE SCOPE PARAMETER", () => {
   it("the audit's authorize URL requests read_write, the one scope Stripe gives a platform", () => {
     const url = new URL(buildAuditAuthorizeUrl(ENV, buildConnectState(AUDIT_ACTION)));

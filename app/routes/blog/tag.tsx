@@ -22,7 +22,7 @@ import "~/blog-index.css";
 // Ported from legacy app/(marketing)/blog/tag/[tag]/page.tsx (Phase 6 Pass
 // 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5.
 //
-// An UNKNOWN tag 404s (Dustin, 2026-08-04). This diverges from legacy, whose
+// An UNKNOWN tag 404s (Dustin). This diverges from legacy, whose
 // tag route has no notFound() and renders "No articles tagged X yet." for any
 // string at all. That soft-404 is a ruling 39 legacy defect in the
 // false-machine-readable-data family rulings 89 and 96 already govern: a

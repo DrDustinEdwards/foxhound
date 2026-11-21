@@ -147,10 +147,8 @@ export function buildVoiceSamplesUpdate(
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
 }
 
-// ---------------------------------------------------------------------------
 // S33: the sender settings on the connection (rulings 14, 40's launch-blocker
 // list, and this session's brief).
-// ---------------------------------------------------------------------------
 
 // SENDER_NAME_MAX_LENGTH lives in the client-safe sender-name.ts, because the
 // form renders it as maxLength and a .server import would ship drizzle in that

@@ -25,8 +25,6 @@ import type { DailyRatePoint } from "~/lib/dashboard/recovery-window";
 import { formatMoney, fromMajorUnits } from "@dustinedwards/site-runtime/money";
 import { markup } from "capsomer/behavior/trusted-html";
 
-// ---- Charts ----
-
 // Here, beside its only chart, so the shared recovery-dashboard module
 // (the payments list loads it) does not pull in chart-frame.
 /** The sentence a reader without the chart gets: the running rate over the

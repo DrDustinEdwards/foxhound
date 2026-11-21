@@ -89,9 +89,7 @@ describe("J36 brand voice: each category's picker", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // The action: a failed write says so instead of throwing an error page.
-// ---------------------------------------------------------------------------
 
 function ctx() {
   return {

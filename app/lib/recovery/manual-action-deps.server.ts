@@ -21,10 +21,6 @@ import type { EmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { TEMPLATE_LABEL_RESEND } from "./manual-action-batches.server";
 
-// ---------------------------------------------------------------------------
-// Dispatch
-// ---------------------------------------------------------------------------
-
 /**
  * The IO the trigger intent needs, injected so the dispatcher never touches
  * `Env` directly and both executor branches are drivable in tests. The defaults

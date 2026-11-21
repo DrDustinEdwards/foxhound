@@ -253,8 +253,6 @@ export function buildRecommendationLogInsert(
   });
 }
 
-// ---- the page's read ----------------------------------------------------------------
-
 export const RECOMMENDATIONS_PAGE_SIZE = 50;
 
 export interface RecommendationRow {

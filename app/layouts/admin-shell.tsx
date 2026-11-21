@@ -209,7 +209,7 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         // The family letterhead, as dustinedwards.info and Carrel have it, but
         // standalone: "Foxhound Admin" with no "Dustin Edwards" over it and no
         // family stripe, because Foxhound is a commercial app apart from the
-        // Dustin Edwards network (Dustin, 2026-10-30).
+        // Dustin Edwards network (Dustin).
         letterhead
         title="Foxhound admin"
         // Each admin route's meta title stays the browser title.

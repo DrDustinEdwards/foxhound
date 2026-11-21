@@ -36,7 +36,7 @@ export const SHIPPING_CARRIERS = ["UPS", "FedEx", "USPS", "DHL", "Other"] as con
 
 /** Accept's confirmation line (DisputeActionBar.tsx), with Foxhound's name. */
 export const ACCEPT_CONFIRM_LINE = "Accept this dispute? You won't be charged a Foxhound fee.";
-/** Shown in Accept's place while an approval stands (PR 149 review). Not
+/** Shown in Accept's place while an approval stands. Not
  *  Recova's: Recova offered Accept until submission. Listed for Dustin. */
 export const ACCEPT_UNAVAILABLE_APPROVED_LINE =
   "Accept is not available once the evidence has been approved for submission.";

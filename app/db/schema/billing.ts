@@ -7,9 +7,7 @@ import { adminAuditLog } from "./platform";
 import { recoveredPayments } from "./recovery";
 import { accountRef } from "./tenancy";
 
-// ============================================================================
 // Billing (rebuilt per PRICING.md: invoices + line items, no orphan charges)
-// ============================================================================
 
 export const billingInvoices = sqliteTable(
   "billing_invoices",

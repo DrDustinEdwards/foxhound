@@ -254,8 +254,6 @@ const READ_TOOL_NAMES = MERCHANT_TOOL_NAMES.filter(
   (name) => !MERCHANT_WRITE_TOOL_NAMES.includes(name),
 );
 
-// ============================================================================
-
 describe("PLANT 1: no read tool returns a customer name or a raw email", () => {
   it("the sweep had something to find: the customer-carrying tools returned rows", async () => {
     const { tokens } = await seed();

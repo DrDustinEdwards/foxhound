@@ -24,7 +24,7 @@ import type { HealthFactor } from "./risk";
 
 // Read models for the Intelligence surfaces (TASK-foxhound-intelligence-ai.md
 // deliverable 6). Every query is account-scoped. Intelligence is free on every
-// account (Dustin, 2026-10-29), so there is no entitlement gate.
+// account (Dustin), so there is no entitlement gate.
 
 const OVERVIEW_CUSTOMER_LIMIT = 25;
 

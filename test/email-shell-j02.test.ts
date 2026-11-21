@@ -140,9 +140,7 @@ const customerJob = (bodyHtml: string, over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-// ============================================================================
 // Customer mail: dunning, win-back, expiring card, resend, the settings test
-// ============================================================================
 
 describe("customer mail carries both parts and the CAN-SPAM footer", () => {
   const CLICK = `${BASE}/e/c/click_tok-123`;
@@ -298,10 +296,6 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
   });
 });
 
-// ============================================================================
-// Merchant notices: never the footer
-// ============================================================================
-
 describe("merchant notices carry both parts and never the footer, except the digest", () => {
   it("the recovery notification", async () => {
     const out = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
@@ -367,9 +361,7 @@ describe("merchant notices carry both parts and never the footer, except the dig
   });
 });
 
-// ============================================================================
 // Transactional platform mail: auth, operational alerts, the monthly audit
-// ============================================================================
 
 describe("the settings test email carries both parts and Recova's preview footer, never the CAN-SPAM one", () => {
   // E3: it goes to the signed-in user, not a customer, and Recova's preview

@@ -117,8 +117,6 @@ function logRows(sqlite: ReturnType<typeof createInMemoryDb>["sqlite"]): LogRow[
   return sqlite.prepare("SELECT * FROM mcp_calls ORDER BY rowid").all() as LogRow[];
 }
 
-// ============================================================================
-
 describe("PLANT 1: every tool call leaves one row", () => {
   it("a call the tool refused is logged as tool_error with the refusal", async () => {
     const { sqlite, token } = await seed();

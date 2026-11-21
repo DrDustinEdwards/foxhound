@@ -186,8 +186,6 @@ const emailFor = (over: Partial<EmailInput> = {}) =>
 
 const texts = (blocks: WordsBlock[]) => blocks.map((b) => blockText(b) || (b.label ?? ""));
 
-// ============================================================================
-
 describe("E24 says what Recova's says", () => {
   it("Open disputes shows only when the count is above zero, as Recova's does", () => {
     const none = emailFor({
@@ -247,8 +245,6 @@ describe("E24 says what Recova's says", () => {
   });
 });
 
-// ============================================================================
-
 describe("E24 carries what Recova's carries, and sends when Recova's does", () => {
   it("one mail per opted-in account, on the merchant path: From Foxhound, no Reply-To, Recova's footer", async () => {
     const db = fresh();
@@ -283,8 +279,6 @@ describe("E24 carries what Recova's carries, and sends when Recova's does", () =
     expect(m.html).toContain("<title>Your monthly Foxhound report</title>");
   });
 });
-
-// ============================================================================
 
 describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
   it("a suppressed address is not mailed, and the month says suppressed", async () => {
@@ -380,8 +374,6 @@ describe("a refused send returns its named outcome (RULES.md 3.16)", () => {
     expect(sent).toHaveLength(1);
   });
 });
-
-// ============================================================================
 
 describe("the demo firewall on the consumer side (PR 160 re-review)", () => {
   // With liveSendGate "skip", the live-send switch no longer stands between a

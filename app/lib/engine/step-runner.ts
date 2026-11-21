@@ -31,8 +31,6 @@ export function stepAction(stepType: string): StepAction | null {
   return null;
 }
 
-// ---- Retry steps ----
-
 /** The result of a live stripe.invoices.pay attempt for a retry step. */
 export interface RetryAttempt {
   /** Invoice status returned by invoices.pay (e.g. "paid"), if the call resolved. */
@@ -73,8 +71,6 @@ export function decideRetryStep(attempt: RetryAttempt, now: Date): RetryStepDeci
     recovered,
   };
 }
-
-// ---- Email steps ----
 
 /** The result of a live email send for an email step. */
 export interface SendAttempt {

@@ -18,7 +18,7 @@ import "~/site-header.css";
 // Recova's layout put its settings list in an aside beside the page. Here the
 // app shell's left menu becomes that list on a settings page (app-shell.tsx),
 // so the layout is the page column alone: an aside beside it was a second menu
-// next to the first (Dustin 2026-10-29). Below md Recova's hub renders its own
+// next to the first (Dustin). Below md Recova's hub renders its own
 // section list, as before. The page column is capped at Recova's 800px with
 // Recova's padding.
 //

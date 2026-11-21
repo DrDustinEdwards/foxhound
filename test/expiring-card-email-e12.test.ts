@@ -115,8 +115,6 @@ function sendRows() {
   }[];
 }
 
-// ---- when it sends ----------------------------------------------------------------
-
 describe("E12 sends on Recova's trigger, to Recova's recipient, and not otherwise", () => {
   it("a refused send returns its named outcome: a suppressed address is logged as suppressed, not sent", async () => {
     seedMerchant();

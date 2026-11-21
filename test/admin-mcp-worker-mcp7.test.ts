@@ -14,7 +14,7 @@ import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 // admin-mcp.foxhoundapp.com (MCP ruling 2026-10-10, rule 9 amendment).
 //
 // THE WORKER HOLDS NOTHING THAT MOVES MONEY. No Stripe key, no money binding,
-// no D1. Its one way into Foxhound is the admin API (PR 1) over a service
+// no D1. Its one way into Foxhound is the admin API over a service
 // binding, carrying the admin key and the signed-in admin's email on every
 // call, and that API re-checks the admin and offers only reads, pause and
 // staging. These plants hold the Worker to that shape, the nine tools to the
@@ -123,8 +123,6 @@ async function callTool(
     "";
   return { ...toolOutput(answer), text };
 }
-
-// ============================================================================
 
 describe("PLANT 1: the Worker holds no Stripe key, no money binding and no D1", () => {
   const config = jsonc(read("mcp/wrangler.jsonc"));

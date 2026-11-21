@@ -45,8 +45,8 @@ type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
  *  processing_paused both leave a merchant out of the billing run
  *  (app/db/billable.ts, accountBillingEligibleCondition), and only a pause
  *  stops processing. A pause defers fees: the first run after it clears bills
- *  what matured meanwhile (PR 144 review). An exemption forgives them, as
- *  Recova's did (Dustin, 2026-10-25): a fee earned or due while exempt is never
+ *  what matured meanwhile. An exemption forgives them, as
+ *  Recova's did (Dustin): a fee earned or due while exempt is never
  *  billed (billing_exemption_periods, read by app/db/billable.ts). */
 const VIEW_WORDS: Record<MerchantView, { caption: string; empty: string; rule?: string }> = {
   all: {
@@ -287,7 +287,7 @@ function MerchantRow({
           <span className="fh-quiet">{recoveryRateBand(null)}</span>
         ) : (
           // The band as words beside the rate: a hover title would sit under
-          // the row's stretched link and never reach a mouse (PR 140 review).
+          // the row's stretched link and never reach a mouse.
           <Status
             tone={recoveryRateStatusTone(m.recoveryRatePct)}
             reason={recoveryRateBand(m.recoveryRatePct)}

@@ -267,7 +267,7 @@ export interface OutcomeNoticeInput {
   /** When the fee is invoiced (nextDisputeBillingRun of the resolution), or
    *  null while the account is paused: the billing run skips a paused account
    *  (accountBillingEligibleCondition) and bills the fee at the first run after
-   *  processing resumes, so no date is promised (PR 149 review). */
+   *  processing resumes, so no date is promised. */
   invoiceDate: Date | null;
   listUrl: string;
 }

@@ -204,8 +204,6 @@ const connectionOf = async (db: Awaited<ReturnType<typeof seed>>["db"], account:
       .where(eq(stripeConnections.id, `sc_${account}`))
   )[0];
 
-// ============================================================================
-
 describe("PLANT 1: item 4 is closed, its eight writers folded into two tools", () => {
   it("the two write tools, named, and none of the eight old names survives", () => {
     expect(MERCHANT_WRITE_TOOL_NAMES).toEqual([UPDATE, ALERTS]);

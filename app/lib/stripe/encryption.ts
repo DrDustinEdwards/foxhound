@@ -5,7 +5,6 @@
 // lives in site-runtime ./secret-box (moved there from this file); what is left
 // here binds it to Foxhound's env and its ENCRYPTION_KEY* names.
 //
-// ---- KEY ROTATION ----
 //
 // FORMAT: `v1:<keyId>:<ivHex>:<cipherHex>`, where cipherHex is the AES-GCM
 // ciphertext WITH the 16-byte auth tag appended (Web Crypto's convention, which

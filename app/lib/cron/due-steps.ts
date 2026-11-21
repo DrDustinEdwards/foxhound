@@ -80,10 +80,6 @@ export function stepDueCondition(now: Date): SQL {
   ) as SQL;
 }
 
-// ============================================================================
-// Exhausted sequences
-// ============================================================================
-
 /** A step that has not run yet. Same two columns stepDueCondition keys on, minus
  *  the timing clause: a step rescheduled by the send backoff is still pending
  *  (executed_at and result both null, next_retry_at set), so a sequence waiting

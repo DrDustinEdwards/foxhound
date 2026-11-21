@@ -147,9 +147,6 @@ function required(args: ToolArgs, name: string, from: string): string {
   return value;
 }
 
-// ---------------------------------------------------------------------------
-// Pagination (rule 7)
-// ---------------------------------------------------------------------------
 //
 // ONE SHAPE EVERYWHERE: a list takes an optional `cursor` and answers with
 // `has_more` and `next_cursor` (null on the last page). The cursor is opaque to
@@ -313,10 +310,6 @@ function stepForAgent(row: RecoveryStepRow) {
     abVariant: row.abVariant,
   };
 }
-
-// ---------------------------------------------------------------------------
-// The ten reads
-// ---------------------------------------------------------------------------
 
 const PAYMENT_PAGE_SIZES = [10, 25, 50, 100] as const;
 const DISPUTE_PAGE_SIZE = 25;
@@ -959,9 +952,7 @@ const READ_TOOLS: McpTool[] = [
   },
 ];
 
-// ---------------------------------------------------------------------------
 // The two writes (372's item-4 ruling, eight writers folded into two tools)
-// ---------------------------------------------------------------------------
 //
 // EVERY WRITE GOES THROUGH THE FORM'S OWN CODE PATH. Each section calls the same
 // `applyX` the route action calls: same bounds, same allowlist, same refusal

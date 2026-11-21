@@ -232,8 +232,6 @@ describe("the loader", () => {
   });
 });
 
-// ---------------------------------------------------------------- the page
-
 function key(over: Partial<KeyRow> = {}): KeyRow {
   return {
     id: "key_a",

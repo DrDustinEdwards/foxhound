@@ -48,7 +48,6 @@ export interface TemplateEmailInput {
   senderName?: string | null;
 }
 
-// ---- Recova's per-step fallback (J85 rows E4 to E6, J86 rows E7 and E8) -----
 //
 // Recova's FALLBACK_TEMPLATES (lib/recovery-execution.ts lines 79 to 114, blob
 // 3a8f8768), word for word, for all five of its email steps. Recova is the

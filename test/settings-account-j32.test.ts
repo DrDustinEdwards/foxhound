@@ -96,9 +96,7 @@ describe("J32 account: the profile form", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // The action: Recova's one profile save, through Foxhound's engine.
-// ---------------------------------------------------------------------------
 
 function ctx(role: "owner" | "member" = "owner") {
   return {

@@ -86,8 +86,6 @@ async function seed() {
   return made;
 }
 
-// ============================================================================
-
 describe("PLANT 1: the same key twice sends once", () => {
   it("SENDS ONCE AND LEAVES ONE ROW", async () => {
     const { db } = await seed();

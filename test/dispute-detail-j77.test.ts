@@ -256,8 +256,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// ---- What Foxhound found ----
-
 describe("J77: What Foxhound found (Recova's DisputeEvidenceSummary)", () => {
   it("reads only the active account's rows for the same customer", async () => {
     seedDispute();
@@ -284,8 +282,6 @@ describe("J77: What Foxhound found (Recova's DisputeEvidenceSummary)", () => {
     expect(t).not.toContain("Recovery context");
   });
 });
-
-// ---- Staged evidence and Additional evidence ----
 
 describe("J77: Staged evidence and Additional evidence", () => {
   it("saves the narrative over its row and adds the IP as Stripe's customer_purchase_ip", async () => {
@@ -339,8 +335,6 @@ describe("J77: Staged evidence and Additional evidence", () => {
     }
   });
 });
-
-// ---- Sync, approve, order ----
 
 describe("J77: Recova's sync form and the approve card", () => {
   it("imports through the same importer and reports in its words", async () => {
@@ -402,8 +396,6 @@ describe("J77: Recova's sync form and the approve card", () => {
     );
   });
 });
-
-// ---- Review of 8d09fe5 (CHANGES): the draft is locked once approved ----
 
 describe("J77 review: the draft cannot change after an approval exists", () => {
   function seedApproval(): void {
@@ -519,8 +511,6 @@ describe("J77 review: one row per field, the same one everywhere", () => {
     expect(buildStripeEvidencePayload(rows).uncategorized_text).toBe("First.");
   });
 });
-
-// ---- Re-review of a297ac1 (CHANGES): a guarded write that wrote nothing is not "Saved." ----
 
 describe("J77 re-review: a save that wrote nothing is reported, never Saved (RULES.md 3.9)", () => {
   const NOT_SAVED =

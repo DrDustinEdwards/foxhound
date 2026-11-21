@@ -51,10 +51,6 @@ async function notifySlackEmailSent(env: Env, ctx: EmailStepContext): Promise<vo
   });
 }
 
-// ============================================================================
-// Email step
-// ============================================================================
-
 /** Everything the email executor needs, loaded by the cron. */
 export interface EmailStepContext {
   /** The cron run that is executing this step, stamped onto the

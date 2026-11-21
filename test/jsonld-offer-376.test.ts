@@ -20,7 +20,7 @@ describe("PLANT 1: no price is published for a product that has three", () => {
   const jsonld = softwareApplicationJsonLd(URL_BASE) as Record<string, unknown>;
 
   it("publishes no price: every paid product is a percentage", () => {
-    // Intelligence is free (Dustin, 2026-10-29) and Recovery and Disputes bill a
+    // Intelligence is free (Dustin) and Recovery and Disputes bill a
     // share of created value, so no single number is true of the application.
     const offers = jsonld.offers as { price?: string } | undefined;
     expect(offers?.price).toBeUndefined();

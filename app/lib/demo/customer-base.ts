@@ -90,10 +90,6 @@ export interface DemoCustomer {
   scheduledChange?: { kind: "change" | "cancel"; daysFromNow: number };
 }
 
-// ============================================================================
-// Pricing constants
-// ============================================================================
-
 const TIER_BASE_CENTS: Record<DemoTier, number> = {
   starter: 2900,
   growth: 9900,
@@ -105,10 +101,6 @@ const TIER_BASE_CENTS: Record<DemoTier, number> = {
 const SCALE_PER_SEAT_CENTS = 4900;
 const GROWTH_PER_SEAT_CENTS = 2500;
 const ANNUAL_DISCOUNT = 0.9; // 10% off annual prepay
-
-// ============================================================================
-// Public utilities
-// ============================================================================
 
 /** The customer's total recurring monthly rate before any annual discount:
  *  base covers the first seat, per-seat applies only to additional seats. */
@@ -170,10 +162,8 @@ export function planNameFor(c: DemoCustomer): string {
   return parts.length ? `${TIER_LABEL[c.tier]} (${parts.join(", ")})` : TIER_LABEL[c.tier];
 }
 
-// ============================================================================
 // Seeded helpers (FNV-1a, shared with recovery-seed.ts and intelligence-seed.ts
 // so the whole demo engine hashes off one deterministic scheme)
-// ============================================================================
 
 export function seededInt(seed: string, max: number): number {
   let h = 2166136261;
@@ -191,10 +181,6 @@ export function seededFloat(seed: string): number {
 export function pick<T>(seed: string, choices: readonly T[]): T {
   return choices[seededInt(seed, choices.length)];
 }
-
-// ============================================================================
-// Name pools (fictitious)
-// ============================================================================
 
 const FIRST_NAMES = [
   "Alex",
@@ -402,10 +388,6 @@ function emailFromName(name: string, customerId: string): string {
   return `${slug}@${customerId}.demo`;
 }
 
-// ============================================================================
-// Anonymous-customer attribute samplers
-// ============================================================================
-
 export function daysAgo(now: Date, n: number): Date {
   return new Date(now.getTime() - n * DAY_MS);
 }
@@ -497,10 +479,6 @@ function sampleAddon(seed: string, tier: DemoTier): number {
   return 0;
 }
 
-// ============================================================================
-// Anonymous-customer construction
-// ============================================================================
-
 function buildAnonymousCustomer(
   seedPrefix: string,
   customerId: string,
@@ -548,10 +526,6 @@ function buildAnonymousCustomer(
     ...(couponPercentOff ? { couponPercentOff } : {}),
   };
 }
-
-// ============================================================================
-// Scripted customers - Teamflow
-// ============================================================================
 
 function teamflowScripted(now: Date): DemoCustomer[] {
   return [
@@ -795,10 +769,6 @@ function teamflowScripted(now: Date): DemoCustomer[] {
   ];
 }
 
-// ============================================================================
-// Scripted customers - Bolt
-// ============================================================================
-
 function boltScripted(now: Date): DemoCustomer[] {
   return [
     // Hilltop Metrics - Pro, recovered $99 about 10 days ago. Bolt's "your save".
@@ -978,10 +948,6 @@ function boltScripted(now: Date): DemoCustomer[] {
     },
   ];
 }
-
-// ============================================================================
-// Builders - Teamflow + Bolt
-// ============================================================================
 
 // Teamflow target: 200 customers total.
 //   Tiers: 100 Starter (50%), 60 Growth (30%), 40 Scale (20%).

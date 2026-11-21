@@ -306,7 +306,6 @@ describe("the Overview's figures come from Foxhound's engine", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // The page
 
 function overviewData(over: Partial<AdminOverview> = {}): AdminOverview {

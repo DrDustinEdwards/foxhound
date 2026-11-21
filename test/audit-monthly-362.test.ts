@@ -337,9 +337,7 @@ describe("the comparison is per currency and never summed across them", () => {
   });
 });
 
-// ============================================================================
 // The merged email body: legacy's strings, the absorbed line, the unread rule
-// ============================================================================
 
 describe("362 ruling 3: the ONE email carries BOTH halves", () => {
   it("a FALL reads as down, not as a negative amount", () => {
@@ -399,10 +397,6 @@ describe("362 ruling 3: the ONE email carries BOTH halves", () => {
   });
 });
 
-// ============================================================================
-// 1. Registration, through the real runner
-// ============================================================================
-
 describe("(1): the cron is REGISTERED and the real runner executes it", () => {
   it("rides LEGACY'S HOUR on the 1st, and the digest's registration is gone", () => {
     const monthly = jobsForSchedule(CRON_SCHEDULE_MONTHLY_AUDIT);
@@ -440,10 +434,6 @@ describe("(1): the cron is REGISTERED and the real runner executes it", () => {
   });
 });
 
-// ============================================================================
-// 3. Account states, matching the sibling crons
-// ============================================================================
-
 describe("(3): the account states every other per-account cron respects", () => {
   it("an account with NO notification email is audited but not mailed", async () => {
     // 339: notification_email is the only recipient. The run still happens and
@@ -477,10 +467,6 @@ describe("(3): the account states every other per-account cron respects", () => 
     expect((await db.select().from(auditDigestRuns))[0].status).toBe("no_connection");
   });
 });
-
-// ============================================================================
-// 4. Idempotency, by DATABASE refusal
-// ============================================================================
 
 describe("(4): idempotent per account per month, refused by the database", () => {
   it("A SECOND TICK IN THE SAME MONTH SENDS NOTHING, and audits nothing", async () => {
@@ -550,9 +536,7 @@ describe("(4): idempotent per account per month, refused by the database", () =>
   });
 });
 
-// ============================================================================
 // The absorbed comparison, end to end against real recovered_payments
-// ============================================================================
 
 describe("the absorbed line runs off the prior month's stored snapshot", () => {
   it("month two reports the change since month one", async () => {
@@ -608,10 +592,6 @@ describe("the absorbed line runs off the prior month's stored snapshot", () => {
   });
 });
 
-// ============================================================================
-// 5. Failure rides Session 24's alert machinery
-// ============================================================================
-
 describe("(5): a failing account is retried, and never stops another", () => {
   it("an account switched off after it was queued is not audited", async () => {
     const db = fresh();
@@ -628,10 +608,6 @@ describe("(5): a failing account is retried, and never stops another", () => {
     expect(await db.select().from(auditRuns)).toHaveLength(0);
   });
 });
-
-// ============================================================================
-// The run message an operator reads
-// ============================================================================
 
 describe("the run message says what the cron queued", () => {
   it("a zero-queue run says WHY it queued nothing", () => {

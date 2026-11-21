@@ -76,7 +76,6 @@ const routeContext = (env: Env = envWith()): unknown => ({
 
 const setCookies = (response: Response): string[] => response.headers.getSetCookie();
 
-// ---------------------------------------------------------------------------
 // The rendered page
 
 type Props = Parameters<typeof AuditConnect>[0];
@@ -112,7 +111,6 @@ describe("J42 U1: refusals in a Capsomer alert, never naming an account, never e
   });
 });
 
-// ---------------------------------------------------------------------------
 // The OAuth pair, through the real action and loader
 
 describe("J42 U1: the start is a POST, and a GET mints nothing", () => {
@@ -238,7 +236,7 @@ describe("J42 U5: the callback refuses before it exchanges, and every exit clear
     const cookies = setCookies(response);
     const token = cookies.find((c) => c.startsWith(`${AUDIT_TOKEN_COOKIE}=`))!;
     expect(token).toMatch(/; Path=\/audit; Secure; HttpOnly; SameSite=Lax; Max-Age=300$/);
-    // Sealed (PR #127): the value never carries the token in plain text, and
+    // Sealed: the value never carries the token in plain text, and
     // it opens to exactly the grant this callback was given.
     const value = token.split(";")[0].slice(AUDIT_TOKEN_COOKIE.length + 1);
     expect(value).not.toBe("");

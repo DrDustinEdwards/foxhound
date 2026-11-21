@@ -171,8 +171,6 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-// ---- Actions ----
-
 describe("J76: Recova's action row", () => {
   it("names the next step on the trigger button, from the engine's schedule", async () => {
     seedPayment();
@@ -216,8 +214,6 @@ describe("J76: the action result, as Recova reports it", () => {
     expect(spy).toHaveBeenCalledWith(expect.any(String), boom);
   });
 });
-
-// ---- The dispatcher's failure lines ----
 
 describe("J76: the dispatcher logs the whole error on every failure line", () => {
   const manual = () => import("~/lib/recovery/manual-actions.server");

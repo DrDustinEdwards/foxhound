@@ -263,7 +263,7 @@ export async function getMerchantFigures(db: Db, nowMs: number): Promise<Merchan
         )
         .groupBy(billingLineItems.currency),
       // The Overview's own count, so "Payments in queue" and "Active
-      // recoveries" can never disagree (PR 140 review).
+      // recoveries" can never disagree.
       countActiveRecoveries(db),
     ]);
   const money = (rows: Array<{ currency: string; cents: number }>) =>
@@ -391,10 +391,6 @@ export async function getMerchantActionTarget(
     .limit(1);
   return rows[0] ?? null;
 }
-
-// ============================================================================
-// Pass 2: money-adjacent operator actions
-// ============================================================================
 
 /** Exempt or un-exempt an account from billing, and record the stretch.
  *

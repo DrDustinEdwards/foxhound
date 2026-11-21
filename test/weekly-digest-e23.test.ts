@@ -139,10 +139,6 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
   };
 }
 
-// ============================================================================
-// What it says
-// ============================================================================
-
 describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () => {
   it("the conditional rows and both sections are absent when Recova leaves them out", () => {
     const { blocks } = digestEmail.digestContent(
@@ -193,10 +189,6 @@ describe("E23 says Recova's words, in Recova's order, on Capsomer's blocks", () 
     expect(flagged).not.toContain("Top at-risk customers");
   });
 });
-
-// ============================================================================
-// What it carries
-// ============================================================================
 
 describe("E23 carries Recova's From, footer, unsubscribe and postal address", () => {
   it("the platform's From name, never the merchant's sender (Recova's FROM_HELLO)", () => {
@@ -267,10 +259,6 @@ describe("E23 carries Recova's From, footer, unsubscribe and postal address", ()
   });
 });
 
-// ============================================================================
-// When it sends, and when it does not
-// ============================================================================
-
 describe("E23 honors suppression, as Recova's checkAndRegisterUnsubscribe does", () => {
   it("an unsubscribed notification address gets no digest, and the outcome is named", async () => {
     seedAccount();
@@ -297,9 +285,7 @@ describe("E23 honors suppression, as Recova's checkAndRegisterUnsubscribe does",
   });
 });
 
-// ============================================================================
 // The digest only: no other merchant notice gains an unsubscribe
-// ============================================================================
 
 describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
   const job = {
@@ -328,10 +314,6 @@ describe("the unsubscribe is the digest's alone (RULES.md 3.16)", () => {
   });
 });
 
-// ============================================================================
-// Links have somewhere to go
-// ============================================================================
-
 describe("every digest link resolves", () => {
   it("the Intelligence section ends with the button, and every link resolves", () => {
     const { blocks } = digestEmail.digestContent(fullInput());
@@ -343,10 +325,6 @@ describe("every digest link resolves", () => {
     ]);
   });
 });
-
-// ============================================================================
-// The admin preview is the real sender's output
-// ============================================================================
 
 describe("the admin preview of the digest is digestContent's output", () => {
   it("previews with the platform From, Recova's footer and a working unsubscribe", async () => {

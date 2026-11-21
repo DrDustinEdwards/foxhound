@@ -39,10 +39,6 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const route = await import("~/routes/app/settings/notifications");
 
-// ---------------------------------------------------------------------------
-// The loader and the action.
-// ---------------------------------------------------------------------------
-
 const ACCOUNT = "acct_1";
 let sqlite: Database.Database;
 

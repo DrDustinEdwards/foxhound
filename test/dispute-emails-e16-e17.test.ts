@@ -117,10 +117,6 @@ function only(): SentMessage {
   return harness.sent[0];
 }
 
-// ============================================================================
-// E16: when it sends, on Recova's trigger
-// ============================================================================
-
 describe("E16 sends on charge.dispute.created with Recova's words and footer", () => {
   it("one mail, to the notification address, after the intake commits", async () => {
     seedAccount();

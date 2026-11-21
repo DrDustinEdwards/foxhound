@@ -102,8 +102,6 @@ export function afterPermanentFailure(
   };
 }
 
-// ---- Retry-step (Stripe invoices.pay) result classification ----
-
 export type RetryResult =
   | "retry_succeeded"
   | "retry_card_declined"
@@ -194,7 +192,6 @@ export function isRetrySucceeded(result: RetryResult): boolean {
   return result === "retry_succeeded";
 }
 
-// ---- Manual-action preconditions (S7 Phase 2) ----
 //
 // Legacy gates two of its four manual actions on the state of the step list, and
 // it does so in the CLIENT (PaymentDetailClient.tsx at blob 7f54aa45). Foxhound

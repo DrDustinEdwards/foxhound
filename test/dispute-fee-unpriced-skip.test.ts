@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SKIP UNTIL PRICED (Dustin, 2026-10-25).
+// SKIP UNTIL PRICED (Dustin).
 //
 // A won dispute whose $500 cap could not be converted at resolution has no
 // stored fee, and its won notice carried no fee sentence. The

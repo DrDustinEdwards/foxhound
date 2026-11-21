@@ -3,7 +3,6 @@
 // Pricing values trace to PRICING.md (Capsid, namespace foxhound); enum value sets mirror the
 // CHECK constraints in app/db/schema/ (kept in sync by hand; SCHEMA.md is canon).
 
-// ---- Pricing (PRICING.md) ----
 /** Recovery fee: 20% of Foxhound-attributed recoveries (pay-on-lift). */
 export const RECOVERY_FEE_BPS = 2000;
 /** Dispute fee: 20% of won disputes... */
@@ -18,7 +17,6 @@ export const DISPUTE_FEE_BPS = 2000;
  *  "50,000 of whatever currency" is the defect rev 5 removed. */
 export const DISPUTE_FEE_CAP_CENTS = 50_000;
 
-// ---- The monthly billing run ----
 /** The monthly billing Cron Trigger, "0 4 1 * *" in wrangler.jsonc. Kept as the
  *  two fields the derivation actually uses so a cron change is a one-line edit
  *  here rather than arithmetic buried in a function body. The day is also what
@@ -28,7 +26,6 @@ export const DISPUTE_FEE_CAP_CENTS = 50_000;
 export const BILLING_RUN_DAY_OF_MONTH = 1;
 export const BILLING_RUN_HOUR_UTC = 4;
 
-// ---- Fee-invoice collection retry (app/lib/billing/fee-retry.ts) ----
 /** Ceiling on charge attempts per platform fee invoice. Legacy's value, carried
  *  over unchanged, but read the age cap below before assuming it is what stops a
  *  retry loop: at the monthly cadence this ceiling is never reached. */
@@ -53,7 +50,7 @@ export const FEE_INVOICE_MAX_RETRY_ATTEMPTS = 4;
  * always the AGE cap that stops the loop. Do not restate it as a single number;
  * two earlier attempts to do that were each correct only for the month they were
  * derived from. Stopping after about three months is ACCEPTED as intended
- * (Dustin, 2026-07-26). The attempt ceiling above only binds if runs are closer
+ * (Dustin). The attempt ceiling above only binds if runs are closer
  * together than monthly. test/billing-fee-retry.test.ts walks the real cron
  * cadence across every start month and pins the property rather than a count.
  */
@@ -71,7 +68,6 @@ const MINUTE_MS = 60 * 1000;
 export const HOUR_MS = 60 * MINUTE_MS;
 export const DAY_MS = 24 * HOUR_MS;
 
-// ---- Maturity window (PRICING.md maturity-window billing) ----
 /** A recovery is billable only once it is at least this old (refund window absorption). */
 /**
  * How long before a recovery a click can have happened and still be its cause
@@ -95,7 +91,6 @@ export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * DAY_MS;
 export const RECOVERY_MATURITY_DAYS = 30;
 export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * DAY_MS;
 
-// ---- failed_payments lifecycle ----
 /** The in-recovery status: a sequence is running and manual actions apply.
  *  Legacy gates its whole action row on this one value (PaymentDetailClient.tsx
  *  at blob 7f54aa45: `const isActive = payment.status === 'active'`), and three
@@ -226,7 +221,6 @@ export const RECOVERABLE_FAILED_PAYMENT_STATUSES = [
   FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
 ] as const;
 
-// ---- Canon enum value sets (mirror schema CHECK constraints) ----
 export const ATTRIBUTION_KINDS = [
   "foxhound_retry",
   "email_engaged",
@@ -268,7 +262,6 @@ export type DisputeState =
   // with no ruling and nothing billable.
   | "inquiry_closed";
 
-// ---- Dispute evidence files ----
 // Recova's lib/constants.ts DISPUTE_EVIDENCE_* limits, as its upload route,
 // its client hook and its "Evidence files" section read them. The page's
 // limits line is built from these, never typed.
@@ -286,7 +279,6 @@ export type DisputeEvidenceFileType = (typeof DISPUTE_EVIDENCE_ALLOWED_TYPES)[nu
 
 export type BillingLineItemType = "recovery_fee" | "dispute_fee" | "subscription" | "adjustment";
 
-// ---- AI models (ARCHITECTURE.md: Sonnet generates, Haiku scores) ----
 // One place holds every model id. Phase 4e owns the ai_calls cost map that must
 // cover each id here (closes legacy R-49 drift); Phase 4b uses generation only.
 /** Recovery / dunning copy generation. */
@@ -303,7 +295,6 @@ export const MODEL_AUDIT_SUMMARY = "claude-haiku-4-5-20251001";
 /** Legacy's own budget for the summary, ported as found. Three sentences. */
 export const AUDIT_SUMMARY_MAX_TOKENS = 300;
 
-// ---- Recovery step timing (hours from failure detection) ----
 // Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a silent
 // Foxhound retry precedes the first customer-facing email, so we never dun a
 // customer a payment we could have quietly recovered. Every dunning email also
@@ -338,7 +329,6 @@ export const STEP_TIMING_FRAUD_EMAIL_DAY1_HOURS = 2;
 // once rather than dun). This is the ONLY step for the `revoked` category.
 export const STEP_TIMING_REVOKED_EMAIL_HOURS = 2;
 
-// ---- Win-back timing (hours from cancellation) ----
 // LEGACY'S SCHEDULE EXACTLY: 1h, 96h, 336h.
 //
 // The window is 14 days (step 3), restored from the rebuild's 7 by parity CHUNKS
@@ -397,7 +387,6 @@ export const WINBACK_UNFLAGGED_STEP1_HOURS = 4;
  */
 export const WINBACK_PRIORITY_ACTION = "winback_priority";
 
-// ---- Send-attempt retry (transient send failures; SCHEMA.md recovery_steps state) ----
 // 5 attempts over ~17.25 hours, both restored by parity CHUNKS item 17 (the
 // same item as the win-back trio above; named by its numbering per 291).
 //
@@ -427,7 +416,6 @@ export const SEND_RETRY_BACKOFF_MINUTES = [15, 60, 240, 720] as const;
  */
 export const RETRY_TOKEN_MAX_ATTEMPTS = 3;
 
-// ---- Decline classification (rebuild is silent-first; fraud never retries) ----
 // "unknown" is the fail-closed default for any code not in an explicit set
 // below: no auto-retry, same as fraud/expired (app/lib/recovery/decline.ts).
 // "revoked" is the customer explicitly revoking authorization: one email
@@ -442,7 +430,6 @@ export const DECLINE_CATEGORIES = [
 ] as const;
 export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 
-// ---- Email pipeline (ARCHITECTURE.md: Cloudflare Email Service, one send module) ----
 /** Authenticated send domain (warmed independently of Worker routing). */
 const EMAIL_SEND_DOMAIN = "send.foxhoundapp.com";
 /** Envelope From address for merchant dunning copy (merchant display name is prefixed per send). */
@@ -513,7 +500,6 @@ export const AUDIT_QUEUE_MAX_RETRIES = 3;
 /** Cloudflare Queues accepts at most 100 messages per sendBatch call. */
 export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
-// ---- Cron Triggers + retention (ARCHITECTURE.md: all scheduled jobs are Cron
 // Triggers; retention crons live before any table they govern takes writes) ----
 /** Max age of a /p/:token card-update link before it is treated as expired
  *  (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays
@@ -671,7 +657,6 @@ export const CRON_TICKER_INSTANCE_NAME = "five-minute-ticker";
  */
 export const RECOVERY_TICK_LIMIT = 100;
 
-// ---- S6 bulk actions (ruling 274 decision four and five) ----
 /**
  * Above this many payments, a bulk MONEY submission requires a confirmation
  * naming the exact count and the action. Below it, the click stands on its own.
@@ -724,7 +709,6 @@ export const RETENTION_PAGE_404_DAILY_DAYS = 90;
  *  a large backlog drains over successive ticks). */
 export const RETENTION_SWEEP_LIMIT = 5_000;
 
-// ---- Audit product (Phase 6 Pass 3: full-audit lift-band data/query layer) ----
 /** Trailing window the audit scans for failed/recovered invoices (legacy parity). */
 export const AUDIT_LOOKBACK_DAYS = 90;
 /** The audit's "Recoverable estimate": this share of the failed invoices, as
@@ -743,7 +727,6 @@ export const CAU_EVENT_RETENTION_DAYS = 30;
  *  events says nothing worth telling a merchant, so no advisory is raised. */
 export const MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY = 3;
 
-// ---- Intelligence deterministic engine (customer_context + mrr_snapshots) ----
 /** Bounded work per sync run: caps how many of an account's Stripe customers
  *  are scanned in one tick (mirrors RETENTION_SWEEP_LIMIT).
  *  WITHIN one run, this is a real cursor bound: the Stripe SDK's async iterator
@@ -760,7 +743,6 @@ export const INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER = 24;
 /** Bounded charge history read per customer for refund/dispute counts. */
 export const INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER = 100;
 
-// ---- Intelligence AI half (health scoring, predictions, alerts, narrative) ----
 /** A customer is "at risk" below this health score (0-100, higher is
  *  healthier). Drives MRR-at-risk exposure, the narrative's top-N selection,
  *  and the /intelligence UI. */
@@ -801,7 +783,6 @@ export type AlertMetric = (typeof ALERT_METRICS)[number];
 export const ALERT_DIRECTIONS = ["above", "below"] as const;
 export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
 
-// ---- Stripe (ARCHITECTURE.md: Stripe is the product; permanent dependency) ----
 /**
  * Pinned Stripe API version. Matches the installed `stripe` package's default
  * (esm/apiVersion). Pinning here removes dependence on the Stripe account's
@@ -923,10 +904,6 @@ export const RATE_LIMIT_MCP = { max: 120, windowMs: 60 * 1000 } as const;
  * bucket above.
  */
 export const RATE_LIMIT_MCP_ANON = { max: 20, windowMs: 60 * 1000 } as const;
-
-// ============================================================================
-// OAuth provider for external agents
-// ============================================================================
 
 /** An access token lives one hour, as Recova's token route said
  *  (app/api/oauth/token/route.ts, ACCESS_TOKEN_TTL_SECONDS = 3600). */

@@ -52,7 +52,7 @@ const PREVIEW_TABLE_ROWS = 6;
  * billable query excludes the demo_ id prefix), and the invoiced half finds
  * only the demo's one seeded invoice (app/lib/demo/seed.ts, status "paid"),
  * whose dispute fees are settled. So nothing is owed, and the card reads
- * $0.00, as the demo dashboard does (PR #79).
+ * $0.00, as the demo dashboard does.
  */
 const DEMO_FEES_OWED: CurrencyAmount[] = [];
 

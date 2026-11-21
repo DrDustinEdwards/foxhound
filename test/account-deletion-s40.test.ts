@@ -233,7 +233,6 @@ async function seedMerchant(opts: {
     createdAt: OLDER,
   });
 
-  // ---- Recovery: three failed payments ----
   // fp-billed: recovered 80 days ago, ALREADY billed (line item exists).
   // fp-billable: recovered 45 days ago by a Foxhound retry, matured, NOT billed yet.
   // fp-free: recovered by Stripe on its own (baseline), never billed.
@@ -358,7 +357,6 @@ async function seedMerchant(opts: {
     attributedRef: `${p}-step-billable`,
   });
 
-  // ---- Disputes ----
   // d-won: resolved won, Foxhound submitted it, approved: billable.
   // d-open: still a draft. Not fee evidence.
   const dispute = (id: string, state: string, submitted: boolean) =>
@@ -410,7 +408,6 @@ async function seedMerchant(opts: {
     approvedAt: OLDER,
   });
 
-  // ---- Billing: one invoice already issued for rp-billed ----
   await db.insert(schema.billingInvoices).values({
     id: `${p}-inv`,
     accountId,
@@ -436,7 +433,6 @@ async function seedMerchant(opts: {
     createdAt: OLD,
   });
 
-  // ---- Everything else that carries personal data ----
   await db.insert(schema.winBackSequences).values({
     id: `${p}-wb`,
     stripeCustomerId: `cus_${p}_bea`,

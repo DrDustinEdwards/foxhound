@@ -342,8 +342,6 @@ describe("the live-send gate still holds every other send", () => {
   });
 });
 
-// ---- review of #91 (CHANGES): Recova's refusals before the invite is written ----
-
 interface LimiterCall {
   name: string;
   rules: Array<{ limit: number; windowSeconds: number }>;

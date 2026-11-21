@@ -460,7 +460,6 @@ describe("PHASE (f): every surface renders the active account and nothing else",
   }
 });
 
-// ---------------------------------------------------------------- JOB 3
 //
 // THE SWITCH, END TO END. Everything above renders a hand-built context. This
 // drives the REAL switch action from session 36, then rebuilds the context the

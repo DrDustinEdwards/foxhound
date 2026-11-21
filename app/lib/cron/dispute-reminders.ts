@@ -49,7 +49,7 @@ import { HOUR_MS } from "~/lib/constants";
 // would only fill the log. When the merchant is switched on, a dispute still
 // inside its band is reminded on the next tick.
 //
-// ONCE PER BAND, IN THE SELECTION (PR 149 review, MEDIUM). The reminder's
+// ONCE PER BAND, IN THE SELECTION. The reminder's
 // idempotency key is `<band>:<dispute id>`, and the send claim stores it on
 // its email_sends row before the provider is called. The query excludes a
 // dispute whose claim for this band already stands with no error (sent, or in

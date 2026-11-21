@@ -27,7 +27,7 @@ function isSafeUrl(url: string): boolean {
 // ever reaching this loader, so the click is recorded once and every later
 // click on the same per-recipient URL is silently lost. That corrupts the
 // email_engaged attribution signal rather than merely leaking a page, which is
-// why this one mattered most of the three (Dustin, 2026-08-04). The pixel
+// why this one mattered most of the three (Dustin). The pixel
 // sibling e/o already sent these exact directives; this is the set being made
 // consistent with the one route that had it right.
 function noStoreRedirect(url: string): Response {

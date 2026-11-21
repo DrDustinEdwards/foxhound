@@ -35,8 +35,6 @@ const HOUR = 60 * MIN;
 
 type Sqlite = ReturnType<typeof createInMemoryDb>["sqlite"];
 
-// --------------------------------------------------------- reading the locks
-
 function lockNamespace(views: Record<string, unknown>, failing: string[] = []) {
   const asked: string[] = [];
   return {
@@ -141,8 +139,6 @@ describe("readCronLocks with a lock that never answers", () => {
   });
 });
 
-// ------------------------------------------------------ the recovery queue
-
 function seedQueue(sqlite: Sqlite) {
   const account = (id: string, paused = 0, cancelled: number | null = null) =>
     sqlite
@@ -216,8 +212,6 @@ describe("getRecoveryQueueDepth", () => {
     expect(await depth(db, NOW)).toEqual({ activePayments: 0, dueSteps: 0, oldestDueAt: null });
   });
 });
-
-// ---------------------------------------------------------------- the loader
 
 describe("the loader", () => {
   beforeEach(() => {

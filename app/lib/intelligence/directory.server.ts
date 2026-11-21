@@ -7,12 +7,10 @@ import { customerContext, type Db } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { WATCH_CEILING, type HealthScoreBand } from "./health-band";
 
-// ============================================================================
 // Customer directory (TASK-foxhound-intelligence-customer-directory.md):
 // every scored customer, not just the at-risk few the Overview page's table
 // links to. Every filter and the sort live in SQL - never a client-side
 // filter over the full account, however small the demo happens to be today.
-// ============================================================================
 
 export type CustomerDirectorySort = "health_asc" | "mrr_desc";
 

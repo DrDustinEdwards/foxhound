@@ -219,8 +219,6 @@ async function fullFlow(): Promise<{ clientId: string; access: string; refresh: 
   return { clientId, access: body.access_token as string, refresh: body.refresh_token as string };
 }
 
-// ============================================================================
-
 describe("F18 and F19: the metadata, at both of Recova's well-known paths", () => {
   it("serves Recova's fields with this request's origin as issuer", async () => {
     const res = metadataRoute.loader({
@@ -856,7 +854,6 @@ describe("the authorize page stays out of caches, analytics and crawls", () => {
   });
 });
 
-// ============================================================================
 // A grant is one person's delegation: it lasts only while that person is still
 // an active member of the account (fresh review of PR #141, B2).
 

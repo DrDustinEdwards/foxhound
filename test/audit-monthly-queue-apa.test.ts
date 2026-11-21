@@ -205,8 +205,6 @@ async function deliver(e: Env, deliveries: Delivery[]) {
 const bodyFor = (bodies: unknown[], accountId: string) =>
   bodies.find((b) => (b as { accountId?: string }).accountId === accountId);
 
-// ============================================================================
-
 describe("the cron enqueues one message per opted-in account and audits nothing itself", () => {
   it("only opted-in, processing-eligible accounts are queued, each with its month and run", async () => {
     const { db, sqlite, env, queue, stripeCalls, delivered } = setup();
@@ -309,10 +307,6 @@ describe("a failure logs the whole err and lets the queue retry", () => {
     expect(sent[0].kind).toBe("failure");
   });
 });
-
-// ============================================================================
-// Review follow-ups on PR 143
-// ============================================================================
 
 const loggedText = (spy: { mock: { calls: unknown[][] } }) =>
   spy.mock.calls.map((args) =>

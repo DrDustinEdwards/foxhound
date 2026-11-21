@@ -195,8 +195,6 @@ describe("RULES.md 3.19: the audit's Stripe reads page to the end and log the co
   });
 });
 
-// ---- Review round 1 (PR #123) -------------------------------------------------
-
 /** A Stripe-shaped list of the given items, page by page as the SDK yields. */
 const listOf = (items: unknown[]) => () => ({
   async *[Symbol.asyncIterator]() {

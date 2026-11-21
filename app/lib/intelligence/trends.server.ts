@@ -8,12 +8,7 @@ import { sampleEveryNth } from "./dashboard";
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
 import { healthBandCondition } from "./directory.server";
 
-// ============================================================================
-// /intelligence/churn read model
-// ============================================================================
-
 /** How many high-risk customers the churn table lists. */
-// ---- MRR snapshot series for the dashboard (S16, legacy's NRRChart) ----
 // Ruling 399 entered NRRChart and MRRMovementChart on row S16 as legacy
 // elements the 394 walk never saw, because legacy's demo twin does not render
 // them. Both read the same mrr_snapshots rows legacy's dashboard selects at
@@ -87,7 +82,6 @@ export async function getMrrSnapshotSeries(
   }));
 }
 
-// ---- Customer health distribution (S16, legacy's HealthDistributionChart) ----
 // Ruling 399: legacy's REAL dashboard renders this chart, so Foxhound's
 // score-distribution card is a PORT to align rather than an addition. Legacy:
 // app/(app)/intelligence/dashboard/components/HealthDistributionChart.tsx, fed

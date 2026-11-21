@@ -174,10 +174,6 @@ function lastTriggeredAt(): number | null {
   return row.last_triggered_at;
 }
 
-// ============================================================================
-// E21: when it sends
-// ============================================================================
-
 describe("E21 sends on Recova's trigger and cooldown, and records notification_sent truly", () => {
   it("no breach: no mail and no row", async () => {
     seedAccount();
@@ -286,10 +282,6 @@ describe("E21 sends on Recova's trigger and cooldown, and records notification_s
     expect(historyRows().map((r) => r.notification_sent)).toEqual([1]);
   });
 });
-
-// ============================================================================
-// E22: the critical customers check
-// ============================================================================
 
 function seedCritical(
   opts: {

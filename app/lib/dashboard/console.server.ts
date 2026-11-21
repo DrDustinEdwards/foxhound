@@ -122,7 +122,7 @@ function subjectLabel(name: string | null, email: string | null): string {
 /**
  * The audit tile's leak: the run's failed invoices plus its open disputes,
  * added within each currency only and shown one per currency
- * (Dustin, 2026-10-25). A run stored before money_by_currency has one figure
+ * (Dustin). A run stored before money_by_currency has one figure
  * per scope in its one currency, and shows that as it always did; one that
  * recorded no currency reads as USD, the engine's own fallback. No money at
  * all is a zero in the run's currency.

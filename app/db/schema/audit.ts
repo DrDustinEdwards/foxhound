@@ -3,10 +3,6 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
 import { id, ts, bool, json } from "./columns";
 import { accountRef, optionalAccountRef } from "./tenancy";
 
-// ============================================================================
-// Audit product
-// ============================================================================
-
 type CurrencyTotals = { currency: string; cents: number }[];
 
 /** One run's money figures per currency, in currency-code order. A

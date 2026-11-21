@@ -42,7 +42,7 @@ import { listText } from "capsomer/behavior/hooks";
 //     the Intelligence entry). It does delay the first win-back email, legacy's
 //     gate in process.ts, and the FAQ says so (winback-copy.ts).
 //   * The price. Recova sold Intelligence for $199/mo. Foxhound's is free on
-//     every account (Dustin, 2026-10-29), so the hero, the meta description
+//     every account (Dustin), so the hero, the meta description
 //     and the pricing card say so in /pricing's words
 //     (INTELLIGENCE_FREE_SENTENCE).
 //   * The narrative. It is on the dashboard (ai-run.server.ts writes the

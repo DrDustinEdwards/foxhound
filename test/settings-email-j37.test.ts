@@ -117,9 +117,7 @@ describe("J37 email: the card", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
 // The action, driven for real, and the page rendering what it returned.
-// ---------------------------------------------------------------------------
 
 const ACCOUNT = "acct_1";
 const USER_EMAIL = "owner@acme.test";

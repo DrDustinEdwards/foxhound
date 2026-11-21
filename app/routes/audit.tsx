@@ -164,7 +164,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 // One clause of Recova's own copy is NOT restored, because it names a render
 // Foxhound does not have: its dispute "historical win rate" is a platform
 // figure, NOT PORTED at 365 binding 31. The "estimated recoverable amount" is
-// back with the results page's Recoverable estimate (Dustin, 2026-10-29). The expiring-cards line
+// back with the results page's Recoverable estimate (Dustin). The expiring-cards line
 // says what the engine's predicate actually does, which includes
 // already-expired cards; Recova says "next 30 days" and counts them too.
 //
