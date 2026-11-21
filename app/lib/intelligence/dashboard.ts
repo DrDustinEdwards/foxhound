@@ -8,8 +8,6 @@ import { monthKey } from "@dustinedwards/site-runtime/time";
 // page and its tests. No database, no AI, no server import: the page bundles
 // this for the browser.
 
-// ---- The monthly summary's month pager (Recova's MonthlyNarrative.tsx) ----
-
 /** The month `delta` months from "YYYY-MM". Recova's shiftMonth. */
 export function shiftMonth(yyyymm: string, delta: number): string {
   const [y, m] = yyyymm.split("-");
@@ -26,8 +24,6 @@ export function monthLabel(yyyymm: string): string {
   });
 }
 
-// ---- The empty state's schedule sentence ----
-
 /**
  * Recova's "The first snapshot runs tonight at 2:15am UTC. Check back
  * tomorrow.", with Foxhound's time: intelligence-sync runs daily on
@@ -40,8 +36,6 @@ export function firstSnapshotSentence(): string {
   const time = `${match[2].padStart(2, "0")}:${match[1].padStart(2, "0")}`;
   return `The first snapshot runs tonight at ${time} UTC. Check back tomorrow.`;
 }
-
-// ---- The daily series (Recova's MRRStatCards, NRRChart, MRRMovementChart) ----
 
 /** Every `stride`th item plus the last: Recova's every-7th-row sampling on its
  *  NRR and churn charts, keeping the newest day. */
@@ -117,8 +111,6 @@ export function weeklyMovements(points: readonly MovementWeek[]): MovementWeek[]
   return [...weeks.values()].sort((a, b) => a.at.getTime() - b.at.getTime());
 }
 
-// ---- MRR by plan (Recova's PlanBreakdown.tsx) ----
-
 export interface PlanRow {
   plan: string;
   mrrCents: number;
@@ -144,8 +136,6 @@ export function planBreakdownRows(raw: unknown): PlanRow[] {
     }))
     .sort((a, b) => b.mrrCents - a.mrrCents);
 }
-
-// ---- Report generation errors ----
 
 /** What generating a report can come back with, besides a narrative. */
 export type GenerateReportError =
@@ -182,8 +172,6 @@ export function narrativeErrorMessage(code: string | undefined): string {
     "Could not generate the report. Try again or contact support."
   );
 }
-
-// ---- Text equivalents for the charts (capsid/conventions-web.md rule 8) ----
 
 interface MrrPointLike {
   at: Date;

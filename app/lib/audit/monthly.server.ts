@@ -173,7 +173,7 @@ type MonthClaim = { claimed: true; id: string } | { claimed: false; heldStatus: 
  * that merchant one month's email rather than risking a second one; every other
  * status is a finished month.
  *
- * AN INSERT ERROR IS A REFUSAL ONLY WHEN A ROW STANDS BEHIND IT (PR 143 review).
+ * AN INSERT ERROR IS A REFUSAL ONLY WHEN A ROW STANDS BEHIND IT.
  * The insert can fail for a transient D1 reason as well as for the index. When
  * there is nothing to retake and no row exists, the insert's own error is
  * rethrown, so the message retries instead of being acked as a duplicate.
@@ -345,7 +345,7 @@ export interface MonthlyAuditAccountOutcome {
  * "Manage email settings" link, no unsubscribe, no Reply-To, the email_sends
  * claim and suppression. It is NOT held by the per-account live-send switch
  * (liveSendGate "skip"), which Recova does not have and which is off for every
- * real merchant (review round 1 of PR 160). Each of its outcomes settles the
+ * real merchant. Each of its outcomes settles the
  * month under its own name; only a provider failure is retried.
  *
  * NO OUTCOME AND NO BILLING ROW. `saveAuditRun` is a plain insert, not a money
@@ -526,7 +526,7 @@ export async function processMonthlyAuditMessage(
     alertCronFailure(
       env,
       getDb(env),
-      // The account is named in the alert itself (PR 143 review): alerts are
+      // The account is named in the alert itself: alerts are
       // deduped per cron per day, so the one email that goes out has to say
       // which merchant it is about.
       { cronName: MONTHLY_AUDIT_CRON_NAME, runId: message.cronRunId, error: `${where}: ${error}` },
@@ -542,7 +542,7 @@ export async function processMonthlyAuditMessage(
         `monthly audit: ${where} claim refused on attempt ${attempts}, row is ${outcome.heldStatus}`,
       );
     }
-    // STUCK PENDING (PR 143 review). A run killed mid-flight leaves its claim
+    // STUCK PENDING. A run killed mid-flight leaves its claim
     // pending, and pending is never retaken, so nothing is sent twice. The
     // message is retried so a run still in flight can finish, and the last
     // attempt alerts, so a stuck month is seen rather than discovered.

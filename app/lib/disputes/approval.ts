@@ -78,12 +78,10 @@ export function approvalRaceErrorMessage(err: unknown): string | null {
   return isUniqueConstraintError(err) ? "This dispute has already been submitted." : null;
 }
 
-// ============================================================================
 // Approve -> submit orchestration (PRICING.md hard rule: no evidence is ever
 // submitted to Stripe without an explicit merchant approval record; and,
 // symmetrically, no submission ever happens without a durable record on our
 // side, dispute-intake review MEDIUM)
-// ============================================================================
 
 /** Outcome of the pre-submit durable write (Phase A):
  *  - `created`: a fresh pending approval row was written.

@@ -145,7 +145,7 @@ export async function handleStampDispute(
   // changing nothing about it, as the recovery notification above. Recova
   // sends it at the end of handleDisputeCreated. It never throws.
   //
-  // SENT ON A REDELIVERY TOO (PR 149 review). A Worker that dies between
+  // SENT ON A REDELIVERY TOO. A Worker that dies between
   // the intake commit and the send leaves the merchant untold, and Stripe's
   // redelivery comes back `applied: false`. So a replay sends for the row
   // that exists; the notice's send claim (`dispute-created:<row id>`) is

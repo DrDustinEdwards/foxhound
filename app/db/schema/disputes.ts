@@ -13,9 +13,7 @@ import { id, ts, bool, json } from "./columns";
 import { failedPayments } from "./recovery";
 import { stripeConnections, accountRef } from "./tenancy";
 
-// ============================================================================
 // Disputes (rebuilt as a state machine with an approval gate)
-// ============================================================================
 
 export const disputes = sqliteTable(
   "disputes",
@@ -173,10 +171,6 @@ export const disputeApprovals = sqliteTable(
     uniqueIndex("dispute_approvals_dispute_uq").on(t.disputeId),
   ],
 );
-
-// ============================================================================
-// Early fraud warnings (Stripe radar.early_fraud_warning)
-// ============================================================================
 
 /**
  * One row per Stripe early fraud warning on a connected account. A card network

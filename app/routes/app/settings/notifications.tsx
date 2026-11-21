@@ -122,7 +122,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     recoveryNotificationsEnabled: row?.recoveryNotificationsEnabled ?? NULL_IS_ON,
     sequenceCompleteNotificationsEnabled: row?.sequenceCompleteNotificationsEnabled ?? NULL_IS_ON,
     // The alerts, once /settings/alerts, under the delivery settings
-    // (Dustin, 2026-10-29).
+    // (Dustin).
     alerts: await alertsSection,
   };
 }

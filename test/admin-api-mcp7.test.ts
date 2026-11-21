@@ -144,8 +144,6 @@ async function api(
 
 const asAdmin = (key: string) => ({ key, actor: ADMIN });
 
-// ============================================================================
-
 describe("PLANT 1: two credentials on every call", () => {
   it("only claims /api/admin/v1", async () => {
     expect(await handleAdminApiRequest(new Request(`${ORIGIN}/api/carrel/v1/x`), env())).toBeNull();

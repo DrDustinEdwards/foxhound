@@ -38,7 +38,7 @@ export const handle = { hydrate: true };
 
 // Per-recipient, token-bearing, and it resolves to a specific failed payment
 // and a Stripe Checkout session, so it is never cacheable by a shared
-// intermediary (Dustin, 2026-08-04). See the same note on unsubscribe.tsx:
+// intermediary (Dustin). See the same note on unsubscribe.tsx:
 // neither side sent a directive, and the e/o pixel was the only one of the four
 // tokenised routes that did.
 export const headers = () => PRIVATE_PAGE_HEADERS;
@@ -472,7 +472,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
  * customer, not a Foxhound merchant, so the page leaves AuthShell, whose brand
  * panel pitches Foxhound to merchants; the sign-in pages keep it. The
  * coordinator chose this as the recommended default while the question is
- * with Dustin (PR #56).
+ * with Dustin.
  *
  * Its parts are Capsomer's: the card is Capsomer's panel, used through
  * its HTML contract as a body-only panel, because the React Panel always draws

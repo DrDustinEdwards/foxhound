@@ -54,7 +54,7 @@ describe("buildBillingInvoiceBatch", () => {
       baseInput({
         recoveries: [
           { id: "rec_1", amountCents: 10_000, refundedCents: 0 },
-          // Half refunded: the fee is on the 2,500 kept (Dustin, 2026-11-18).
+          // Half refunded: the fee is on the 2,500 kept (Dustin).
           { id: "rec_2", amountCents: 5_000, refundedCents: 2_500 },
         ],
         disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],

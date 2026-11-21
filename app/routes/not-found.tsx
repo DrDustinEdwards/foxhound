@@ -7,7 +7,7 @@ import type { Route } from "./+types/not-found";
 // THE MARKETING LAYOUT'S CATCH-ALL. Every address no other route claims lands here and answers
 // 404 inside the marketing layout, so the page keeps the site's header (with the visitor's real
 // signed-in state) and footer instead of the root boundary's wordmark bar (parity audit,
-// 2026-11-10). It never redirects: foxhoundapp.com has no internal redirects (Dustin, 2026-11-11).
+// 2026-11-10). It never redirects: foxhoundapp.com has no internal redirects (Dustin).
 
 export function loader(): never {
   throw data(null, { status: 404, statusText: "Not Found" });

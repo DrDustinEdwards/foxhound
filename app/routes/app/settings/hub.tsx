@@ -65,7 +65,7 @@ export interface SettingsHubEntry {
 }
 
 /** Recova's twelve, in Recova's order, less three combined into others
- *  (Dustin, 2026-10-29): Features into Email, Alerts into Notifications, and
+ *  (Dustin): Features into Email, Alerts into Notifications, and
  *  Intelligence, which had no working control, removed. */
 export const SETTINGS_HUB_ENTRIES: SettingsHubEntry[] = [
   { to: "/settings/stripe", label: "Stripe connections" },

@@ -113,7 +113,7 @@ describe("J09: Foxhound's old paths behave as ruled", () => {
     });
   }
 
-  // Foxhound serves no internal redirects (Dustin, 2026-11-11), so the old
+  // Foxhound serves no internal redirects (Dustin), so the old
   // /products/<name> spokes are gone like every other retired path.
   for (const spoke of SITEMAP_PUBLISHED_SPOKES) {
     it(`/products/${spoke} reaches no page`, () => {
@@ -132,7 +132,6 @@ describe("J09: the nav, the caches and the machine files name the new paths", ()
   });
 });
 
-// ---------------------------------------------------------------------------
 // No internal link names an old path.
 //
 // Every string literal and template-literal part in the shipped source (app/,

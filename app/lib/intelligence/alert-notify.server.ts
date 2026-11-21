@@ -61,8 +61,6 @@ const ALERT_FROM_NAME = "Foxhound";
  */
 export const CRITICAL_CUSTOMERS_ALERT_LIVE = true;
 
-// ---- what each says ------------------------------------------------------------
-
 /** Recova's formatThreshold: every cents metric as US dollars, Intl's default
  *  two decimals; anything else as the bare number. */
 function formatAlertValue(metric: string, value: number): string {
@@ -153,8 +151,6 @@ function criticalCustomersSlackText(count: number, baseUrl: string): string {
     `View recommendations: ${baseUrl}/intelligence/recommendations`
   );
 }
-
-// ---- where it goes -------------------------------------------------------------
 
 /** The account's two channels, read as Recova reads them: notification_email
  *  only (no fallback to a login address) and slack_webhook_url. */
@@ -297,8 +293,6 @@ export async function notifyThresholdAlert(
     return { channel: "error", sent: false, message };
   }
 }
-
-// ---- the critical customers notification (E22) ------------------------------
 
 /** What the critical customers notification came to: the channel tried (or
  *  none), whether it went, and the send or post result. */

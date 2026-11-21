@@ -200,7 +200,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
         { status: 409 },
       );
     }
-    // Not while an approval stands (PR 149 review): its submission is in
+    // Not while an approval stands: its submission is in
     // flight, rejected or unconfirmed, and a concession would race it.
     if (detail.approval) {
       return data({ error: ACCEPT_APPROVED_MESSAGE, intent: "accept" as const }, { status: 409 });

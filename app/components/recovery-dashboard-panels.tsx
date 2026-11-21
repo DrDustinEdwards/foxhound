@@ -51,8 +51,6 @@ import {
   formatStepType,
 } from "~/lib/recovery/labels";
 
-// ---- Head ----
-
 export const WEBHOOK_TONE: Record<WebhookHealthTone, StatusTone> = {
   success: "ok",
   neutral: "info",
@@ -70,8 +68,6 @@ export function RangeSelector({ range }: { range: RecoveryRange }) {
     </TabsNav>
   );
 }
-
-// ---- Banners above the head (Recova's hasBanners block) ----
 
 /** Recova's OnboardingChecklist steps, for Capsomer's setup checklist: each
  *  one Done or To do, with its one way to do it until it is done. */
@@ -121,8 +117,6 @@ export const ONBOARDING_READY = {
   title: "You're ready",
   detail: "Foxhound will automatically detect and recover failed payments",
 };
-
-// ---- Stat cards ----
 
 /** Recova's PrimaryCard and SecondaryCard: an icon, the label, the figure and
  *  an optional line under it, here as a small Capsomer panel (Capsomer's stat
@@ -228,8 +222,6 @@ export function StatCardsSecondary({ w }: { w: RecoveryDashboardWindow }) {
   );
 }
 
-// ---- ROI widget ----
-
 function RoiLine({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
     <div className="fh-recpanel-line">
@@ -289,8 +281,6 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
     </Panel>
   );
 }
-
-// ---- Win-back, queue ----
 
 export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
   return (
@@ -353,8 +343,6 @@ export function RecoveryQueue({
     </Panel>
   );
 }
-
-// ---- Failed payments ----
 
 const PILL_TONE: Record<"success" | "failure" | "neutral", StatusTone | undefined> = {
   success: "ok",

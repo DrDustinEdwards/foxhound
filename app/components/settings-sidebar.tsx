@@ -13,7 +13,7 @@ import {
 // S25's settings sub-nav, ported from legacy's SettingsSidebar. On a settings
 // page the app shell's left menu shows these rows in place of the product's
 // (app/layouts/app-shell.tsx), so the page has one menu, not two side by side
-// (Dustin 2026-10-29).
+// (Dustin).
 //
 // (blob `e1a283ec`, 4,047 bytes). 336 binding 2 rules the hub and its sub-nav
 // the spec and Foxhound's inline cards the rule to remove, superseding ruling

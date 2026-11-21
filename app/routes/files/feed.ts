@@ -28,7 +28,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   // lastModified to now on every static entry, and it was caught here by
   // ruling 90's cross-surface check: the sitemap and this feed serve the same
   // crawler audience and were asserting opposite things about the same 45
-  // posts. Ruling 89 is EXTENDED to this file (Dustin, 2026-08-02).
+  // posts. Ruling 89 is EXTENDED to this file (Dustin).
   // getAllPublishedPosts orders by publishedAt DESC, so the first post with a
   // date is the newest. An item's pubDate is likewise OMITTED rather than
   // defaulted to now (rssItem leaves it out when publishAt is null), same

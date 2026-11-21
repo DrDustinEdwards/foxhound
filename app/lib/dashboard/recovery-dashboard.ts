@@ -98,10 +98,6 @@ export function formatLongDate(date: Date): string {
   });
 }
 
-// ---- Recovery rate chart ----
-
-// ---- Recovered revenue chart ----
-
 export interface DailyRecoveredRow {
   Day: string;
   currency: string;
@@ -156,15 +152,11 @@ export function recoveredRevenueAlt(rows: readonly DailyRecoveredRow[], days: nu
   return `Revenue recovered per day over the last ${days} days: ${parts.join("; ")}.`;
 }
 
-// ---- Recovery timing chart ----
-
 export function recoveryTimingAlt(buckets: readonly RecoveryTimingBucket[]): string {
   const total = buckets.reduce((s, b) => s + b.count, 0);
   const parts = buckets.map((b) => `${b.dayBucket} ${b.percentage}% (${b.count})`);
   return `When the ${total} recover${total === 1 ? "y" : "ies"} of the last 30 days happened, by days after the payment failed: ${parts.join(", ")}.`;
 }
-
-// ---- Email performance by decline type ----
 
 export interface EmailCategoryRow {
   Category: string;
@@ -212,8 +204,6 @@ export function emailCategoryAlt(
   return `Recovery email open and click rates by decline type. ${parts.join("; ")}.`;
 }
 
-// ---- Decline breakdown ----
-
 export interface DeclineRow {
   category: DeclineCategory;
   label: string;
@@ -252,8 +242,6 @@ export function declineRowText(row: DeclineRow): string {
   return `${row.count} · ${row.pct}%${row.recoveredPct !== null ? ` · ${row.recoveredPct}% recovered` : ""}`;
 }
 
-// ---- Getting started (Recova's OnboardingChecklist) ----
-
 export interface OnboardingInput {
   connected: boolean;
   senderName: string | null;
@@ -267,14 +255,10 @@ export function onboardingNeeded(o: OnboardingInput): boolean {
   return !o.onboardingCompleted && !(o.connected && !!o.senderName && !!o.notificationEmail);
 }
 
-// ---- Recovery queue ----
-
 /** The queue's heading window, in hours, from the read model's window. */
 export function hoursFromMs(ms: number): number {
   return Math.round(ms / HOUR_MS);
 }
-
-// ---- Failed payments table ----
 
 export interface PaymentStepSummary {
   completed: number;

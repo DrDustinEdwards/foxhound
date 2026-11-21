@@ -111,8 +111,6 @@ const callClick = async (token: string, headers: Record<string, string>, method 
 const stepRow = async (db: Awaited<ReturnType<typeof seed>>["db"], id: string) =>
   (await db.select().from(recoverySteps).where(eq(recoverySteps.id, id)))[0];
 
-// ============================================================================
-
 describe("PLANT 1: every listed agent is refused the write", () => {
   it("every agent 368 names by hand is in the shipped list", () => {
     // The ruling's minimum, asserted against the constant so a future trim of

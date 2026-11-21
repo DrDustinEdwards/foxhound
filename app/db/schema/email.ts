@@ -5,9 +5,7 @@ import { id, ts } from "./columns";
 import { recoverySteps, winBackSteps } from "./recovery";
 import { optionalAccountRef } from "./tenancy";
 
-// ============================================================================
 // Email dispatch and first-party engagement (redesigned off Email Service)
-// ============================================================================
 
 export const emailSends = sqliteTable(
   "email_sends",

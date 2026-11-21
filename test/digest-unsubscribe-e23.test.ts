@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// E23 review round 1 (PR 158): the digest's Unsubscribe switches the digest
+// E23 review round 1: the digest's Unsubscribe switches the digest
 // off for that account and nothing else. Recova's unsubscribe writes an
 // address-wide suppression, but Recova's merchant notices never read it, so a
 // Recova merchant who leaves the digest keeps every notice. Foxhound's

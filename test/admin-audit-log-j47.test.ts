@@ -44,8 +44,6 @@ function detail(e: Entry): string | null {
   return (describeLib.auditDetail as (e: Entry) => string | null)(e);
 }
 
-// ---------------------------------------------------------------- the loader
-
 describe("the loader", () => {
   beforeEach(async () => {
     const { db } = createInMemoryDb();

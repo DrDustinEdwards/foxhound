@@ -55,10 +55,6 @@ import { decideRetryStep, type RetryAttempt } from "./step-runner";
 //     it upgrades a wrongly-free baseline recording to foxhound_retry when the
 //     race goes the other way (fixed review Finding 2). See record-recovery.ts.
 
-// ============================================================================
-// Retry step
-// ============================================================================
-
 /** Everything the retry executor needs, loaded by the cron (joined step +
  *  failed_payment + connection). connectionAccessToken is the ENCRYPTED token;
  *  it is decrypted here and NEVER logged (ARCHITECTURE.md non-negotiable #5). */

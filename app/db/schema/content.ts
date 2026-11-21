@@ -2,10 +2,6 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
 
 import { id, ts, bool, json } from "./columns";
 
-// ============================================================================
-// Content / growth (global)
-// ============================================================================
-
 export const blogPosts = sqliteTable(
   "blog_posts",
   {

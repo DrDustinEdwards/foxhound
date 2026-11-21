@@ -4,10 +4,6 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 import { id, ts, bool } from "./columns";
 import { stripeConnections, accountRef } from "./tenancy";
 
-// ============================================================================
-// Recovery core
-// ============================================================================
-
 export const failedPayments = sqliteTable(
   "failed_payments",
   {

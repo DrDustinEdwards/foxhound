@@ -9,7 +9,7 @@ import { RECOVERY_SCHEDULES, isRetryStep } from "~/lib/recovery/schedule";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// job_3176bb519f89, found by the J76 review (PR #134): three parity follow-ups
+// job_3176bb519f89, found by the J76 review: three parity follow-ups
 // on /recovery/payments and /recovery/payments/:id, each toward Recova
 // (lib/ui-display.ts 35c4d676 getStepLabel, PaymentDetailClient.tsx 7f54aa45),
 // and a loader test for the raw email body. Every assertion was seen failing
@@ -26,8 +26,6 @@ const route = await import("~/routes/app/recovery/payments/detail");
 const A = "acct_alpha";
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const DAY = 86_400_000;
-
-// ---- 1. Step labels ----
 
 describe("step labels say Recova's day where Foxhound's offset makes it true", () => {
   it("ties every retry in every schedule to its offset: the day form only when it is exactly that day", () => {
@@ -50,8 +48,6 @@ describe("step labels say Recova's day where Foxhound's offset makes it true", (
     expect(checked).toBeGreaterThanOrEqual(6);
   });
 });
-
-// ---- 4. The loader sends no raw email body ----
 
 describe("the payment detail loader", () => {
   let sqlite: ReturnType<typeof createInMemoryDb>["sqlite"];

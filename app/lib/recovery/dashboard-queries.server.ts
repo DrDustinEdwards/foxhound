@@ -37,7 +37,6 @@ import {
 import { BILLABLE_ATTRIBUTION_KINDS, type DeclineCategory } from "~/lib/constants";
 import { type FailedPaymentRow } from "./queries.server";
 
-// ============================================================================
 // Dashboard window read model (TASK-foxhound-recovery-surface-parity.md Phase
 // 1: the Foxhound equivalent of legacy's fetchDashboardData). Every query here
 // is called with an optional cutoff (null = all time), so the SAME functions
@@ -45,7 +44,6 @@ import { type FailedPaymentRow } from "./queries.server";
 // in parallel (app/lib/dashboard/recovery-window.server.ts composes them; this
 // file only owns the SQL). Renewal noise is excluded everywhere failed_payments
 // is read directly, matching every other Recovery query in this file.
-// ============================================================================
 
 const RECENT_FAILED_PAYMENTS_LIMIT = 8;
 

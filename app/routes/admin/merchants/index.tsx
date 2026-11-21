@@ -129,7 +129,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   const wasBrakePause =
     !value && target.processingPaused && target.pauseReason === PAUSE_REASON_BRAKE;
   // Whether the write will change anything, as read just before it, so a
-  // stale row's no-op says so in its audit row (PR 140 review). It is the
+  // stale row's no-op says so in its audit row. It is the
   // guarded write's own condition: the flag holds the other value, and an Undo
   // of a pause resumes only a manual pause.
   const current = intent === "billing-exempt" ? target.billingExempt : target.processingPaused;

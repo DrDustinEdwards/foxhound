@@ -190,8 +190,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   };
 }
 
-// ---- Page ----
-
 export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) {
   const {
     data,

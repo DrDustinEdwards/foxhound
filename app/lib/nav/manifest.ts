@@ -3,7 +3,7 @@
 // tree (app/routes.ts), so nav and routes cannot silently drift.
 //
 // Recovery and Disputes are outcome-priced (PRICING.md) and Intelligence is
-// free (Dustin, 2026-10-29), with no account_products gate on any route, so
+// free (Dustin), with no account_products gate on any route, so
 // every product is always available to any account with a membership.
 //
 // One intentional deviation from the legacy shape (task: "map to Foxhound's

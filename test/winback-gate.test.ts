@@ -10,7 +10,7 @@ import {
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // The win-back Intelligence gate, end to end through the real webhook processor.
-// Intelligence is free on every account (Dustin, 2026-10-29), so legacy's
+// Intelligence is free on every account (Dustin), so legacy's
 // entitlement condition always holds and only its body remains: an unflagged
 // customer's first win-back step is delayed to 4h, a winback_priority one keeps 1h.
 //

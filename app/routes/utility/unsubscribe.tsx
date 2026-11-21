@@ -35,7 +35,7 @@ export function meta() {
 }
 
 // This URL is per-recipient and token-bearing, so it is never cacheable by any
-// shared intermediary (Dustin, 2026-08-04). Neither side sent a directive here:
+// shared intermediary (Dustin). Neither side sent a directive here:
 // legacy sets no Cache-Control on its unsubscribe route either, and Foxhound's
 // own e/o pixel was the only one of the four tokenised routes that did. Same
 // correctness class as the F2 robots row, where Foxhound already disallows

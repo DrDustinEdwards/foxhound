@@ -6,7 +6,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // E11: the Recovery sequence ended notice to the
 // merchant, on Capsomer's `notice` template with Recova's words, recipient and
-// footer, the same way E10 (PR 152) moved the Payment recovered notice.
+// footer, the same way E10 moved the Payment recovered notice.
 //
 // Recova is the spec, read whole at the blobs parity/ROWS-E.md names:
 //   app/api/cron/process-recovery/route.ts  blob 7015998c, 19,935 bytes (lines 381 to 412)
@@ -94,9 +94,7 @@ async function sendOne(): Promise<SentMessage> {
   return harness.sent[0];
 }
 
-// ============================================================================
 // What it says: Recova's words on Capsomer's notice template
-// ============================================================================
 
 describe("E11 says Recova's words, as a title, one sentence and a View payment button", () => {
   it("a customer name is shown as written, never read as markup", async () => {

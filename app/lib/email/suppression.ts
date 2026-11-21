@@ -68,7 +68,7 @@ export async function recordUnsubscribe(
 export type DigestUnsubscribeOutcome = UnsubscribeOutcome | "changed";
 
 /**
- * Record a digest unsubscribe (E23, review round 1 of PR 158): switch off the
+ * Record a digest unsubscribe: switch off the
  * weekly digest for the account the token was signed for, while that account
  * still sends its digest to the token's address. No suppression row is
  * written: the digest's link leaves the digest, as a Recova merchant sees it,

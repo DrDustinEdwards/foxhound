@@ -110,10 +110,6 @@ describe("J34 api keys: the one-time reveal", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// The loader: Recova's order, and its failure state.
-// ---------------------------------------------------------------------------
-
 const ACCOUNT = "acct_1";
 let sqlite: Database.Database;
 

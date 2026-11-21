@@ -151,9 +151,7 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
   return { keyId: verified.keyId, actorEmail: actor };
 }
 
-// ---------------------------------------------------------------------------
 // Pagination: the same opaque cursor shape the merchant MCP uses.
-// ---------------------------------------------------------------------------
 
 function page(url: URL, route: string): number {
   const raw = url.searchParams.get("cursor");
@@ -176,10 +174,6 @@ function slice<T>(route: string, rows: T[], pageNumber: number) {
     next_cursor: hasMore ? pageCursor(route, pageNumber + 1) : null,
   };
 }
-
-// ---------------------------------------------------------------------------
-// The routes
-// ---------------------------------------------------------------------------
 
 interface RouteContext {
   db: Db;

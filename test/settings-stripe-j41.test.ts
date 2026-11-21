@@ -118,10 +118,6 @@ describe("J41 stripe: the card and its rows", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// The action, against an in-memory D1.
-// ---------------------------------------------------------------------------
-
 const ACTIVE = "acct_active";
 let sqlite: Database.Database;
 

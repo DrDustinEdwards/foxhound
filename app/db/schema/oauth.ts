@@ -3,9 +3,6 @@ import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { id, ts, json } from "./columns";
 import { apiKeys, accountRef } from "./tenancy";
 
-// ============================================================================
-// OAuth provider for external agents
-// ============================================================================
 //
 // Recova kept oauth_clients, oauth_authorization_codes and oauth_tokens in
 // Supabase. Those rows do not migrate (SCHEMA.md); these three tables are

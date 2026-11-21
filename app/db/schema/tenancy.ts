@@ -3,9 +3,7 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
 
 import { bool, id, json, ts } from "./columns";
 
-// ============================================================================
 // Tenancy and identity (business-owned; Better Auth owns user/session/etc.)
-// ============================================================================
 
 export const accounts = sqliteTable("accounts", {
   id: id(),

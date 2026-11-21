@@ -12,9 +12,7 @@ import {
 } from "~/lib/constants";
 import { buildRecoveryBatch } from "./record-recovery";
 
-// ---------------------------------------------------------------------------
 // Atomic batches. Exported pure so each is unit-tested against the real schema.
-// ---------------------------------------------------------------------------
 
 export interface SaveNoteInput {
   accountId: string;

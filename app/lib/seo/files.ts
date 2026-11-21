@@ -66,7 +66,7 @@ export const DISALLOW_PATHS = [
   "/mcp",
 ];
 
-// The bot set is the family's one policy, Prelum's default (Dustin, 2026-10-25):
+// The bot set is the family's one policy, Prelum's default (Dustin):
 // the search engines, the AI search and citation agents, and the training
 // crawlers are allowed (the training crawlers so they reach Cloudflare's Pay Per
 // Crawl price, where AI Crawl Control charges or blocks them), and Bytespider is

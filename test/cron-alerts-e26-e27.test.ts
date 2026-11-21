@@ -106,8 +106,6 @@ afterEach(() => {
   billable.throwFor = null;
 });
 
-// ---- E26 ------------------------------------------------------------------------
-
 describe("E26: the cron failure alert says what Recova's notifyCronFailure says", () => {
   const input = {
     cronName: "billing-monthly",
@@ -213,8 +211,6 @@ describe("E26 trigger: the billing run alerts when any account fails to invoice"
     expect(sent()).toHaveLength(0);
   });
 });
-
-// ---- E27 ------------------------------------------------------------------------
 
 describe("E27: the cron stale alert says what Recova's notifyCronStale says", () => {
   it("TRIGGER: no SUCCESSFUL run within the interval, as Recova's watcher reads last_succeeded_at", async () => {

@@ -136,10 +136,6 @@ async function verifyPkceS256(verifier: string, challenge: string): Promise<bool
   return safeEqual(base64url(await sha256(verifier)), challenge);
 }
 
-// ============================================================================
-// Registration (RFC 7591)
-// ============================================================================
-
 /**
  * The exact callbacks a registration may name: site-runtime's DCR_CALLBACKS
  * (Grok, ChatGPT, Gemini Enterprise) and DCR_REDIRECT_URIS, as on the admin
@@ -207,10 +203,6 @@ export async function registerClient(
     },
   };
 }
-
-// ============================================================================
-// Authorization (the consent page)
-// ============================================================================
 
 export type AuthorizeCheck =
   | {
@@ -402,10 +394,6 @@ export function denyRedirect(redirectUri: string, state: string | null, issuer: 
   target.searchParams.set("iss", issuer);
   return target.toString();
 }
-
-// ============================================================================
-// Grants: issue, rotate, revoke
-// ============================================================================
 
 type GrantRow = typeof oauthGrants.$inferSelect;
 

@@ -128,9 +128,7 @@ const customerJob = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-// ============================================================================
 // The send module: Recova's `replyTo ?? fromAddress`, customer mail only
-// ============================================================================
 
 describe("buildEmailMessage sets Reply-To on customer mail", () => {
   it("drops a stored value that is not a single address, so it can never reach the binding", () => {
@@ -147,9 +145,7 @@ describe("buildEmailMessage sets Reply-To on customer mail", () => {
   });
 });
 
-// ============================================================================
 // Every merchant-customer send path reads the connection's reply_to_email
-// ============================================================================
 
 describe("Reply-To is the merchant's address on every merchant-customer send", () => {
   it("recovery: both step queries read reply_to_email from the payment's connection", async () => {
@@ -179,9 +175,7 @@ describe("Reply-To is the merchant's address on every merchant-customer send", (
   });
 });
 
-// ============================================================================
 // The writer: Recova's "Reply-to email" field on /settings/email
-// ============================================================================
 
 function replyToRow(): string | null {
   return (

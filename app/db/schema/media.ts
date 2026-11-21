@@ -1,6 +1,4 @@
-// ============================================================================
 // The blog's media library (global, no account: editorial pictures only)
-// ============================================================================
 //
 // What Carrel uploads for blog posts (app/lib/carrel/media-adapter.server.ts).
 // The bytes live in the MEDIA R2 bucket under the same key; this is the index

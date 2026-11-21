@@ -76,8 +76,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-// ---------------------------------------------------------------- reading Sentry
-
 describe("whether Sentry can be read", () => {
   it("says not connected while SENTRY_DSN is unset, and never calls out", async () => {
     const fetchSpy = vi.fn();
@@ -260,8 +258,6 @@ describe("whether Sentry can be read", () => {
     expect(String(down.sentry.message)).toMatch(/did not answer/i);
   });
 });
-
-// ---------------------------------------------------------------- Recova's list
 
 describe("failed actions from the audit log (Recova's list)", () => {
   it("keeps only actions that name an error or a failure, newest first, in words", async () => {

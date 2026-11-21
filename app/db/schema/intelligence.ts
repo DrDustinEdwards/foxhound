@@ -4,10 +4,6 @@ import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-or
 import { id, ts, bool, json } from "./columns";
 import { accountRef } from "./tenancy";
 
-// ============================================================================
-// Intelligence
-// ============================================================================
-
 export const customerContext = sqliteTable(
   "customer_context",
   {

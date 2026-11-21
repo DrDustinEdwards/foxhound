@@ -77,8 +77,6 @@ function freshEnv(lock: unknown) {
 
 const DAILY = "0 3 * * *";
 
-// ============================================================================
-
 describe("PLANT 1: one job's infrastructure throw does not take the schedule with it", () => {
   it("A JOB THAT THROWS IN THE PREAMBLE FAILS, AND THE NEXT JOB STILL RUNS", async () => {
     const { env, sqlite } = freshEnv(throwingLockFor("recovery-tick"));

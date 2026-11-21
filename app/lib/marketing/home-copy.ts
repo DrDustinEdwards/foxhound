@@ -141,7 +141,7 @@ export interface HomeProductCard {
  *  Recova's with the engine's counts: it schedules more categories than
  *  sequences, so it says both rather than "handled differently". Disputes is
  *  the sanctioned review-and-sign wording (divergence 16). Intelligence keeps
- *  Recova's three features and is free (Dustin, 2026-10-29), in /pricing's words. */
+ *  Recova's three features and is free (Dustin), in /pricing's words. */
 export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
   audit: {
     description: "Full Stripe diagnostic. See what is leaking before you commit.",

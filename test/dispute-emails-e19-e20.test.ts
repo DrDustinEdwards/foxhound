@@ -5,7 +5,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // J93, parity rows E19 and E20: the dispute won and lost
 // notices say and carry what Recova's say, on Capsomer's `notice` template, as
-// E16 and E17 do (PR 162). Recova's spec, read whole at HEAD:
+// E16 and E17 do. Recova's spec, read whole at HEAD:
 //   lib/disputes-email.ts     blob 156719f1 (sendDisputeOutcomeEmail, lines 196 to 245)
 //   lib/email.ts              blob 3f882729 (wrapEmailHtml, the footer)
 //   lib/dispute-handlers.ts   blob e2bb8de8 (handleDisputeClosed, the trigger)
@@ -170,10 +170,6 @@ const base = {
   listUrl: LIST,
 };
 
-// ============================================================================
-// E19: what it says
-// ============================================================================
-
 describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
   it("the cap set the fee: the sentence names the cap, so it is not untrue", () => {
     const made = outcomeNotice({
@@ -232,9 +228,7 @@ describe("E19 says what Recova's won notice says, as a Capsomer notice", () => {
   });
 });
 
-// ============================================================================
 // When they send: Recova's trigger, charge.dispute.closed won or lost
-// ============================================================================
 
 describe("E19 and E20 send on charge.dispute.closed, and not otherwise", () => {
   it("won, Foxhound submitted: one mail, the fee the resolution snapshotted, the next run's date", async () => {

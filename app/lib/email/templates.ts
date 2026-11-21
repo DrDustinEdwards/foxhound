@@ -147,7 +147,6 @@ export function renderFoxhoundEmail(input: RenderInput): Rendered {
   return { ...rendered, html };
 }
 
-// ---- Recova's footer line ---------------------------------------------------------
 //
 // Recova's shell (lib/email.ts wrapEmailHtml, blob 3f882729) puts one sentence
 // in every footer: "You're receiving this from {senderName} about a recent
@@ -179,7 +178,6 @@ export function manageEmailSettingsLine(baseUrl: string): FooterLine {
   return { text: "Manage email settings", url: `${baseUrl}/settings` };
 }
 
-// ---- the sign-in link -----------------------------------------------------------
 //
 // Capsomer's own `magicLink` template, used as it stands, in its own words (the
 // family's one sign-in mail). Recova had no sign-in link: it had passwords. The
@@ -242,7 +240,6 @@ export function renderFoxhoundEmailChangeEmail(input: {
   });
 }
 
-// ---- operator alerts (E26, E27) ------------------------------------------------
 //
 // The cron failure and stale alerts, on Capsomer's own `alert` template: the
 // title as the one heading, the first sentence in the level's note (Capsomer
@@ -280,7 +277,6 @@ export function renderFoxhoundAlertEmail(input: {
   });
 }
 
-// ---- engagement markup ---------------------------------------------------------
 //
 // Moved here from engine/execute-step.ts so the frame and the hidden markup are
 // assembled in one module. Capsomer's component carries no tracking of its own

@@ -45,7 +45,7 @@ export interface PricingCard {
 }
 
 // Audit first: the free, no-signup entry point, as Recova orders them.
-/** Intelligence is free on every account (Dustin, 2026-10-29), in the words
+/** Intelligence is free on every account (Dustin), in the words
  *  every page uses (here, the home page and /product/intelligence), so the site
  *  says one thing. */
 export const INTELLIGENCE_FREE_SENTENCE =

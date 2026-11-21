@@ -32,7 +32,7 @@ export const ALERT_COOLDOWN_MS = DAY_MS;
  * than last night's finds the alert still in cooldown, so a steady breach is
  * mailed every other night. Recova re-evaluated every few minutes, so its
  * effective period was 24 hours plus one tick; one evaluation a night gets the
- * same behavior from this margin (review round 1, PR 156).
+ * same behavior from this margin.
  */
 export const ALERT_COOLDOWN_MARGIN_MS = HOUR_MS;
 
@@ -137,7 +137,6 @@ export function buildAlertLastTriggeredUpdate(db: Db, alertId: string, firedAt: 
   return db.update(alerts).set({ lastTriggeredAt: firedAt }).where(eq(alerts.id, alertId));
 }
 
-// ---- the critical customers check (E22) -------------------------------------
 //
 // Recova's always-on cross-product check (lib/alert-evaluation.ts lines 337 to
 // 440): a customer with an active recovery sequence, a health score of 33 or

@@ -60,10 +60,8 @@ function deriveHealthFactors(trajectory: TrajectoryPoint[]): HealthFactor[] {
   ];
 }
 
-// ============================================================================
 // Recovery + engagement signals (from the recovery seed's own output, so this
 // never re-derives a competing view of the same rows)
-// ============================================================================
 
 interface RecoveryAggregate {
   failedPaymentCount: number;
@@ -134,10 +132,8 @@ function engagementSignalsFor(
   };
 }
 
-// ============================================================================
 // Health score + trajectory (scripted trajectory wins; anonymous customers get
 // a heuristic trajectory driven by their own recovery outcome)
-// ============================================================================
 
 function heuristicTrajectory(recovery: RecoveryAggregate, seed: string): TrajectoryPoint[] {
   const baseline = 70 + seededInt(`${seed}:base`, 15);
@@ -188,12 +184,10 @@ function heuristicTrajectory(recovery: RecoveryAggregate, seed: string): Traject
   ];
 }
 
-// ============================================================================
 // Dispute-only customers (net-new: a demo business's disputes mostly belong to
 // customers not otherwise in its 200-customer base. A disputed customer who IS
 // in the base, Teamflow's Harborline Group, just gets its dispute_signals
 // merged in.)
-// ============================================================================
 
 /** The plan a net-new dispute-only customer is on, read off the disputed
  *  charge. Teamflow's rule by default; Bolt Analytics sells Pro only. */
@@ -264,10 +258,8 @@ function disputeTrajectory(agg: DisputeAggregate, now: Date, seed: string): Traj
   ];
 }
 
-// ============================================================================
 // mrr_snapshots: 12 monthly points, real movement math, driven by each
 // customer's actual signup/churn date (no fabricated growth curve).
-// ============================================================================
 
 interface MrrRosterEntry {
   stripeCustomerId: string;
@@ -381,10 +373,8 @@ function buildSnapshots(
   return rows;
 }
 
-// ============================================================================
 // Alerts (ported from legacy lib/demo-seeding/seed-alerts.ts: 3 rules + 1 fired
 // history row, for each demo business, as legacy seeded them per account)
-// ============================================================================
 
 function buildAlerts(
   accountId: string,
@@ -446,10 +436,6 @@ function buildAlerts(
   ];
   return { alerts: alertRows, history: historyRows };
 }
-
-// ============================================================================
-// Main entry point
-// ============================================================================
 
 export interface IntelligenceSeedInputs {
   accountId: string;

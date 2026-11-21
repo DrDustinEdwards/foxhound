@@ -45,7 +45,7 @@ import { canApprove } from "./approval";
 // `dispute-accept:<dispute id>`, so two tabs that both pass the state check
 // make one close at Stripe; the second gets the first's result back.
 //
-// NOT WHILE AN APPROVAL STANDS (PR 149 review, LOW). Once the merchant has
+// NOT WHILE AN APPROVAL STANDS. Once the merchant has
 // approved the evidence, a submission is in flight, was rejected, or is
 // unconfirmed, and conceding the dispute under it would race the submission.
 // Accept is refused until that is settled. Whether a rejected submission may

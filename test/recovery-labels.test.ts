@@ -1,20 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  formatStepType,
-  recoveryLifecycleStatus,
-  recoveryLifecycleTone,
-} from "~/lib/recovery/labels";
-
-describe("formatStepType", () => {
-  it("formats retry and email step types with their timing detail", () => {
-    expect(formatStepType("retry_early")).toBe("Retry (early)");
-    expect(formatStepType("retry_4hr")).toBe("Retry (4hr)");
-    expect(formatStepType("retry_day2")).toBe("Retry (day 2)");
-    expect(formatStepType("email_day1")).toBe("Email (day 1)");
-    expect(formatStepType("email_day30")).toBe("Email (day 30)");
-  });
-});
+import { recoveryLifecycleStatus, recoveryLifecycleTone } from "~/lib/recovery/labels";
 
 describe("recoveryLifecycleStatus / recoveryLifecycleTone", () => {
   it("a clean recovery (no refund, no dispute) reads as recovered/success", () => {

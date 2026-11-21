@@ -249,7 +249,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
 
   // The menu: the product you are in and its pages. On a settings page it is
   // the settings list instead, under a row back to the product, so a settings
-  // page has one menu and not two side by side (Dustin 2026-10-29). Settings,
+  // page has one menu and not two side by side (Dustin). Settings,
   // Billing and Team are in the avatar menu. On another platform page (billing,
   // help) the product is the last one you visited, as the switcher already says.
   const pages = productPages(nav.activeProductKey);

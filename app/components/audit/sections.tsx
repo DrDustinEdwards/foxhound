@@ -177,8 +177,6 @@ export function AuditSummary({ summary }: { summary: string | null }) {
   );
 }
 
-// ---- Revenue leaking now --------------------------------------------------
-
 /** Recova's four breakdown rows, in Recova's order and words, then the two
  *  categories Foxhound's classifier adds. Recova folds those two into "Soft
  *  declines"; here each keeps its own row, so the rows sum to the total
@@ -379,8 +377,6 @@ function recoverableTotals(failed: MoneyTotals): MoneyTotals {
   }));
 }
 
-// ---- Disputes unmanaged -----------------------------------------------------
-
 function DisputesCta({ state }: { state: CtaState }) {
   if (state === "active") {
     return <ButtonLink to="/disputes/dashboard">View Disputes dashboard</ButtonLink>;
@@ -507,8 +503,6 @@ function DisputeFigures({
     </>
   );
 }
-
-// ---- Business snapshot -------------------------------------------------------
 
 export function AuditHealthSection({
   run,

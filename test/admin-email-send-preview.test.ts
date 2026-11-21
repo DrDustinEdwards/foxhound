@@ -273,8 +273,6 @@ beforeEach(() => {
   sendSpies.sendRenderedTransactionalEmail?.mockClear();
 });
 
-// ============================================================================
-
 describe("PLANT 1: the admin API's two credentials guard both routes", () => {
   it("no key, or a merchant key, is a 401 and nothing is sent", async () => {
     const { keys } = await seed();
@@ -574,7 +572,6 @@ describe("PLANT 7: no tracking, no billable record, no real customer data", () =
   });
 });
 
-// ============================================================================
 // The Foxhound Admin MCP's two tools for it.
 
 const KEY = "fox_mcp_test_admin_key_at_least_32_chars";

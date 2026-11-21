@@ -192,7 +192,7 @@ function wonFoxhoundDisputeConditions(asOfMs: number): SQL {
  *  resolution); the resolved fee snapshot on the row already carries the cap
  *  applied at resolution.
  *
- *  SKIP UNTIL PRICED (Dustin, 2026-10-25). A win whose cap could not be
+ *  SKIP UNTIL PRICED (Dustin). A win whose cap could not be
  *  converted at resolution has no stored fee, and it is left out here rather
  *  than billed at the flat 50,000 in its own currency, which ruling 377(7) says
  *  is never used. Nothing marks it billed, so once the daily pricing retry

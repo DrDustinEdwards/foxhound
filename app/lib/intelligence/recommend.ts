@@ -46,8 +46,6 @@ function nonNeg(n: number | null | undefined): number {
   return typeof n === "number" && Number.isFinite(n) && n > 0 ? n : 0;
 }
 
-// ---- the three bands (Recova's bands.ts) ------------------------------------
-
 export interface EngagementInput {
   /** Recovery emails sent to this customer in the last 30 days. */
   sent30d: number;
@@ -160,8 +158,6 @@ function percentileRank(value: number, sortedAsc: readonly number[]): number {
   }
   return (belowOrEqual / sortedAsc.length) * 100;
 }
-
-// ---- the table (Recova's recommend.ts) ----------------------------------------
 
 export interface Recommendation {
   action: RecommendedAction;
@@ -365,8 +361,6 @@ function computeConfidence(
   if (value === "high" || action === "continue_automated") return "high";
   return "medium";
 }
-
-// ---- one customer, end to end -------------------------------------------------
 
 export interface CustomerRecommendation {
   engagement: EngagementHealth;

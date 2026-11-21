@@ -125,8 +125,6 @@ function tool(name: string): McpTool {
 const PROBE = defineToolRegistry([tool("foxhound_get_probe")]);
 const PROBE_NAMES = ["foxhound_get_probe"];
 
-// ============================================================================
-
 describe("PLANT 1: the endpoint's shape", () => {
   it("only claims /mcp, returning null for anything else", async () => {
     const other = await handleMcpRequest(new Request(`${ORIGIN}/pricing`), env());

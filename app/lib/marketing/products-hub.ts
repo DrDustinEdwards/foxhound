@@ -26,7 +26,7 @@ import type { ProductKey } from "./products";
 //   (DISPUTE_FEE_CAP_CENTS, applied in app/lib/billing/run.ts), so the cap is
 //   named, as /pricing names it.
 // - Intelligence: Recova reads "$199/mo", but Intelligence is free on every
-//   account (Dustin, 2026-10-29), so it says "Free".
+//   account (Dustin), so it says "Free".
 
 export interface HubCardCopy {
   description: string;

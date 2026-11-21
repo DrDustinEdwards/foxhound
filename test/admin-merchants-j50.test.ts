@@ -114,8 +114,6 @@ async function post(route: Record<string, unknown>, path: string, fields: Record
 const ids = (data: Record<string, unknown>) =>
   (data.merchants as Array<{ id: string }>).map((m) => m.id);
 
-// ---------------------------------------------------------------- pure helpers
-
 describe("the lists' addresses and filters", () => {
   it("keeps exactly the rows whose flag is set, as Recova's .eq() reads did, canceled ones included", () => {
     expect(typeof pageLib.merchantsInView).toBe("function");
@@ -134,8 +132,6 @@ describe("the lists' addresses and filters", () => {
     expect(inView(rows, "billing-exempt").map((r) => r.id)).toEqual(["c", "d"]);
   });
 });
-
-// ---------------------------------------------------------------- the loader
 
 describe("the loader, by address", () => {
   beforeEach(async () => {
@@ -164,8 +160,6 @@ describe("the loader, by address", () => {
     });
   });
 });
-
-// ---------------------------------------------------------------- the action
 
 describe("the action from a list: the Merchants page's writers and audit rows", () => {
   let seeded: Seeded;
@@ -228,5 +222,3 @@ describe("the action from a list: the Merchants page's writers and audit rows", 
     expect(answer.data).toMatchObject({ ok: true, changed: true, wasBrakePause: true });
   });
 });
-
-// ---------------------------------------------------------------- the page

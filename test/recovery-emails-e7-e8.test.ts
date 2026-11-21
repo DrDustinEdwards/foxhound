@@ -70,7 +70,6 @@ const env = {
   },
 } as unknown as Env;
 
-// ---- Recova's words, step by step ---------------------------------------------
 //
 // FALLBACK_TEMPLATES.email_day14 and .email_day30 in lib/recovery-execution.ts,
 // with applyTemplate's variables: customer_name is `fp.customer_name ||
@@ -121,8 +120,6 @@ const STEPS = Object.keys(RECOVA) as (keyof typeof RECOVA)[];
 // never per category, so all of them get the same words.
 const CATEGORIES = ["soft", "network", "expired", "fraud", "unknown"] as const;
 
-// ---- 1. When each email sends ---------------------------------------------------
-
 function offsetOf(category: keyof typeof RECOVERY_SCHEDULES, stepType: string): number | undefined {
   return RECOVERY_SCHEDULES[category].find((s) => s.stepType === stepType)?.offsetHours;
 }
@@ -153,8 +150,6 @@ describe("E7 and E8 send on Recova's timing (lib/recovery-schedules.ts, lib/cons
     for (const s of STEPS) expect(offsetOf("revoked", s)).toBeUndefined();
   });
 });
-
-// ---- 3. The executor sends Recova's words when generation fails ----------------
 
 function ctx(over: Partial<EmailStepContext> = {}): EmailStepContext {
   return {
@@ -227,8 +222,6 @@ describe("E7 and E8: the executor sends Recova's step template when generation c
   }
 });
 
-// ---- 5. End to end: the trigger, the timing and the recipient ------------------
-
 describe("E7 and E8 end to end: a due step sends to the customer at Recova's offset and not before", () => {
   const T0 = new Date("2026-07-01T00:00:00.000Z");
 
@@ -297,8 +290,6 @@ describe("E7 and E8 end to end: a due step sends to the customer at Recova's off
     });
     expect(harness.sent[0].text).toContain("Hi there,");
   });
-
-  // ---- a refused send returns its named outcome ----
 
   function stepJob(stepType: keyof typeof RECOVA, over: Partial<EmailJob> = {}): EmailJob {
     return {

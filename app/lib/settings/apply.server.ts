@@ -113,8 +113,6 @@ function asOptionalText(value: unknown): string | null {
   return raw.length > 0 ? raw : null;
 }
 
-// ---------------------------------------------------------------------------
-
 export interface AuditSettingsState {
   lookbackDays: number;
   autoRun: boolean;
@@ -647,9 +645,7 @@ export async function applyIntelligenceContext(
   return { ok: true, fields, state };
 }
 
-// ---------------------------------------------------------------------------
 // Alerts, in TWO functions, because the action is in two shapes
-// ---------------------------------------------------------------------------
 //
 // THE FORM'S ACTION BRANCHES EXACTLY HERE and the split follows it rather than
 // inventing one: `if (intent === "create")` validates four fields and takes no

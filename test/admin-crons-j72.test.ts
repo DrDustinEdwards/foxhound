@@ -90,8 +90,6 @@ describe("listCronRows reads each cron's own runs", () => {
   });
 });
 
-// ---------------------------------------------------------------- the loader
-
 describe("the loader", () => {
   let sqlite: Sqlite;
   beforeEach(() => {

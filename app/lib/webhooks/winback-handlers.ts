@@ -133,7 +133,7 @@ export async function handleWinbackStart(
   //        ... if (recommendation !== 'winback_priority') { step1OffsetHours = 4 }
   //      }
   //
-  // INTELLIGENCE IS FREE (Dustin, 2026-10-29), so legacy's condition is true
+  // INTELLIGENCE IS FREE (Dustin), so legacy's condition is true
   // on every account and the gate itself is gone; only its body remains.
   //
   // Value and direction stay legacy's: a customer NOT flagged

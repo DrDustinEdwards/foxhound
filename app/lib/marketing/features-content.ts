@@ -77,8 +77,6 @@ export interface FeatureFacts {
 export const FEATURES_META_DESCRIPTION =
   "Features across automation, intelligence, email, visibility, control, integration, and security. Built for Stripe subscription businesses.";
 
-// ---- Reading the engine's numbers as words ----
-
 /** "every 5 minutes" from a "*\/N * * * *" schedule. */
 function cronEveryMinutes(expr: string): number {
   const m = /^\*\/(\d+) \* \* \* \*$/.exec(expr);
@@ -170,8 +168,6 @@ export function healthBandExampleScores(): [number, number, number] {
 export function healthBandSentence(): string {
   return `red below ${HEALTH_SCORE_AT_RISK_THRESHOLD}, orange ${HEALTH_SCORE_AT_RISK_THRESHOLD}-${WATCH_CEILING - 1}, green at or above ${WATCH_CEILING}.`;
 }
-
-// ---- The sections ----
 
 export function featureSections(facts: FeatureFacts): FeatureSection[] {
   const tick = cronEveryMinutes(CRON_SCHEDULE_RECOVERY_TICK);

@@ -1,5 +1,5 @@
 // Ruling 133's five treatment items, measured. Four of them landed; the icon
-// item is held pending the axis ruling (Dustin, 2026-08-05).
+// item is held pending the axis ruling (Dustin).
 //
 // CONDITIONS OF MEASUREMENT, stated because ruling 129 says an absence claim
 // without them is not a finding:

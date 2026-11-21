@@ -254,7 +254,7 @@ export async function sendDisputeOutcomeNotice(
         feeCents: row.billingExempt ? null : row.resolvedFeeCents,
         feeCurrency: row.resolvedFeeCurrency ?? row.currency,
         // A paused account is skipped by the billing run until it resumes, so no
-        // date is promised (accountBillingEligibleCondition, PR 149 review).
+        // date is promised.
         invoiceDate: row.processingPaused
           ? null
           : nextDisputeBillingRun(row.resolvedAt ?? new Date()),

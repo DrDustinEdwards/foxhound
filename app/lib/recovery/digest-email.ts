@@ -20,7 +20,7 @@
 // the postal address. The cron sends it on the "digest" audience, which is that
 // footer on this one merchant mail; every other merchant notice keeps none.
 // Its link is a digest token: following it switches off this
-// account's digest and suppresses no address (PR 158 review round 1).
+// account's digest and suppresses no address.
 
 import { plural } from "@drdustinedwards/site-helpers/text";
 import type { Block } from "capsomer/email";

@@ -293,8 +293,6 @@ function idPaths(schema: unknown, prefix = ""): string[] {
   });
 }
 
-// ============================================================================
-
 describe("PLANT 1: every id argument has an ownership case", () => {
   it("the schema walk and the case table name the same arguments", () => {
     const fromSchemas = MERCHANT_TOOLS.list()

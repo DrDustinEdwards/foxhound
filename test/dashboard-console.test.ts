@@ -105,10 +105,6 @@ describe("hero subtexts", () => {
   });
 });
 
-// ---------------------------------------------------------------------------
-// Read model, against the real schema
-// ---------------------------------------------------------------------------
-
 async function seedConsole(
   opts: {
     activeAmounts?: number[];

@@ -154,7 +154,6 @@ export async function getRecoveryDashboardWindow(
     ...new Set(recentPayments.map((p) => p.stripeCustomerId)),
   ]);
 
-  // ---- Category breakdown / stats: ONE cohort (failures detected in this
   // window, per listFailuresWithOutcome), never legacy's mismatch of a
   // detected_at-anchored total against a separately recovered_at-anchored
   // recovered count. ----
@@ -172,7 +171,6 @@ export async function getRecoveryDashboardWindow(
     categoryStats[row.declineCategory] = stat;
   }
 
-  // ---- Recovery days / timing / avg: EVENT-anchored (recovered, from
   // listRecoveredWithFailureContext), not the detected-at cohort above. This
   // is a distribution over recoveries that happened in this window and how
   // long each took - a question about the recovery events themselves, same
@@ -189,7 +187,6 @@ export async function getRecoveryDashboardWindow(
       ? Math.round((recoveryDays.reduce((a, b) => a + b, 0) / recoveryDays.length) * 10) / 10
       : null;
 
-  // ---- Daily recovery-rate trend: this chart sits beside recoveryRatePct, so
   // it must share that stat's cohort. Legacy built recoveredByDay from its
   // recovered_at-anchored query (the same mismatch the headline rate had) and
   // its own comment claimed the cumulative variant was "always <= 100% on
@@ -212,11 +209,9 @@ export async function getRecoveryDashboardWindow(
     nowMs,
   );
 
-  // ---- Category sparkline: ALWAYS trailing 30 days, independent of `range` ----
   const sparklineByCatByDay = countByDayAndCategory(sparklineFailures);
   const categorySparkline = categorySparklineWindow(sparklineByCatByDay, nowMs);
 
-  // ---- Email engagement (unscoped by range) ----
   const emailBuckets: Partial<
     Record<DeclineCategory, { sent: number; opened: number; clicked: number }>
   > = {};
@@ -254,7 +249,6 @@ export async function getRecoveryDashboardWindow(
     clickRatePct: percent(stepsInRange.filter((s) => s.clickedAt).length, sentInRange),
   };
 
-  // ---- Current-state facts (range-invariant) ----
   const activePaymentsCount = activePayments.length;
   const atRiskRevenue = groupSumByCurrency(
     activePayments.map((r) => ({ currency: r.currency, cents: r.amountCents })),

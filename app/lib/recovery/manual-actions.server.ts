@@ -153,10 +153,6 @@ export const MANUAL_ACTION_REQUIRES_ACTIVE: Record<ManualIntent, boolean> = {
   note: false,
 };
 
-// ---------------------------------------------------------------------------
-// Money-write routing
-// ---------------------------------------------------------------------------
-
 /** Commit a manual action's atomic batch, serialized on the account. */
 export type ManualActionCommit = (
   accountId: string,

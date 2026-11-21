@@ -281,8 +281,6 @@ describe("getCustomerActivity: one customer's rows, this account only", () => {
   });
 });
 
-// ---- The page ----
-
 const Page = CustomerPage as unknown as (props: { loaderData: unknown }) => ReactElement;
 
 // Newest first, as getCustomerHealthDetail returns it; the page reverses it.

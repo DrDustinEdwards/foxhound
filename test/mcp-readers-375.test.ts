@@ -162,8 +162,6 @@ async function readSettings(token: string, args: Record<string, unknown> = {}) {
   return out;
 }
 
-// ============================================================================
-
 describe("PLANT 1: both readers are registered and readable", () => {
   it("intelligence_context round-trips: changing the industry leaves the other two alone", async () => {
     const { tokens } = await seed();

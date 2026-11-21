@@ -236,9 +236,7 @@ const SWEEPERS: Record<string, SweeperCase> = {
   },
 };
 
-// ============================================================================
 // The list is DERIVED, so a new sweeper cannot be added without coverage
-// ============================================================================
 
 describe("317: the guard covers every sweeper, in both directions", () => {
   it("every exported sweep* is exercised here, and nothing here is a phantom", () => {
@@ -252,9 +250,7 @@ describe("317: the guard covers every sweeper, in both directions", () => {
   });
 });
 
-// ============================================================================
 // THE ASSERTION THAT WOULD HAVE CAUGHT IT: parameter count above the ceiling
-// ============================================================================
 
 describe(`317: no retention statement exceeds D1's ${D1_MAX_BOUND_PARAMS} bound parameters`, () => {
   for (const [name, sweeper] of Object.entries(SWEEPERS)) {
@@ -305,9 +301,7 @@ describe("317: sweepAiCalls keeps its id list as one bound parameter", () => {
   });
 });
 
-// ============================================================================
 // Correctness: the predicate must delete the aged rows and ONLY those
-// ============================================================================
 
 describe("317: the subquery predicate deletes the aged rows and spares fresh ones", () => {
   it("an empty table sweeps to zero and issues no delete at all", async () => {
@@ -320,9 +314,7 @@ describe("317: the subquery predicate deletes the aged rows and spares fresh one
   });
 });
 
-// ============================================================================
 // The ceiling itself, and why the harness cannot be the judge
-// ============================================================================
 
 describe("317: the ceiling, and the harness gap that hid it", () => {
   it("the documented D1 ceiling is pinned at 100 with a margin below it", () => {

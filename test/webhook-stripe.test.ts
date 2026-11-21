@@ -67,7 +67,7 @@ describe("classifyStripeEvent", () => {
   });
 
   it("charge.refunded -> stamp_refund with the cumulative refunded amount, partial as well as full", () => {
-    // The fee shrinks by the refunded share (Dustin, 2026-11-18), so a partial
+    // The fee shrinks by the refunded share (Dustin), so a partial
     // refund carries its amount and is never ignored.
     expect(
       classifyStripeEvent(

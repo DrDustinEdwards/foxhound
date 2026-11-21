@@ -167,7 +167,6 @@ export async function cancelMerchant(
   return { cancelledAt: now, connectionsDisconnected: disconnected.length, deauthorizeErrors };
 }
 
-// ---------------------------------------------------------------------------
 // S37: disconnect ONE connection from Settings.
 //
 // The same posture as cancelMerchant above, narrowed to a single connection:
@@ -175,7 +174,6 @@ export async function cancelMerchant(
 // this explicitly onto cancelMerchant's path and OFF executeMoneyWrite, because
 // a second writer on stripe_connections.disconnected_at with a different
 // atomicity guarantee is 262 decision five's shape one table over.
-// ---------------------------------------------------------------------------
 
 /** Stamps disconnectedAt and NOTHING else. is_primary deliberately survives:
  *  333 ruled against promotion and against clearing the flag, because legacy

@@ -24,8 +24,6 @@ import { strayContent, voiceSampleLines } from "./voice-samples";
 // The subject always comes from cache-or-generation; a merchant custom body never
 // gets regenerated once set.
 
-// ---- Hard brand rules: sanitizers ----
-
 // Em dash / en dash: the most recognizable AI tell. Replace a dash (with any
 // surrounding spaces) by a comma so the pause reads naturally.
 //
@@ -68,7 +66,6 @@ const TIMING_TELL_PATTERNS: readonly RegExp[] = [
   /\b(?:since|after)\s+\d+\s+(?:hours?|days?)\b/i,
 ];
 
-// ---- Timing words ----
 //
 // The customer may read the email hours or days after it was sent, so no
 // recovery or win-back email may say WHEN it is being read ("today", "tonight").
@@ -232,8 +229,6 @@ export interface EmailCopy {
 
 export type BrandVoiceViolation = "em_dash" | "timing_leak" | "empty";
 
-// ---- Stock phrasing (app/lib/ai/plain-writing.ts) ----
-
 /** The copy as a reader sees it: tags dropped, paragraphs and breaks as lines. */
 function readableText(copy: EmailCopy): string {
   const body = copy.bodyHtml
@@ -297,8 +292,6 @@ export function passesQualityGate(copy: EmailCopy): boolean {
   return findBrandVoiceViolations(copy).length === 0;
 }
 
-// ---- Cache-order resolution ----
-
 /** The cached content columns on a recovery_steps row, as read before a send. */
 export interface CachedStepContent {
   /** Merchant-authored body override. Wins over any AI body; never regenerated. */
@@ -344,8 +337,6 @@ export function applyCustomBody(generated: EmailCopy, customBody: string | null)
     bodyHtml: customBody ?? generated.bodyHtml,
   };
 }
-
-// ---- Brand voice ----
 
 export interface MerchantBrandVoice {
   /** Merchant display name used in the copy (e.g. "Acme"). */
@@ -447,8 +438,6 @@ function categoryVoiceFor(
       return undefined;
   }
 }
-
-// ---- Generation seam (isolated; inert without ANTHROPIC_API_KEY) ----
 
 export interface GenerateEmailInput {
   merchant: MerchantBrandVoice;

@@ -284,10 +284,6 @@ export function unknownTypeMessage(type: unknown): string {
   return `${typeof type === "string" && type ? `There is no email type "${type.slice(0, 60)}".` : "Send type."} The types are: ${TYPE_IDS.join(", ")}.`;
 }
 
-// ---------------------------------------------------------------------------
-// The recipient
-// ---------------------------------------------------------------------------
-
 /** ADMIN_EMAIL_TEST_RECIPIENTS, lower-cased, separated by commas or spaces. */
 export function testRecipientAllowList(env: Env): string[] {
   return (env.ADMIN_EMAIL_TEST_RECIPIENTS ?? "")
@@ -321,10 +317,6 @@ export function resolveTestRecipient(env: Env, actorEmail: string, requested: un
   if (testRecipientAllowList(env).includes(to)) return { ok: true, to, kind: "allow_list" };
   return refusal;
 }
-
-// ---------------------------------------------------------------------------
-// The merchant's settings
-// ---------------------------------------------------------------------------
 
 export interface MerchantEmailSettings {
   accountId: string;
@@ -379,10 +371,6 @@ export async function loadMerchantEmailSettings(
     },
   };
 }
-
-// ---------------------------------------------------------------------------
-// Building one email
-// ---------------------------------------------------------------------------
 
 /** One email ready for the send module, in the shape its sender takes. */
 export type PreparedEmail =
@@ -825,10 +813,6 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
   }
   throw new Error(`no builder for ${type.type}`);
 }
-
-// ---------------------------------------------------------------------------
-// Preview and send
-// ---------------------------------------------------------------------------
 
 export interface EmailPreview {
   type: string;

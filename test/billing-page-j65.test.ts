@@ -362,7 +362,6 @@ describe("subscriptionDetail (Recova's Renews, Cancels on, Expired lines)", () =
   });
 });
 
-// ---------------------------------------------------------------------------
 // The rendered page.
 
 const basePreview = (over: Partial<BillingPreview> = {}): BillingPreview => ({

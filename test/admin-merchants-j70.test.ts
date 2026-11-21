@@ -454,8 +454,6 @@ describe("getMerchantFigures: Recova's five stat cards, demo accounts not counte
   });
 });
 
-// ---------------------------------------------------------------- the action
-
 function context() {
   const c = new RouterContextProvider();
   c.set(cloudflareContext, {
@@ -661,8 +659,6 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     expect(await auditActions(seeded.db)).toEqual([]);
   });
 });
-
-// ---------------------------------------------------------------- the page
 
 const T = Date.now();
 function row(id: string, over: Partial<Row> = {}): Row {

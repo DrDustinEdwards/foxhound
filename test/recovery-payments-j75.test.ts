@@ -34,8 +34,6 @@ const Page = route.default as unknown as (
 const NOW = Date.parse("2026-10-16T12:00:00.000Z");
 const DAY = 86_400_000;
 
-// ---- Fixtures ----
-
 type LoaderData = Awaited<ReturnType<typeof route.loader>>;
 type Row = LoaderData["result"]["payments"][number];
 
@@ -101,8 +99,6 @@ function render(loaderData: LoaderData, actionData?: unknown): string {
   }
 }
 
-// ---- The head ----
-
 describe("J75: Recova's head", () => {
   it("points Export CSV at the rows on screen: this page and this page size, as Recova exports its filtered rows", () => {
     const html = render(
@@ -119,8 +115,6 @@ describe("J75: Recova's head", () => {
   });
 });
 
-// ---- Rows per page ----
-
 describe("J75: Recova's rows-per-page links, defaulting to 25", () => {
   it("defaults to 25 in the loader", async () => {
     const { sqlite, db } = createInMemoryDb();
@@ -130,8 +124,6 @@ describe("J75: Recova's rows-per-page links, defaulting to 25", () => {
     expect(out.filters.pageSize).toBe(25);
   });
 });
-
-// ---- The loader, against an in-memory database ----
 
 const A = "acct_alpha";
 const B = "acct_beta";

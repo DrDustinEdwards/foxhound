@@ -53,8 +53,6 @@ const DAY = 86_400_000;
 const A = "acct_alpha";
 const B = "acct_beta";
 
-// ---- A fake R2 bucket: the slice of R2Bucket the code uses ----
-
 interface Stored {
   bytes: Uint8Array;
   contentType: string | undefined;
@@ -122,8 +120,6 @@ function contextFor(accountId: string, env: Env, isDemo = false): unknown {
   };
 }
 
-// ---- Files ----
-
 const PNG = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13];
 const JPG = [0xff, 0xd8, 0xff, 0xe0, 0, 16];
 const PDF = [...new TextEncoder().encode("%PDF-1.4\n")];
@@ -133,8 +129,6 @@ function fileOf(head: number[], name: string, type: string, size = 64): File {
   bytes.set(head, 0);
   return new File([bytes], name, { type });
 }
-
-// ---- Database ----
 
 let sqlite: ReturnType<typeof createInMemoryDb>["sqlite"];
 let db: Db;
@@ -205,8 +199,6 @@ const fileRows = () =>
       "select id, account_id, dispute_id, field_value from dispute_evidence where field_name = 'file_upload' order by created_at, id",
     )
     .all() as { id: string; account_id: string; dispute_id: string; field_value: string }[];
-
-// ---- Calling the routes ----
 
 async function post(
   form: FormData,
@@ -281,8 +273,6 @@ afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
-
-// ---- Upload ----
 
 describe("J07: upload (Recova's upload-evidence route)", () => {
   it("stores the file in the bucket under the account and dispute, and records it", async () => {
@@ -421,8 +411,6 @@ describe("J07: upload (Recova's upload-evidence route)", () => {
   });
 });
 
-// ---- Delete ----
-
 describe("J07: delete (Recova's delete-evidence route)", () => {
   async function uploaded(bucket: FakeBucket): Promise<{ id: string; key: string }> {
     await post(uploadForm(fileOf(PNG, "r.png", "image/png")), { bucket });
@@ -451,8 +439,6 @@ describe("J07: delete (Recova's delete-evidence route)", () => {
     ).toEqual({ n: 1 });
   });
 });
-
-// ---- View ----
 
 describe("J07: view (Recova's evidence-url route, served by the Worker)", () => {
   it("serves an image in a sandboxed document", async () => {
@@ -496,8 +482,6 @@ describe("J07: view (Recova's evidence-url route, served by the Worker)", () => 
   });
 });
 
-// ---- No binding yet ----
-
 describe("J07: with no EVIDENCE binding, every path says so truthfully", () => {
   it("upload answers 503 uploads_unavailable and records nothing", async () => {
     seedDispute();
@@ -539,8 +523,6 @@ describe("J07: with no EVIDENCE binding, every path says so truthfully", () => {
   });
 });
 
-// ---- The disputes list ----
-
 describe("J07: a file alone does not make Recova's 'Evidence ready'", () => {
   it("counts only drafted evidence fields, never uploaded files", async () => {
     seedDispute();
@@ -548,8 +530,6 @@ describe("J07: a file alone does not make Recova's 'Evidence ready'", () => {
     expect([...(await getDisputesWithEvidence(db, A, ["dsp_1"]))]).toEqual([]);
   });
 });
-
-// ---- Submission ----
 
 function approveInput() {
   return {
@@ -627,8 +607,6 @@ describe("J07: files go with the evidence submission (Recova's submit route)", (
     });
   });
 });
-
-// ---- The guards joined to the writes, past the route's reads ----
 
 describe("J07 review: each write carries its own guard", () => {
   const upload = (bucket: FakeBucket) =>

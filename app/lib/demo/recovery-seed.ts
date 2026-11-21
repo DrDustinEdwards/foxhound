@@ -86,7 +86,6 @@ export interface RecoverySeedResult {
   winBackSteps: WinBackStepInsert[];
 }
 
-// ============================================================================
 // Decline-code sampling (weighted, real Stripe codes -> classifyDecline so the
 // seeded code/category pair can never drift out of sync with decline.ts).
 // Every code list here is a subset of decline.ts's own set for that category,
@@ -94,7 +93,6 @@ export interface RecoverySeedResult {
 // for - both here (the weighted day-walk roll) and via sampleDeclineCodeFor-
 // Category (the scripted narrative's category is already fixed by the event,
 // so the code must be sampled FROM that category, never independently).
-// ============================================================================
 
 const SOFT_CODES = ["insufficient_funds", "do_not_honor", "generic_decline"] as const;
 const EXPIRED_CODES = ["expired_card"] as const;
@@ -147,9 +145,7 @@ function sampleDeclineCode(seed: string): string {
   return sampleDeclineCodeForCategory(seed, hit.category);
 }
 
-// ============================================================================
 // Day-walk distribution (which day, how many failures, which customer)
-// ============================================================================
 
 function classifyDayIntensity(d: Date): "high" | "medium" | "low" {
   const dom = d.getUTCDate();
@@ -221,10 +217,8 @@ function randomBusinessHour(day: Date, seed: string): Date {
   return d;
 }
 
-// ============================================================================
 // Outcome sampling: how a failure resolves, reusing the real schedule so the
 // causing step is always a step the real engine would actually have run.
-// ============================================================================
 
 type ResolvedOutcome =
   | { kind: "recovered"; recoveredAt: Date; causeMode: "retry" | "click" | "baseline" }
@@ -285,11 +279,9 @@ function resolveOutcome(
     : { kind: "active" };
 }
 
-// ============================================================================
 // Per-failure row builder: turns one (customer, category, detectedAt, outcome)
 // into a failedPayments row + its full recoverySteps timeline + an optional
 // recoveredPayments row, via the REAL schedule + REAL attribution model.
-// ============================================================================
 
 interface BuiltFailure {
   failedPayment: FailedPaymentInsert;
@@ -501,10 +493,6 @@ function buildFailure(
   return { failedPayment, steps, recovered };
 }
 
-// ============================================================================
-// Win-back
-// ============================================================================
-
 const WINBACK_CANDIDATE_LIMIT = 8;
 
 function buildWinback(
@@ -628,10 +616,6 @@ function buildWinback(
   return { sequences, steps };
 }
 
-// ============================================================================
-// Expiring-card alerts
-// ============================================================================
-
 const CARD_BRANDS = ["Visa", "Mastercard", "Amex"] as const;
 const EXPIRING_ALERT_COUNT = 10;
 
@@ -665,10 +649,6 @@ function buildExpiringCardAlerts(
     };
   });
 }
-
-// ============================================================================
-// Main entry point
-// ============================================================================
 
 /**
  * Build the full recovery portfolio for one account: scripted narrative

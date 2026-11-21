@@ -47,10 +47,8 @@ import {
   winBackSteps,
 } from "~/db";
 
-// ---------------------------------------------------------------------------
 // What counts as fee evidence. Each is a correlated EXISTS on the outer row's
 // column, which is false (never NULL) when that column is NULL.
-// ---------------------------------------------------------------------------
 
 /** A failed payment is evidence when a recovery was recorded against it. */
 function paymentRecovered(db: Db, failedPaymentId: AnySQLiteColumn): SQL {
@@ -157,7 +155,6 @@ export function buildAccountScrubStatements(
   ) as SQL;
 
   return [
-    // ---- the account row: kept as the fee's key, every personal field cleared.
     db
       .update(accounts)
       .set({
@@ -181,7 +178,6 @@ export function buildAccountScrubStatements(
       })
       .where(eq(accounts.id, accountId)),
 
-    // ---- Stripe connections: kept because kept payments and disputes point at
     // them; disconnected, and the token and every merchant-written field cleared.
     db
       .update(stripeConnections)
@@ -202,7 +198,6 @@ export function buildAccountScrubStatements(
       })
       .where(eq(stripeConnections.accountId, accountId)),
 
-    // ---- clicks and sends: the attribution proof is kept, the rest deleted.
     db
       .delete(engagementEvents)
       .where(
@@ -221,15 +216,12 @@ export function buildAccountScrubStatements(
     db.update(emailSends).set({ recipientHash: null, error: null }).where(sendOfAccount),
     db.delete(emailDeadLetters).where(eq(emailDeadLetters.accountId, accountId)),
 
-    // ---- win-back: never billable, so none of it is evidence.
     db.delete(winBackSteps).where(inArray(winBackSteps.id, winBackStepsOfAccount)),
     db.delete(winBackSequences).where(eq(winBackSequences.accountId, accountId)),
 
-    // ---- early fraud warnings: never billable, so none of it is evidence.
     // Deleted before the failed payments a warning can point at.
     db.delete(earlyFraudWarnings).where(eq(earlyFraudWarnings.accountId, accountId)),
 
-    // ---- recovery steps and failed payments: kept for recovered payments only.
     db
       .delete(recoverySteps)
       .where(
@@ -280,7 +272,6 @@ export function buildAccountScrubStatements(
     db.delete(expiringCardAlerts).where(eq(expiringCardAlerts.accountId, accountId)),
     db.delete(emailSuppressions).where(eq(emailSuppressions.accountId, accountId)),
 
-    // ---- disputes: a dispute that was billed, or is billable (won, submitted
     // by Foxhound, approved: app/db/billable.ts's predicate without the run
     // date), is kept with its approval. Drafts, open and lost disputes are not.
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, accountId)),
@@ -361,7 +352,6 @@ export function buildAccountScrubStatements(
       })
       .where(eq(disputes.accountId, accountId)),
 
-    // ---- Intelligence and audit: none of it is evidence.
     db.delete(healthScoreHistory).where(eq(healthScoreHistory.accountId, accountId)),
     db.delete(customerContext).where(eq(customerContext.accountId, accountId)),
     db.delete(predictions).where(eq(predictions.accountId, accountId)),
@@ -379,7 +369,6 @@ export function buildAccountScrubStatements(
     db.delete(auditDigestRuns).where(eq(auditDigestRuns.accountId, accountId)),
     db.delete(aiCalls).where(eq(aiCalls.accountId, accountId)),
 
-    // ---- credentials, subscriptions, webhook payloads, members.
     // An OAuth grant points at the api_keys row that is its access token, so
     // the grants go first, then the codes, then the keys.
     db.delete(oauthGrants).where(eq(oauthGrants.accountId, accountId)),

@@ -191,7 +191,6 @@ export function computePaymentLatencyDriftDays(
   return Math.round((newer - older) * 10) / 10;
 }
 
-// ---- JSON signal aggregates (recovery / dispute / engagement) ----
 // Foxhound's own account-scoped history for this customer, not Stripe data.
 // Most customers (never having had a failed payment, dispute, or dunning email)
 // score an honest all-zero/null aggregate here; that is the correct universal
@@ -253,8 +252,6 @@ export function buildEngagementSignals(rows: EngagementSignalRow[]): EngagementS
   );
   return { openCount, clickCount, lastEngagedAtMs };
 }
-
-// ---- Top-level orchestrator: one customer's full customer_context payload ----
 
 export interface CustomerContextInput {
   customerSinceMs: number;
