@@ -175,6 +175,12 @@ jobs:
       # The Time Travel bookmark from before the migrations above, with its restore command, in the run's summary.
       d1-database: foxhound
       sha-var: DEPLOY_SHA
+      # Gradual rollout (devkit D4): the new version takes 10% of traffic for 10 minutes before the live gate judges it and it
+      # takes all traffic; a refused one goes back to the version it shared traffic with. The Durable Objects are declared in
+      # `exports`, which Cloudflare's docs list as unsupported for gradual deployments; this is the test, and the
+      # revert is removing these two lines.
+      gradual-percent: 10
+      gradual-minutes: 10
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
