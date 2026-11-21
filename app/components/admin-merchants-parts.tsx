@@ -36,12 +36,6 @@ import "capsomer/link.css";
 import "capsomer/table.css";
 
 const HEADING_ID = "admin-merchants-heading";
-// Capsomer's cap-table-open stretches the merchant link over the row and lifts
-// only links, buttons and checkboxes above it. The times are tooltip triggers
-// (hover and focus show the exact time), so my own wrapper lifts them too,
-// until Capsomer lifts every focusable element;
-// then this wrapper goes.
-const ABOVE_ROW_LINK = "fh-above-row";
 
 type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
 
@@ -309,14 +303,10 @@ function MerchantRow({
         {m.activeRecoveriesCount}
       </td>
       <td data-label="Last webhook">
-        <span className={ABOVE_ROW_LINK}>
-          <Time at={m.lastWebhookAt} empty="None received" tip />
-        </span>
+        <Time at={m.lastWebhookAt} empty="None received" tip />
       </td>
       <td data-drop="1" data-label="Joined">
-        <span className={ABOVE_ROW_LINK}>
-          <Time at={m.createdAt} empty="Not recorded" tip />
-        </span>
+        <Time at={m.createdAt} empty="Not recorded" tip />
       </td>
       {/* In the card layout (data-reflow) the buttons take the card's full width. */}
       <td data-label="Actions" className="fh-row-actions">
