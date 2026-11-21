@@ -11,7 +11,7 @@ import { getDb } from "~/db";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { INDEXNOW_KEY } from "~/lib/seo/indexnow-key";
 
-import { carrelAdapter } from "./adapter.server";
+import { carrelAdapter, type RenderDocument } from "./adapter.server";
 import { carrelMediaAdapter } from "./media-adapter.server";
 
 // Mounts site-api at /api/carrel/v1, and its preview links at /preview/<token>.
@@ -53,14 +53,14 @@ function carrelLimiter(env: Env): RateLimiter {
  *  a public page and after each schedule the cron applies: IndexNow (only from
  *  https://foxhoundapp.com, Foxhound's own key), webmentions to the pages a post
  *  links to, and the edge-page purge. */
-export function carrelSiteApi(env: Env, stylesheets: string[] = []): SiteApi {
+export function carrelSiteApi(env: Env, renderDocument?: RenderDocument): SiteApi {
   const db = getDb(env);
   return standardSiteApi({
     db: env.DB,
     // The blog's media library rides beside the posts (media-adapter.server.ts),
     // and the 404s the shared Worker counts beside both, for Carrel's report.
     adapter: {
-      ...carrelAdapter(db, d1ScheduledUpdates(env.DB), stylesheets),
+      ...carrelAdapter(db, d1ScheduledUpdates(env.DB), { renderDocument }),
       media: carrelMediaAdapter(env, db),
       insight: { notFound: (options) => notFoundReport(env.DB, options) },
     },

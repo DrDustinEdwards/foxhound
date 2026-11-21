@@ -159,3 +159,7 @@ export function d1Over(sqlite: Database.Database): D1Like & {
       sqlite.transaction(() => statements.map((s) => pending.get(s)!()))(),
   };
 }
+
+/** The Worker's in-process render of a post's route, as the Carrel preview calls it: here it answers the draft's address and title. */
+export const renderDraft = async (request: Request, draft: { title: string }) =>
+  new Response(`<html><head></head><body>${request.url} ${draft.title}</body></html>`);
