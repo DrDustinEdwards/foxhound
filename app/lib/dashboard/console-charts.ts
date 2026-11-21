@@ -31,6 +31,7 @@ export function drawLatestMovement(
   const bars = mrrMovementBars(m, currency);
   return barChart({
     title: "MRR movements, latest month",
+    source: { name: "Stripe subscriptions" },
     data: bars.map((b) => ({ Movement: b.label, kind: b.label, amount: b.units })),
     x: "Movement",
     xDomain: bars.map((b) => b.label),

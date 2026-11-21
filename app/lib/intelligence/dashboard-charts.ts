@@ -54,6 +54,7 @@ export function drawMrrTrend(
   const yLabel = `MRR (${unit(currency)})`;
   return areaChart({
     title: "MRR trend",
+    source: { name: "Stripe subscriptions" },
     data: points.map((p) => ({ Date: p.at, mrr: whole(p.totalMrrCents, currency) })),
     x: "Date",
     y: "mrr",
@@ -79,6 +80,7 @@ export function drawNrr(points: readonly NrrPoint[], width: number, fit: ChartFi
   const yLabel = "NRR (%)";
   return lineChart({
     title: "Net Revenue Retention",
+    source: { name: "Stripe subscriptions" },
     data: points.map((p) => ({
       Date: p.at,
       nrr: p.nrrPct === null ? null : Math.round(p.nrrPct * 10) / 10,
