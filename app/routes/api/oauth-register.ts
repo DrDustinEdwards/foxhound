@@ -22,10 +22,10 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // closed: a limiter that cannot answer refuses, since a registration that
 // waits an hour costs nobody anything. ACTION ONLY: a GET gets 405.
 export async function action({ request, context }: Route.ActionArgs) {
+  const { env } = context.get(cloudflareContext);
   if (request.method !== "POST") {
     return oauthResponse({ status: 405, body: { error: "invalid_request" } }, { Allow: "POST" });
   }
-  const { env } = context.get(cloudflareContext);
   const within = (bucket: string, key: string, rule: { max: number; windowMs: number }) =>
     isWithinRateLimit(env, bucket, key, rule.max, rule.windowMs, { failClosed: true }).catch(
       () => false,
