@@ -1,6 +1,5 @@
 import { createSiteApi } from "@dustinedwards/site-api";
 import { runConformance } from "@dustinedwards/site-api/conformance";
-import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { d1SiteApiStore } from "@dustinedwards/site-api/store";
 import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
@@ -20,7 +19,7 @@ const BASE = `${ORIGIN}/api/carrel/v1`;
 function setup(limit = () => true) {
   const { db, sqlite } = createInMemoryDb();
   let adapterCalls = 0;
-  const adapter = carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)), {
+  const adapter = carrelAdapter(db, d1Over(sqlite), {
     renderDocument: renderDraft,
   });
   const counted = new Proxy(adapter.content, {

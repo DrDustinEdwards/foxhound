@@ -13,7 +13,12 @@ import {
   type WriteResult,
 } from "@dustinedwards/site-api";
 import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
-import { utc, type d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
+import {
+  d1ScheduledUpdates,
+  utc,
+  waitingUpdates,
+  type D1Like,
+} from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
 import { and, desc, eq, isNull, like, ne } from "drizzle-orm";
 
@@ -241,9 +246,10 @@ export type RenderDocument = (request: Request, draft: BlogPost) => Promise<Resp
 /** `renderDocument` draws the preview through the post's own route; the cron has none. */
 export function carrelAdapter(
   db: Db,
-  schedules: ReturnType<typeof d1ScheduledUpdates>,
+  d1: D1Like,
   options: { renderDocument?: RenderDocument } = {},
 ): SiteAdapter {
+  const schedules = d1ScheduledUpdates(d1);
   async function load(id: string): Promise<Post | null> {
     const rows = await db.select().from(blogPosts).where(eq(blogPosts.id, id)).limit(1);
     const row = rows[0];
@@ -362,7 +368,7 @@ export function carrelAdapter(
 
       async list(query) {
         const rows = (await db.select().from(blogPosts)).filter((row) => listed(row, query));
-        const waiting = await schedules.waiting();
+        const waiting = await waitingUpdates(d1);
         // The status is the row's and its schedule's, so it filters before the page is cut.
         const matching = rows
           .map((row) => ({ row, pending: waiting.get(row.id) ?? null }))
