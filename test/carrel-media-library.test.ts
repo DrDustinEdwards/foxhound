@@ -1,6 +1,5 @@
 import { createSiteApi } from "@dustinedwards/site-api";
 import { runConformance } from "@dustinedwards/site-api/conformance";
-import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { describe, expect, it, vi } from "vitest";
 
 import { renderMarkdown } from "~/lib/blog/markdown.server";
@@ -167,7 +166,7 @@ function setup() {
   } as unknown as Env;
   const api = createSiteApi({
     adapter: {
-      ...carrelAdapter(db, d1ScheduledUpdates(d1Over(sqlite)), { renderDocument: renderDraft }),
+      ...carrelAdapter(db, d1Over(sqlite), { renderDocument: renderDraft }),
       media: carrelMediaAdapter(env, db),
     },
     key: KEY,

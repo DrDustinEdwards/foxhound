@@ -4,7 +4,6 @@ import {
   type ScheduleRun,
   type SiteApi,
 } from "@dustinedwards/site-api";
-import { d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 
 import { getDb } from "~/db";
@@ -57,7 +56,7 @@ export function carrelSiteApi(env: Env, renderDocument?: RenderDocument): SiteAp
     // (media-adapter.server.ts), and the 404s the shared Worker counts beside
     // both, for Carrel's report.
     adapter: {
-      ...carrelAdapter(db, d1ScheduledUpdates(env.DB), { renderDocument }),
+      ...carrelAdapter(db, env.DB, { renderDocument }),
       media: carrelMediaAdapter(env, db),
       insight: { notFound: (options) => notFoundReport(env.DB, options) },
     },
