@@ -136,7 +136,7 @@ export async function generateWinbackEmail(
     return readGeneratedCopy(result, "win-back email");
   };
 
-  // Job J01, layers 3 and 4. The job asks for all four layers on both paths, so the win-back seam
+  // Layers 3 and 4. The job asks for all four layers on both paths, so the win-back seam
   // retries once too: a difference in spend, not in what a customer reads, and never more than one
   // extra call.
   const samples = input.voiceSamples ?? [];

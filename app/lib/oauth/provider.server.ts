@@ -32,12 +32,13 @@ import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode }
 import { readJson, readText } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// THE OAUTH PROVIDER. The engine is Foxhound's: - THE ACCESS TOKEN IS AN ORDINARY fox_mcp_ KEY in
-// api_keys, merchant scope, bound to one account, with a one-hour expires_at. The /mcp door
-// verifies it exactly as it verifies a key made in Settings, so an OAuth caller gets the merchant
-// tools and nothing else: the five human-only actions have no tool to reach, and the admin MCP is
-// another Worker. - THE ACCOUNT IS FIXED AT CONSENT, from the session's active membership, and
-// travels inside the code.
+// The OAuth provider.
+// - The access token is an ordinary fox_mcp_ key in api_keys: merchant scope, bound to one account,
+//   with a one-hour expires_at. The /mcp door verifies it exactly as it verifies a key made in
+//   Settings, so an OAuth caller gets the merchant tools and nothing else: the five human-only
+//   actions have no tool to reach, and the admin MCP is another Worker.
+// - The account is fixed at consent, from the session's active membership, and travels inside the
+//   code.
 
 /** Prefix on refresh tokens, so a leaked one is recognizable in a scan. */
 const OAUTH_REFRESH_TOKEN_PREFIX = "fox_rt_";

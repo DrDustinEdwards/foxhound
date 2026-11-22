@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import type { Db } from "~/db";
 import { alertHistory, alerts } from "~/db";
 
-// S28's writers. This row is the surface that creates the rows those two have been reading an empty
+// The alert writers. This row is the surface that creates the rows those two have been reading an empty
 // table for. Plain account-state writes, not money writes: an alert threshold gates no billing,
 // claims no webhook and records no outcome. The id arrives from a client-POSTed form, so tenant
 // isolation is DB-enforced rather than caller-dependent, exactly as buildBrandVoiceUpdate and

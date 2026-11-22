@@ -29,7 +29,7 @@ import { planWinbackSteps, WINBACK_STATUS } from "~/lib/recovery/winback";
 
 // The atomic DO batches for connected-account webhook processing. Every webhook side effect is
 // committed together with the webhook_events CLAIM in ONE batch through the per-account money-write
-// DO. We instead fold the claim into the per-account money-write DO batch keyed by account_id.
+// DO, keyed by account_id.
 
 export interface WebhookClaimInput {
   stripeEventId: string;
@@ -89,7 +89,7 @@ export interface IntakeBatchInput {
    *  history to say the payment failed on the day Stripe gave up. */
   detectedAt: Date;
   /**
-   * Whether the sequence starts now: Stripe has stopped retrying (, or the decline is hard and
+   * Whether the sequence starts now: Stripe has stopped retrying, or the decline is hard and
    * Stripe will not retry it on this card (decline.ts isHardDecline).
    */
   startSequence: boolean;
@@ -99,7 +99,7 @@ export interface IntakeBatchInput {
 
 /**
  * invoice.payment_failed: claim + insert the failed_payments row (core fields; ML enrichment via
- * extra Stripe reads is a deferred seam) +, ONLY when Stripe has given up, the silent-first
+ * extra Stripe reads is a deferred seam) and, only when Stripe has given up, the silent-first
  * recovery_steps sequence. All atomic.
  */
 export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBatch {
@@ -280,7 +280,7 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
 
 /**
  * charge.refunded: claim + the refund MARKER on failed_payments + the recovered_payments stamp, in
- * one atomic batch, so a claim without its marker is impossible. A full refund means no fee.").
+ * one atomic batch, so a claim without its marker is impossible. A full refund means no fee.
  * refunded_at is stamped only once the charge is FULLY refunded, which takes the recovery out of
  * billing altogether. Stripe sends a cumulative figure on every event and may deliver them out of
  * order, so the amount only ever grows (max) and the first full refund's time is kept.

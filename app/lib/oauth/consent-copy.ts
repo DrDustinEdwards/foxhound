@@ -1,5 +1,4 @@
-// What the consent page says a connected client can do. RECOVA'S THREE LINES DESCRIBED RECOVA'S
-// MCP, not Foxhound's.
+// What the consent page says a connected client can do, in terms of Foxhound's merchant MCP tools.
 
 export interface ConsentCapability {
   text: string;

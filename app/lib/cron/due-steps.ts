@@ -301,7 +301,7 @@ export function chooseStepsPerPayment(rows: DueStepRow[]): DueStepRow[] {
 
 /**
  * The same joined row queryDueRecoverySteps builds, for ONE step chosen by a
- * MERCHANT rather than by the schedule (S7's "Trigger next step now").
+ * MERCHANT rather than by the schedule.
  *
  * The step must still be UNEXECUTED with no result, which the caller enforces
  * through the shared nextPendingStep selector, the same predicate the button

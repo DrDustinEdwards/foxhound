@@ -91,7 +91,7 @@ export async function sendSecurityNoticeEmail(
 }
 
 /**
- * Mail the CURRENT address to confirm a change to `newEmail` (E1). Better Auth
+ * Mail the CURRENT address to confirm a change to `newEmail`. Better Auth
  * calls this from /change-email; `url` is its own link, which acts on a GET, so
  * it is never sent or logged: the mail carries site-runtime's emailConfirmURL
  * of it (app/routes/auth/email-confirm.tsx), the same token on a page that acts

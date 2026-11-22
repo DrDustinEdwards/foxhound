@@ -1,6 +1,5 @@
-// Pure: no env, no database, no clock. Extracted so a plant reads the real assembly rather than a
-// hand-built copy of it. ON CAPSOMER'S BLOCKS. Its link is a digest token: following it switches
-// off this account's digest and suppresses no address.
+// Pure: no env, no database, no clock, built on Capsomer's blocks. Its link is a digest token:
+// following it switches off this account's digest and suppresses no address.
 
 import { plural } from "@drdustinedwards/site-helpers/text";
 import type { Block } from "capsomer/email";
@@ -45,8 +44,8 @@ const DIGEST_SENDER_FALLBACK = "Foxhound";
 const DIGEST_FROM_NAME = "Foxhound";
 
 /**
- * The button waited for that page, and returns with it. A test holds this equal to whether
- * routes.ts serves the page.
+ * Whether the recommendations button is shown: true only while routes.ts serves the page it opens.
+ * A test holds the two equal.
  */
 const DIGEST_RECOMMENDATIONS_LIVE = true;
 

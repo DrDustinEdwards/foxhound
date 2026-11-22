@@ -103,7 +103,7 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
       try {
         const outcome = await tool.run({ env, actor: session.actor, signal }, args);
         if (!outcome.ok) return result({ error: outcome.error, tool: tool.name }, true);
-        // Merchant names and notes, customer and webhook error text: data, never instructions (S2).
+        // Merchant names and notes, customer and webhook error text: data, never instructions.
         return tool.outside ? outsideResult(tool.outside, outcome.data) : result(outcome.data);
       } catch (err) {
         // An unexpected failure's text stays in the log: it was not written

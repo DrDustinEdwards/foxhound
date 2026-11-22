@@ -63,8 +63,7 @@ export function authorizationServerMetadata(origin: string): Record<string, unkn
 }
 
 /**
- * RFC 9728 protected-resource metadata for /mcp, which recova-mcp served
- * (api/well-known/oauth-protected-resource.ts, 6569e1a3) and its 401 pointed at.
+ * RFC 9728 protected-resource metadata for /mcp, which its 401 response points at.
  */
 export function protectedResourceMetadata(origin: string): Record<string, unknown> {
   return {

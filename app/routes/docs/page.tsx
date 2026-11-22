@@ -14,7 +14,7 @@ import "capsomer/status.css";
 import "capsomer/table.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here keeps
-// the page whole under any layout (as /docs does, J17).
+// the page whole under any layout (as /docs does).
 import "~/site-header.css";
 
 import type { Route } from "./+types/page";

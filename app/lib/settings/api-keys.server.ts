@@ -6,7 +6,7 @@ import { apiKeys, mcpCalls, oauthGrants } from "~/db";
 import { MCP_CALLS_SHOWN, maskSecretsInText } from "~/lib/admin/mcps";
 import { MCP_TOKEN_SCOPE, issueMcpToken, type IssuedMcpToken } from "~/lib/auth/mcp-tokens";
 
-// S29's read model and its ACCOUNT-SCOPED writers. Plain account-state writes, not money writes.
+// The API keys read model and its ACCOUNT-SCOPED writers. Plain account-state writes, not money writes.
 
 export interface ApiKeyRow {
   id: string;

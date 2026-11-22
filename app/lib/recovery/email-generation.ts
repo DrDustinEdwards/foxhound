@@ -280,11 +280,11 @@ export interface MerchantBrandVoice {
   merchantName: string;
   /** Optional merchant-configured tone/voice description. */
   voiceDescription?: string | null;
-  /** S27's three merchant-context fields, from `accounts`. */
+  /** The three merchant-context fields, from `accounts`. */
   industry?: string | null;
   customerType?: string | null;
   mrrCents?: number | null;
-  /** S31's four per-category voices, from `stripe_connections`. */
+  /** The four per-category voices, from `stripe_connections`. */
   voiceSoft?: string | null;
   voiceExpired?: string | null;
   voiceNetwork?: string | null;
@@ -295,7 +295,7 @@ export interface MerchantBrandVoice {
 }
 
 /**
- * THIS IS THE READER FOR S27's THREE COLUMNS. `mrrCents` of 0 is falsy on both sides, so a merchant
+ * Reads the three merchant-context columns. `mrrCents` of 0 is falsy on both sides, so a merchant
  * reporting zero MRR contributes no part.
  */
 function merchantContextLine(merchant: MerchantBrandVoice): string | null {
@@ -307,8 +307,7 @@ function merchantContextLine(merchant: MerchantBrandVoice): string | null {
 }
 
 /**
- * Foxhound's own wording, "warm, plain, and direct; a real person from the business writing a short
- * note", was an unratified divergence on the third rung of resolveBrandVoice.
+ * The last rung of resolveBrandVoice, used when neither the merchant nor the category sets a voice.
  */
 const DEFAULT_VOICE = "Friendly and direct. Write like a real person, not a company.";
 
@@ -410,7 +409,7 @@ export function categoryGuidance(declineCategory: string): string | null {
 export function buildUserPrompt(input: GenerateEmailInput): string {
   const guidance = categoryGuidance(input.declineCategory);
   // Exported so a plant can observe the prompt the model actually receives.
-  // The merchant-context line is the OUTPUT of S27's reader: without it the
+  // The merchant-context line is the output of merchantContextLine: without it the
   // three columns reach nothing.
   const merchantContext = merchantContextLine(input.merchant);
   return [
@@ -471,7 +470,7 @@ export async function generateDunningEmail(
     return readGeneratedCopy(result, "recovery email");
   };
 
-  // Stock phrasing first, then job J01, layers 3 and 4.
+  // Stock phrasing first, then layers 3 and 4.
   const samples = input.merchant.voiceSamples ?? [];
   const allow = ownPhrasing(samples);
   const copy = await applyTimingWordGuard(

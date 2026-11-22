@@ -3,8 +3,7 @@ import { visibleSelection } from "capsomer/behavior/bulk-bar";
 import { FAILED_PAYMENT_STATUS_ACTIVE } from "~/lib/constants";
 import type { ManualActionOutcome } from "./manual-actions.server";
 
-// The CLIENT-SAFE half of S6 bulk actions (274 decisions one, four and five). Everything here is
-// pure: no db, no bindings, no fetch. The only import is a TYPE, which erases.
+// The client-safe half of bulk actions. Everything here is pure: no db, no bindings, no fetch. The only import is a TYPE, which erases.
 
 /**
  * The intents a BULK submission may carry. The ceiling bounded how many; it could not bound which.
@@ -55,7 +54,7 @@ export interface BulkActionResult {
 export interface BulkActionRefusal {
   refused: "empty" | "over_ceiling" | "unknown_intent";
   /** How many ids were submitted, so the surface can name the exact number
-   *  rather than saying "too many" (274 decision four: never silently
+   *  rather than saying "too many" (never silently
    *  truncated, and the ceiling is stated). */
   submitted: number;
   ceiling: number;
@@ -96,8 +95,8 @@ export function toItemResult(id: string, outcome: ManualActionOutcome): BulkItem
   }
 }
 
-/** Failures first, then successes, each group in input order (274 decision one:
- *  the surface itemises with failures surfaced first). */
+/** Failures first, then successes, each group in input order (the surface itemises with failures
+ *  surfaced first). */
 export function orderForDisplay(results: readonly BulkItemResult[]): BulkItemResult[] {
   return [...results.filter((r) => !r.ok), ...results.filter((r) => r.ok)];
 }
@@ -111,8 +110,7 @@ export function failedIds(results: readonly BulkItemResult[]): string[] {
 
 /**
  * The ACTIONABLE subset of the payments list's selection: selected, on screen (Capsomer's
- * visibleSelection, so a filter can never leave a hidden row counted or sent), and active. Under
- * 274 decision two this is the ONLY set a bulk action may act on, so the label is true by
+ * visibleSelection, so a filter can never leave a hidden row counted or sent), and active. This is the ONLY set a bulk action may act on, so the label is true by
  * definition rather than by coincidence.
  */
 export function actionableSelection(

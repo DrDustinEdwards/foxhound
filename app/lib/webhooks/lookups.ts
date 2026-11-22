@@ -117,7 +117,7 @@ export async function findActiveFailedPayment(
 
 /**
  * The failed_payment a successful invoice payment should be recorded against: still active, OR
- * already flipped to failed_unrecovered by the exhausted- sequence sweep. The second case is a
+ * already flipped to failed_unrecovered by the exhausted-sequence sweep. The second case is a
  * customer paying after the dunning cadence ran out, which is a real recovery and must not be
  * dropped.
  */

@@ -92,7 +92,7 @@ export interface AuditSettingsState {
   autoRun: boolean;
 }
 
-/** S30's two columns. */
+/** The two audit columns. */
 export async function applyAuditSettings(
   db: Db,
   accountId: string,
@@ -121,7 +121,7 @@ export interface FeatureSettingsState {
   expiringCardNotificationsEnabled: boolean;
 }
 
-/** S34's two toggles, and nothing else. The builder names the two columns, so a
+/** The two toggles, and nothing else. The builder names the two columns, so a
  *  caller passing a third writes none of them. */
 export async function applyFeatureSettings(
   db: Db,

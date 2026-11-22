@@ -45,7 +45,7 @@ export function buildNotificationSettingsUpdate(
   return db.update(accounts).set(input).where(eq(accounts.id, accountId));
 }
 
-/** S34's TWO feature toggles, and nothing else. */
+/** The two feature toggles, and nothing else. */
 export interface FeatureSettingsInput {
   winbackNotificationsEnabled: boolean;
   expiringCardNotificationsEnabled: boolean;
@@ -109,7 +109,7 @@ export function buildVoiceSamplesUpdate(
     .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)));
 }
 
-// S33: the sender settings on the connection.
+// The sender settings on the connection.
 
 // SENDER_NAME_MAX_LENGTH lives in the client-safe sender-name.ts, because the
 // form renders it as maxLength and a .server import would ship drizzle in that
@@ -152,7 +152,7 @@ export interface CategoryVoicesInput {
 }
 
 /**
- * Writes the FOUR per-category voice columns and nothing else. S31. The generic `brand_voice` is
+ * Writes the FOUR per-category voice columns and nothing else. The generic `brand_voice` is
  * NOT touched. SECURITY, the rule buildBrandVoiceUpdate and buildSenderSettingsUpdate carry:
  * `connectionId` arrives from a client-POSTed field, so the WHERE pins `account_id` and a foreign
  * id matches zero rows.

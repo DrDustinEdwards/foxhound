@@ -1,4 +1,4 @@
-// S31's vocabulary, in a CLIENT-SAFE module because the form renders it. Nothing here touches the
+// The brand-voice vocabulary, in a client-safe module because the form renders it. Nothing here touches the
 // database.
 
 export const BRAND_VOICE_PRESETS = [

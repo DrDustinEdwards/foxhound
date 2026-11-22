@@ -211,7 +211,7 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
     type: "team_invite",
     audience: "merchant",
     description:
-      "The team invite (E2) a teammate gets. Its Accept Invite button goes to /settings/team with no token, so it joins nobody to anything.",
+      "The team invite a teammate gets. Its Accept Invite button goes to /settings/team with no token, so it joins nobody to anything.",
   },
   {
     type: "sign_in_link",
@@ -708,7 +708,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       });
     }
     if (type.type === "team_invite") {
-      // The invite's own job builder (E2), with no token in the link.
+      // The invite's own job builder, with no token in the link.
       const invite = buildTeamInviteJob({
         accountId: merchant?.accountId ?? "",
         to,

@@ -127,7 +127,7 @@ export interface PrimaryBrandVoices {
   samples: string | null;
 }
 
-/** The account's PRIMARY live connection and its four per-category voices, or null. S31. */
+/** The account's PRIMARY live connection and its four per-category voices, or null. */
 export async function getPrimaryBrandVoices(
   db: Db,
   accountId: string,

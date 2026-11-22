@@ -21,7 +21,6 @@ export const ATTRIBUTION_KIND_LABELS: Record<AttributionKind, string> = {
 };
 
 export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
-  // S6's row had carried them as OPEN since the contents walk.
   active: "Active",
   recovered: "Recovered",
   failed_unrecovered: "Failed",

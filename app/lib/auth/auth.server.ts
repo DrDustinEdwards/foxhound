@@ -83,7 +83,7 @@ async function buildAuth(env: Env) {
       "/delete-user",
       "/delete-user/callback",
     ],
-    // E1: an email change is confirmed from the CURRENT address first, then
+    // an email change is confirmed from the CURRENT address first, then
     // from the new one (Better Auth's change-email-confirmation flow), and only
     // from a sign-in in the last 10 minutes (site-runtime holds /change-email
     // to that). Once the new address is confirmed, site-runtime tells both
@@ -109,7 +109,7 @@ async function buildAuth(env: Env) {
           await sendEmailChangeConfirmation(env, { to: user.email, newEmail, url, token });
         },
       },
-      // E2: Better Auth's own delete, called from the app's route only, so
+      // Better Auth's own delete, called from the app's route only, so
       // site-runtime's log line, notice and history clean-up run, with
       // Foxhound's deletion (the fee evidence kept, the rest scrubbed, then the
       // Stripe grants revoked) in its hooks.

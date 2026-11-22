@@ -1,4 +1,4 @@
-// Slack webhook URL validation for S36. Foxhound then `fetch()`es that stored value from the Worker
+// Slack webhook URL validation. Foxhound then `fetch()`es that stored value from the Worker
 // on every dunning email, and nothing in this repo constrains outbound egress: `connect-src 'self'`
 // in content-security-policy.ts is a CSP RESPONSE header governing the browser, not the Worker.
 

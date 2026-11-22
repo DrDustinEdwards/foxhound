@@ -270,7 +270,7 @@ export interface PaymentStatusCounts {
   active: number;
   recovered: number;
   failedUnrecovered: number;
-  /** Merchant-stopped sequences (S7's "Stop recovery").
+  /** Merchant-stopped sequences ("Stop recovery").
    *  Counted separately because operator-terminated is not the same outcome as
    *  exhausted, and folding it into failedUnrecovered would overstate how often
    *  the engine ran out of road. */
