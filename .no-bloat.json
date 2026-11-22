@@ -3,12 +3,12 @@
     "jscpd": "jscpd@5.4.1"
   },
   "baseline": {
-    "measured_at": "0e77043",
+    "measured_at": "bcbd23a",
     "knip": {},
     "jscpd": {
       "clones": 86,
       "lines": 837,
-      "percentage": 0.8,
+      "percentage": 0.79,
       "unread": 1
     },
     "shared copies": {
@@ -54,19 +54,16 @@
       "app/routes/app/settings/account.tsx": 771,
       "app/routes/home.tsx": 522,
       "app/routes/privacy.tsx": 956,
-      "app/routes/terms.tsx": 789,
-      "test/account-deletion.test.ts": 883,
-      "test/audit-monthly.test.ts": 859,
-      "test/oauth-provider.test.ts": 1227
+      "app/routes/terms.tsx": 789
     },
     "tests": {
-      "files": 270,
+      "files": 268,
       "cases": 1647
     },
     "comments": {
-      "lines": 15766,
-      "code": 130108,
-      "percentage": 10.81
+      "lines": 15742,
+      "code": 130180,
+      "percentage": 10.79
     }
   }
 }
