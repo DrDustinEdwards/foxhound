@@ -2,6 +2,7 @@ import {
   ContentTag,
   contentVersion,
   NotFoundError,
+  orderAndPage,
   RefusedError,
   VersionConflictError,
   type ContentDoc,
@@ -12,7 +13,7 @@ import {
   type WriteResult,
 } from "@dustinedwards/site-api";
 import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
-import { utc, type D1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
+import { utc, type d1ScheduledUpdates } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
 import { and, desc, eq, isNull, like, ne } from "drizzle-orm";
 
@@ -49,12 +50,6 @@ const KIND = "post";
 type Actor = { name: string };
 const DEFAULT_AUTHOR = "Foxhound";
 const REVISION_PREFIX = "rev-";
-/**
- * Every schedule is due by then, so `due` at this time lists every row. A
- * four-digit year, since the store compares times as ISO text.
- */
-const END_OF_TIME = new Date("9999-12-31T23:59:59.999Z");
-const ALL_ROWS = 10_000;
 
 type PostRow = typeof blogPosts.$inferSelect;
 interface Pending {
@@ -113,9 +108,9 @@ function summary({ row, pending, version }: Post): ContentSummary {
  * says otherwise.
  */
 const ORDER = {
-  updated: (r: PostRow) => r.updatedAt.getTime(),
-  published: (r: PostRow) => r.publishedAt?.getTime() ?? 0,
-  title: (r: PostRow) => r.title.toLowerCase(),
+  updated: ({ row }: { row: PostRow }) => row.updatedAt.getTime(),
+  published: ({ row }: { row: PostRow }) => row.publishedAt?.getTime() ?? 0,
+  title: ({ row }: { row: PostRow }) => row.title.toLowerCase(),
 };
 
 /**
@@ -219,7 +214,7 @@ export type RenderDocument = (request: Request, draft: BlogPost) => Promise<Resp
  */
 export function carrelAdapter(
   db: Db,
-  schedules: D1ScheduledUpdates,
+  schedules: ReturnType<typeof d1ScheduledUpdates>,
   options: { renderDocument?: RenderDocument } = {},
 ): SiteAdapter {
   async function load(id: string): Promise<Post | null> {
@@ -346,45 +341,21 @@ export function carrelAdapter(
 
       async list(query) {
         const rows = (await db.select().from(blogPosts)).filter((row) => listed(row, query));
-        const sort = query.sort ?? "updated";
-        const dir = query.dir ?? (sort === "title" ? "asc" : "desc");
-        const key = ORDER[sort];
-        rows.sort((a, b) => {
-          const [x, y] = [key(a), key(b)];
-          return (
-            (typeof x === "string" ? x.localeCompare(y as string) : x - (y as number)) *
-            (dir === "asc" ? 1 : -1)
-          );
-        });
-        const waiting = new Map(
-          (await schedules.due(END_OF_TIME, ALL_ROWS)).map((d) => [
-            d.id,
-            { publishAt: d.publishAt, changeId: d.changeId },
-          ]),
-        );
-        // The status is the row's and its schedule's, so it filters before the
-        // page is cut.
+        const waiting = await schedules.waiting();
+        // The status is the row's and its schedule's, so it filters before the page is cut.
         const matching = rows
           .map((row) => ({ row, pending: waiting.get(row.id) ?? null }))
           .filter(
             ({ row, pending }) =>
               !query.status || summary({ row, pending, version: "" }).status === query.status,
           );
-        const start = Number.parseInt(query.cursor ?? "0", 10) || 0;
+        const { page, ...rest } = orderAndPage(matching, query, ORDER);
         const items = await Promise.all(
-          matching
-            .slice(start, start + query.limit)
-            .map(async ({ row, pending }) =>
-              summary({ row, pending, version: await versionOf(row, pending) }),
-            ),
+          page.map(async ({ row, pending }) =>
+            summary({ row, pending, version: await versionOf(row, pending) }),
+          ),
         );
-        const next = start + query.limit;
-        return {
-          items,
-          nextCursor: next < matching.length ? String(next) : null,
-          total: matching.length,
-          sorted: { sort, dir },
-        };
+        return { items, ...rest };
       },
 
       async get(id): Promise<ContentDoc | null> {
