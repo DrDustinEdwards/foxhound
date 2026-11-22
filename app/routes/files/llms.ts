@@ -14,36 +14,12 @@ import {
 
 import type { Route } from "./+types/llms";
 
-// Rewritten from scratch against legacy app/llms.txt/route.ts (Phase 6 Pass
-// 2), NOT ported verbatim: legacy described dead products (Scale, Grow, AI
-// Cost) and the stale $299/mo figure the task bans outright. This describes
-// Foxhound's real, current lineup only. No specific pricing numbers appear
-// anywhere below (standing rule, PRICING.md: "no specific-number pricing in
-// blog/SEO copy... 'outcome-based pricing' framing"; TASK-foxhound-phase6.md
-// names llms.txt/llms-full.txt directly). A prior draft stated the actual
-// figures here on the theory that a machine-readable spec sheet is exempt
-// from the blog/SEO-copy rule; a Phase 6 review found that reasoning
-// doesn't hold (the rule names this file explicitly, and the risk it guards
-// against, an AI citing a stale number as current fact, applies just as
-// much to a spec sheet as to prose). /pricing and the product pages remain
-// the place numbers are stated plainly.
-//
-// The blog section deliberately does NOT enumerate article titles/URLs:
-// no posts are imported yet (STOP A lands separately), so a static list
-// here would either be empty noise or a stale/aspirational claim. Pointing
-// at /blog and /blog/tag/* is honest today and needs no follow-up edit
-// once the import lands.
+// Describes Foxhound's real, current lineup only. No specific pricing numbers appear anywhere below (PRICING.md: no specific-number pricing in blog/SEO copy, "outcome-based pricing" framing): the risk, an AI citing a stale number as current fact, applies as much to a spec sheet as to prose. /pricing and the product pages are where numbers are stated plainly. The blog section deliberately does NOT enumerate article titles/URLs: pointing at /blog and /blog/tag/* is honest and needs no follow-up edit as posts land.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
 
-  // Only archives that actually carry a published post are advertised.
-  // This file previously listed all eight canonical tags, three
-  // of which served zero posts, so the highest-authority surface we publish
-  // was pointing AI crawlers at empty pages, and an unknown tag returns 200
-  // rather than 404, making an empty archive indistinguishable from a garbage
-  // URL. Legacy enumerates only topics that have articles; content-gating
-  // matches it and self-corrects as roadmap content lands.
+  // Only archives that actually carry a published post are advertised, so AI crawlers are never pointed at empty pages.
   const tagList = (await getPublishedTagSet(getDb(env)))
     .map((tag) => `${url}/blog/tag/${tag}`)
     .join(", ");

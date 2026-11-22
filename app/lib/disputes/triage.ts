@@ -1,14 +1,3 @@
-// Recova's dispute context and triage, ported from lib/disputes-evidence.ts
-// (blob 2d5e7af6) and components/disputes/formatters.tsx (blob 81bf7f8b), both
-// read whole. Recova read the disputed charge, the customer's prior charges and
-// their subscription from Stripe at intake, stored them on the dispute, and
-// recommended fighting or accepting from them. Foxhound does the same: the
-// Stripe reads are in context.server.ts, and this module is the pure half the
-// intake, the notice and the dispute page share.
-//
-// CLIENT-SAFE BY CONSTRUCTION: the dispute page calls the formatters, so this
-// module imports nothing from a `.server` file.
-
 export interface PriorCharge {
   date: string;
   amount: number;
@@ -24,8 +13,10 @@ export interface DisputeSubscription {
   plan_amount: number | null;
 }
 
-/** What Stripe says about the disputed charge and its customer. Every field is
- *  null (or zero) when Stripe could not be read, so intake never waits on it. */
+/**
+ * What Stripe says about the disputed charge and its customer. Every field is
+ * null (or zero) when Stripe could not be read, so intake never waits on it.
+ */
 export interface DisputeContext {
   customerId: string | null;
   customerName: string | null;
@@ -72,7 +63,6 @@ export interface TriageResult {
   reasoning: string;
 }
 
-/** Recova's calculateTriage, rule for rule and word for word. */
 export function calculateTriage(
   context: DisputeContext,
   disputeAmountCents: number,
@@ -140,13 +130,6 @@ export function calculateTriage(
   };
 }
 
-/**
- * The Stripe evidence fields Recova's buildEvidenceFields filled from this
- * context: each one read straight off Stripe, never phrased by a model, and left
- * out when Stripe had nothing (Stripe rejects empty strings). Recova's
- * uncategorized_text fact list is not here, because Foxhound's grounded draft
- * (evidence.ts) owns that field.
- */
 export function contextEvidenceFields(
   context: DisputeContext,
 ): { fieldName: string; fieldValue: string }[] {
@@ -168,8 +151,6 @@ export function contextEvidenceFields(
   return fields;
 }
 
-/** The dispute row's context and triage columns, as the intake writes them
- *  (Recova's handleDisputeCreated upsert). */
 export function disputeContextColumns(context: DisputeContext, triage: TriageResult) {
   return {
     customerIp: context.customerIp,
@@ -192,7 +173,6 @@ export function disputeContextColumns(context: DisputeContext, triage: TriageRes
 
 export type DisputeContextColumns = ReturnType<typeof disputeContextColumns>;
 
-/** Recova's humanCardCheck. */
 export function humanCardCheck(raw: string | null): string {
   if (!raw) return "Unavailable";
   const map: Record<string, string> = {
@@ -204,7 +184,6 @@ export function humanCardCheck(raw: string | null): string {
   return map[raw] ?? raw;
 }
 
-/** Recova's humanSmartDisputes. */
 export function humanSmartDisputes(raw: string | null): string {
   if (!raw) return "Unknown";
   const map: Record<string, string> = {
@@ -215,7 +194,6 @@ export function humanSmartDisputes(raw: string | null): string {
   return map[raw] ?? raw;
 }
 
-/** Recova's humanRadarLevel. */
 function humanRadarLevel(raw: string | null): string {
   if (!raw) return "";
   const map: Record<string, string> = {
@@ -226,13 +204,14 @@ function humanRadarLevel(raw: string | null): string {
   return map[raw] ?? raw;
 }
 
-/** Recova's "Stripe Radar" row: "42/100 - Normal". */
 export function radarWords(score: number | null, level: string | null): string | null {
   if (score === null && !level) return null;
   return `${score ?? "?"}/100${level ? ` - ${humanRadarLevel(level)}` : ""}`;
 }
 
-/** The prior-charge and subscription columns are JSON; read them defensively. */
+/**
+ * The prior-charge and subscription columns are JSON; read them defensively.
+ */
 export function readPriorCharges(raw: unknown): PriorCharge[] {
   if (!Array.isArray(raw)) return [];
   return raw.filter(

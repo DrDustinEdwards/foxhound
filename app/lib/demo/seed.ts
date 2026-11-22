@@ -64,15 +64,7 @@ import { buildNarrativeSeed } from "./narratives-seed";
 import { buildRecoverySeed } from "./recovery-seed";
 import { resolveDemoMemberships } from "./session";
 
-// The demo seeder. Builds the demo businesses as real accounts (Teamflow and
-// Bolt Analytics, legacy's two: app/api/cron/reset-demo/route.ts, blob
-// `c1659670`, seeds both on every reset) and populates every product table for
-// each with believable, DETERMINISTIC data, so the REAL app routes render a
-// convincing portfolio (TASK-foxhound-demo-data-engine.md, porting the legacy
-// six-module demo engine: customer-base, recovery-seed, disputes-seed,
-// intelligence-seed, narratives-seed, composed here). This is NOT a set of mock
-// pages: /console, /recovery/*, /disputes/*, /intelligence/* all read these
-// rows through their normal loaders.
+// The demo seeder.
 //
 // Two hard invariants:
 //  - Firewall: the account id carries DEMO_ACCOUNT_ID_PREFIX and the row is
@@ -85,9 +77,6 @@ import { resolveDemoMemberships } from "./session";
 //  - Deterministic + idempotent: a fixed FNV-1a seed + fixed ids mean the same
 //    data every run, and the seed always wipes the demo account's rows first,
 //    so the reset cron can rebuild it repeatedly without drift or duplicate rows.
-//
-// Money is integer cents. Timestamps are relative to the passed-in `now`, so the
-// data always looks recent no matter when the reset cron last ran.
 
 /** Run a list of write statements as batched transactions (<=50 per batch). */
 async function runBatched(db: Db, statements: BatchItem<"sqlite">[]): Promise<void> {
@@ -97,9 +86,11 @@ async function runBatched(db: Db, statements: BatchItem<"sqlite">[]): Promise<vo
   }
 }
 
-/** What makes each demo business its own: its customer base, its disputes, its
- *  and the plan a net-new disputed customer is on. Everything else
- *  is built by the same builders for both. */
+/**
+ * What makes each demo business its own: its customer base, its disputes, its
+ * and the plan a net-new disputed customer is on. Everything else is built by
+ * the same builders for both.
+ */
 interface DemoBusinessData {
   buildBase: (now: Date) => DemoCustomer[];
   disputeSpecs: DisputeSpec[];
@@ -119,9 +110,11 @@ const BUSINESS_DATA: Record<string, DemoBusinessData> = {
   },
 };
 
-/** Every demo row of one business, deleted child-table-first so D1's foreign
- *  keys never block a reset. All its rows carry its account id, so a single
- *  equality wipes each. */
+/**
+ * Every demo row of one business, deleted child-table-first so D1's foreign
+ * keys never block a reset. All its rows carry its account id, so a single
+ * equality wipes each.
+ */
 async function wipeDemoAccount(db: Db, acct: string): Promise<void> {
   // Order matters under real FK enforcement (D1): children before parents.
   await runBatched(db, [
@@ -159,7 +152,7 @@ async function wipeDemoAccount(db: Db, acct: string): Promise<void> {
  * Seed (or re-seed) every demo business and all its data: the daily
  * demo-reset's one job. Deletes each business's existing rows first, so it is
  * safe to run on every reset. Deterministic: same `now` in, same data out
- * (every seed module is a pure function of `now`). Makes NO external call.
+ * (every seed module is a pure function of `now`).
  */
 export async function seedDemoAccount(db: Db, now: Date): Promise<void> {
   for (const business of DEMO_BUSINESSES) await seedDemoBusiness(db, business, now);
@@ -216,12 +209,6 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
     createdAt: new Date(now.getTime() - 400 * DAY_MS),
   });
 
-  // Recovery dashboard parity (TASK-foxhound-recovery-surface-parity.md Phase
-  // 2) needs a real, primary, still-connected stripe_connections row: Teamflow
-  // is a fully operating simulated merchant, not an onboarding zero-state, so
-  // connection-dependent panels (webhook health, "connected since") must have
-  // something real to read instead of permanently reading as disconnected.
-  // No access token: the demo firewall means nothing here ever calls Stripe.
   await db.insert(stripeConnections).values({
     id: `${accountId}_connection`,
     accountId,
@@ -337,8 +324,8 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
       db.insert(disputeBalanceTransactions).values(row),
     ),
   );
-  // Early fraud warnings: a few open ones so the dashboard's section shows,
-  // and one refunded. Never billable, so nothing below reads them.
+  // Early fraud warnings: a few open ones so the dashboard's section shows, and
+  // one refunded. Never billable, so nothing below reads them.
   await runBatched(
     db,
     buildEarlyFraudWarningsSeed(accountId, now).map((row) =>
@@ -441,8 +428,10 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
   }
 }
 
-/** Every demo business has its account row (the reset seeds them in order, so
- *  the last one landing means the whole set is there). */
+/**
+ * Every demo business has its account row (the reset seeds them in order, so
+ * the last one landing means the whole set is there).
+ */
 async function demoAccountExists(db: Db): Promise<boolean> {
   return (await resolveDemoMemberships(db)).length === DEMO_BUSINESSES.length;
 }
@@ -456,8 +445,10 @@ interface DemoResetLock {
 const ENSURE_SEED_POLL_INTERVAL_MS = 150;
 const ENSURE_SEED_POLL_MAX_ITERATIONS = 20; // ~3s, past one 1-2s reseed
 
-/** Core of ensureDemoSeeded, taking the lock directly so it is testable against
- *  the in-memory DB without a Durable Object namespace. See ensureDemoSeeded. */
+/**
+ * Core of ensureDemoSeeded, taking the lock directly so it is testable against
+ * the in-memory DB without a Durable Object namespace. See ensureDemoSeeded.
+ */
 export async function ensureDemoSeededWithLock(db: Db, lock: DemoResetLock): Promise<void> {
   if (await demoAccountExists(db)) return; // fast path, no lock
 
@@ -472,8 +463,8 @@ export async function ensureDemoSeededWithLock(db: Db, lock: DemoResetLock): Pro
     return; // budget expired; caller lands on a briefly thin dashboard, never a 500
   }
   try {
-    // Re-check inside the lock: another enter or the reset cron may have
-    // seeded between the fast-path check above and acquiring the lock.
+    // Re-check inside the lock: another enter or the reset cron may have seeded
+    // between the fast-path check above and acquiring the lock.
     if (!(await demoAccountExists(db))) {
       await seedDemoAccount(db, new Date());
     }

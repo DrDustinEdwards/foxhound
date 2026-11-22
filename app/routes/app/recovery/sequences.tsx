@@ -37,14 +37,7 @@ import type { Route } from "./+types/sequences";
 import { NOINDEX } from "~/lib/seo/meta";
 import { markup } from "capsomer/behavior/trusted-html";
 
-// /recovery/sequence. Recova is the spec: its page,
-// app/(app)/recovery/sequence/page.tsx at blob 953c3f57, with
-// components/SequenceView.tsx 5507b89f, StepPerformanceChart.tsx edf8f83c and
-// lib/sequence-utils.ts 061aba7a, each read whole. Every section, label and
-// their order are Recova's; the parts are Capsomer 0.9.0's, the chart is
-// Enarratio's, amber throughout, and the numbers and categories are
-// Foxhound's engine (RECOVERY_SCHEDULES, six categories, silent retry first,
-// ruling 80).
+// /recovery/sequence: the sections are Capsomer's parts, the chart is Enarratio's, and the numbers and categories are Foxhound's engine (RECOVERY_SCHEDULES, six categories, silent retry first).
 
 export function meta() {
   return [{ title: "Sequences - Foxhound" }, NOINDEX];
@@ -57,8 +50,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
 
   const rawSteps = await listExecutedRecoverySteps(db, accountId);
-  // Sanitize once, here, server-side - the pure aggregation module never
-  // touches raw AI HTML (see email-preview.server.ts).
+  // Sanitize once, here, server-side: the pure aggregation module never touches raw AI HTML (see email-preview.server.ts).
   const steps = rawSteps.map((s) => ({
     ...s,
     aiBodyHtml: s.aiBodyHtml ? sanitizeEmailPreviewHtml(s.aiBodyHtml) : null,
@@ -74,7 +66,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 // measured width in the browser (ChartFrame).
 const CHART_WIDTH = 1120;
 
-/** Recova's StatCard: a label, a figure, and an optional line under it. */
+/** A label, a figure, and an optional line under it. */
 function StatCard({
   label,
   value,
@@ -202,9 +194,7 @@ function StepCardView({ card }: { card: StepCard }) {
     ) : card.sent > 0 && card.latestSubject ? (
       <>Latest subject: {card.latestSubject}</>
     ) : null;
-  // The figures sit in the body, on the panel's surface, not in its raised
-  // header: the rate colors and the subtle text reach 4.5:1 on the surface in
-  // both themes and fall short on the dark raised tone.
+  // The figures sit in the body, on the panel's surface, not in its raised header: the rate colors and the subtle text reach 4.5:1 on the surface in both themes and fall short on the dark raised tone.
   return (
     <Panel
       level={3}
@@ -258,7 +248,7 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
   const { performance, sections } = loaderData;
 
   return (
-    // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10.
+    // max-w-[1280px] mx-auto px-4 md:px-8 py-10.
     <div className="fh-sequence cap-admin-page" data-width="page">
       <div className="fh-sequence-head">
         <PageHead title="Recovery sequence" />

@@ -11,8 +11,7 @@
    base.css's reset and body rules. They land in cap.utilities, inside the cap
    layer declared above, so Foxhound's site layer still wins. */
 @import "capsomer/utilities.css";
-/* Capsomer's layout classes (.cap-stack, .cap-cluster, .cap-grid and the rest), every page's and the admin's: since
-   0.138.0 they are their own file, no longer in utilities.css or base.css. */
+/* Capsomer's layout classes (.cap-stack, .cap-cluster, .cap-grid and the rest), every page's and the admin's. */
 @import "capsomer/layout.css";
 /* Capsomer's link system, without the rest of base.css, in Foxhound's look from its Capsomer entry
    (root.tsx puts data-cap-site on <html>): semibold in amber with no line, a line under the
@@ -38,19 +37,14 @@
    Foxhound's site parts still win. The forced-colors ring below stays unlayered, so it wins everywhere. */
 @import "capsomer/focus.css";
 
-/* Foxhound's own colors, the ones Capsomer's foxhound site entry (capsomer/site-foxhound.css) and its
-   amber family do not carry; every other color on a Foxhound page is a Capsomer token (--ground,
-   --surface, --raised, --text, --muted, --dim, --line, --accent and its steps, the status tones).
-   The chrome (the header band, the footer and the error page's bar) is dark in both modes, so its
-   values are set once. --green, --red, --orange and --blue are Recova's chart and figure hues;
-   --purple is reserved for Stripe Connect and win-back attribution (DESIGN.md). */
+/* Foxhound's own colors, the ones Capsomer's foxhound site entry does not carry; every other color is a Capsomer token. The chrome (header band, footer, error page bar) is dark in both modes, so its values are set once. --green, --red, --orange and --blue are chart and figure hues; --purple is reserved for Stripe Connect and win-back attribution (DESIGN.md). */
 :root,
 :root[data-theme="dark"] {
   --chrome: #1a1c18;
   --chrome-text: #f0ede8;
   --chrome-text-secondary: #a8a49e;
   --chrome-border: #2a2b28;
-  /* Amber on the header band, Recova's (10.38:1 for the label on it, 9.21:1 on --chrome). */
+  /* Amber on the header band (10.38:1 for the label on it, 9.21:1 on --chrome). */
   --header-brand: #f0b429;
   --header-brand-fg: #0d0e0c;
 
@@ -74,9 +68,7 @@
   --purple-bg: #ece6ff;
 }
 
-/* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference, so a color fade can stay while a slide goes. No global 0.01ms override:
-   it ends some animations in a jump and breaks scroll-driven effects (Capsomer base.css, which
-   also turns smooth scrolling off). */
+/* Reduced motion: each motion is written inside prefers-reduced-motion: no-preference, so a color fade can stay while a slide goes. No global 0.01ms override: it ends some animations in a jump and breaks scroll-driven effects. */
 
 body {
   background: var(--ground);
@@ -84,13 +76,7 @@ body {
   font-family: var(--ui);
 }
 
-/* Accessibility: forced-colors mode gets surgical border + focus-ring
-   restoration only. Never recreate a palette here (task Appendix A rule).
-   No [data-skeleton] rule here (removed, port review finding 11): nothing in
-   the app renders that attribute yet, so the rule was dead. --skeleton /
-   --skeleton-shimmer color tokens stay defined (task Part 1's explicit
-   architecture ask); re-add the forced-colors override alongside the first
-   real skeleton-loading component. */
+/* Forced-colors mode gets border and focus-ring restoration only; never recreate a palette here. Re-add a forced-colors override for the skeleton tokens with the first real skeleton component. */
 @media (forced-colors: active) {
   *:focus-visible {
     outline: var(--line-w-bar) solid Highlight;
@@ -102,15 +88,14 @@ body {
 .fh-cap {
   --fs-page: 1rem;
 }
-/* Recova's section labels: small, medium weight, tertiary text color. */
+/* Section labels: small, medium weight, tertiary text color. */
 .fh-label {
   color: var(--muted);
   font-size: var(--fs-detail);
   font-weight: var(--fh-label-weight, var(--weight-medium));
   line-height: var(--leading-compact);
 }
-/* Recova's column had a 32px side margin from 768px up (px-4 md:px-8), the width of the header's
-   own padding, so the page starts under the logo. Capsomer's page class defaults to 16px. */
+/* A 32px side margin from 768px up, the width of the header's own padding, so the page starts under the logo. Capsomer's page class defaults to 16px. */
 @media (min-width: 768px) {
   .fh-cap.cap-page {
     --page-gutter: var(--space-7);
@@ -138,7 +123,7 @@ body {
   --header-avatar-fg: var(--header-brand-fg);
   --ring: var(--header-brand);
   --font-ui: var(--ui);
-  /* Recova's nav links are 13px. */
+  /* Nav links are 13px. */
   --header-fs: var(--fs-detail);
 }
 /* The business tile in the switcher's panel and the phone's sheet: a square
@@ -198,11 +183,7 @@ body {
   display: none;
 }
 
-/* Foxhound's own look on Capsomer's shared parts, set by token (Capsomer 0.94.0). The network
-   rule: shared code is behavior, never look, so the static stat tile, the tag badge and the blog's
-   lists wear Foxhound's look as it was before they moved onto Capsomer: mono figures at the
-   display size, small upper-case mono labels with the icon above, tertiary ink for quiet words,
-   mono upper-case badges with no glyph (their words say the state), and bare lists. */
+/* Foxhound's own look on Capsomer's shared parts, set by token. Shared code is behavior, never look, so the static stat tile, the tag badge and the blog's lists wear Foxhound's look: mono figures at the display size, small upper-case mono labels with the icon above, tertiary ink for quiet words, mono upper-case badges with no glyph, and bare lists. */
 :root {
   --tile-figure-face: var(--mono);
   --tile-figure-size: var(--title-2-5);
@@ -230,8 +211,7 @@ body {
   --muted: var(--dim);
   --warn: var(--accent-text);
 }
-/* The marketing previews' cards (Recova's preview cards): a panel's padding and corners, a sans
-   label and a bold title-size figure. */
+/* The marketing previews' cards: a panel's padding and corners, a sans label and a bold title-size figure. */
 .fh-tiles-preview {
   --tile-label-face: inherit;
   --tile-label-weight: var(--weight-medium);
@@ -270,9 +250,7 @@ body {
   flex: 1 0 auto;
 }
 
-/* The audit dashboard's save line (Capsomer's save bar with no button, saving as each control
-   changes): left, close under the controls, in the small type Recova's status line used, where the
-   bar's default ends the row on the right and sits further below. */
+/* The audit dashboard's save line (Capsomer's save bar with no button, saving as each control changes): left, close under the controls, in small type; the bar's default ends the row on the right and sits further below. */
 .fh-audit-autosave {
   justify-content: flex-start;
   margin-block-start: var(--space-3);
@@ -282,8 +260,7 @@ body {
   font-size: var(--fs-tiny-5);
 }
 
-/* A filter bar inside a Capsomer panel (the payments page): the panel is the frame, so the bar's own
-   bottom margin goes, and its count sits at the end of the row beside Clear, as Recova's did. */
+/* A filter bar inside a Capsomer panel (the payments page): the panel is the frame, so the bar's own bottom margin goes, and its count sits at the end of the row beside Clear. */
 .fh-filter-panel {
   margin: 0;
 }
@@ -295,9 +272,7 @@ body {
   inline-size: 100%;
 }
 
-/* Foxhound's type and color roles: its type scale (one class per size token, kept apart on a value match as rulings 65 and 68 say), its four text grays, the status
-   text colors and its faces, one class each, read by every page. Each page's own parts sit beside
-   it (admin.css for the admin). */
+/* Foxhound's type and color roles: its type scale (one class per size token), its four text grays, the status text colors and its faces, read by every page. Each page's own parts sit beside it (admin.css for the admin). */
 @layer site {
   .fh-mk-cards-4,
   .fh-mk-cards-2,
@@ -472,8 +447,7 @@ body {
   .fh-red {
     color: var(--red);
   }
-  /* Caution, named by meaning: the middle band of a red / caution / green scale (near target,
-     watch, deadline soon, MRR at risk). Recova drew it in its accent color, amber. */
+  /* Caution, named by meaning: the middle band of a red / caution / green scale (near target, watch, deadline soon, MRR at risk). */
   .fh-caution {
     color: var(--accent-text);
   }
@@ -487,7 +461,7 @@ body {
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
   }
-  /* Icon sizes and the finer stroke some icons were drawn at (lucide-react's size and strokeWidth). */
+  /* Icon sizes and the finer stroke some icons are drawn at. */
   .fh-icon-40 {
     --icon-size: var(--display-5);
   }
@@ -520,9 +494,7 @@ body {
   }
 }
 
-/* Parts of the pieces every kind of page can draw (the footer, the error view, the docs and audit
-   widgets the app's help and audit pages share with the public site, the Carrel preview's post
-   title), as Recova laid them out. The public pages' own parts are in marketing.css. */
+/* Parts of the pieces every kind of page can draw (the footer, the error view, the docs and audit widgets shared with the public site, the Carrel preview's post title). The public pages' own parts are in marketing.css. */
 @layer site {
   /* The color and opacity fades, one rule each. */
   .fh-mk-quiet-link,

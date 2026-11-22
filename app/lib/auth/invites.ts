@@ -1,5 +1,5 @@
-// Account invites (account.ts split): reading an invite by token, creating
-// one, and accepting it into a membership.
+// Account invites (account.ts split): reading an invite by token, creating one,
+// and accepting it into a membership.
 
 import { and, eq, inArray } from "drizzle-orm";
 import { type Db, accountMembers, accounts } from "~/db";
@@ -42,17 +42,14 @@ export async function getInviteByToken(db: Db, token: string): Promise<InviteVie
   };
 }
 
-/** Trim + lowercase, the one normal form an invited/accepting email is compared in. */
+/**
+ * Trim + lowercase, the one normal form an invited/accepting email is compared
+ * in.
+ */
 export function normalizeInviteEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
-/**
- * Whether the account already has a PENDING or ACTIVE membership invited at
- * this address: legacy's repeat-invite check (app/api/invite/route.ts, blob
- * 960aefc6), which matches `invited_email` alone, on the address in its stored
- * normal form, an expired pending invite included.
- */
 export async function hasOpenInviteForEmail(
   db: Db,
   accountId: string,
@@ -72,7 +69,9 @@ export async function hasOpenInviteForEmail(
   return rows.length > 0;
 }
 
-/** Create a pending team-member invite. Returns the token for the invite link. */
+/**
+ * Create a pending team-member invite. Returns the token for the invite link.
+ */
 export async function createInvite(
   db: Db,
   accountId: string,
@@ -100,20 +99,8 @@ export type AcceptInviteResult =
   | { ok: false; reason: "invalid" | "email_mismatch" };
 
 /**
- * `already_member` IS GONE AS A REFUSAL, and the shape above is
- * the whole of the change. It used to be the third rejection reason, and it was
- * enforcement layer 2 of the three that made Foxhound single-account: an
- * application refusal that survived 324's strike of the index and would still
- * have blocked a user from joining a second account by invite.
- *
- * It is removed by CHANGING THE VERDICT rather than by deleting the check,
- * because legacy still has the check and simply answers differently.
- * app/api/invite/accept/route.ts:47-57 (blob `13708537`) looks the membership up
- * by `account_id` AND `user_id` AND active, and on a hit returns
- * `{ success: true, redirect: '/console' }`. So the port is a NARROWING (from
- * "holds any account" to "holds THIS account") plus a change of verdict (from
- * error to success), and `alreadyMember` is what carries the second half: the
- * caller learns it wrote nothing, and still sends the user to the account.
+ * `already_member` IS GONE AS A REFUSAL, and the shape above is the whole of
+ * the change.
  */
 
 /**
@@ -121,14 +108,6 @@ export type AcceptInviteResult =
  * invite must exist, and the invited email must match, because invites are not
  * transferable. Split from `acceptInvite` so both rejection branches are
  * unit-testable without a database.
- *
- * `existingOnInvitedAccount` is the caller's active membership ON THE ACCOUNT
- * THE INVITE IS FOR, not anywhere. When it is present the answer is SUCCESS with
- * `alreadyMember: true`, so the caller writes nothing and sends the user to the
- * account they already hold. That is legacy's behavior and, since ruling 324,
- * the only defensible one: refusing here would mean a user who already belongs
- * to Acme cannot follow a second Acme invite link, and a user who belongs to
- * Acme cannot join Globex at all.
  */
 export function evaluateAcceptInvite(
   invite: InviteView | null,
@@ -139,10 +118,6 @@ export function evaluateAcceptInvite(
   if (!invite.invitedEmail || invite.invitedEmail !== normalizeInviteEmail(userEmail)) {
     return { ok: false, reason: "email_mismatch" };
   }
-  // Order matters and is legacy's: the email check runs BEFORE the membership
-  // check (route.ts:41-44 answers `wrong_user` 403 first), so an invite
-  // addressed to somebody else is refused even when the caller happens to be a
-  // member of the account already.
   if (existingOnInvitedAccount) {
     return { ok: true, accountId: invite.accountId, alreadyMember: true };
   }
@@ -154,23 +129,8 @@ export function evaluateAcceptInvite(
  * caller's membership ON THAT INVITE'S ACCOUNT, run the pure decision, and
  * unless they already hold it, activate the member row and clear the token.
  *
- * The membership read is scoped to the invited account, which is the narrowing
- * ruling 327 ordered, and it is only a fast path either way. The index behind it
- * also changed shape under 324: `account_members_user_account_active_uq` is
- * unique on `(user_id, account_id)`, so two concurrent accepts of invites to
- * TWO accounts now both succeed, which is the product, while two concurrent
- * accepts of invites to the SAME account still collide.
- *
- * THAT COLLISION IS NOW REPORTED AS SUCCESS, not as a refusal, and the reasoning
- * is the same as the fast path's: the loser's UPDATE failed precisely because
- * the winner already made this user a member of this account, so the caller's
- * question ("can they get in?") is answered yes. Returning an error there would
- * make a double-click on Accept show a failure over a membership that exists.
- * `alreadyMember: true` records that this call wrote nothing.
- *
- * The per-account money-write DO cannot serialize a cross-account race, since
- * two invites to two accounts route to two different DOs, but that race is legal
- * now and needs no serializing.
+ * Returning an error there would make a double-click on Accept show a failure
+ * over a membership that exists.
  */
 export async function acceptInvite(
   db: Db,

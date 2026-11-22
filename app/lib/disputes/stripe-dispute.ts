@@ -5,22 +5,8 @@ import { stripeDate } from "~/lib/stripe/time";
 
 // The ONE mapping from a Stripe.Dispute object to the fields dispute intake
 // writes, shared by the two callers that produce one.
-//
-// Extracted under ruling 400. Before it, the mapping lived inline in
-// app/lib/webhooks/events.ts's `charge.dispute.created` case and had exactly one
-// caller. The manual import (400 halt ruling 1) is the second, and it reads a
-// Stripe.Dispute retrieved directly rather than one delivered on an event. Two
-// copies of "which Stripe field becomes which column, and what it falls back to"
-// is how a manually imported dispute would quietly stop resembling a
-// webhook-imported one; the whole point of 400's ruling is that the two
-// converge, so the mapping is one function and both paths call it.
-//
-// Pure: no clock except the explicit `now` fallback, no network, no env.
 
-/** Stripe dispute ids are prefixed `dp_`. Legacy validates this in the browser
- *  only (SyncDisputeLink.tsx: `if (!trimmed.startsWith('dp_'))`), which is a
- *  hint and not a check, because an action takes whatever is posted. Same
- *  reasoning as S30's lookback clamp moving server-side. */
+/** Stripe dispute ids are prefixed `dp_`. */
 export function isStripeDisputeId(value: string): boolean {
   return /^dp_[A-Za-z0-9_]+$/.test(value);
 }
@@ -41,9 +27,6 @@ export interface DisputeIntakeFields {
  * The intake fields for a dispute, or null when it carries no charge to attach
  * to (the webhook parser's `no_charge` ignore, expressed as an absent result so
  * both callers must handle it).
- *
- * `now` is injected rather than read, so the `createdAt` fallback for a dispute
- * with no `created` is testable and the function stays pure.
  */
 export function disputeIntakeFields(
   dispute: Stripe.Dispute,
@@ -76,7 +59,9 @@ export interface DisputeLiveFields {
   reason: string;
 }
 
-/** The live fields of a dispute, with intake's fallbacks, or null with no id. */
+/**
+ * The live fields of a dispute, with intake's fallbacks, or null with no id.
+ */
 export function disputeLiveFields(dispute: Stripe.Dispute): DisputeLiveFields | null {
   if (!dispute.id) return null;
   return {
@@ -97,8 +82,10 @@ export interface DisputeFundsMovement {
   kind: DisputeFundsKind;
   /** Signed as Stripe signs it: negative when funds left the balance. */
   amountCents: number;
-  /** Stripe's dispute fee on this transaction: positive when debited,
-   *  negative when returned. */
+  /**
+   * Stripe's dispute fee on this transaction: positive when debited, negative
+   * when returned.
+   */
   feeCents: number;
   currency: string;
   occurredAt: Date;

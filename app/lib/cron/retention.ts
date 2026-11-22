@@ -29,47 +29,27 @@ import { monthKey } from "@dustinedwards/site-runtime/time";
 
 import type { CronJobResult } from "./run";
 
-// Retention sweepers (ARCHITECTURE.md retention table + non-negotiable #4: these
-// run before the tables they govern take production writes). Each is registered
-// as its own gated cron job (4e-C4). Most are age-based deletes; ai_calls
-// aggregates aged rows into ai_calls_monthly then deletes them in one atomic
-// batch (raw 90 days, monthly cost aggregates after). Every sweep is bounded to
-// RETENTION_SWEEP_LIMIT rows per tick so a large backlog drains over ticks
-// instead of timing out a single run.
+// Retention sweepers (ARCHITECTURE.md retention table + non-negotiable #4:
+// these run before the tables they govern take production writes). Each is
+// registered as its own gated cron job (4e-C4).
 
-/** The oldest-allowed timestamp for a window; rows strictly older are swept. Pure. */
+/**
+ * The oldest-allowed timestamp for a window; rows strictly older are swept.
+ * Pure.
+ */
 export function cutoffFor(days: number, nowMs: number): Date {
   return new Date(nowMs - days * DAY_MS);
 }
 
-/** Delete up to RETENTION_SWEEP_LIMIT rows matching a predicate, returning the
- *  count.
+/**
+ * Delete up to RETENTION_SWEEP_LIMIT rows matching a predicate, returning the
+ * count.
  *
- *  THE DELETE CARRIES NO ID LIST. It re-expresses the same bounded selection as
- *  a SUBQUERY, so its bound-parameter count is CONSTANT (the predicate's own
- *  operands plus the limit) no matter how many rows match. That is the whole
- *  difference between a fix and a larger version of the bug: an id list costs
- *  O(rows) parameters and breaks the day a table crosses 100 bound parameters.
- *  retention-health-score failed every day for 29 days that way, building 417
- *  placeholders against a documented ceiling of 100.
- *
- *  Batching the id list would also have worked and is deliberately NOT what this
- *  does: a predicate that needs no id list cannot regress if someone later
- *  raises RETENTION_SWEEP_LIMIT or edits a chunk size, whereas a batched delete
- *  stays one careless constant away from the same failure.
- *
- *  THE LEADING SELECT SURVIVES, AND ONLY TO COUNT. `rowsAffected` is not uniform
- *  across the two drivers this code runs on (D1 returns D1Result.meta, the
- *  better-sqlite3 driver the tests use returns RunResult.changes), so counting
- *  here keeps production and the harness reading the same number rather than
- *  agreeing by luck.
- *
- *  The two statements evaluate the same predicate at slightly different moments,
- *  so a row that ages in between could be swept in place of one that was counted.
- *  Immaterial for an age-based sweep: every matching row is equally deletable,
- *  the tick stays bounded either way, and the remainder is swept next tick. Crons
- *  are serialized per name by the CronLock DO, so no second sweep of the same
- *  table runs alongside this one. */
+ * Batching the id list would also have worked and is deliberately NOT what this
+ * does: a predicate that needs no id list cannot regress if someone later
+ * raises RETENTION_SWEEP_LIMIT or edits a chunk size, whereas a batched delete
+ * stays one careless constant away from the same failure.
+ */
 async function deleteBoundedWhere(
   db: Db,
   table: SQLiteTable,
@@ -152,13 +132,7 @@ export async function sweepHealthScoreHistory(env: Env): Promise<CronJobResult> 
   return { rowsProcessed: rows };
 }
 
-/** Non-actioned social leads only (a lead we replied to is kept).
- *
- *  Two predicate terms rather than one, but still a PREDICATE: it goes through
- *  the same subquery delete as the age-only sweeps and carries no id list. This
- *  site had its own copy of the select-then-inArray shape, so it carried the
- *  same latent bug as the shared helper and would have fired the day
- *  social_leads crossed the ceiling. */
+/** Non-actioned social leads only (a lead we replied to is kept). */
 export async function sweepSocialLeads(env: Env): Promise<CronJobResult> {
   const cutoff = cutoffFor(RETENTION_SOCIAL_LEADS_DAYS, Date.now());
   const rows = await deleteBoundedWhere(
@@ -186,8 +160,11 @@ export interface AiCallAggregate {
   completionTokens: number;
 }
 
-/** Group aged ai_calls rows by (account, model, UTC month), summing tokens. Pure.
- *  A null account collapses to "" so platform-level calls dedupe into one bucket. */
+/**
+ * Group aged ai_calls rows by (account, model, UTC month), summing tokens.
+ * Pure. A null account collapses to "" so platform-level calls dedupe into one
+ * bucket.
+ */
 export function aggregateAiCalls(rows: AiCallRow[]): AiCallAggregate[] {
   const map = new Map<string, AiCallAggregate>();
   for (const r of rows) {
@@ -208,8 +185,10 @@ export function aggregateAiCalls(rows: AiCallRow[]): AiCallAggregate[] {
   return [...map.values()];
 }
 
-/** Aggregate aged ai_calls into ai_calls_monthly then delete them, atomically.
- *  Cost is linear in tokens, so additive upserts of per-run cost sum correctly. */
+/**
+ * Aggregate aged ai_calls into ai_calls_monthly then delete them, atomically.
+ * Cost is linear in tokens, so additive upserts of per-run cost sum correctly.
+ */
 export async function sweepAiCalls(env: Env): Promise<CronJobResult> {
   const db = getDb(env);
   const cutoff = cutoffFor(RETENTION_AI_CALLS_DAYS, Date.now());
@@ -255,18 +234,10 @@ export async function sweepAiCalls(env: Env): Promise<CronJobResult> {
   // THE ONE SITE WHERE AN ID LIST IS SEMANTICALLY REQUIRED, so this one keeps
   // its ids rather than converting to a predicate.
   //
-  // The other sweeps may re-express their delete as "whatever currently matches
-  // the predicate", because every matching row is equally deletable. This one
-  // may not: it must delete EXACTLY the rows it just aggregated into
+  // This one may not: it must delete EXACTLY the rows it just aggregated into
   // ai_calls_monthly. A subquery re-evaluating `created_at < cutoff` inside the
   // batch would also match rows written after the SELECT, and deleting those
-  // would drop AI calls that were never rolled into a monthly bucket. That is
-  // silent loss in a cost ledger, which is worse than the bug being fixed.
-  //
-  // So the ids stay, bound as ONE json parameter (inList), so the delete is one
-  // statement however many rows were aggregated. It goes into the SAME batch as
-  // the upserts, so the aggregate-then-delete stays one atomic transaction and a
-  // crash still never double-counts.
+  // would drop AI calls that were never rolled into a monthly bucket.
   const deletes = [
     db.delete(aiCalls).where(
       inList(

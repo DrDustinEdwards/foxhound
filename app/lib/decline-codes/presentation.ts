@@ -4,18 +4,19 @@ import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 import type { DeclineCodeView } from "./codes";
 
-/** How long the fraud sequence runs, in days: its last step's offset, read
- *  from the schedule rather than typed. */
+/**
+ * How long the fraud sequence runs, in days: its last step's offset, read from
+ * the schedule rather than typed.
+ */
 const FRAUD_SEQUENCE_DAYS = Math.round(
   Math.max(...RECOVERY_SCHEDULES.fraud.map((s) => s.offsetHours)) / 24,
 );
 
-// Shared, category-driven presentation for the /decline-codes surfaces. None
-// of this is per-code hand-authored: it derives entirely from the
-// classifyDecline()/isRetryable() outputs already carried on a
-// DeclineCodeView (app/lib/decline-codes/codes.ts), so the "how Foxhound
-// recovers it" section can never say something the recovery engine does not
-// actually do.
+// Shared, category-driven presentation for the /decline-codes surfaces. None of
+// this is per-code hand-authored: it derives entirely from the
+// classifyDecline()/isRetryable() outputs already carried on a DeclineCodeView
+// (app/lib/decline-codes/codes.ts), so the "how Foxhound recovers it" section
+// can never say something the recovery engine does not actually do.
 
 export function categoryBadgeTone(category: DeclineCategory): BadgeTone {
   if (category === "fraud") return "failure";
@@ -26,13 +27,9 @@ export function categoryBadgeTone(category: DeclineCategory): BadgeTone {
 }
 
 // Single source of truth for the category status badge shown on both the
-// decline-codes hub (index.tsx, grouped by category) and each individual
-// code page (code.tsx). Both pages must import this, never hand-derive
-// their own copy of it: the hub previously hardcoded an inline ternary that
-// fell through "revoked" to "Retries automatically", contradicting
-// recoveryApproach()'s own "revoked" copy below and decline.ts's
-// isRetryable() (which excludes "revoked"). A single shared map makes that
-// class of divergence structurally impossible going forward.
+// decline-codes hub (index.tsx, grouped by category) and each individual code
+// page (code.tsx). A single shared map makes that class of divergence
+// structurally impossible going forward.
 export const CATEGORY_STATUS_LABEL: Record<DeclineCategory, string> = {
   soft: "Retries automatically",
   network: "Retries automatically",

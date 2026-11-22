@@ -11,41 +11,17 @@ import type { IntelligencePreview } from "~/lib/marketing/intelligence-preview";
 import { markup } from "capsomer/behavior/trusted-html";
 import "capsomer/table.css";
 
-// The previews on /product/intelligence, Recova's three feature-block
-// UIs: the Intelligence dashboard (IntelligenceDashboardPreview.tsx, blob
-// 11972333, which mounts the dashboard's MRRStatCards, 2920fa3b, and
-// PlanBreakdown, 65b5674f, over a narrative card), the customer table
-// (components/docs/IntelligenceCustomerTable.tsx, 6ae7c73f, with
-// HealthScoreBadge, f25f29d8) and the churn bands
-// (components/docs/ChurnRiskSummary.tsx, ba1fbb51).
-//
-// Content and layout are Recova's; the parts are Capsomer's and the one
-// chart is Enarratio's, drawn by the dashboard's own drawPlans. The page
-// does not hydrate, so the chart is drawn on the server twice, at the frame's
-// width and narrow, in Capsomer's server frame: the charts island
-// (app/islands/charts.ts, Capsomer's chart-enhance) swaps in the narrow
-// drawing in a column under 30rem, so a phone keeps 12 px text, and adds
-// Enarratio's enhancement layer as on every other chart. Every
-// figure and row is the demo seed read through Foxhound's own Intelligence
-// code (app/lib/marketing/intelligence-preview.server.ts), never a merchant's
-// rows.
-//
-// Where Foxhound's dashboard differs from Recova's, the preview follows the
-// dashboard (app/routes/app/intelligence/index.tsx): MRR by plan shows no
-// customer count, because the snapshot keeps none.
-//
-// Left out: the customer table's Action column. Recova's reads a recommended
-// action, and nothing in Foxhound writes one (digest-email.ts records the same
-// finding). The J58 notes list it for the seat.
+// The previews on /product/intelligence: the Intelligence dashboard (MRR stat cards and plan breakdown over a narrative card), the customer table and the churn bands. The parts are Capsomer's and the one chart is Enarratio's, drawn by the dashboard's own drawPlans. The page does not hydrate, so the chart is drawn on the server twice, at the frame's width and narrow, in Capsomer's server frame: the charts island (app/islands/charts.ts, Capsomer's chart-enhance) swaps in the narrow drawing in a column under 30rem, so a phone keeps 12 px text, and adds Enarratio's enhancement layer. Every figure and row is the demo seed read through Foxhound's own Intelligence code (app/lib/marketing/intelligence-preview.server.ts), never a merchant's rows.
+// Where the dashboard differs, the preview follows it (app/routes/app/intelligence/index.tsx): MRR by plan shows no customer count, because the snapshot keeps none. The customer table has no Action column: nothing in Foxhound writes a recommended action.
 
-/** ChurnRiskSummary's words for the three bands. */
+/** The churn bands' words for the three bands. */
 const BAND_LABEL: Record<HealthScoreBand, string> = {
   at_risk: "High risk",
   watch: "Medium",
   healthy: "Healthy",
 };
 
-/** A label over a figure, as Recova's cards have: micro, uppercase, tertiary. */
+/** A label over a figure: micro, uppercase, tertiary. */
 function CardLabel({ children }: { children: React.ReactNode }) {
   return <p className="fh-mk-kicker fh-tiny fh-medium fh-quiet">{children}</p>;
 }
@@ -64,7 +40,7 @@ function planFrame(draw: (width: number) => string): string {
   });
 }
 
-/** Block 1: Recova's dashboard preview, four cards, MRR by plan, the narrative. */
+/** Block 1: the dashboard preview, four cards, MRR by plan, the narrative. */
 export function DashboardPreview({ preview }: { preview: IntelligencePreview }) {
   const { dashboard } = preview;
   const draw = (width: number) =>
@@ -115,7 +91,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
   );
 }
 
-/** Block 2: Recova's customer table, worst health first. */
+/** Block 2: the customer table, worst health first. */
 export function CustomerTablePreview({ preview }: { preview: IntelligencePreview }) {
   return (
     <div className="fh-intelprev-block-2">
@@ -160,7 +136,7 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
   );
 }
 
-/** Block 3: Recova's churn summary, the three bands, high risk first. */
+/** Block 3: the churn summary, the three bands, high risk first. */
 export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview }) {
   return (
     <div className="fh-intelprev-block-2">

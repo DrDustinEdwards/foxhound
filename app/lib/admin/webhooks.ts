@@ -2,10 +2,6 @@
 // module, the page renders them), tested without a database. The filters live
 // in the address (?type=, ?errors=1, ?pending=1, ?page=), so the list works
 // without script, Back and reload keep it, and a filtered page can be linked.
-//
-// Recova's webhook log (WebhookLogClient.tsx, blob b0fcce84) is the inventory:
-// a case-insensitive event-type filter, an errors-only toggle and 50 events a
-// page. Pending only is Foxhound's own, the list behind its Unprocessed figure.
 
 import { parsePage } from "capsomer/behavior/pagination";
 

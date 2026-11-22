@@ -1,5 +1,5 @@
-// /admin/platform/webhooks data layer: delivery/health view off webhook_events. READ
-// only (Pass 1); there is no retry/replay action here.
+// /admin/platform/webhooks data layer: delivery/health view off webhook_events.
+// READ only (Pass 1); there is no retry/replay action here.
 
 import { and, count, desc, eq, isNotNull, like, sql, type SQL } from "drizzle-orm";
 
@@ -54,12 +54,6 @@ export interface WebhookEventPage {
   pageCount: number;
 }
 
-/**
- * One page of the webhook log, newest first, filtered the way Recova's log
- * filtered in the browser (event type as a case-insensitive substring, errors
- * only) plus Foxhound's pending only. Over the whole table, not Recova's newest
- * 200: retention (90 days) bounds it, and the count says how many there are.
- */
 export async function listWebhookEvents(
   db: Db,
   filters: WebhookFilters,

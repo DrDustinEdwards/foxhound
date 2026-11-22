@@ -1,10 +1,7 @@
 // Blog data layer (D1/Drizzle). Public reads only: posts are written through
-// Carrel's site adapter (admin-queries.server.ts), never from here. blog_posts / blog_post_links are GLOBAL
-// tables (no account_id), so none of these queries take an accountId.
-//
-// Ported from legacy lib/blog.ts's read functions onto Drizzle/D1, filtered
-// to published = true and ordered by published_at desc, matching legacy's
-// anon-SSR-client (RLS-gated) read behavior.
+// Carrel's site adapter (admin-queries.server.ts), never from here. blog_posts
+// / blog_post_links are GLOBAL tables (no account_id), so none of these queries
+// take an accountId.
 
 import { and, asc, desc, eq, gt, lt, or, sql } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
@@ -42,10 +39,9 @@ export interface BlogPost extends BlogPostSummary {
 }
 
 // Columns needed to build a summary. No body: reading time is precomputed at
-// write time into reading_minutes (perf-audit fix, foxhound-audit-perf.md
-// M-2), so a list/tag-archive read never pulls the full markdown body just
-// to render a card. Only getPostBySlug (the single-post detail read) selects
-// the full row, body included.
+// write time into reading_minutes, so a list/tag-archive read never pulls the
+// full markdown body just to render a card. Only getPostBySlug (the single-post
+// detail read) selects the full row, body included.
 const SUMMARY_COLUMNS = {
   id: blogPosts.id,
   slug: blogPosts.slug,
@@ -93,7 +89,7 @@ function toSummary(r: SummaryRow): BlogPostSummary {
   };
 }
 
-/** Most recent published posts, newest first. Mirrors legacy getBlogPosts. */
+/** Most recent published posts, newest first. */
 export async function listPublishedPosts(db: Db, limit?: number): Promise<BlogPostSummary[]> {
   const base = db
     .select(SUMMARY_COLUMNS)
@@ -104,14 +100,12 @@ export async function listPublishedPosts(db: Db, limit?: number): Promise<BlogPo
   return rows.map(toSummary);
 }
 
-/** The set of tags carried by at least one published post. The archive
- *  renders a filter pill only for these, so a canonical tag with no content
- *  never offers a chip that leads to an empty page (Dustin, ruling 72
- *  session). CANONICAL_TAGS stays the full list, because the sitemap and
- *  llms.txt still enumerate it. Selects the one column it needs rather than
- *  reusing getAllPublishedPosts, and unions in JS rather than reaching for a
- *  json_each FROM clause, which Drizzle's builder cannot express and which
- *  CLAUDE.md's raw-dialect rule would bar anyway. */
+/**
+ * The set of tags carried by at least one published post. The archive renders a
+ * filter pill only for these, so a canonical tag with no content never offers a
+ * chip that leads to an empty page. CANONICAL_TAGS stays the full list, because
+ * the sitemap and llms.txt still enumerate it.
+ */
 export async function getPublishedTagSet(db: Db): Promise<string[]> {
   const rows = await db
     .select({ tags: blogPosts.tags })
@@ -124,11 +118,12 @@ export async function getPublishedTagSet(db: Db): Promise<string[]> {
   return [...seen];
 }
 
-/** Every published post, newest first. Mirrors legacy getAllPublishedPosts;
- *  used by the sitemap and the feed. The tag archive uses
- *  getPublishedPostsByTag instead (SQL-filtered, perf-audit fix M-2), not
- *  this. Content volume here is small (dozens of posts, not thousands), so a
- *  full scan is the simplest correct query; there is no pagination need yet. */
+/**
+ * Every published post, newest first. The tag archive uses
+ * getPublishedPostsByTag instead, not this. Content volume here is small
+ * (dozens of posts, not thousands), so a full scan is the simplest correct
+ * query; there is no pagination need yet.
+ */
 export async function getAllPublishedPosts(
   db: Db,
   { indexedOnly = false } = {},
@@ -145,12 +140,11 @@ export async function getAllPublishedPosts(
   return rows.map(toSummary);
 }
 
-/** Published posts carrying `tag`, newest first, filtered in SQL (a
- *  json_each EXISTS predicate against the JSON-encoded tags column) rather
- *  than fetching every published post and filtering in memory (perf-audit
- *  fix, foxhound-audit-perf.md M-2: the tag archive used to read every
- *  post's full body via getAllPublishedPosts + filterPostsByTag just to
- *  render a handful of matching cards). */
+/**
+ * Published posts carrying `tag`, newest first, filtered in SQL (a json_each
+ * EXISTS predicate against the JSON-encoded tags column) rather than fetching
+ * every published post and filtering in memory.
+ */
 export async function getPublishedPostsByTag(db: Db, tag: string): Promise<BlogPostSummary[]> {
   const rows = await db
     .select(SUMMARY_COLUMNS)
@@ -165,7 +159,7 @@ export async function getPublishedPostsByTag(db: Db, tag: string): Promise<BlogP
   return rows.map(toSummary);
 }
 
-/** Most-recently-published featured post, or null. Mirrors legacy getFeaturedPost. */
+/** Most-recently-published featured post, or null. */
 export async function getFeaturedPost(db: Db): Promise<BlogPostSummary | null> {
   const rows = await db
     .select(SUMMARY_COLUMNS)
@@ -176,9 +170,10 @@ export async function getFeaturedPost(db: Db): Promise<BlogPostSummary | null> {
   return rows[0] ? toSummary(rows[0]) : null;
 }
 
-/** Batch-fetch published posts by slug, returned in the order `slugs`
- *  specifies (an editorial sort), not DB order. Missing slugs are skipped.
- *  Mirrors legacy getPostsBySlug. */
+/**
+ * Batch-fetch published posts by slug, returned in the order `slugs` specifies
+ * (an editorial sort), not DB order. Missing slugs are skipped.
+ */
 export async function getPostsBySlug(db: Db, slugs: string[]): Promise<BlogPostSummary[]> {
   if (slugs.length === 0) return [];
   const rows = await db
@@ -192,8 +187,7 @@ export async function getPostsBySlug(db: Db, slugs: string[]): Promise<BlogPostS
   });
 }
 
-/** A single published post by slug, full body included, or null. Mirrors
- *  legacy getBlogPost. */
+/** A single published post by slug, full body included, or null. */
 export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | null> {
   const rows = await db
     .select()
@@ -203,7 +197,10 @@ export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | nu
   return rows[0] ? toPost(rows[0]) : null;
 }
 
-/** A post row as the post page reads it, the stored one or Carrel's draft in its place. */
+/**
+ * A post row as the post page reads it, the stored one or Carrel's draft in its
+ * place.
+ */
 export function toPost(r: typeof blogPosts.$inferSelect): BlogPost {
   return {
     ...toSummary(r),
@@ -221,8 +218,10 @@ export function toPost(r: typeof blogPosts.$inferSelect): BlogPost {
   };
 }
 
-/** Where a renamed post's old slug now leads (blog_slug_redirects, written by
- *  a Carrel rename), or null. */
+/**
+ * Where a renamed post's old slug now leads (blog_slug_redirects, written by a
+ * Carrel rename), or null.
+ */
 export async function getSlugRedirect(db: Db, slug: string): Promise<string | null> {
   const rows = await db
     .select({ toSlug: blogSlugRedirects.toSlug })
@@ -232,13 +231,12 @@ export async function getSlugRedirect(db: Db, slug: string): Promise<string | nu
   return rows[0]?.toSlug ?? null;
 }
 
-// Adjacent-post helpers for the prev/next nav on post detail. Sort key is
-// the composite (published_at, id) so posts sharing an exact publish
-// timestamp still produce a stable, total ordering (mirrors legacy's
-// .or() + dual .order() pair).
+// Adjacent-post helpers for the prev/next nav on post detail.
 
-/** The published post immediately before `publishedAt`/`postId` in the
- *  chronological order, or null if this is the oldest post. */
+/**
+ * The published post immediately before `publishedAt`/`postId` in the
+ * chronological order, or null if this is the oldest post.
+ */
 export async function getPreviousPost(
   db: Db,
   publishedAt: Date,
@@ -261,8 +259,10 @@ export async function getPreviousPost(
   return rows[0] ? toSummary(rows[0]) : null;
 }
 
-/** The published post immediately after `publishedAt`/`postId`, or null if
- *  this is the newest post. */
+/**
+ * The published post immediately after `publishedAt`/`postId`, or null if this
+ * is the newest post.
+ */
 export async function getNextPost(
   db: Db,
   publishedAt: Date,
@@ -285,8 +285,7 @@ export async function getNextPost(
   return rows[0] ? toSummary(rows[0]) : null;
 }
 
-/** Curated "Further reading" links for a post, in editor-set order.
- *  Mirrors legacy getPostLinks; only resolves to published targets. */
+/** Curated "Further reading" links for a post, in editor-set order. */
 export async function getPostLinks(db: Db, postId: string): Promise<BlogPostSummary[]> {
   const rows = await db
     .select(SUMMARY_COLUMNS)
@@ -297,9 +296,11 @@ export async function getPostLinks(db: Db, postId: string): Promise<BlogPostSumm
   return rows.map(toSummary);
 }
 
-/** Resolve `::postlink[slug]` markdown references to a current title+slug.
- *  Only resolves to published posts; unresolved slugs are the renderer's
- *  problem (falls back to inline <code>). Mirrors legacy resolvePostLink. */
+/**
+ * Resolve `::postlink[slug]` markdown references to a current title+slug. Only
+ * resolves to published posts; unresolved slugs are the renderer's problem
+ * (falls back to inline <code>).
+ */
 export async function resolvePostLink(
   db: Db,
   slug: string,

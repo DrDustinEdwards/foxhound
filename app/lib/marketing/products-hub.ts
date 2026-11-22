@@ -4,29 +4,11 @@ import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { ProductKey } from "./products";
 
-// The /products hub's card copy. Recova's spec is
-// app/(marketing)/products/page.tsx (blob 1349c46e) for the Audit card and
-// lib/products.ts (blob 6be24574) for the other three, word for word.
-//
-// Hub only. The home page reads the shared description and price in
-// products.ts, which are a different row's copy, so they stay as they are.
-// Names and hrefs still come from products.ts, the one place J09 moves the
-// spoke links to /product/*.
-//
-// Every number is read from Foxhound's pricing constants, never typed.
-// Recova's price is one string per card, and so is this.
-//
-// Three truthfulness fixes, each still one short string:
-// - Recovery: Recova reads "20% of recoveries", but Foxhound bills only
-//   Foxhound-attributed recoveries; stripe_baseline recoveries are never billed
-//   (PRICING.md, Recovery; app/lib/billing/billable-predicates.ts,
-//   isBillableRecoveryRow). So it says "of Foxhound-attributed recoveries",
-//   PRICING.md's own wording.
-// - Disputes: Recova reads "20% on wins", but billing caps each dispute's fee
-//   (DISPUTE_FEE_CAP_CENTS, applied in app/lib/billing/run.ts), so the cap is
-//   named, as /pricing names it.
-// - Intelligence: Recova reads "$199/mo", but Intelligence is free on every
-//   account (Dustin), so it says "Free".
+// The /products hub's card copy. Hub only: the home page reads the shared description and price in products.ts. Names and hrefs
+// come from products.ts. Every number is read from Foxhound's pricing constants, never typed; the price is one string per card.
+// Truthfulness: Recovery says "of Foxhound-attributed recoveries" because stripe_baseline recoveries are never billed
+// (app/lib/billing/billable-predicates.ts, isBillableRecoveryRow); Disputes names the per-dispute fee cap (DISPUTE_FEE_CAP_CENTS,
+// applied in app/lib/billing/run.ts), as /pricing does; Intelligence says "Free" because it is free on every account.
 
 export interface HubCardCopy {
   description: string;

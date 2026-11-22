@@ -3,13 +3,8 @@ import { and, eq } from "drizzle-orm";
 import type { Db } from "~/db";
 import { benchmarkData, estimatorRuns } from "~/db";
 
-// No-auth estimator logic (Phase 6 Pass 3, PRICING.md: "No-auth estimator
-// first: MRR + customer count -> benchmark leakage estimate"). Looks up
-// seeded benchmark_data rows (drizzle/seed/benchmark_data.sql) by MRR band
-// and produces a directional leakage estimate, never a platform-derived
-// recovery-rate claim (no platform data exists yet -- PRICING.md/DESIGN.md
-// flagship-surface-3 confidence-caveat convention: this is an ESTIMATE with
-// a stated range, not a precise number).
+// No-auth estimator: looks up seeded benchmark_data rows (drizzle/seed/benchmark_data.sql) by MRR band and
+// produces a directional leakage ESTIMATE with a stated range, never a platform-derived recovery-rate claim.
 
 const COHORT_DIMENSION = "mrr_band";
 const LEAKAGE_METRIC_NAME = "monthly_failed_payment_leakage_pct_of_mrr";
@@ -35,23 +30,15 @@ export interface EstimatorInput {
 export interface EstimatorResult {
   benchmarkCohort: string;
   estimatedLeakageCents: number;
-  /** The seed's p25/p75 spread, stored with the run but NOT shown: the seed is
-   *  an interpolation, not a study, so /audit never presents it as what
-   *  comparable accounts show. The page shows medianPct as an assumption. */
+  /** The seed's p25/p75 spread, stored with the run but not shown: the seed is an interpolation, not a study. */
   low: number;
   high: number;
   medianPct: number;
   sampleSize: number;
 }
 
-/**
- * Looks up the seeded benchmark row for this MRR's band and returns a
- * directional leakage estimate (median of the percentile range times MRR),
- * plus the p25/p75 spread for an honest confidence caveat. Returns null when
- * no benchmark row exists for the band (an unseeded environment, or a band
- * with no data), which the caller renders as an honest "not enough data
- * yet" state rather than a fabricated number.
- */
+/** Directional leakage estimate (median of the percentile range times MRR) plus the p25/p75 spread. Null
+ *  when no benchmark row exists for the band, which the caller renders as "not enough data", never a made-up number. */
 export async function estimateLeakage(
   db: Db,
   input: EstimatorInput,
@@ -91,7 +78,6 @@ export interface RecordEstimatorRunInput extends EstimatorInput {
   nowMs: number;
 }
 
-/** Writes the single minimal-PII estimator_runs row (inputs + result only, no email/name). */
 export async function recordEstimatorRun(db: Db, input: RecordEstimatorRunInput): Promise<void> {
   await db.insert(estimatorRuns).values({
     createdAt: new Date(input.nowMs),

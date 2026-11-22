@@ -3,20 +3,18 @@ import { DAY_MS, HOUR_MS } from "~/lib/constants";
 import { percent } from "capsomer/behavior/meter";
 import { dayKey } from "@dustinedwards/site-runtime/time";
 
-// Pure aggregation math for the Recovery dashboard's windowed read model
-// (TASK-foxhound-recovery-surface-parity.md Phase 1, legacy's
-// fetchDashboardData). No DB access here; app/lib/dashboard/recovery-window.server.ts
-// calls these against real query results. Kept separate so the math is
-// unit-tested without a database.
+// Pure aggregation math for the Recovery dashboard's windowed read model. No DB
+// access here; app/lib/dashboard/recovery-window.server.ts calls these against
+// real query results. Kept separate so the math is unit-tested without a
+// database.
 
 export const RECOVERY_RANGES = ["7d", "30d", "90d", "all"] as const;
 export type RecoveryRange = (typeof RECOVERY_RANGES)[number];
 
-/** The per-category sparkline is ALWAYS a trailing 30 days, independent of
- *  whatever range the rest of a call is scoped to (see resolveRangeCutoff).
- *  Legacy reused its range-filtered query for this and silently zero-padded
- *  any day outside a sub-30-day range; this constant is why Foxhound queries
- *  the sparkline separately instead of repeating that. */
+/**
+ * The per-category sparkline is ALWAYS a trailing 30 days, independent of
+ * whatever range the rest of a call is scoped to (see resolveRangeCutoff).
+ */
 export const SPARKLINE_TRAILING_DAYS = 30;
 
 export interface RangeResolution {
@@ -28,10 +26,7 @@ export interface RangeResolution {
   rangeLabel: string;
 }
 
-/** Resolve a range selector into a query cutoff + chart span + label. Pure,
- *  direct port of legacy's range computation. "all" has no cutoff but still
- *  spans 90 days of daily charts (matching legacy exactly, not a fabricated
- *  choice: an unbounded chart has no natural day count). */
+/** Resolve a range selector into a query cutoff + chart span + label. */
 export function resolveRangeCutoff(range: RecoveryRange, nowMs: number): RangeResolution {
   if (range === "7d") return { cutoffMs: nowMs - 7 * DAY_MS, rangeDays: 7, rangeLabel: "7d" };
   if (range === "90d") return { cutoffMs: nowMs - 90 * DAY_MS, rangeDays: 90, rangeLabel: "90d" };
@@ -68,8 +63,10 @@ export interface DailyCentsPoint {
   cents: number;
 }
 
-/** Sum cents per day over the last `rangeDays` days from `nowMs` (oldest to
- *  newest), zero-filled for days with nothing. Feeds the revenue-trend chart. */
+/**
+ * Sum cents per day over the last `rangeDays` days from `nowMs` (oldest to
+ * newest), zero-filled for days with nothing. Feeds the revenue-trend chart.
+ */
 export function sumCentsByDayWindow(
   rows: { date: Date; cents: number }[],
   rangeDays: number,
@@ -90,25 +87,18 @@ export function sumCentsByDayWindow(
 
 export interface DailyRatePoint {
   date: string;
-  /** null when nothing had failed yet as of this date (a true zero state,
-   *  not a 0% rate). */
+  /**
+   * null when nothing had failed yet as of this date (a true zero state, not a
+   * 0% rate).
+   */
   rate: number | null;
 }
 
 /**
  * Cumulative running recovery rate for each of the last `rangeDays` days
- * (oldest to newest). Cumulative rather than same-day, so a recovery landing
- * on day X against a failure detected on day Y < X still counts toward the
- * right running total instead of only day X's own snapshot.
- *
- * This does NOT by itself guarantee the rate stays <= 100%: legacy built
- * `recoveredByDay` from a recovered_at-anchored population separate from
- * `failedByDay`'s detected_at-anchored one, and its own comment claimed the
- * cumulative form was "always <= 100% on clean data" - false, since a quiet
- * week after a bad week lets pre-window recoveries land inside the window
- * and outrun a denominator that never counted their failures. The <= 100%
- * bound is structural only when the caller derives both maps from the SAME
- * cohort (see getRecoveryDashboardWindow, which does).
+ * (oldest to newest). Cumulative rather than same-day, so a recovery landing on
+ * day X against a failure detected on day Y < X still counts toward the right
+ * running total instead of only day X's own snapshot.
  */
 export function cumulativeRecoveryRateDaily(
   failedByDay: Map<string, number>,
@@ -134,10 +124,12 @@ export interface CategorySparklinePoint {
   count: number;
 }
 
-/** Per-category daily failure counts over a genuine trailing 30-day window
- *  from `nowMs`, independent of any overall range cutoff (see
- *  SPARKLINE_TRAILING_DAYS). Only categories present in `failedByCatByDay`
- *  appear in the result. */
+/**
+ * Per-category daily failure counts over a genuine trailing 30-day window from
+ * `nowMs`, independent of any overall range cutoff (see
+ * SPARKLINE_TRAILING_DAYS). Only categories present in `failedByCatByDay`
+ * appear in the result.
+ */
 export function categorySparklineWindow(
   failedByCatByDay: Record<DeclineCategory, Map<string, number>>,
   nowMs: number,
@@ -161,9 +153,10 @@ export interface RecoveryTimingBucket {
   percentage: number;
 }
 
-/** Bucket recovery lead times (days from detection to recovery) into Day 1 /
- *  Day 3 / Day 7 / Day 8+, with each bucket's share of the total. Pure,
- *  direct port of legacy's thresholds. */
+/**
+ * Bucket recovery lead times (days from detection to recovery) into Day 1 / Day
+ * 3 / Day 7 / Day 8+, with each bucket's share of the total.
+ */
 export function recoveryTimingBuckets(recoveryDays: number[]): RecoveryTimingBucket[] {
   const buckets = { "Day 1": 0, "Day 3": 0, "Day 7": 0, "Day 8+": 0 };
   for (const d of recoveryDays) {
@@ -192,9 +185,9 @@ export interface BestCategory {
 
 /**
  * The best-performing decline category, preferring categories with enough
- * volume to be meaningful (>=3 failures AND >=2 recoveries); falls back to
- * >=2 failures only if nothing qualifies, so an early-stage account still
- * gets a winner surfaced. Direct port of legacy's thresholds.
+ * volume to be meaningful (>=3 failures AND >=2 recoveries); falls back to >=2
+ * failures only if nothing qualifies, so an early-stage account still gets a
+ * winner surfaced.
  */
 export function bestCategory(
   categoryStats: Partial<Record<DeclineCategory, CategoryStat>>,
@@ -225,11 +218,12 @@ export interface WebhookHealth {
 const WEBHOOK_HEALTHY_WITHIN_MS = DAY_MS;
 const WEBHOOK_QUIET_WITHIN_MS = 72 * HOUR_MS;
 
-/** Classify Stripe webhook freshness into a Badge-compatible tone. A webhook
- *  received within 24h reads healthy; within 72h reads as a quiet-but-not-
- *  alarming neutral; beyond that reads as a failure worth flagging. Never
- *  having received one yet (a brand new connection) is neutral, not a
- *  failure. */
+/**
+ * Classify Stripe webhook freshness into a Badge-compatible tone. A webhook
+ * received within 24h reads healthy; within 72h reads as a quiet-but-not-
+ * alarming neutral; beyond that reads as a failure worth flagging. Never having
+ * received one yet (a brand new connection) is neutral, not a failure.
+ */
 export function classifyWebhookHealth(lastWebhookAt: Date | null, nowMs: number): WebhookHealth {
   if (!lastWebhookAt) return { tone: "neutral", label: "Waiting for the first webhook" };
   const ageMs = nowMs - lastWebhookAt.getTime();

@@ -30,23 +30,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// Row A3, /signup: Recova's app/(auth)/signup/page.tsx (blob 08400b4d),
-// read whole, for the frame: one card, "Connect Stripe once", the fee line,
-// the providers, the "or" rule, Email, the error, then "Already have an
-// account? Log in". The ways in are the family's one sign-in (site-runtime
-// ./sign-in; APPROVED-DIFFERENCES, "Sign-in and invites", 2026-10-24): Google,
-// Apple, or an emailed link in place of Recova's password. The link signs in
-// an existing merchant too, so the page says the same either way. No passkey
-// button: a new merchant has none yet, and the link offers one.
-//
-// Two things are Foxhound's own and stay:
-// - the fee is read from RECOVERY_FEE_BPS, never retyped;
-// - Recova's line opened with "We start recovering immediately.", which is
-//   untrue here: a soft failure waits for Stripe's own retries,
-//   while a hard decline, or any failure for a merchant with Smart Retries
-//   off, starts at once. No single timing clause is true, so it is dropped.
-// Recova has no Name field, so there is none; Better Auth's name is empty, as
-// Recova stored no name for an email signup.
+// /signup: one card, "Connect Stripe once", the fee line, the providers, the "or" rule, Email, the error, then "Already have an account? Log in". The ways in are the family's one sign-in (site-runtime ./sign-in): Google, Apple, or an emailed link. The link signs in an existing merchant too, so the page says the same either way. No passkey button: a new merchant has none yet, and the link offers one. The fee is read from RECOVERY_FEE_BPS, never retyped. There is no "We start recovering immediately." clause: a soft failure waits for Stripe's own retries, while a hard decline, or any failure for a merchant with Smart Retries off, starts at once, so no single timing clause is true. No Name field.
 
 export function meta() {
   return [{ title: "Sign up - Foxhound" }, NOINDEX];
@@ -54,15 +38,7 @@ export function meta() {
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  // Same session read appShellMiddleware uses (guards.ts): a signed-in
-  // visitor hitting /signup otherwise saw the create-account form. Recova
-  // hides its "Already have an account?" line from a signed-in visitor; here
-  // that visitor never sees the page.
-  //
-  // next= is where to land once signed up: the invite page sends
-  // a signed-out "Accept invite" here with next=/invite/:token, as Recova's
-  // sent it to /signup?invite=true, so the invite is accepted on the way back.
-  // Validated the way /login validates it (app/lib/auth/next-path.ts).
+  // Same session read appShellMiddleware uses (guards.ts): a signed-in visitor hitting /signup otherwise saw the create-account form. next= is where to land once signed up: the invite page sends a signed-out "Accept invite" here with next=/invite/:token, so the invite is accepted on the way back. Validated as /login validates it (app/lib/auth/next-path.ts).
   const next = safeNextPath(new URL(request.url).searchParams.get("next"), {
     fallback: DEFAULT_NEXT_PATH,
   });
@@ -73,9 +49,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  // First, before the form is read: the shared auth bucket, then ruling 24's
-  // five signups an hour. A typed code (the query says so) sends no mail
-  // and spends only the shared bucket, as a sign-in does.
+  // First, before the form is read: the shared auth bucket, then five signups an hour. A typed code (the query says so) sends no mail and spends only the shared bucket, as a sign-in does.
   const isCode = new URL(request.url).searchParams.has(SIGN_IN_CODE_QUERY);
   const refusal = await checkAuthLimit(env, request, isCode ? "credential" : "signup");
   if (refusal) {

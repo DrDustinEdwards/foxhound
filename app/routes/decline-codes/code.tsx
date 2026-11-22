@@ -25,12 +25,7 @@ import "capsomer/button.css";
 import "capsomer/panel.css";
 import "~/reference.css";
 
-// NEW in Phase 6 Pass 3. Templated page for a single Stripe decline code.
-// Category, retryability, and whether the code rides classifyDecline()'s
-// safe default are ALWAYS read live from app/lib/decline-codes/codes.ts,
-// which calls the real recovery-engine functions; nothing here re-derives
-// or hand-assigns a category. Structure per TASK-foxhound-phase6.md: What it
-// means / Why it happens / How to fix / How Foxhound recovers it / FAQ.
+// Templated page for a single Stripe decline code. Category, retryability, and whether the code rides classifyDecline()'s safe default are ALWAYS read live from app/lib/decline-codes/codes.ts, which calls the real recovery-engine functions; nothing here re-derives or hand-assigns a category. Sections: What it means / Why it happens / How to fix / How Foxhound recovers it / FAQ.
 export function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const view = getDeclineCodeView(params.code);

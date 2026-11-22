@@ -1,11 +1,5 @@
-// Query-string construction for the /recovery/payments filter set.
-//
-// Extracted from the route so it can be tested directly. It used to be a
-// route-private helper that silently dropped the amount range: the status
-// pills, the pagination links, and the CSV export link were all built from it,
-// so engaging the amount slider and then clicking any of them widened the
-// result set back out without telling the visitor. The export was the worst
-// case, since the downloaded file disagreed with the list on screen.
+// Query-string construction for the /recovery/payments filter set. Extracted from the route so it
+// can be tested directly.
 
 import type { Params } from "capsomer/behavior/filter-bar";
 
@@ -37,10 +31,8 @@ export interface BuildPaymentParamsOptions {
 }
 
 /**
- * The query params representing `filters`, preserving every dimension including
- * the amount range, for Capsomer's `withParams`, which leaves out an empty or
- * null value. A value at its default (all time, newest first, the default page
- * size) is null here, so one view has one address.
+ * The query params representing `filters`, preserving every dimension including the amount range,
+ * for Capsomer's `withParams`, which leaves out an empty or null value.
  */
 export function buildPaymentParams(
   filters: PaymentFilterState,

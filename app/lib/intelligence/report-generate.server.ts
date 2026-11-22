@@ -11,25 +11,12 @@ import { monthKey } from "@dustinedwards/site-runtime/time";
 import { narrativeFactsFor, writeIntelligenceNarrative, type NarrativeCustomer } from "./narrative";
 import type { HealthFactor } from "./risk";
 
-// The Intelligence dashboard's "Generate report" / "Regenerate report" button.
-// Recova's button posted a month to
-// app/api/intelligence/generate-report/route.ts (blob 45732914), which wrote
-// its own prompt from its own facts. This hooks the button into Foxhound's
-// engine instead: the same facts and the same writer the nightly run uses
-// (ai-run.server.ts), with the scores customer_context already holds rather
-// than a fresh scoring pass, because scoring is the nightly run's job.
-//
-// Kept from Recova: a "YYYY-MM" month, five generations per account per hour,
-// and the error codes the page turns into Recova's sentences. Different, and
-// why:
-//   * Only the current month. The engine's facts are today's (the latest
-//     snapshot, today's scores); a report for a past month written from them
-//     would describe this month under that month's name.
-//   * Regenerate regenerates. Recova returned an existing report unchanged
-//     under a button labeled "Regenerate".
-//   * The limit is the RATE_LIMITER Durable Object (app/lib/http/rate-limit.ts),
-//     keyed per account. It fails open like the limiter's other callers: the
-//     report is a template (narrative.ts) and costs nothing to write.
+// The dashboard's "Generate report" / "Regenerate report" button: the same facts and writer the nightly run uses
+// (ai-run.server.ts), with the scores customer_context already holds rather than a fresh scoring pass. A
+// "YYYY-MM" month, five generations per account per hour, and error codes the page turns into sentences. Only the
+// current month (the facts are today's; a past month's report would describe this month under its name).
+// Regenerate regenerates. The limit is the RATE_LIMITER Durable Object keyed per account, failing open like its
+// other callers: the report is a template and costs nothing to write.
 
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/;
 const RATE_LIMIT_BUCKET = "intelligence-report";

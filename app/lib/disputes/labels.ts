@@ -4,11 +4,8 @@ import type { Tone } from "~/lib/recovery/labels";
 import { DAY_MS } from "~/lib/constants";
 
 // Human-readable labels + status-taxonomy tones for the disputes surfaces
-// (Phase 5 slice 5c). Pure and unit-tested, mirroring app/lib/recovery/labels.ts.
-// Tone is shared from the recovery module rather than redefined (same 3-value
-// subset of BadgeTone); resolved_won is the only success, resolved_lost
-// the only failure, everything pre-resolution is neutral (the brand accent is reserved,
-// DESIGN.md, and a dispute mid-review is not itself a success or a failure).
+// (Phase 5 slice 5c). Pure and unit-tested, mirroring
+// app/lib/recovery/labels.ts.
 
 export const DISPUTE_STATE_LABELS: Record<DisputeState, string> = {
   draft: "Draft",
@@ -30,20 +27,13 @@ export const RESOLVED_DISPUTE_STATES: readonly DisputeState[] = [
  * Whether a Stripe dispute status is an inquiry's (warning_needs_response,
  * warning_under_review, warning_closed). An inquiry is the issuer asking about
  * a charge before any chargeback: it moves no money and is never won or lost.
- * Stripe moves an inquiry the issuer escalates to the chargeback statuses, so
- * the stored status is read each time rather than fixed at intake.
  */
 export function isInquiryStatus(status: string | null | undefined): boolean {
   return typeof status === "string" && status.startsWith("warning_");
 }
 
-/** Who Recova's and Foxhound's stored submitted_by names when the merchant or
- *  Stripe, not Foxhound, sent the evidence (the timeline reads it the same way). */
 export const SUBMITTED_EXTERNALLY = "merchant_or_stripe";
 
-/** The stored submitted_by of a dispute the auto-submit job sent on the
- *  merchant's standing opt-in (Recova's `recova_auto`). A manual submission
- *  stores the approver's email. Both are Foxhound's submissions. */
 export const SUBMITTED_AUTOMATICALLY = "foxhound_auto";
 
 export interface DisputeListStatusInput {
@@ -56,33 +46,11 @@ export interface DisputeListStatusInput {
 }
 
 /**
- * The disputes list's status, in Recova's words where one is true of the row
- * (Dustin, PR #75 question 1: "yes ro all", 2026-10-15,
- * cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6). Recova's nine, from
- * DisputesDashboardView.tsx (blob 3c1b7a98) deriveRecovaStatus:
- *
- * - Won, Lost: resolved_won, resolved_lost.
- * - We submitted / Submitted externally: submitted, split on the stored
- *   submitted_by exactly as Recova split it.
- * - Evidence ready: pending_review or approved, once the draft holds evidence.
- *   Foxhound drafts at intake, so the draft is finished and waiting on the
- *   merchant, which is what Recova's staged_at meant.
- *
- * No Recova word is true of these, so they keep Foxhound's own label:
- * - pending_review or approved with a blank draft: nothing is ready, and nothing in
- *   Foxhound is still building it, so neither "Evidence ready" nor
- *   "Building evidence" holds.
- * - draft: no Foxhound code writes it and nothing builds its evidence.
- *
  * Never shown, because Foxhound records neither: "Stripe handling" (Smart
  * Disputes availability is not tracked) and "Accepted" (a dispute closed as
- * charge_refunded does not resolve Foxhound's state machine). "Unknown" is the
- * fallback for a state outside the six, as Recova's is.
+ * charge_refunded does not resolve Foxhound's state machine).
  */
 export function disputeListStatus(input: DisputeListStatusInput): { label: string; tone: Tone } {
-  // An inquiry is not a chargeback, and Recova did not tell them apart, so
-  // these two are Foxhound's own: "Inquiry" while it awaits a response, and
-  // "Inquiry closed" once Stripe closed it as warning_closed.
   if (input.state === "inquiry_closed")
     return { label: DISPUTE_STATE_LABELS.inquiry_closed, tone: "neutral" };
   if (
@@ -115,8 +83,10 @@ export function disputeListStatus(input: DisputeListStatusInput): { label: strin
   }
 }
 
-/** Accepts a plain string (a raw DB read is not statically narrowed to
- *  DisputeState even though the CHECK constraint guarantees membership). */
+/**
+ * Accepts a plain string (a raw DB read is not statically narrowed to
+ * DisputeState even though the CHECK constraint guarantees membership).
+ */
 export function isDisputeResolved(state: string): boolean {
   return (RESOLVED_DISPUTE_STATES as readonly string[]).includes(state);
 }
@@ -145,10 +115,6 @@ const DISPUTE_REASON_LABELS: Record<string, string> = {
  * A dispute reason in sentence case. Unmapped codes are de-underscored and
  * sentence-cased rather than dropped, because Stripe adds reason codes and a
  * blank cell is worse than an imperfect label.
- *
- * Legacy's equivalent capitalized the first character and then replaced
- * underscores only in the REST of the string, so a code with a leading
- * underscore kept it. This handles the whole string.
  */
 export function humanizeDisputeReason(reason: string | null): string {
   if (!reason) return "Unknown";
@@ -157,8 +123,10 @@ export function humanizeDisputeReason(reason: string | null): string {
   return humanize(reason) || "Unknown";
 }
 
-/** Whole days until `deadline`, rounded up. Null passes through so a dispute
- *  with no deadline renders nothing rather than a bogus count. */
+/**
+ * Whole days until `deadline`, rounded up. Null passes through so a dispute
+ * with no deadline renders nothing rather than a bogus count.
+ */
 export function daysUntilDeadline(deadline: Date | null, nowMs: number): number | null {
   if (!deadline) return null;
   return Math.ceil((deadline.getTime() - nowMs) / DAY_MS);
@@ -166,15 +134,14 @@ export function daysUntilDeadline(deadline: Date | null, nowMs: number): number 
 
 export type DeadlineUrgency = "overdue" | "urgent" | "soon" | "normal";
 
-/** The two deadline bands, named so the /product/disputes copy states the
- *  numbers the dashboard colors by rather than retyping them. */
+/**
+ * The two deadline bands, named so the /product/disputes copy states the
+ * numbers the dashboard colors by rather than retyping them.
+ */
 export const DEADLINE_URGENT_DAYS = 3;
 export const DEADLINE_SOON_DAYS = 7;
 
-/** Urgency band for an evidence deadline. Legacy toned at 3 and 7 days; those
- *  boundaries are kept because they track how banks actually work (a Stripe
- *  evidence window is typically 7 to 21 days, so inside 3 days is genuinely
- *  last-chance). */
+/** Urgency band for an evidence deadline. */
 export function deadlineUrgency(daysRemaining: number | null): DeadlineUrgency {
   if (daysRemaining === null) return "normal";
   if (daysRemaining <= 0) return "overdue";
@@ -194,8 +161,10 @@ export function deadlineClassName(urgency: DeadlineUrgency): string {
   return DEADLINE_CLASS_NAME[urgency];
 }
 
-/** The deadline phrase a merchant reads: how long is left, or that it has
- *  passed. Returns null when there is no deadline to describe. */
+/**
+ * The deadline phrase a merchant reads: how long is left, or that it has
+ * passed. Returns null when there is no deadline to describe.
+ */
 export function deadlineLabel(daysRemaining: number | null): string | null {
   if (daysRemaining === null) return null;
   if (daysRemaining <= 0) return "Deadline passed";
@@ -203,10 +172,6 @@ export function deadlineLabel(daysRemaining: number | null): string | null {
   return `${daysRemaining} days left`;
 }
 
-/** The deadline as Recova's disputes list shows it (DisputesDashboardView,
- *  blob 3c1b7a98): whole days left as "18d", and blank once the dispute is
- *  resolved or when there is no deadline. A passed deadline reads "-2d", as
- *  Recova's does; the detail page keeps the longer deadlineLabel. */
 export function deadlineShort(daysRemaining: number | null, resolved: boolean): string {
   if (resolved || daysRemaining === null) return "";
   return `${daysRemaining}d`;

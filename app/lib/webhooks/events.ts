@@ -19,30 +19,8 @@ import { readAccountHealth, type AccountHealth } from "~/lib/stripe/account-heal
 import { asId } from "~/lib/stripe/ids";
 import { stripeDate } from "~/lib/stripe/time";
 
-// Pure Stripe-event classification for the connected-account webhook. Maps a
-// verified event to the intent the processor acts on and pulls the refs it needs
-// off the event object, with NO extra Stripe calls (enrichment reads that need
-// live Stripe are the processor's deferred seam). Everything here is unit-tested.
-//
-// Events we act on (legacy parity, trimmed to the money-critical set for 4c):
-//   invoice.payment_failed     -> intake (create failed_payment + recovery steps)
-//   invoice.payment_succeeded  -> recover (owns the 'recovered' status flip)
-//   invoice.marked_uncollectible -> stripe_gave_up (starts a parked sequence)
-//   invoice.voided             -> invoice_voided (stops recovery: nothing to collect)
-//   charge.refunded            -> stamp_refund (the fee shrinks by the refunded share)
-//   charge.dispute.created     -> stamp_dispute (dispute intake; feeds the billable predicate)
-//   charge.dispute.closed      -> dispute_resolved (5c: won/lost state + fee snapshot),
-//                                 or inquiry_closed for an inquiry closed as warning_closed
-//   charge.dispute.updated     -> dispute_updated (live status, deadline, evidence counts)
-//   charge.dispute.funds_withdrawn / funds_reinstated -> dispute_funds (money Stripe moved)
-//   account.updated            -> account_health (the connected account's own
-//                                 charges, payouts and requirements)
-//   account.application.deauthorized -> connection_deauthorized (the merchant
-//                                 revoked Foxhound's grant at Stripe)
-//   radar.early_fraud_warning.created/.updated -> early_fraud_warning (record + notice)
-//   payment_method.automatically_updated -> card_auto_updated (retry on the new card)
-//   payment_method.card_automatically_updated (its pre-2020 name) -> card_auto_updated
-// Everything else is ignored.
+// Pure Stripe-event classification for the connected-account webhook. Everything here is
+// unit-tested.
 
 export type WebhookIntent =
   | {
@@ -60,18 +38,12 @@ export type WebhookIntent =
       declineCode: string | null;
       declineCategory: DeclineCategory;
       /**
-       * TRUE when Stripe has stopped retrying this invoice, read from
-       * `next_payment_attempt` being null. This is the whole
-       * gate: while Stripe has another attempt scheduled the payment is
-       * Stripe's, and Foxhound plans nothing.
-       *
-       * Hard declines (expired, fraud, revoked) are the exception, decided in
-       * handleIntake once the charge's real decline code is read: Stripe keeps
-       * a next_payment_attempt on those invoices but runs it only after a new
-       * payment method is attached (docs.stripe.com/billing/revenue-recovery/
-       * smart-retries), so their email-led sequence starts on the first
-       * failure. Foxhound's own retries still wait for Stripe to stop
-       * (engine/retry-step.ts reads next_payment_attempt before charging).
+       * TRUE when Stripe has stopped retrying this invoice, read from `next_payment_attempt` being
+       * null. Hard declines (expired, fraud, revoked) are the exception, decided in handleIntake
+       * once the charge's real decline code is read: Stripe keeps a next_payment_attempt on those
+       * invoices but runs it only after a new payment method is attached
+       * (docs.stripe.com/billing/revenue-recovery/ smart-retries), so their email-led sequence
+       * starts on the first failure.
        */
       stripeGaveUp: boolean;
     }
@@ -95,11 +67,11 @@ export type WebhookIntent =
       /** The invoice's subscription, when it has one. A win-back reactivation
        *  is read off THIS subscription's metadata. */
       subscriptionId: string | null;
-      /** When the customer actually paid (Stripe's paid_at), not when the
-       *  event reached Foxhound: attribution compares signals against it, so
-       *  a late or replayed event cannot credit Foxhound with a payment the
-       *  customer made before the click or card update. Null when the event
-       *  carries neither paid_at nor its own created time. */
+      /**
+       * When the customer actually paid (Stripe's paid_at), not when the event reached Foxhound:
+       * attribution compares signals against it, so a late or replayed event cannot credit Foxhound
+       * with a payment the customer made before the click or card update.
+       */
       paidAt: Date | null;
       amountPaidCents: number;
       currency: string;
@@ -150,9 +122,7 @@ export type WebhookIntent =
       currency: string | null;
     }
   | {
-      /** customer.updated carrying a card inside the expiring-card lead window.
-       *  Legacy's handleCustomerUpdated is the spec: it RECORDS a candidate and
-       *  never sends, the nightly cron owning every send. */
+      /** customer.updated carrying a card inside the expiring-card lead window. */
       kind: "record_expiring_card";
       customerId: string;
       customerEmail: string;
@@ -242,10 +212,8 @@ function cardAutoUpdated(paymentMethod: Stripe.PaymentMethod): WebhookIntent {
 }
 
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
-  // Stripe's name for payment_method.automatically_updated before 2020-08-27,
-  // with the same PaymentMethod payload. Stripe no longer emits it and the SDK
-  // no longer types it (see readCardUpdaterEvents), but the endive Connect
-  // destination still lists it, so one that arrives takes the same path.
+  // Stripe's name for payment_method.automatically_updated before 2020-08-27, with the same
+  // PaymentMethod payload.
   if ((event.type as string) === "payment_method.card_automatically_updated") {
     return cardAutoUpdated(event.data.object as Stripe.PaymentMethod);
   }
@@ -258,12 +226,10 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       if (invoice.collection_method !== "charge_automatically") {
         return { kind: "ignore", reason: "not_charged_automatically" };
       }
-      // $0 invoices are not recoverable revenue; skip (legacy parity).
+      // $0 invoices are not recoverable revenue; skip.
       if ((invoice.amount_due ?? 0) === 0) return { kind: "ignore", reason: "zero_amount" };
-      // Only what the event carries, which on the pinned API version is a
-      // finalization failure at most (the invoice has no `charge`). The real
-      // payment decline is read off the latest charge in handleIntake, and
-      // this code is its fallback.
+      // Only what the event carries, which on the pinned API version is a finalization failure at
+      // most (the invoice has no `charge`).
       const declineCode = invoice.last_finalization_error?.decline_code ?? null;
       return {
         kind: "intake",
@@ -299,9 +265,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     }
     case "charge.refunded": {
       const charge = event.data.object as Stripe.Charge;
-      // The fee shrinks by the refunded share and a full refund owes none
-      // (Dustin, 2026-11-18, replacing parity ruling 29's "any refund cancels
-      // the whole fee", which let a one-cent refund cancel a 20% fee).
+      // The fee shrinks by the refunded share and a full refund owes none.
       const paymentIntentId = asId(charge.payment_intent);
       if (!paymentIntentId) return { kind: "ignore", reason: "no_payment_intent" };
       return {
@@ -314,10 +278,9 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     case "charge.dispute.created": {
       const dispute = event.data.object as Stripe.Dispute;
       if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
-      // The mapping moved to app/lib/disputes/stripe-dispute.ts under ruling
-      // 400, because the manual import reads a Stripe.Dispute too and the two
-      // intake paths have to produce the same row from the same object. A null
-      // here is the charge-less case this branch already ignored.
+      // The mapping moved to app/lib/disputes/stripe-dispute.ts, because the manual import reads a
+      // Stripe.Dispute too and the two intake paths have to produce the same row from the same
+      // object.
       const fields = disputeIntakeFields(dispute, new Date());
       if (!fields) return { kind: "ignore", reason: "no_charge" };
       return { kind: "stamp_dispute", ...fields };
@@ -360,17 +323,11 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       };
     }
     case "customer.subscription.deleted": {
-      // Win-back intake. Legacy's handleSubscriptionDeleted is the spec.
-      // Everything reachable WITHOUT a Stripe call is pulled here, per this
-      // file's own no-extra-calls rule; the customer EMAIL is not on the
-      // subscription object and legacy fetches it separately, so that read and
-      // legacy's `if (!customerEmail) return` gate live in the processor.
+      // Win-back intake.
       const subscription = event.data.object as Stripe.Subscription;
       if (!subscription.id) return { kind: "ignore", reason: "no_subscription_id" };
       const customerId = asId(subscription.customer);
       if (!customerId) return { kind: "ignore", reason: "no_customer" };
-      // Legacy reads plan, amount and currency off the FIRST subscription item's
-      // price, and tolerates all three being absent.
       const price = subscription.items?.data?.[0]?.price ?? null;
       const product = price?.product;
       return {
@@ -396,11 +353,9 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       return { kind: "winback_reactivate", sequenceId };
     }
     case "customer.updated": {
-      // Legacy reads the card from the deprecated `sources` array first and
-      // falls back to retrieving `invoice_settings.default_payment_method`.
-      // Both halves are reproduced, the retrieve deferred to the processor
-      // because this function makes no Stripe call (the same split
-      // customer.subscription.deleted takes for the customer email).
+      // Both halves are reproduced, the retrieve deferred to the processor because this function
+      // makes no Stripe call (the same split customer.subscription.deleted takes for the customer
+      // email).
       const customer = event.data.object as Stripe.Customer;
       if (!customer.id) return { kind: "ignore", reason: "no_customer" };
       const email = customer.email ?? "";

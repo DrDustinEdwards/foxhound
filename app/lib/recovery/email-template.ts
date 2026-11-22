@@ -2,33 +2,10 @@ import { escapeHtml } from "@dustinedwards/site-runtime/html";
 
 import type { EmailCopy } from "./email-generation";
 
-// Deterministic dunning copy: the safe output when generation cannot be used.
-//
-// This did not exist before. `EmailJob.template` was only ever a LABEL string
-// written to `email_sends.template` for logging; there was no template CONTENT
-// anywhere in the product, so a generation failure produced no email at all.
-//
-// Two callers, both in the send path:
-//   1. A generation throw (model outage, unset/unfunded key, malformed output).
-//   2. Generated copy that fails the brand-voice quality gate.
-//
-// In both cases a plain, correct email beats no email on a revenue-recovery
-// product, which is the whole argument for this module existing.
-//
-// HARD REQUIREMENT: this copy must itself pass `passesQualityGate`. If the
-// fallback could fail the gate the gate would have nowhere to fall back TO.
-// test/recovery-email-template.test.ts asserts that across every decline
-// category rather than on one sample.
-//
-// Constraints the copy obeys, all enforced by that test:
-//   - no em or en dashes (the strongest AI tell, and a repo-wide rule)
-//   - NO timing references in the per-category copy. The generator is merely
-//     told not to leak the schedule; a fixed template has no excuse to reference
-//     time, so it does not mention days, hours, or "recently" in any form. The
-//     per-step copy below is Recova's own words instead, which say
-//     "recent", "a week" and "two weeks" exactly as Recova's do and still pass
-//     the gate.
-//   - the merchant's voice, never Foxhound's. Foxhound is not named.
+// Deterministic dunning copy: the safe output when generation cannot be used. This did not exist
+// before. `EmailJob.template` was only ever a LABEL string written to `email_sends.template` for
+// logging; there was no template CONTENT anywhere in the product, so a generation failure produced
+// no email at all. HARD REQUIREMENT: this copy must itself pass `passesQualityGate`.
 
 export interface TemplateEmailInput {
   merchantName: string;
@@ -38,38 +15,16 @@ export interface TemplateEmailInput {
   amountFormatted: string;
   /** The click-tracked card-update URL, used as the single call to action. */
   updateUrl: string;
-  /** The recovery step being sent. A step with its own Recova template
-   *  (STEP_TEMPLATES below) uses it; any other step, or none, keeps the
-   *  per-category copy. */
+  /** The recovery step being sent. */
   stepType?: string;
-  /** failed_payments.customer_name, raw. Recova greets `|| 'there'`. */
+  /** failed_payments.customer_name, raw. */
   customerName?: string | null;
-  /** The merchant's sender_name, raw. Recova signs `|| 'Support'`. */
+  /** The merchant's sender_name, raw. */
   senderName?: string | null;
 }
 
-//
-// Recova's FALLBACK_TEMPLATES (lib/recovery-execution.ts lines 79 to 114, blob
-// 3a8f8768), word for word, for all five of its email steps. Recova is the
-// spec for what these emails say, so for these steps its words
-// replace the per-category copy above in every decline category, as Recova's
-// one template per step does. Its variables are applied as Recova's
-// applyTemplate fills them in executeEmailStep:
-//   customer_name  fp.customer_name || 'there'
-//   amount         the formatted amount
-//   sender_name    merchant.sender_name || 'Support' (the From name too)
-//   update_url     the button
-// Recova styled the button inline in its own color; on Capsomer's component a
-// paragraph holding nothing but one link is the button, so the style goes
-// and the label stays. Names are escaped, so a customer called "<b>" is text.
-//
-// Every step Recova emails now has its template here. The one Foxhound step
-// left on the per-category copy is email_revoked, which Recova does not have.
-//
-// Each of these passes the quality gate: no dash, no AI tell, no
-// schedule leak. "It has been a week since" and "It has been two weeks since"
-// are Recova's own sentences and name no day number or hour count, which is what
-// the timing detector looks for.
+// Names are escaped, so a customer called "<b>" is text. Each of these passes the quality gate: no
+// dash, no AI tell, no schedule leak.
 
 interface StepTemplateVars {
   customerName: string;
@@ -122,13 +77,9 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
         `<p>${v.senderName}</p>`,
       ].join("\n"),
   },
-  // Truthfulness fixes (Dustin, 2026-10-15, cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6):
-  // Recova's day 3 and day 30 sentences stated a suspension and a cancellation
-  // as certain, and Foxhound does neither; the merchant and its Stripe settings
-  // decide. So "will" became "may", and day 3 lost "soon". Day 14 said the card
-  // update restored the account, but finalizeCardUpdateSession only saves the
-  // new card as the default and charges nothing, so it now says the update
-  // "only takes a minute". Every other word is Recova's.
+  // So "will" became "may", and day 3 lost "soon". Day 14 said the card update restored the
+  // account, but finalizeCardUpdateSession only saves the new card as the default and charges
+  // nothing, so it now says the update "only takes a minute".
   email_day30: {
     subject: "Final notice on your account",
     body: (v) =>
@@ -141,13 +92,11 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
   },
 };
 
-/** Recova's `x || fallback`: an empty or blank value falls through too. */
 function orFallback(value: string | null | undefined, fallback: string): string {
   const trimmed = value?.trim();
   return trimmed ? trimmed : fallback;
 }
 
-/** True when the step has Recova's own fallback template here. */
 function hasStepTemplate(stepType: string | null | undefined): boolean {
   return stepType != null && Object.hasOwn(STEP_TEMPLATES, stepType);
 }
@@ -157,12 +106,9 @@ function link(url: string, label: string): string {
 }
 
 /**
- * Per-category body copy. The category split exists for the same reason the
- * generator has `categoryGuidance`: naming the wrong cause is what makes dunning
- * mail read as spam. `revoked` is deliberately not a dunning message at all,
- * matching the generator's framing rule and the engine's revoked hard-stop: the
- * customer told their bank to stop paying, so the note offers a clean choice and
- * does not ask for money.
+ * Per-category body copy. `revoked` is deliberately not a dunning message at all, matching the
+ * generator's framing rule and the engine's revoked hard-stop: the customer told their bank to stop
+ * paying, so the note offers a clean choice and does not ask for money.
  */
 function bodyFor(input: TemplateEmailInput): string {
   const { merchantName, amountFormatted, updateUrl } = input;
@@ -234,9 +180,8 @@ function subjectFor(input: TemplateEmailInput): string {
 }
 
 /**
- * Build the deterministic fallback email. Pure: no env, no model, no clock, so
- * the same input always yields the same copy and it can never fail the way the
- * thing it is backing up fails.
+ * Build the deterministic fallback email. Pure: no env, no model, no clock, so the same input
+ * always yields the same copy and it can never fail the way the thing it is backing up fails.
  */
 export function buildTemplateEmail(input: TemplateEmailInput): EmailCopy {
   if (hasStepTemplate(input.stepType)) {

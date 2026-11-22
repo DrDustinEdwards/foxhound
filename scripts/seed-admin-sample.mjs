@@ -1,18 +1,5 @@
 #!/usr/bin/env node
-// Sample data for looking at /admin locally (screenshots, review): a few
-// merchants (one paused), cron runs including one FAILED run on a registered
-// cron, webhook events, a blog post, audit entries with real targets, and what
-// the Overview's figures and Needs attention read: a new Stripe connection, a
-// dispute a week old with no response, a fee invoice whose charge failed,
-// recoveries this month in two currencies and an MRR snapshot. Times are relative to
-// now, so "5 hours ago" stays true whenever this runs.
-//
-// LOCAL ONLY. It runs `wrangler d1 execute foxhound --local` and nothing else:
-// there is no flag that points it at the remote database, which is production
-// (see scripts/db-migrate.mjs). Run `npm run db:migrate` first. Re-runnable:
-// every row has a fixed id and is replaced.
-//
-//   node scripts/seed-admin-sample.mjs
+// Sample data for looking at /admin locally (screenshots, review): a few merchants (one paused), cron runs including one FAILED run on a registered cron, webhook events, a blog post, audit entries with real targets, and what the Overview's figures and Needs attention read: a new Stripe connection, a dispute a week old with no response, a fee invoice whose charge failed, recoveries this month in two currencies and an MRR snapshot. Times are relative to now. LOCAL ONLY: it runs `wrangler d1 execute foxhound --local` and nothing else; there is no flag that points it at the remote database, which is production (see scripts/db-migrate.mjs). Run `npm run db:migrate` first. Re-runnable: every row has a fixed id and is replaced. Usage: node scripts/seed-admin-sample.mjs
 
 import { spawnSync } from "node:child_process";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -30,7 +17,6 @@ const row = (table, values) =>
   `INSERT OR REPLACE INTO ${table} (${Object.keys(values).join(", ")}) VALUES (${Object.values(values).map(q).join(", ")});`;
 
 const sql = [
-  // Merchants.
   row("accounts", {
     id: "sample_acct_northwind",
     name: "Northwind Coffee",
@@ -78,7 +64,6 @@ const sql = [
     reason: "31 rows",
   }),
 
-  // Webhook events.
   row("webhook_events", {
     id: "sample_evt_1",
     stripe_event_id: "evt_sample_payment_failed",
@@ -133,10 +118,7 @@ const sql = [
     charge_attempt_count: 2,
     last_charge_attempt_at: ago(1 * DAY),
   }),
-  // Recoveries Foxhound made (attributed, so the Overview counts them, as
-  // /billing does), placed a quarter, a half and three quarters of the way
-  // from the start of this UTC month to now, so they are this month's
-  // whenever the seed runs, the 1st included.
+  // Recoveries Foxhound made (attributed, so the Overview counts them, as /billing does), placed a quarter, a half and three quarters of the way from the start of this UTC month to now, so they are this month's whenever the seed runs, the 1st included.
   ...[
     ["sample_fp_1", "sample_acct_northwind", 4900, "usd", 0.75, "foxhound_retry"],
     ["sample_fp_2", "sample_acct_northwind", 12900, "usd", 0.25, "email_engaged"],

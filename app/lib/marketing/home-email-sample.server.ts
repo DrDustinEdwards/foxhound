@@ -5,16 +5,10 @@ import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
 import type { MarketingEmailCategory, MarketingEmailCopy } from "./email-sample";
 
-// Live generation seam for the home page's public email generator
-// (TASK-foxhound-demo-entry-parity.md item 3, reversing the earlier call to
-// make it a static rotator). This is a public, unauthenticated page: the
-// scenario below is a fixed fictional customer/plan per category, not a real
-// merchant's brand voice, unlike generateDunningEmail in
-// app/lib/recovery/email-generation.ts (which this reuses sanitizeCopy from,
-// the same em-dash/AI-tell stripping every generated customer-facing email
-// gets). Throws if ANTHROPIC_API_KEY is unset or the call fails. There is no static
-// fallback: the route answers { error: true } and the page shows Recova's
-// "Generation failed. Try again." line.
+// Live generation seam for the home page's public email generator. A public, unauthenticated page: the scenario is a fixed fictional
+// customer and plan per category, not a real merchant's brand voice (unlike generateDunningEmail in app/lib/recovery/email-generation.ts,
+// whose sanitizeCopy this reuses). Throws if ANTHROPIC_API_KEY is unset or the call fails; there is no static fallback (the route
+// answers { error: true }).
 
 interface CategoryScenario {
   reason: string;
@@ -86,8 +80,7 @@ export async function generateMarketingEmailSample(
   }
   const call = (instruction = ""): Promise<MarketingEmailCopy> =>
     draftSample(env, category, instruction);
-  // One retry when the sample reads as machine-written (ai/plain-writing.ts):
-  // it is the email a visitor judges Foxhound by.
+  // One retry when the sample reads as machine-written (ai/plain-writing.ts): it is the email a visitor judges Foxhound by.
   return retryStockPhrasing(await call(), (copy) => `${copy.subject}\n\n${copy.body}`, call);
 }
 
@@ -103,8 +96,7 @@ async function draftSample(
       model: MODEL_MARKETING_EMAIL_SAMPLE,
       max_tokens: 400,
       thinking: { type: "disabled" },
-      // No effort: Haiku 4.5 rejects it with a 400 ("This model does not support
-      // the effort parameter"), which failed every home page generation.
+      // No effort: Haiku 4.5 rejects it with a 400, which failed every home page generation.
       messages: [{ role: "user", content: buildPrompt(category) + instruction }],
     },
     OUTPUT_SCHEMA,

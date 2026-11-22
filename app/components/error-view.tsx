@@ -9,20 +9,9 @@ import "~/error-page.css";
 
 import { headerLogo } from "./header-logo";
 
-// The pieces of the root ErrorBoundary that Capsomer's ErrorPage (capsomer/react/error-page) does
-// not draw: Foxhound's wordmark bar and footer, which it takes as its header and footer slots,
-// Recova's words and its extra ways out (ErrorPage's `actions`), and the 410 withdrawal's own
-// heading and reason (ErrorPage's `gone`).
-//
-// WHY IT LIVES HERE: root.tsx cannot be imported in the test environment. It pulls app.css, two
-// `?url` font assets and lib/theme.server, which reaches D1, so an import of it hangs.
+// The pieces of the root ErrorBoundary that Capsomer's ErrorPage does not draw: Foxhound's wordmark bar and footer, its words and extra ways out (`actions`), and the 410 withdrawal's heading and reason (`gone`). It lives here because root.tsx cannot be imported in the test environment: it pulls app.css, two `?url` font assets and lib/theme.server, which reaches D1.
 
-// THE BAR carries only the wordmark linking home, as Recova's did. It is drawn here rather than by
-// Capsomer's SiteHeader: with no sections, switchers or account, SiteHeader still renders its
-// phone Menu button, which would open a sheet with nothing in it, a control that does nothing. So the
-// bar takes the J10 header's look by tokens instead: Foxhound's dark chrome band in both themes, 56px,
-// 24px sides, and the header's own wordmark (headerLogo) with the x in the band's amber. It reads no
-// loader data, so ErrorPage can take it as siteHeader.
+// The bar carries only the wordmark linking home. It is drawn here rather than by Capsomer's SiteHeader: with no sections, switchers or account, SiteHeader still renders its phone Menu button, a control that does nothing. So the bar takes the header's look by tokens: Foxhound's dark chrome band in both themes, 56px, 24px sides, and the header's wordmark (headerLogo) with the x in the band's amber. It reads no loader data, so ErrorPage can take it as siteHeader.
 export function ErrorBar() {
   const logo = headerLogo("/");
   return (
@@ -42,10 +31,7 @@ export function ErrorFooter() {
   );
 }
 
-// Recova's words (its not-found.tsx and error.tsx), passed to ErrorPage in place of Capsomer's: a 404
-// is "Page not found" with Recova's sentence, anything else "Something went wrong" with the message a
-// route threw with data() (the demo's read-only 405, DEMO_READ_ONLY_MESSAGE), else the status text,
-// else "An unexpected error occurred." (lib/errors/boundary-message). The home link is "Go home".
+// A 404 is "Page not found"; anything else is "Something went wrong" with the message a route threw with data() (the demo's read-only 405, DEMO_READ_ONLY_MESSAGE), else the status text, else "An unexpected error occurred." (lib/errors/boundary-message). The home link is "Go home".
 export const HOME_LABEL = "Go home";
 export function recovaWords(error: unknown, isDev: boolean): { title: string; text: string } {
   if (isRouteErrorResponse(error) && error.status === 404) {
@@ -63,19 +49,10 @@ export function errorActions() {
   return <ButtonLink href="/recovery/dashboard">Go to dashboard</ButtonLink>;
 }
 
-// 410 IS THE WITHDRAWAL STATUS IN THIS APP, and the only thrower is the blog post route. It is a
-// deliberate editorial act, so ErrorPage draws it as its gone page: no alert and no retry, the
-// withdrawal's own heading and reason, and ONE destination, the blog. Not "try again", which offers
-// a retry of a URL that will never answer, and not "go to dashboard", an app link on an anonymous
-// marketing page.
+// 410 is the withdrawal status in this app, and the only thrower is the blog post route. It is a deliberate editorial act, so ErrorPage draws it as its gone page: no alert and no retry, the withdrawal's heading and reason, and one destination, the blog. Not "try again", which offers a retry of a URL that will never answer, and not "go to dashboard", an app link on an anonymous marketing page.
 const GONE = { href: "/blog", label: "Read the blog" };
 
-// A MISSED ADDRESS OR A BLOG POST'S ERROR, INSIDE THE MARKETING LAYOUT. The marketing layout's
-// catch-all route (routes/not-found.tsx) and the blog post route use this as their ErrorBoundary,
-// so the page keeps the site's own header, with the visitor's real signed-in state, and footer
-// (parity audit, 2026-11-10: the 404 had only a wordmark bar). The layout already renders the one
-// main, so ErrorPage is a div. Anything thrown outside the marketing layout still reaches the root
-// boundary's bar.
+// A missed address or a blog post's error, inside the marketing layout: its catch-all route (routes/not-found.tsx) and the blog post route use this as their ErrorBoundary, so the page keeps the site's own header, with the visitor's real signed-in state, and footer. The layout already renders the one main, so ErrorPage is a div. Anything thrown outside the marketing layout still reaches the root boundary's bar.
 export function MarketingError({ error }: { error: unknown }) {
   const status = isRouteErrorResponse(error) ? error.status : null;
   const words =

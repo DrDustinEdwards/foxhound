@@ -36,12 +36,7 @@ export function meta({ error }: Route.MetaArgs) {
 // The font preloads, also sent as the Early Hints `Link` header (lib/preloads.ts).
 export const links: Route.LinksFunction = () => [...iconLinks(), ...PRELOADS.links];
 
-// Theme read once at the root so <html data-theme> is correct on the very
-// first byte (no flash of the wrong mode). resolveThemeForRequest, not the
-// cookie reader: an authenticated merchant's stored accounts.theme has to win
-// HERE, because reading it only in a layout would leave them rendering the
-// default on a new device and then correcting, which is the exact flash this
-// loader exists to prevent. Anonymous requests still touch no DB.
+// Theme read once at the root so <html data-theme> is right on the first byte. resolveThemeForRequest, not the cookie reader: a signed-in merchant's stored accounts.theme must win here, or a new device would flash the default. Anonymous requests touch no DB.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   return { theme: await resolveThemeForRequest(env, request) };
@@ -95,7 +90,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <meta charSet="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="text-scale" content="scale" />
-        {/* DEV ONLY. Since J22 style-src has no 'unsafe-inline' for elements,
+        {/* DEV ONLY. style-src has no 'unsafe-inline' for elements,
             and Vite's dev client injects every stylesheet as an inline style
             element, which the policy then blocks (measured: an unstyled page
             under `npm run dev`). Vite's client copies the nonce from this meta
@@ -136,10 +131,7 @@ export default function App() {
   return <Outlet />;
 }
 
-// Capsomer's error page under Foxhound's wordmark bar, in Recova's words (components/error-view.tsx),
-// with Recova's dashboard and demo links under its message. A missed address and the blog's 410
-// withdrawal never reach here: the marketing layout's catch-all and the blog post route answer them
-// inside the site's own header and footer (MarketingError). This is for what breaks elsewhere.
+// Capsomer's error page under Foxhound's wordmark bar (components/error-view.tsx), with dashboard and demo links under its message. A missed address and the blog's 410 never reach here: the marketing layout's catch-all and the blog post route answer them (MarketingError).
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
   const routeError = isRouteErrorResponse(error) ? error : null;
   const { title, text } = recovaWords(error, import.meta.env.DEV);

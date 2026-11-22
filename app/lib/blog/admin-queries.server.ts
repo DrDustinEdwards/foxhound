@@ -1,8 +1,7 @@
 // The write path for blog_posts / blog_post_versions. Its one caller is the
 // Carrel site adapter (app/lib/carrel/adapter.server.ts): Carrel is the blog
-// editor, and Foxhound's own /admin/blog editor is gone.
-// The editor's list, version and related-post helpers went with it. The public
-// read path (queries.server.ts) is untouched.
+// editor, and Foxhound's own /admin/blog editor is gone. The editor's list,
+// version and related-post helpers went with it.
 
 import { and, eq, or } from "drizzle-orm";
 
@@ -81,14 +80,12 @@ export interface UpdatePostInput {
   showPublishedAt: boolean;
 }
 
-/** Applies the update only while the post still has `expectedUpdatedAt`, then
- *  saves the PRE-edit state as a version snapshot. The guard sits in the
- *  UPDATE itself, so of two saves from the same version the second finds
- *  nothing to update and returns false instead of overwriting the first
- *  (EmDash 1.4.0, emdash-cms/emdash PR 4286). Every version is kept: site-api's
- *  contract (v0.17.0, "Revisions") has a site never prune one, so any publish
- *  can be undone; only a delete removes them. Plain operational writes (not a money write - content editing, no
- *  DO), matching the operational-write precedent (gotcha #25). */
+/**
+ * Applies the update only while the post still has `expectedUpdatedAt`, then
+ * saves the PRE-edit state as a version snapshot. The guard sits in the UPDATE
+ * itself, so of two saves from the same version the second finds nothing to
+ * update and returns false instead of overwriting the first.
+ */
 export async function updatePostWithVersion(
   db: Db,
   postId: string,
@@ -100,7 +97,8 @@ export async function updatePostWithVersion(
   const existing = existingRows[0];
   if (!existing) throw new Error("Post not found");
 
-  // Past the checked value even within one millisecond, so the next save's guard always sees a change.
+  // Past the checked value even within one millisecond, so the next save's
+  // guard always sees a change.
   const now = new Date(Math.max(Date.now(), expectedUpdatedAt.getTime() + 1));
   const updated = await db
     .update(blogPosts)
@@ -140,10 +138,12 @@ export async function updatePostWithVersion(
   return true;
 }
 
-/** `firstPublishedAt` is the date a first publication records: now by default,
- *  the time it was scheduled for when a schedule publishes it. `publishedAt`,
- *  where given, is the date the post is published under whether or not it was
- *  live before (Carrel's settable publish date: a backdate or a re-date). */
+/**
+ * `firstPublishedAt` is the date a first publication records: now by default,
+ * the time it was scheduled for when a schedule publishes it. `publishedAt`,
+ * where given, is the date the post is published under whether or not it was
+ * live before (Carrel's settable publish date: a backdate or a re-date).
+ */
 export async function setPublished(
   db: Db,
   postId: string,
@@ -174,8 +174,10 @@ export async function setPublished(
     .where(eq(blogPosts.id, postId));
 }
 
-/** Into the trash (`trashedAt` set) or back out of it. Either way the post is
- *  a draft: a trashed post is off the blog, and a restore never republishes. */
+/**
+ * Into the trash (`trashedAt` set) or back out of it. Either way the post is a
+ * draft: a trashed post is off the blog, and a restore never republishes.
+ */
 export async function setTrashed(db: Db, postId: string, trashed: boolean): Promise<void> {
   const now = new Date();
   await db
@@ -184,8 +186,10 @@ export async function setTrashed(db: Db, postId: string, trashed: boolean): Prom
     .where(eq(blogPosts.id, postId));
 }
 
-/** Deletes the post for good, with its versions, the further-reading links to
- *  and from it, and the redirects that led to it, as one batch. */
+/**
+ * Deletes the post for good, with its versions, the further-reading links to
+ * and from it, and the redirects that led to it, as one batch.
+ */
 export async function deletePost(db: Db, postId: string, slug: string): Promise<void> {
   await db.batch([
     db
@@ -199,12 +203,7 @@ export async function deletePost(db: Db, postId: string, slug: string): Promise<
 
 /**
  * Moves a post to `newId`, which becomes its slug too, so /blog/<newId> is its
- * address. One batch. The row is copied rather than its key updated, because
- * the version and link tables' foreign keys have no ON UPDATE: the copy goes
- * in under a slug no post can hold (a slug has no ":"), the children move to
- * it, the old row goes, and the copy takes its slug. With `redirect`, the old
- * address answers a 301 to the new one, and every older address that led to
- * the old one now leads straight to the new one.
+ * address. One batch.
  */
 export async function renamePost(
   db: Db,

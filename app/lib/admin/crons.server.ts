@@ -1,8 +1,8 @@
 // /admin/platform/crons data layer: cron_config enable/disable, with each job's
-// last run from cron_runs and cron_run_log (site-runtime's, written by runJobs).
-// Not money-adjacent (this toggles operational scheduling, not billing), so
-// this is Pass 1 scope; still audit-logged since it's a real operator action
-// that changes production behavior.
+// last run from cron_runs and cron_run_log (site-runtime's, written by
+// runJobs). Not money-adjacent (this toggles operational scheduling, not
+// billing), so this is Pass 1 scope; still audit-logged since it's a real
+// operator action that changes production behavior.
 
 import { and, desc, eq, gte, inArray, max, ne } from "drizzle-orm";
 
@@ -16,8 +16,6 @@ export interface CronRow {
   name: string;
   schedule: string;
   enabled: boolean;
-  /** False when the cron has no cron_config row, so it is on by default and
-   *  has never been switched here (Recova's "no config row" note). */
   configured: boolean;
   minIntervalMinutes: number | null;
   lastRun: {
@@ -27,17 +25,19 @@ export interface CronRow {
     finishedAt: Date;
     message: string | null;
   } | null;
-  /** When this cron's newest successful run finished; null when it has none
-   *  (Recova's "Last succeeded" column). */
   lastSucceededAt: Date | null;
-  /** This cron's failed runs in the last 24 hours, newest first: the runs the
-   *  Overview's cron health counts and links to. */
+  /**
+   * This cron's failed runs in the last 24 hours, newest first: the runs the
+   * Overview's cron health counts and links to.
+   */
   recentFailures: Array<{ id: string; finishedAt: Date; message: string | null }>;
 }
 
-/** The runs that failed (or were refused) since `sinceMs`, newest first, every
- *  job's: the Overview's cron health and the Crons page's failures. An empty
- *  reason is null, so the page says none was recorded. */
+/**
+ * The runs that failed (or were refused) since `sinceMs`, newest first, every
+ * job's: the Overview's cron health and the Crons page's failures. An empty
+ * reason is null, so the page says none was recorded.
+ */
 export async function failedCronRuns(
   db: Db,
   sinceMs: number,
@@ -55,12 +55,14 @@ export async function failedCronRuns(
   }));
 }
 
-/** One row per registered job (app/lib/cron/registry.ts is the source of
- *  truth for what jobs exist; cron_config only overrides enabled/interval - a
- *  missing config row means enabled, per app/lib/cron/gating.ts). Four reads
- *  whatever the log's size: the config, each job's newest run, its last success
- *  from cron_runs (which keeps it however long ago it was), and the last day's
- *  failures. */
+/**
+ * One row per registered job (app/lib/cron/registry.ts is the source of truth
+ * for what jobs exist; cron_config only overrides enabled/interval - a missing
+ * config row means enabled, per app/lib/cron/gating.ts). Four reads whatever
+ * the log's size: the config, each job's newest run, its last success from
+ * cron_runs (which keeps it however long ago it was), and the last day's
+ * failures.
+ */
 export async function listCronRows(db: Db, now: number = Date.now()): Promise<CronRow[]> {
   const [configRows, newest, runRows, failures] = await Promise.all([
     db.select().from(cronConfig),
@@ -118,20 +120,10 @@ export function isKnownCronName(cronName: string): boolean {
 }
 
 /**
- * Upsert-by-hand (D1 supports ON CONFLICT via drizzle's onConflictDoUpdate,
- * but cron_config's primary key is the name itself, so a plain
+ * Upsert-by-hand (D1 supports ON CONFLICT via drizzle's onConflictDoUpdate, but
+ * cron_config's primary key is the name itself, so a plain
  * select-then-insert-or-update reads clearer here for a low-frequency admin
- * action). Not a money write: plain db call, no DO (mirrors gotcha #25's
- * operational-write precedent).
- *
- * The name is validated against the registry because an unknown name used to be
- * written happily, and a missing cron_config row means ENABLED (see
- * app/lib/cron/gating.ts). Together those turned a typo into a silent failure of
- * the worst kind: the operator got a success response, the row existed and looked
- * disabled on inspection, it gated nothing, and the real job kept running. An
- * admin who believes they stopped a cron has to be right about that.
- *
- * Throws rather than no-oping so no caller can treat a rejected write as applied.
+ * action). Not a money write: plain db call, no DO.
  */
 export async function setCronEnabled(db: Db, cronName: string, enabled: boolean): Promise<void> {
   if (!isKnownCronName(cronName)) {

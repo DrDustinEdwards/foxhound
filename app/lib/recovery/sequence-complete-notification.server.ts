@@ -13,30 +13,11 @@ import {
 } from "./merchant-notification.server";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// THE SEQUENCE-COMPLETE NOTIFICATION. Ported from legacy's
-// app/api/cron/process-recovery/route.ts (blob `7015998c`, 19,935 bytes), the
-// "Notify merchant - sequence complete, unrecovered" block.
-//
-// IT IS THE MIRROR OF THE RECOVERY NOTIFICATION and shares its machinery
-// deliberately: the same From identity, the same amount formatter, the same
-// merchant audience, the same discriminated outcome, the same "never throws".
-// What differs is the trigger and the strings.
-//
-// THE TWO ARE MUTUALLY EXCLUSIVE, on both sides, and not by a rule anyone wrote
-// twice: legacy re-reads `status === 'active'` before sending, and Foxhound's
-// `queryExhaustedSequences` only selects `status='active'` rows. A payment the
-// webhook already flipped to `recovered` is therefore never a candidate here, so
-// a sequence that ends by recovery gets that notice and never this one.
-//
-// TRIGGER: `flipExhaustedSequences`, the tick sweep that runs after the step
-// loop. Its flip is conditional on `status='active'`, so it lands exactly once,
-// and it now reports WHICH sequences it claimed. This fires once per claim.
-//
-// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E11), as
-// E10 put the recovery notice on it: title, sentence, View payment button, in
-// Foxhound's amber family. Its footer is legacy's: wrapEmailHtml(notifyBody,
-// 'Recova', undefined) writes the "You're receiving this from" sentence and a
-// "Manage email settings" link, with no unsubscribe and no postal address.
+// THE SEQUENCE-COMPLETE NOTIFICATION. IT IS THE MIRROR OF THE RECOVERY NOTIFICATION and shares its
+// machinery deliberately: the same From identity, the same amount formatter, the same merchant
+// audience, the same discriminated outcome, the same "never throws". A payment the webhook already
+// flipped to `recovered` is therefore never a candidate here, so a sequence that ends by recovery
+// gets that notice and never this one.
 
 const SEQUENCE_COMPLETE_TEMPLATE = "merchant_sequence_complete";
 
@@ -52,7 +33,6 @@ interface SequenceCompleteData {
   currency: string;
 }
 
-/** Legacy's subject, verbatim. */
 function sequenceCompleteSubject(data: {
   amountCents: number;
   currency: string;
@@ -62,22 +42,8 @@ function sequenceCompleteSubject(data: {
 }
 
 /**
- * Legacy's body (route.ts:397-399), with ONE deliberate change, as the content
- * of Capsomer's `notice` template (E11, J89): legacy's bold first line is the
- * title and the mail's one heading, its sentence is the one paragraph, and its
- * "View payment" button is the action.
- *
- * LEGACY SAYS "The 7-day recovery sequence" AND ITS OWN SCHEDULES DO NOT RUN
- * SEVEN DAYS. Both sides plan steps out to `email_day30`, and Foxhound's
- * `revoked` schedule is a single email. Legacy's own fallback templates include
- * `email_day14` and `email_day30`, so the sentence was already false where it
- * was written. Dropping the number is a class (c) truthfulness fix, which the
- * PRIME DIRECTIVE exempts from per-item ratification. Every other word is
- * legacy's. The link target is Foxhound's `/recovery/payments/:id` where
- * legacy's is `/payments/:id`, until the URL reverts land.
- *
- * PLAIN STRINGS, NOT MARKUP. Capsomer escapes each value, so a customer name
- * from Stripe is shown exactly as written; legacy put it into HTML unescaped.
+ * Both sides plan steps out to `email_day30`, and Foxhound's `revoked` schedule is a single email.
+ * PLAIN STRINGS, NOT MARKUP.
  */
 function sequenceCompleteBody(data: {
   amountCents: number;
@@ -96,13 +62,7 @@ function sequenceCompleteBody(data: {
   };
 }
 
-/**
- * Everything the notice job says and carries, from the loaded data. Pure, and
- * shared with the admin preview so a preview is this function's output: the
- * platform's From name, legacy's subject, the notice, and legacy's footer
- * sentence with "Foxhound" as `wrapEmailHtml(notifyBody, 'Recova', undefined)`
- * has it (send.ts puts "Manage email settings" under it on merchant mail).
- */
+/** Everything the notice job says and carries, from the loaded data. */
 export function sequenceCompleteContent(
   data: { amountCents: number; currency: string; customerLabel: string },
   paymentUrl: string,
@@ -116,11 +76,6 @@ export function sequenceCompleteContent(
   };
 }
 
-/**
- * The recipient and the toggle, read exactly as legacy reads them:
- * `notification_email` only with no owner fallback, and
- * `sequence_complete_notifications_enabled !== false` so NULL is ON.
- */
 async function loadSequenceCompleteData(
   db: Db,
   ctx: SequenceCompleteContext,
@@ -166,14 +121,8 @@ async function loadSequenceCompleteData(
 }
 
 /**
- * Send the notification for one just-exhausted sequence.
- *
- * Through `processEmailJob`, so the suppression gate, the per-account live-send
- * gate and the `email_sends` row all apply, and a demo account refuses at the
- * gate every other send meets.
- *
- * NEVER THROWS, and returns a discriminated outcome: a refusal names
- * itself so it cannot be confused with a swallowed crash.
+ * Send the notification for one just-exhausted sequence. NEVER THROWS, and returns a discriminated
+ * outcome: a refusal names itself so it cannot be confused with a swallowed crash.
  */
 export async function sendSequenceCompleteNotification(
   env: Env,

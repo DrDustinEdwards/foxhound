@@ -21,8 +21,7 @@ import "capsomer/save-bar.css";
 import "capsomer/segmented.css";
 import "capsomer/switch.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// /settings/audit and /settings/alerts load them.
+// Capsomer's tokens and the amber family, which the components above read, as /settings/audit and /settings/alerts load them.
 import "~/site-header.css";
 
 import { AuditSummary } from "~/components/audit/sections";
@@ -41,48 +40,10 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// J43, row U2: Recova's /audit/dashboard, at Recova's path.
-// Read whole at HEAD: app/audit/dashboard/page.tsx (blob 988c190a, 9,206 bytes)
-// and app/audit/dashboard/AuditSettingsForm.tsx (blob 9016a436, 3,634 bytes),
-// with components/audit/AuditAISummary.tsx (5ba213df) and components/Toggle.tsx
-// (0ebdd395).
-//
-// RECOVA IS THE SPEC for what is on the page and in what order. Populated: the
-// header (Audit history, the last run's date, Run new audit), the AI summary,
-// Since last run when there are two runs, History, and Settings. Empty: the
-// card (No audit runs yet, two lines, Run first audit), then Settings. The
-// page keeps Recova's 1280px column and padding. The look is Capsomer 0.9.0's
-// (Q10 to Q12): PageHead, Panel, the table, the empty state's markup, the
-// segmented control, the switch and the button, amber throughout, and
-// text on the five sizes. What Recova's look still needs is
-// listed for Capsomer's per-site layer in the J43
-// pull request; no Foxhound class sits on a Capsomer element.
-//
-// THE SETTINGS CARD IS RECOVA'S, AND IT IS NOT A SECOND WRITER. Recova renders
-// AuditSettingsForm here as well as at /settings/audit, both writing the same
-// two columns. This page posts to its own action, which writes through
-// applyAuditSettings, the one core /settings/audit and the MCP
-// set_audit_settings tool already share, so there is one write path with two
-// forms on it, as in Recova. Like Recova's form it saves as each control
-// changes, with no save button, and says Saving, Saved. or Save failed. beside
-// it. The controls stay enabled during a save, with aria-busy on the group
-// and Capsomer's busy state on the switch, and a change made mid-save is
-// queued. Recova appends its raw error code to the failure line ("save_failed");
-// that is a raw value shown to a merchant, so it is left off.
-//
-// TWO TRUTHFULNESS FIXES, both class (c). The digest description drops
-// "written by AI", as /settings/audit already does on Dustin's word in 316's
-// session. And a figure that could not be read on a run says so instead of
-// Recova's `?? 0`, in the table and in Since last run, which
-// shows no comparison when either side is unread (compareTotals below).
-//
-// ONE LINE PER CURRENCY (Dustin, 2026-10-25, parity/APPROVED-DIFFERENCES.md).
-// Each money figure is its totals per currency from money_by_currency, read
-// through toStoredAuditRun as /audit/results/:id reads them, stacked one line
-// per currency in currency-code order. Since last run compares each currency
-// with the same currency on the last run. A run stored before that column
-// has one figure that may have added currencies together (Recova's sum), so
-// it shows what it stored and no change is drawn against it.
+// /audit/dashboard. Populated: the header (Audit history, the last run's date, Run new audit), the AI summary, Since last run when there are two runs, History, and Settings. Empty: the card (No audit runs yet, Run first audit), then Settings. The page keeps a 1280px column and padding.
+// THE SETTINGS CARD IS NOT A SECOND WRITER. It posts to this page's own action, which writes through applyAuditSettings, the one core /settings/audit and the MCP set_audit_settings tool already share, so there is one write path with two forms on it. It saves as each control changes, with no save button, and says Saving, Saved. or Save failed. beside it. The controls stay enabled during a save, with aria-busy on the group and Capsomer's busy state on the switch, and a change made mid-save is queued. The failure line shows no raw error code.
+// A figure that could not be read on a run says so instead of a zero, in the table and in Since last run, which shows no comparison when either side is unread (compareTotals below).
+// ONE LINE PER CURRENCY: each money figure is its totals per currency from money_by_currency, read through toStoredAuditRun as /audit/results/:id reads them, stacked one line per currency in currency-code order. Since last run compares each currency with the same currency on the last run. A run stored before that column has one figure that may have added currencies together, so it shows what it stored and no change is drawn against it.
 
 export function meta() {
   return [{ title: "Audit history - Foxhound" }, NOINDEX];
@@ -93,7 +54,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { membership } = context.get(authContext);
   const db = getDb(env);
 
-  // Recova reads its last ten runs and the account's two settings together.
+  // The last ten runs and the account's two settings are read together.
   const [runs, settingsRows] = await Promise.all([
     listAuditRuns(db, membership.accountId, 10),
     db
@@ -108,8 +69,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   return {
     runs: runs.map((row) => {
-      // The same mapping the stored-run page uses, so a figure reads the
-      // same here as on /audit/results/:id. Null where the scope was not read.
+      // The same mapping the stored-run page uses, so a figure reads the same here as on /audit/results/:id. Null where the scope was not read.
       const run = toStoredAuditRun(row);
       return {
         id: run.id,
@@ -130,17 +90,14 @@ export async function loader({ context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const { membership } = context.get(authContext);
-  // A failed write throws (the D1 batch lands or throws), so it is caught,
-  // logged whole, and answered 500 with Recova's failure line on the page.
+  // A failed write throws (the D1 batch lands or throws), so it is caught, logged whole, and answered 500 with the failure line on the page.
   try {
     const form = await readForm(request, BODY_MAX_BYTES);
     const result = await applyAuditSettings(getDb(env), membership.accountId, {
       lookbackDays: form.get("audit_lookback_days"),
       autoRun: form.get("audit_auto_run"),
     });
-    // applyAuditSettings clamps both inputs and either writes or throws, so it
-    // has no refusal to report. Were one ever to come back, it is a failed
-    // save like any other: thrown, logged whole and answered 500 below.
+    // applyAuditSettings clamps both inputs and either writes or throws, so it has no refusal to report. Were one ever to come back, it is a failed save like any other: thrown, logged whole and answered 500 below.
     if (!result.ok) throw new Error(`audit settings refused: ${result.error}`);
     return data({ ok: true as const, ...result.state });
   } catch (err) {
@@ -166,15 +123,8 @@ interface TrendSide {
 }
 
 /**
- * A money row compared like with like, one line per currency (Dustin,
- * 2026-10-25, one line per currency): each currency's figure on this run
- * against the same currency's on the last, through Capsomer's compareFigures, in
- * currency-code order. A currency missing from one side is zero there, since
- * the totals leave zeroes out.
- *
- * Null, and so no change drawn, when either side is unread or was stored
- * before money_by_currency. Such a run's one figure may have added several
- * currencies together, so a move against it would be a move nobody made.
+ * A money row compared like with like, one line per currency: each currency's figure on this run against the same currency's on the last, through Capsomer's compareFigures, in currency-code order. A currency missing from one side is zero there, since the totals leave zeroes out.
+ * Null, and so no change drawn, when either side is unread or was stored before money_by_currency: such a run's one figure may have added several currencies together, so a move against it would be a move nobody made.
  */
 function compareTotals(
   current: TrendSide,
@@ -206,9 +156,7 @@ function compareTotals(
 
 type RunView = Route.ComponentProps["loaderData"]["runs"][number];
 
-/** A stored figure, one line per currency, or "Not read" when the scope was
- *  not read on that run. Recova prints a zero here; a zero that means unknown
- *  is what 362 ruling 2 forbids. */
+/** A stored figure, one line per currency, or "Not read" when the scope was not read on that run: a zero that means unknown is forbidden. */
 function Amount({ totals, currency }: { totals: TrendSide["totals"]; currency: string | null }) {
   if (totals === null) return <span className="fh-quiet">Not read</span>;
   const lines = formatTotals(totals, currency ?? "usd");
@@ -222,10 +170,7 @@ function Amount({ totals, currency }: { totals: TrendSide["totals"]; currency: s
   );
 }
 
-/** One of Recova's TrendRows: the label, then this run against the last, then
- *  the move, one line per currency. With no like-for-like comparison (a
- *  scope unread, or a run stored as one total) it shows both runs' figures
- *  and no move. */
+/** One trend row: the label, then this run against the last, then the move, one line per currency. With no like-for-like comparison (a scope unread, or a run stored as one total) it shows both runs' figures and no move. */
 function TrendRow({
   label,
   current,
@@ -269,8 +214,7 @@ function TrendRow({
 
 type SaveResult = { ok: true; lookbackDays: number; autoRun: boolean } | { ok: false } | undefined;
 
-/** Recova's AuditSettingsForm: the lookback period, then the monthly digest,
- *  each saving as it changes, and the status line under them. */
+/** The settings form: the lookback period, then the monthly digest, each saving as it changes, and the status line under them. */
 export function AuditSettingsForm({
   defaultLookbackDays,
   defaultAutoRun,
@@ -289,8 +233,7 @@ export function AuditSettingsForm({
   const digestLabel = useId();
   const digestHelp = useId();
 
-  // Recova clears "Saved." after three seconds and keeps a failure until the
-  // next try.
+  // "Saved." clears after three seconds; a failure stays until the next try.
   const [shown] = useShownFor(result, 3000, (r) => r.ok);
 
   // The control has already changed in the page when its handler runs, so the
@@ -407,8 +350,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   const { runs, settings } = loaderData;
   const result = actionData as SaveResult;
 
-  // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
-  // the page's one <main>, so this is a plain wrapper.
+  // max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns the page's one <main>, so this is a plain wrapper.
   if (runs.length === 0) {
     return (
       <div className="fh-auditd-page cap-admin-page" data-width="page">

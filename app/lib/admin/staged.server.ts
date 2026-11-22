@@ -1,23 +1,12 @@
-// STAGED CHANGES (MCP ruling 2026-10-10, DECIDE answer 4).
+// STAGED CHANGES.
 //
 // The Foxhound Admin API pauses directly, because pausing stops money moving.
 // Everything that starts or changes money is STAGED here instead, and applied
 // only when an admin confirms it in /admin/staged, signed in:
 //
-//   resume_account      resume one merchant's processing (it charges cards)
-//   release_brake       resume every merchant the emergency brake paused
-//   cron_enable         re-enable a cron (the recovery tick charges cards)
-//   billing_exempt      change whether an account is billed
-//
 // CONFIRMING RUNS THE SAME HELPER THE MATCHING /admin SCREEN RUNS, and asks for
 // the same typed phrase where that screen does (enabling a cron, releasing the
 // brake), so staging adds a person and never a second, weaker path.
-//
-// Refunds, adjustments, cancel and Stripe disconnect are not kinds and never
-// will be: they stay on their own /admin screens.
-//
-// EVERY TRANSITION IS AUDITED, intent before state, matching the brake panel: a
-// failed audit insert leaves nothing changed rather than changed with no record.
 
 import { and, desc, eq } from "drizzle-orm";
 
@@ -35,7 +24,6 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 const STAGED_KINDS = ["resume_account", "release_brake", "cron_enable", "billing_exempt"] as const;
 type StagedKind = (typeof STAGED_KINDS)[number];
 
-/** A pending change older than this can no longer be confirmed. */
 const STAGED_TTL_MS = 7 * DAY_MS;
 
 export type StagedRow = typeof stagedChanges.$inferSelect;
@@ -94,7 +82,10 @@ async function accountExists(db: Db, accountId: string): Promise<boolean> {
   return rows.length > 0;
 }
 
-/** Validate and record a requested change, with its audit entry. Applies nothing. */
+/**
+ * Validate and record a requested change, with its audit entry. Applies
+ * nothing.
+ */
 export async function stageChange(db: Db, input: StageInput): Promise<StagedOutcome<StagedRow>> {
   if (!isKind(input.kind)) {
     return { ok: false, error: `kind must be one of ${STAGED_KINDS.join(", ")}.` };
@@ -181,8 +172,10 @@ async function loadPending(db: Db, id: string, now: Date): Promise<StagedOutcome
   return { ok: true, value: row };
 }
 
-/** Move a pending row to a decided status, only if it is still pending. False
- *  when another admin decided it first, so a change is never applied twice. */
+/**
+ * Move a pending row to a decided status, only if it is still pending. False
+ * when another admin decided it first, so a change is never applied twice.
+ */
 async function claim(
   db: Db,
   id: string,
@@ -223,8 +216,10 @@ async function apply(
   }
 }
 
-/** Confirm and apply a staged change. Called only from /admin/staged, by a
- *  signed-in admin. */
+/**
+ * Confirm and apply a staged change. Called only from /admin/staged, by a
+ * signed-in admin.
+ */
 export async function confirmStagedChange(
   env: Env,
   input: { id: string; actorEmail: string; confirmPhrase: string; now: Date },

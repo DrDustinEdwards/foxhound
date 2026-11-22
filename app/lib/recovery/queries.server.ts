@@ -28,9 +28,9 @@ import {
 import { resolvePaymentTimeRangeCutoff } from "~/lib/recovery/time-range";
 import { notCancelledResult } from "./dashboard-queries.server";
 
-// Recovery-surface read models (Phase 5 slice 5b): failed payments, their
-// recovery_steps timeline, win-back sequences, and expiring-card alerts. Every
-// query is account-scoped and read-only; nothing here writes to any table.
+// Recovery-surface read models: failed payments, their recovery_steps timeline, win-back sequences,
+// and expiring-card alerts. Every query is account-scoped and read-only; nothing here writes to any
+// table.
 
 export type FailedPaymentRow = typeof failedPayments.$inferSelect;
 export type RecoveryStepRow = typeof recoverySteps.$inferSelect;
@@ -190,11 +190,11 @@ export interface AmountBounds {
 /** The range's ceiling rounds up to a whole number of these major units (100: $100, ¥100). */
 const AMOUNT_BOUNDS_STEP_MAJOR = 100;
 
-/** The dual-handle amount range's absolute bounds in one currency: 0 up to the
- *  account's highest failed-payment amount in it, rounded up to the next 100
- *  major units (a hardcoded ceiling would clip a larger invoice or waste the
- *  slider on a small one). `wanted` picks the currency; an unknown or missing
- *  one falls back to the account's most common. */
+/**
+ * The dual-handle amount range's absolute bounds in one currency: 0 up to the account's highest
+ * failed-payment amount in it, rounded up to the next 100 major units (a hardcoded ceiling would
+ * clip a larger invoice or waste the slider on a small one).
+ */
 export async function getAmountBounds(
   db: Db,
   accountId: string,
@@ -270,7 +270,7 @@ export interface PaymentStatusCounts {
   active: number;
   recovered: number;
   failedUnrecovered: number;
-  /** Merchant-stopped sequences (S7's "Stop recovery").
+  /** Merchant-stopped sequences ("Stop recovery").
    *  Counted separately because operator-terminated is not the same outcome as
    *  exhausted, and folding it into failedUnrecovered would overstate how often
    *  the engine ran out of road. */
@@ -295,17 +295,10 @@ export function tallyStatusCounts(statuses: string[]): PaymentStatusCounts {
   return { all: statuses.length, active, recovered, failedUnrecovered, cancelled };
 }
 
-/** Status counts for the WHOLE account, ignoring every filter: the five
- *  summary cards' "account state at a glance" row, unaffected by
- *  search/category/amount/time.
- *
- *  ONE card reads a different member of this same result depending on the
- *  selected status pill, "Showing", which is legacy's own behavior at its
- *  PaymentsClient.tsx call site. That is a different KEY off this
- *  unfiltered tally and never a filtered query, so this function stays
- *  status-independent and still runs once. This comment read
- *  "search/category/amount/time/status ... so it always reads the same" until
- *  2026-08-14, which stopped being true when the Showing card landed. */
+/**
+ * Status counts for the WHOLE account, ignoring every filter: the five summary cards' "account
+ * state at a glance" row, unaffected by search/category/amount/time.
+ */
 export async function getGlobalPaymentStatusCounts(
   db: Db,
   accountId: string,
@@ -370,24 +363,9 @@ export interface FailedPaymentDetail {
   failedPayment: FailedPaymentRow;
   steps: RecoveryStepRow[];
   recovery: RecoveredPaymentRow | null;
-  /** Legacy's "Previous failures" list: the same customer's other failed
-   *  payments, newest first, capped at five
-   *  (app/(app)/recovery/payments/[id]/page.tsx at 6034a8ba). */
   previousFailures: PreviousFailureRow[];
-  /** Legacy's estimated LTV, computed FRESH: the mean of this customer's
-   *  recovered payments times twelve. Null below legacy's own threshold of TWO
-   *  recovered payments, which is the gate legacy writes
-   *  (`allCustomerPayments.length >= 2`), not a guess.
-   *
-   *  failed_payments.customer_ltv_cents is deliberately NOT reused: it holds a
-   *  different value, and shipping it under legacy's "est. LTV" label would put
-   *  a wrong number on a money surface (ruling 253's column guard). */
+  /** LTV" label would put a wrong number on a money surface. */
   estimatedLtvCents: number | null;
-  /** Legacy's open-dispute badge (PaymentDetailClient.tsx 243-251 at blob
-   *  7f54aa45): this customer's disputes that are still in play. Legacy also
-   *  gated the badge on an account_products entitlement; 298 dropped that table
-   *  as vestigial and 304 ruled the badge renders on the dispute predicate
-   *  ALONE, so this is the whole gate. */
   openDisputes: { id: string }[];
 }
 
@@ -427,9 +405,6 @@ export async function getFailedPaymentDetail(
       ),
   ]);
 
-  // Legacy's two customer-scoped reads, both account-scoped here as every read
-  // in this tree is. The previous-failures query mirrors legacy exactly:
-  // same stripe_customer_id, excluding THIS payment, newest first, five.
   const [previousFailures, customerRecovered, openDisputes] = await Promise.all([
     db
       .select({
@@ -487,11 +462,6 @@ export async function getFailedPaymentDetail(
   };
 }
 
-/** Legacy's LTV arithmetic, lifted verbatim from
- *  app/(app)/recovery/payments/[id]/page.tsx at 6034a8ba:
- *  `(sum / length) * 12`, and only when there are at least TWO recovered
- *  payments to average. Below that legacy passes null and renders no subtext
- *  at all, so this returns null rather than inventing a one-sample mean. */
 export function estimateCustomerLtvCents(amounts: number[]): number | null {
   if (amounts.length < 2) return null;
   const sum = amounts.reduce((total, cents) => total + cents, 0);
@@ -517,10 +487,10 @@ export async function listStepsForFailedPayments(
     );
 }
 
-/** Executed and total recovery_steps per failed payment, for the CSV export's
- *  Steps Executed and Total Steps (Recova's lib/csv.ts: steps with an executed
- *  time, and all steps). Scoped to the account, soft-deleted steps skipped. A
- *  payment with no steps is absent from the map. */
+/**
+ * Executed and total recovery_steps per failed payment, for the CSV export's Steps Executed and
+ * Total Steps.
+ */
 export async function countStepsForFailedPayments(
   db: Db,
   accountId: string,
@@ -557,9 +527,6 @@ export interface ExecutedRecoveryStepRow {
   aiSubject: string | null;
   aiBodyHtml: string | null;
   declineCategory: DeclineCategory;
-  /** True when a recovered_payments row credits THIS exact step
-   *  (recovered_by_step_id), the real Foxhound attribution spine - not
-   *  legacy's coarse result-string check, which has no Foxhound equivalent. */
   creditedRecovery: boolean;
 }
 

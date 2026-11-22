@@ -1,12 +1,4 @@
-// --color-wordmark is theme-aware (white in dark mode, near-black in light),
-// correct on a theme-switching surface. On a surface that's ALWAYS dark
-// (--chrome: the app-shell header, the auth-ui.tsx brand panel), that same
-// token goes near-invisible in light mode, so those callers pass
-// tone="chrome" for the always-light chrome-text color instead.
-//
-// size="title" sets it on the title step of the five text sizes,
-// for a page that shows the wordmark as Recova's 20px page mark above its
-// content (the unsubscribe page) rather than in a header.
+// --color-wordmark is theme-aware (white in dark mode, near-black in light), correct on a theme-switching surface. On a surface that is always dark (--chrome: the app-shell header, the auth-ui.tsx brand panel) it goes near-invisible in light mode, so those callers pass tone="chrome". size="title" sets it on the title step of the five text sizes, for a page that shows the wordmark as a 20px page mark above its content (the unsubscribe page) rather than in a header.
 export function Wordmark({
   tone = "auto",
   size = "header",

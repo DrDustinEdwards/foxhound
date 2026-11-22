@@ -16,29 +16,10 @@ import "capsomer/panel.css";
 import "~/site-header.css";
 import "~/auth.css";
 
-// The parts the sign-in pages share. Recova is the spec
-// for the frame: each of its pages (app/(auth)/login and signup page.tsx) is
-// one 400px card, centered in a full-height column, holding a centered heading,
-// a line under it, the form and a line of links. The parts are Capsomer's,
-// amber, at Recova's sizes: p-12, the 1.5rem heading, 13px labels,
-// 42px fields and a 47px button at 0.9375rem.
-//
-// The ways in are the family's one sign-in (site-runtime ./sign-in; Dustin's
-// approval in APPROVED-DIFFERENCES, "Sign-in and invites", 2026-10-24): a
-// passkey first, Google and Apple, and an emailed link with Turnstile on it.
-// No passwords, so Recova's password field, "Forgot
-// password?" and its reset pages are gone.
+// The parts the sign-in pages share: one 400px card, centered in a full-height column, holding a centered heading, a line under it, the form and a line of links. Capsomer's parts, amber: p-12, the 1.5rem heading, 13px labels, 42px fields and a 47px button at 0.9375rem.
+// The ways in are the family's one sign-in (site-runtime ./sign-in): a passkey first, Google and Apple, and an emailed link with Turnstile on it. No passwords.
 
-/**
- * Recova's frame: `min-h-screen flex items-center justify-center` around a
- * `w-full max-w-[400px]` card. The card is Capsomer's panel through its HTML
- * contract, body only, because the React Panel always draws an h2 header band
- * and these pages' one heading is their h1 (the gap J62 named). The wrapper
- * puts the parts in Capsomer's amber family with Foxhound's neutrals (.fh-cap,
- * the pairing /connect and the site header use), so the button and its focus
- * ring are amber. The inner div carries Recova's 48px inset on top of the
- * panel's own, less the panel's: the padding is Recova's.
- */
+/** The frame: a full-height flex column centering a `w-full max-w-[400px]` card. The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws an h2 header band and these pages' one heading is their h1. The wrapper puts the parts in Capsomer's amber family with Foxhound's neutrals (.fh-cap, as /connect and the site header use). The inner div carries a 48px inset on top of the panel's own, less the panel's. */
 export function AuthCard({ children }: { children: ReactNode }) {
   return (
     <div className="fh-auth-screen">
@@ -57,7 +38,7 @@ export function AuthCard({ children }: { children: ReactNode }) {
   );
 }
 
-/** Recova's centered h1 and the line under it. */
+/** A centered h1 and the line under it. */
 export function AuthHeading({ title, subtitle }: { title: string; subtitle?: ReactNode }) {
   return (
     <>
@@ -71,12 +52,7 @@ export function AuthHeading({ title, subtitle }: { title: string; subtitle?: Rea
   );
 }
 
-/**
- * A labeled input, Capsomer's field through its HTML contract. The React
- * Field prints a "Required" marker beside a required control's label, which
- * Recova's pages do not have, so the contract is used directly, as /connect
- * does. `aside` sits at the label row's end.
- */
+/** A labeled input, Capsomer's field through its HTML contract. The React Field prints a "Required" marker beside a required control's label, which these pages do not want, so the contract is used directly, as /connect does. `aside` sits at the label row's end. */
 function AuthField({
   id,
   label,
@@ -96,8 +72,7 @@ function AuthField({
   type: "email";
   autoComplete: string;
   placeholder?: string;
-  /** The id of the alert showing the form's error, when there is one: the
-   *  input is then marked invalid and described by it (review round 1). */
+  /** The id of the alert showing the form's error, when there is one: the input is then marked invalid and described by it. */
   errorId?: string;
 }) {
   const labelEl = (
@@ -133,7 +108,7 @@ function AuthField({
   );
 }
 
-/** Recova's closing line under the card's form. */
+/** The closing line under the card's form. */
 export function AuthFootnote({ children }: { children: ReactNode }) {
   return <p className="fh-auth-foot fh-small fh-faint">{children}</p>;
 }
@@ -216,8 +191,7 @@ export function PasskeyContinue({ next }: { next: string }) {
   );
 }
 
-/** Apple's logo in the text color: Apple's guidelines allow a monochrome
- *  logo beside "Continue with Apple" on a plain button. */
+/** Apple's logo in the text color: Apple's guidelines allow a monochrome logo beside "Continue with Apple" on a plain button. */
 function AppleMark() {
   return (
     <svg aria-hidden="true" viewBox="0 0 814 1000" width={14} height={16} fill="currentColor">
@@ -226,15 +200,7 @@ function AppleMark() {
   );
 }
 
-/**
- * Recova's "Continue with Google", and Apple's beside it, each when Foxhound
- * has its settings, then the "or" rule. Each posts to Foxhound's own start
- * route (/auth/google, /auth/apple: Better Auth's signInSocial), never a
- * client-side provider call. Google's mark is a static file because its four
- * brand colors are Google's, not Foxhound tokens.
- *
- * `next` is the page to land on afterwards, when /login was given one.
- */
+/** "Continue with Google", and Apple's beside it, each when Foxhound has its settings, then the "or" rule. Each posts to Foxhound's own start route (/auth/google, /auth/apple: Better Auth's signInSocial), never a client-side provider call. Google's mark is a static file because its four brand colors are Google's, not Foxhound tokens. `next` is the page to land on afterwards. */
 export function SocialContinue({
   methods,
   next,
@@ -303,8 +269,7 @@ export function SignInLinkForm({
   busy: boolean;
   /** Changes with each answer from the action, so the widget is drawn again. */
   attempt: unknown;
-  /** The page's only way in (sign-up), so it takes the primary button as
-   *  Recova's lone submit did; beside the passkey it stays secondary. */
+  /** The page's only way in (sign-up), so it takes the primary button; beside the passkey it stays secondary. */
   primary?: boolean;
 }) {
   const widget = useRef<HTMLDivElement>(null);
@@ -351,12 +316,7 @@ export function SignInLinkForm({
  *  a link). The form's own `intent=code` is what signInFormAction reads. */
 export const SIGN_IN_CODE_QUERY = "code";
 
-/**
- * What the sign-in link action answered, shown in place of the form, with the
- * box for the code from the same mail. The link signs in whichever browser
- * opens it, often the mail app's; the code signs in this tab (Dustin's live
- * signup, 2026-10-29, where the link opened outside the private window).
- */
+/** What the sign-in link action answered, shown in place of the form, with the box for the code from the same mail. The link signs in whichever browser opens it, often the mail app's; the code signs in this tab. */
 export function SignInLinkSent({
   idPrefix,
   email,

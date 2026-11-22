@@ -13,6 +13,8 @@ import {
 } from "~/db";
 import {
   atRiskSubtext,
+  formatCurrencyTotalsShort,
+  mrrMovementAlt,
   deadlinePhrase,
   expiryPhrase,
   isCardInAttentionWindow,
@@ -112,9 +114,14 @@ async function seedConsole(
     recoveredEarlier?: number[];
     disputeDeadlines?: (number | null)[];
     resolvedDisputes?: number;
-    atRisk?: { score: number; mrr: number }[];
+    atRisk?: { score: number; mrr: number; currency?: string }[];
     cardMonthsOut?: number[];
-    audit?: { daysAgo: number; failedCents: number; disputeCents: number } | null;
+    audit?: {
+      daysAgo: number;
+      failedCents: number;
+      disputeCents: number;
+      currency?: string;
+    } | null;
     connected?: boolean;
   } = {},
 ) {
@@ -251,10 +258,10 @@ async function seedConsole(
       stripeCustomerId: `cus_ctx_${c}`,
       customerName: `AtRisk ${c}`,
       healthScore: row.score,
-      // The nightly scoring flags these for personal outreach (Recova's feed row).
+      // The nightly scoring flags these for personal outreach.
       recommendedAction: "personal_outreach",
       mrrContributionCents: row.mrr,
-      currency: "usd",
+      currency: row.currency ?? "usd",
       createdAt: now,
       updatedAt: now,
     });
@@ -285,6 +292,7 @@ async function seedConsole(
       lookbackDays: 90,
       failedInvoicesCents: opts.audit.failedCents,
       openDisputesCents: opts.audit.disputeCents,
+      currency: opts.audit.currency,
       createdAt: now,
     });
   }
@@ -399,5 +407,70 @@ describe("getConsoleView attention feed", () => {
     const db = await seedConsole({ cardMonthsOut: [6] });
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     expect(view.attention.filter((r) => r.key.startsWith("card-"))).toEqual([]);
+  });
+});
+
+describe("getConsoleView money per currency", () => {
+  it("carries an attention row's own currency and the audit run's own currency", async () => {
+    const db = await seedConsole({
+      atRisk: [{ score: 10, mrr: 9_000, currency: "eur" }],
+      audit: { daysAgo: 1, failedCents: 10_000, disputeCents: 500, currency: "gbp" },
+    });
+    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
+    expect(view.attention.find((r) => r.key.startsWith("outreach-"))?.mrrCurrency).toBe("eur");
+    expect(view.tiles.auditLeaking).toEqual([{ currency: "gbp", cents: 10_500 }]);
+  });
+});
+
+describe("getConsoleView Intelligence tile", () => {
+  it("counts every high-risk customer, not only the three outreach rows the feed shows", async () => {
+    const db = await seedConsole({
+      atRisk: Array.from({ length: 5 }, () => ({ score: 10, mrr: 1_000 })),
+    });
+    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
+    expect(view.tiles.highRiskCustomerCount).toBe(5);
+    expect(view.tiles.highRiskMrr).toEqual([{ currency: "usd", cents: 5_000 }]);
+    expect(view.attention.filter((r) => r.key.startsWith("outreach-"))).toHaveLength(3);
+  });
+});
+
+describe("getConsoleView mrrSync", () => {
+  it("says eligible when connected, paused or canceled for such an account, unconnected without a connection", async () => {
+    const db = await seedConsole();
+    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("eligible");
+    await db.update(accounts).set({ processingPaused: true });
+    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("paused");
+    await db.update(accounts).set({ processingPaused: false, cancelledAt: new Date(NOW) });
+    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("cancelled");
+    await db.update(accounts).set({ cancelledAt: null });
+    await db.delete(stripeConnections);
+    expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("unconnected");
+  });
+});
+
+describe("console formatting helpers", () => {
+  it("prints each currency's total in the short format, joined", () => {
+    expect(formatCurrencyTotalsShort([])).toBe("$0");
+    expect(
+      formatCurrencyTotalsShort([
+        { currency: "usd", cents: 125_000 },
+        { currency: "eur", cents: 2_000 },
+      ]),
+    ).toBe("$1,250 · €20");
+  });
+
+  it("gives the movement chart a text equivalent built from the whole units the bars draw", () => {
+    const movement = (contractionMrrCents: number) => ({
+      newMrrCents: 10_000,
+      expansionMrrCents: 2_000,
+      contractionMrrCents,
+      churnMrrCents: 1_500,
+      reactivationMrrCents: 0,
+    });
+    expect(mrrMovementAlt(movement(500), "usd")).toBe(
+      "MRR movements in the latest month: New $100, Expand $20, Contract -$5, Churn -$15, Reactivate $0.",
+    );
+    // A $1.50 contraction draws as Math.round(-1.5) = -1, so the alt must read -$1, not Intl's -$2.
+    expect(mrrMovementAlt(movement(150), "usd")).toContain("Contract -$1,");
   });
 });

@@ -1,20 +1,10 @@
 // Pure console-cluster logic: the phrases and predicates the hero row, product
 // tiles, and needs-attention feed are built from.
-//
-// Separate from console.server.ts for two reasons. It is unit-testable without a
-// DB or a Durable Object, mirroring the existing recovery-window.ts /
-// recovery-window.server.ts split. And the components need some of these at
-// render time: a VALUE import from a *.server.ts module inside a component body
-// passes typecheck and fails the client build, so anything a component calls has
-// to live here.
 
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";
 
-/** How far ahead a dispute deadline counts as urgent, matching legacy's
- *  DISPUTE_URGENT_HOURS. A console presentation threshold, not an engine
- *  parameter, which is why it is not in app/lib/constants.ts. */
 export const DISPUTE_URGENT_HOURS = 48;
 
 /** How far ahead a card expiry surfaces in the feed. */
@@ -23,8 +13,7 @@ const EXPIRING_CARD_WINDOW_DAYS = 7;
 /** Rows shown per attention category before collapsing into "and N more". */
 export const ATTENTION_ROWS_PER_CATEGORY = 3;
 
-/** Disputes-due rows shown. Legacy allowed 5 here against 3 elsewhere, because a
- *  deadline is the only item on this feed with a hard external clock. */
+/** Disputes-due rows shown. */
 export const DISPUTE_ATTENTION_LIMIT = 5;
 
 /**
@@ -70,7 +59,8 @@ export function lastRunPhrase(runAt: Date, nowMs: number): string {
  * A failed payment's sequence is "exhausted" when the payment is still active
  * but has no future unexecuted step left: the sequence ran to the end without
  * recovering it, so nothing further happens without a human. That is precisely
- * the thing worth surfacing, and it is invisible from the payment's status alone.
+ * the thing worth surfacing, and it is invisible from the payment's status
+ * alone.
  */
 export function isSequenceExhausted(
   steps: { scheduledAt: Date; executedAt: Date | null; result: string | null }[],
@@ -99,19 +89,15 @@ export function protectedSubtext(recoveredAllTimeCount: number): string {
   return `${plural(recoveredAllTimeCount, "payment")} recovered all time`;
 }
 
-/** Whether a card's expiry falls inside the feed's window. A card that expired
- *  weeks ago is history, not an action, so the window has a floor too. */
+/**
+ * Whether a card's expiry falls inside the feed's window. A card that expired
+ * weeks ago is history, not an action, so the window has a floor too.
+ */
 export function isCardInAttentionWindow(expiresAt: Date, nowMs: number): boolean {
   const end = nowMs + EXPIRING_CARD_WINDOW_DAYS * DAY_MS;
   return expiresAt.getTime() <= end && expiresAt.getTime() >= nowMs - DAY_MS;
 }
 
-/**
- * Each currency's total in Recova's short format (formatAmountShort: whole
- * units), joined with " · ". A total is never summed across currencies,
- * so an account paid in two currencies sees both. Nothing at
- * all reads as Recova's zero, "$0".
- */
 export function formatCurrencyTotalsShort(
   rows: readonly { currency: string; cents: number }[],
 ): string {
@@ -128,8 +114,10 @@ export interface MovementTotals {
   reactivationMrrCents: number;
 }
 
-/** The movement bars as rows in whole currency units, the values the chart
- *  draws: contraction and churn below zero. */
+/**
+ * The movement bars as rows in whole currency units, the values the chart
+ * draws: contraction and churn below zero.
+ */
 export function mrrMovementBars(
   m: MovementTotals,
   currency: string,
@@ -144,8 +132,10 @@ export function mrrMovementBars(
   ];
 }
 
-/** The movement chart's text equivalent, built from the same whole units the
- *  bars and the data table show, so the three never disagree. */
+/**
+ * The movement chart's text equivalent, built from the same whole units the
+ * bars and the data table show, so the three never disagree.
+ */
 export function mrrMovementAlt(m: MovementTotals, currency: string): string {
   const parts = mrrMovementBars(m, currency).map(
     (b) => `${b.label} ${formatMoneyShort(fromMajorUnits(b.units, currency), currency)}`,
@@ -154,15 +144,16 @@ export function mrrMovementAlt(m: MovementTotals, currency: string): string {
 }
 
 /**
- * Whether the daily intelligence-sync will write this account an MRR
- * snapshot: it writes nothing without a Stripe connection
- * (runIntelligenceSyncForAccount) and skips paused and canceled accounts
- * (accountProcessingEligible).
+ * Whether the daily intelligence-sync will write this account an MRR snapshot:
+ * it writes nothing without a Stripe connection (runIntelligenceSyncForAccount)
+ * and skips paused and canceled accounts (accountProcessingEligible).
  */
 export type MrrSyncState = "eligible" | "unconnected" | "paused" | "cancelled";
 
-/** The empty MRR state's sentence, true for each sync state. Only an eligible
- *  account is promised a snapshot date. */
+/**
+ * The empty MRR state's sentence, true for each sync state. Only an eligible
+ * account is promised a snapshot date.
+ */
 export function mrrEmptySentence(state: MrrSyncState, firstSnapshot: string): string {
   switch (state) {
     case "eligible":

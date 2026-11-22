@@ -19,42 +19,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// S32, /settings/disputes.
-//
-// LEGACY IS THE SPEC, read whole:
-//   settings/disputes/page.tsx            blob 9d927c62  1,550 bytes
-//   settings/disputes/DisputesForm.tsx    blob 6a769d95  1,193 bytes
-//   settings/components/DisputesSection   blob eb7bba4d  4,979 bytes
-//   components/DisputesToggle.tsx         blob 89436149  1,757 bytes
-//
-// ONLY SETTINGS WITH A READER (RULES.md 3.18; parity/S-CLOSEOUT.md found all
-// three columns without one). Each has one now:
-// - Auto-submit disputes: the disputes cron submits an unsubmitted dispute 24
-//   hours before its deadline while it is on (app/lib/cron/dispute-auto-submit.ts,
-//   Recova's process-disputes "Thing 2"). Off by default. Turning it on is the
-//   merchant's standing approval: who turned it on and when is stored with it
-//   (applyDisputeSettings), and each automatic submission's approval row names
-//   them, so the approval gate holds.
-// - Product description: dispute intake reads it into every response's
-//   product_description evidence (readDisputeProductDescription, Recova's
-//   buildEvidenceFields).
-// - Ships physical goods: the dispute page shows Recova's tracking number,
-//   carrier and ship date inputs when it is on (disputes/detail.tsx).
-//
-// THE DISPUTES ON/OFF SWITCH (parity gap 7): Recova's DisputesToggle, which
-// posted to /api/disputes/{enable,disable} over account_products, is ported
-// onto accounts.disputes_enabled (migration 0048, default on, as Recova
-// activated Disputes on Stripe connect). Like Recova's toggle it saves at once,
-// apart from the Save button, and leaves the description and ships-physical as
-// stored. Its reader is dispute intake: while it is off, the
-// charge.dispute.created webhook and the manual import create no dispute
-// (readDisputesEnabled, Recova's handleDisputeCreated step 1). The "active"
-// pill shows only while it is on, and while it is off Recova's "Enable Disputes
-// above to configure ..." line takes the place of the other settings.
-//
-// LOOK FROM CAPSOMER: PageHead, one panel card with Recova's rows,
-// Switch, a cap-input textarea, Button and Status, amber throughout. Recova's
-// content, order and arrangement stay, as /settings/features does.
+// /settings/disputes: one panel card of rows with Switch, a cap-input textarea, Button and Status. ONLY SETTINGS WITH A READER: - Auto-submit disputes: the disputes cron submits an unsubmitted dispute 24 hours before its deadline while it is on (app/lib/cron/dispute-auto-submit.ts). Off by default. Turning it on is the merchant's standing approval: who turned it on and when is stored with it (applyDisputeSettings), and each automatic submission's approval row names them, so the approval gate holds. - Product description: dispute intake reads it into every response's product_description evidence (readDisputeProductDescription). - Ships physical goods: the dispute page shows tracking number, carrier and ship date inputs when it is on (disputes/detail.tsx).
+// THE DISPUTES ON/OFF SWITCH lives on accounts.disputes_enabled (default on). It saves at once, apart from the Save button, and leaves the description and ships-physical as stored. Its reader is dispute intake: while it is off, the charge.dispute.created webhook and the manual import create no dispute (readDisputesEnabled). The "active" pill shows only while it is on, and while it is off an "Enable Disputes above to configure ..." line takes the place of the other settings.
 
 export function meta() {
   return [{ title: "Dispute settings - Foxhound" }, NOINDEX];
@@ -89,13 +55,11 @@ export async function action({ request, context }: Route.ActionArgs) {
         { status: 500 },
       );
     }
-    // No "Saved" for the switch: Recova's toggle showed only its new state.
+    // No "Saved" for the switch: it shows only its new state.
     return data<ActionResult>({ ok: true, toggled: true });
   }
   const autoSubmit = form.get("dispute_auto_submit") === "on";
-  // Auto-submit sends responses to Stripe without anyone pressing Approve, so
-  // only the account owner turns it on or off. A member may still save the
-  // other fields, with auto-submit posted as it stands.
+  // Auto-submit sends responses to Stripe without anyone pressing Approve, so only the account owner turns it on or off. A member may still save the other fields, with auto-submit posted as it stands.
   if (auth.membership.role !== MEMBER_ROLE.OWNER) {
     const current = await readDisputeSettings(getDb(env), auth.membership.accountId);
     if (current.autoSubmit !== autoSubmit) {

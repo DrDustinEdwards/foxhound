@@ -17,16 +17,6 @@ import {
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { stripeDate } from "~/lib/stripe/time";
 
-// Recova's fetchDisputeContext (lib/disputes-evidence.ts, blob 2d5e7af6) on the
-// connected account's own token: the disputed charge's billing details, card
-// checks, Radar outcome and 3D Secure result, up to 20 of the customer's other
-// charges, their first subscription, and the dispute's Smart Disputes status
-// (Recova's fresh disputes.retrieve in handleDisputeCreated). Read-only.
-//
-// NEVER THROWS, as Recova's did not: each read that fails leaves its fields
-// empty and the intake goes on, because a dispute that is not recorded is
-// worse than one recorded without its context.
-
 function formatBillingAddress(billing: Stripe.Address | null | undefined): string | null {
   if (!billing) return null;
   const parts = [
@@ -96,9 +86,9 @@ export async function fetchDisputeContextWith(
 
   try {
     // The customer's whole history up to a cap, not just the latest page: a
-    // long-standing customer is the strongest evidence and the first 20
-    // charges understated it. The total stays in the disputed charge's
-    // currency (hard rule 2); the list keeps the newest entries.
+    // long-standing customer is the strongest evidence and the first 20 charges
+    // understated it. The total stays in the disputed charge's currency (hard
+    // rule 2); the list keeps the newest entries.
     const historic: Stripe.Charge[] = [];
     for await (const c of stripe.charges.list({ customer: customerId, limit: 100 })) {
       if (c.id !== input.chargeId && c.status === "succeeded") historic.push(c);
@@ -138,9 +128,11 @@ export async function fetchDisputeContextWith(
   return context;
 }
 
-/** The context for a dispute that arrived on `connectionId`, read with that
- *  connection's token. An absent or undecryptable token yields the empty
- *  context. */
+/**
+ * The context for a dispute that arrived on `connectionId`, read with that
+ * connection's token. An absent or undecryptable token yields the empty
+ * context.
+ */
 async function fetchDisputeContext(
   env: Env,
   connectionId: string,
@@ -168,12 +160,6 @@ export interface DisputeIntakeContext {
   evidence: { fieldName: string; fieldValue: string }[];
 }
 
-/**
- * Everything intake adds from Stripe, shared by the webhook and the manual
- * import so the two rows look alike: the context, Recova's triage over it (with
- * the account's ships-physical setting, as Recova read it), and the evidence
- * fields read off it.
- */
 export async function readDisputeIntakeContext(
   env: Env,
   input: {

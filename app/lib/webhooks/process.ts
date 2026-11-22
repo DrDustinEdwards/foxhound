@@ -24,21 +24,12 @@ import { handleWinbackReactivate, handleWinbackStart } from "./winback-handlers"
 import { handleRecordSubscriptionChange } from "./intelligence-handlers";
 import { hasDisconnectedConnection, resolveConnection } from "./lookups";
 
-// Connected-account webhook processor. Resolves the account, applies per-invoice
-// dedupe and attribution reads (safe before the batch; the per-account DO
-// serializes the write), then commits claim + side effects as one atomic DO
-// batch. Replays roll back on the webhook_events unique index -> applied=false.
-//
-// Deferred to Phase 8 (needs live Stripe): ML enrichment on intake (extra
-// customer/charge/subscription reads), and live verification of the AI evidence
-// drafting + Stripe dispute submission (both wired inert-but-complete, see
-// resolveDisputedRecovery and app/lib/disputes/*). Those seams call Stripe and
-// are not exercised in this pass; the batch builders are unit-proven.
-//
-// The paymentIntent->invoice resolution is NO LONGER deferred: refund stamping
-// depends on it, and leaving it unwired meant refunded_at stayed null forever,
-// so the billable predicate could not exclude a refunded recovery and Foxhound
-// would invoice 20% of money the merchant had already given back.
+// Connected-account webhook processor. Resolves the account, applies per-invoice dedupe and
+// attribution reads (safe before the batch; the per-account DO serializes the write), then commits
+// claim + side effects as one atomic DO batch. The paymentIntent->invoice resolution is NO LONGER
+// deferred: refund stamping depends on it, and leaving it unwired meant refunded_at stayed null
+// forever, so the billable predicate could not exclude a refunded recovery and Foxhound would
+// invoice 20% of money the merchant had already given back.
 
 export type { WebhookOutcome } from "./handler-context";
 
@@ -54,12 +45,8 @@ export async function processConnectedWebhook(
   const resolved = await resolveConnection(env, connectedAccountId);
   if (!resolved) {
     try {
-      // A merchant who disconnected here: answer 200 but claim NOTHING. Stripe
-      // stops retrying, and the missed-event sweep (missed-events.server.ts)
-      // replays the event after a reconnect because it is not in
-      // webhook_events. Claiming it lost a refund, dispute or recovery in the
-      // gap for good. The deauthorization itself IS claimed: it belongs to the
-      // old grant, and replayed after a reconnect it would cut the new one.
+      // A merchant who disconnected here: answer 200 but claim NOTHING. Claiming it lost a refund,
+      // dispute or recovery in the gap for good.
       if (
         event.type !== "account.application.deauthorized" &&
         (await hasDisconnectedConnection(env, connectedAccountId))
@@ -86,11 +73,9 @@ export async function processConnectedWebhook(
     receivedAt,
     payload: event,
   };
-  // TEST-MODE EVENTS ARE CLAIMED AND IGNORED. Stripe sends a live Connect
-  // endpoint the connected accounts' test-mode events too, and Foxhound holds a
-  // live key only, so acting on one would mail a real customer about a test
-  // invoice and bill a recovery that never happened. Strictly false: an event
-  // without the field is not assumed to be a test.
+  // TEST-MODE EVENTS ARE CLAIMED AND IGNORED. Stripe sends a live Connect endpoint the connected
+  // accounts' test-mode events too, and Foxhound holds a live key only, so acting on one would mail
+  // a real customer about a test invoice and bill a recovery that never happened.
   const intent =
     event.livemode === false
       ? ({ kind: "ignore", reason: "test_mode" } as const)
@@ -160,8 +145,8 @@ async function claimUnknownAccount(env: Env, event: Stripe.Event, receivedAt: Da
       payload: {},
     });
   } catch (err) {
-    // Unique-index violation = already claimed; idempotent no-op. Anything else
-    // (a transient D1 failure) throws, so the route 500s and Stripe retries.
+    // Unique-index violation = already claimed; idempotent no-op. Anything else throws, so the
+    // route 500s and Stripe retries.
     if (!isUniqueConstraintError(err)) throw err;
   }
 }

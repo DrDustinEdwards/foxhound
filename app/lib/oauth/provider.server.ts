@@ -32,46 +32,27 @@ import { isAcceptableRedirectUri, isRegisteredRedirect, redirectUriMatchesCode }
 import { readJson, readText } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// THE OAUTH PROVIDER (J79, rows A9, F18, F19; ruling 8's build).
-//
-// Recova is the spec for what the flow allows: dynamic registration, the
-// authorization-code grant with mandatory PKCE S256, one-hour access tokens,
-// rotating 30-day refresh tokens, and revocation that never says whether a
-// token was real (app/api/oauth/*, lib/oauth.ts, read whole). The engine is
-// Foxhound's:
-//
-//   - THE ACCESS TOKEN IS AN ORDINARY fox_mcp_ KEY in api_keys, merchant scope,
-//     bound to one account, with a one-hour expires_at. The /mcp door verifies
-//     it exactly as it verifies a key made in Settings, so an OAuth caller gets
-//     the merchant tools and nothing else: the five human-only actions have no
-//     tool to reach, and the admin MCP is another Worker.
-//   - THE ACCOUNT IS FIXED AT CONSENT, from the session's active membership,
-//     and travels inside the code. No endpoint here reads an account from a
-//     request.
-//   - EVERY SECRET IS STORED AS ITS SHA-256 HASH: the code, the refresh token
-//     and the access token. Recova stored all three in plain text.
-//   - A REFRESH ROTATES THE GRANT'S ONE KEY ROW IN PLACE, so Settings lists one
-//     key per connection and revoking it there ends the connection, which is
-//     what the consent page's "You can revoke it any time from Settings"
-//     promises. In Recova that sentence had nothing behind it: no settings page
-//     read oauth_tokens.
-//
-// Plain account-state writes, not money writes. Every guarded UPDATE reads its
-// RETURNING rows, because one that matches nothing is a failure to report,
-// never a success.
+// The OAuth provider.
+// - The access token is an ordinary fox_mcp_ key in api_keys: merchant scope, bound to one account,
+//   with a one-hour expires_at. The /mcp door verifies it exactly as it verifies a key made in
+//   Settings, so an OAuth caller gets the merchant tools and nothing else: the five human-only
+//   actions have no tool to reach, and the admin MCP is another Worker.
+// - The account is fixed at consent, from the session's active membership, and travels inside the
+//   code.
 
 /** Prefix on refresh tokens, so a leaked one is recognizable in a scan. */
 const OAUTH_REFRESH_TOKEN_PREFIX = "fox_rt_";
 
-/** Recova's default when a registration names no client. */
 const DEFAULT_CLIENT_NAME = "OAuth Client";
 
 const MAX_CLIENT_NAME = 100;
 const MAX_REDIRECT_URIS = 10;
 const MAX_FIELD = 2000;
 
-/** RFC 7636: an S256 challenge is 43 base64url characters, and a verifier 43
- *  to 128 unreserved characters. */
+/**
+ * RFC 7636: an S256 challenge is 43 base64url characters, and a verifier 43 to 128 unreserved
+ * characters.
+ */
 const CHALLENGE_SHAPE = /^[A-Za-z0-9_-]{43}$/;
 const VERIFIER_SHAPE = /^[A-Za-z0-9._~-]{43,128}$/;
 
@@ -83,9 +64,6 @@ export interface OAuthResult {
 
 const NO_STORE_HEADERS = { "Cache-Control": "no-store", Pragma: "no-cache" } as const;
 
-/** The JSON answer every endpoint here sends. no-store with Pragma, as Recova's
- *  token route sent, because a token response must never be cached
- *  (RFC 6749 section 5.1). */
 export function oauthResponse(result: OAuthResult, extra: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(result.body), {
     status: result.status,
@@ -105,11 +83,7 @@ function asString(v: unknown): string | null {
   return typeof v === "string" && v.length > 0 ? v : null;
 }
 
-/**
- * The token and revoke bodies. RFC 6749 section 3.2 says form-encoded; JSON is
- * accepted too because some MCP clients send it, as Recova's parseBody noted.
- * Null when the body cannot be read.
- */
+/** The token and revoke bodies. Null when the body cannot be read. */
 export async function parseOAuthBody(request: Request): Promise<URLSearchParams | null> {
   const type = request.headers.get("content-type") ?? "";
   if (type.includes("application/x-www-form-urlencoded")) {
@@ -137,28 +111,20 @@ async function verifyPkceS256(verifier: string, challenge: string): Promise<bool
 }
 
 /**
- * The exact callbacks a registration may name: site-runtime's DCR_CALLBACKS
- * (Grok, ChatGPT, Gemini Enterprise) and DCR_REDIRECT_URIS, as on the admin
- * MCP (site-runtime's adminMcpWorker, mcp/src/index.ts).
+ * The exact callbacks a registration may name: site-runtime's DCR_CALLBACKS (Grok, ChatGPT, Gemini
+ * Enterprise) and DCR_REDIRECT_URIS, as on the admin MCP (site-runtime's adminMcpWorker,
+ * mcp/src/index.ts).
  */
 export function registrationCallbacks(env: Pick<Env, "DCR_REDIRECT_URIS">): string {
   return [...DCR_CALLBACKS, ...allowedRedirects(env.DCR_REDIRECT_URIS)].join(",");
 }
 
 /**
- * Register a client. Registering does nothing until a signed-in merchant
- * approves it at /oauth/authorize.
- *
- * REGISTRATION IS KEPT ONLY FOR THE CLIENTS THAT STILL NEED IT (area 11, A7).
- * Claude, Claude Code and ChatGPT name a client metadata document instead.
- * Every redirect URI must be one of `allowed` character for character
- * (site-runtime's registrationRefusal, the check every family MCP door runs),
- * because a redirect URI is where a code is delivered. A client registered
- * before this check keeps working: only new registrations are checked.
- *
- * THE CLIENT ID IS ALWAYS MINTED HERE. Recova upserted on a client_id the
- * request supplied, so anyone could rewrite a registered client's redirect
- * URIs and collect the codes meant for it. A supplied client_id is ignored.
+ * Register a client. Registering does nothing until a signed-in merchant approves it at
+ * /oauth/authorize. REGISTRATION IS KEPT ONLY FOR THE CLIENTS THAT STILL NEED IT. Every redirect
+ * URI must be one of `allowed` character for character (site-runtime's registrationRefusal, the
+ * check every family MCP door runs), because a redirect URI is where a code is delivered. A client
+ * registered before this check keeps working: only new registrations are checked.
  */
 export async function registerClient(
   db: Db,
@@ -224,10 +190,8 @@ export type AuthorizeCheck =
   | { ok: false; title: string; message: string };
 
 /**
- * Check an authorization request in Recova's order with Recova's words
- * (app/oauth/authorize/page.tsx). The consent page runs this on the way in,
- * and the approve step runs it again on the posted fields, so nothing the page
- * carried in hidden inputs is trusted.
+ * The consent page runs this on the way in, and the approve step runs it again on the posted
+ * fields, so nothing the page carried in hidden inputs is trusted.
  */
 export async function checkAuthorizeRequest(
   db: Db,
@@ -249,8 +213,7 @@ export async function checkAuthorizeRequest(
       message: "Only response_type=code is supported.",
     };
   }
-  // PKCE S256 is mandatory; plain is deprecated in OAuth 2.1. A challenge that
-  // is not the shape S256 produces is refused here too.
+  // PKCE S256 is mandatory; plain is deprecated in OAuth 2.1.
   if (
     !codeChallenge ||
     params.get("code_challenge_method") !== "S256" ||
@@ -343,10 +306,9 @@ export interface IssueCodeInput {
 }
 
 /**
- * Mint a single-use code for the account the person approved with, and return
- * the URL to send their browser to. Only the code's hash is stored. A demo
- * account is refused: the /mcp door refuses demo keys too, so a grant for one
- * would be a connection that can never work.
+ * Mint a single-use code for the account the person approved with, and return the URL to send their
+ * browser to. Only the code's hash is stored. A demo account is refused: the /mcp door refuses demo
+ * keys too, so a grant for one would be a connection that can never work.
  */
 export async function issueAuthorizationCode(
   db: Db,
@@ -385,8 +347,7 @@ export async function issueAuthorizationCode(
   return target.toString();
 }
 
-/** Deny: back to the client with access_denied, its state and iss, as Recova's
- *  deny() built it. The URI was checked against the client's registration. */
+/** The URI was checked against the client's registration. */
 export function denyRedirect(redirectUri: string, state: string | null, issuer: string): string {
   const target = new URL(redirectUri);
   target.searchParams.set("error", "access_denied");
@@ -446,8 +407,6 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
     .limit(1);
   if (!row) return oauthError(400, "invalid_grant");
 
-  // A code presented twice: OAuth 2.1 says revoke what the first use made,
-  // as Recova did, since one of the two presenters is not the client.
   if (row.usedAt) {
     const made = await db
       .select({ id: oauthGrants.id, apiKeyId: oauthGrants.apiKeyId })
@@ -537,10 +496,9 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
     .limit(1);
 
   if (!grant) {
-    // A refresh token that has already been rotated away. Only a replay
-    // presents one, so the grant it belonged to ends (OAuth 2.1 section 4.3.1).
-    // Detection reaches one rotation back (previous_refresh_hash); a token
-    // older than that is simply unknown and refused.
+    // A refresh token that has already been rotated away. Only a replay presents one, so the grant
+    // it belonged to ends (OAuth 2.1 section 4.3.1). Detection reaches one rotation back
+    // (previous_refresh_hash); a token older than that is simply unknown and refused.
     const [replayed] = await db
       .select({ id: oauthGrants.id, apiKeyId: oauthGrants.apiKeyId })
       .from(oauthGrants)
@@ -568,9 +526,7 @@ async function exchangeRefresh(db: Db, params: URLSearchParams, now: Date): Prom
     await revokeGrant(db, grant, now);
     return oauthError(400, "invalid_grant");
   }
-  // A grant is the approving person's delegation. Once they are no longer an
-  // active member of the account, by whatever path, it ends here, so a removed
-  // member's agent cannot keep refreshing its way into the account.
+  // A grant is the approving person's delegation.
   if (!(await findActiveMembership(db, grant.userId, grant.accountId))) {
     await revokeGrant(db, grant, now);
     return oauthError(400, "invalid_grant");
@@ -627,10 +583,8 @@ export async function exchangeToken(
 }
 
 /**
- * RFC 7009 revocation. Ends the grant behind either of its tokens. The caller
- * answers 200 whatever happened, so this never says whether a token was real.
- * A key made in Settings is not ended here: it belongs to no grant, and its
- * lifecycle stays in Settings.
+ * RFC 7009 revocation. Ends the grant behind either of its tokens. The caller answers 200 whatever
+ * happened, so this never says whether a token was real.
  */
 export async function revokeOAuthToken(db: Db, token: string | null, now: Date): Promise<void> {
   if (!token || token.length > MAX_FIELD) return;

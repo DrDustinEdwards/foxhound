@@ -1,5 +1,4 @@
-// The Intelligence customer directory (views.server.ts split): the paged,
-// filtered customer list and the tier options its filter offers.
+// The Intelligence customer directory: the paged, filtered customer list and the tier options its filter offers.
 
 import { likeContains } from "@dustinedwards/site-runtime/d1";
 import { and, asc, desc, eq, gte, lt, or, sql } from "drizzle-orm";
@@ -7,10 +6,7 @@ import { customerContext, type Db } from "~/db";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { WATCH_CEILING, type HealthScoreBand } from "./health-band";
 
-// Customer directory (TASK-foxhound-intelligence-customer-directory.md):
-// every scored customer, not just the at-risk few the Overview page's table
-// links to. Every filter and the sort live in SQL - never a client-side
-// filter over the full account, however small the demo happens to be today.
+// Every scored customer, not just the at-risk few. Every filter and the sort live in SQL, never a client-side filter.
 
 export type CustomerDirectorySort = "health_asc" | "mrr_desc";
 
@@ -60,11 +56,8 @@ export function healthBandCondition(band: HealthScoreBand | null) {
   return undefined;
 }
 
-/** Every customer_context row for the account, filtered/sorted/paginated
- *  entirely in SQL. Sort "health_asc" (the default, and the real product
- *  behavior, not a demo affordance) puts the lowest scores - and therefore
- *  the customers most worth a look - first, with null (not yet scored)
- *  always last regardless of direction. */
+/** Every customer_context row for the account, filtered, sorted and paginated in SQL. Sort "health_asc" (the
+ *  default) puts the lowest scores first, with null (not yet scored) always last regardless of direction. */
 export async function listCustomerDirectory(
   db: Db,
   accountId: string,
@@ -137,9 +130,7 @@ export async function listCustomerDirectory(
   };
 }
 
-/** The distinct plan tiers present on this account's customers, for the tier
- *  filter's options - never a hardcoded tier list, since current_plan_tier is
- *  a legacy-provenance free-text column (SCHEMA.md), not a fixed enum. */
+/** The distinct plan tiers on this account's customers, for the tier filter (current_plan_tier is free text, not an enum). */
 export async function listCustomerTiers(db: Db, accountId: string): Promise<string[]> {
   const rows = await db
     .selectDistinct({ tier: customerContext.currentPlanTier })

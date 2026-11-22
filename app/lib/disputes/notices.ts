@@ -6,50 +6,14 @@ import { CRON_SCHEDULE_MONTHLY, DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
-// THE MERCHANT'S DISPUTE NOTICES: the words and the
-// pure rules, no database and no send. Recova is the spec, read whole:
-//   lib/disputes-email.ts                     blob 156719f1, 12,097 bytes
-//   lib/dispute-handlers.ts                   blob e2bb8de8, 25,069 bytes
-//   app/api/cron/process-disputes/route.ts    blob 1cbd5bd0, 21,298 bytes
-//
-// Five notices: a new dispute, a deadline reminder, a win, a loss, and
-// "Dispute response submitted", which the auto-submit job sends after it
-// submits on the merchant's standing opt-in (Recova's
-// sendDisputeAutoSubmittedEmail).
-//
-// WHAT IS NOT RECOVA'S, and why:
-// - The triage line ("Recommendation: FIGHT (80/100) ...") is Recova's, over the
-//   triage intake writes (app/lib/disputes/triage.ts). A dispute with no triage
-//   stored (one recorded before triage was ported) leaves the line out.
-// - The created and reminder notices carry Recova's auto-submit sentence for
-//   the account's setting, on or off, as Recova's autoSubmit flag chose it.
-// - The won notice's fee sentence states the fee the resolution writer
-//   snapshotted (resolved_fee_cents, which carries the $500 cap) in Recova's
-//   words, "(20% of the saved amount)", the percentage read from the constants.
-//   Recova had no cap (its lib/dispute-fees.ts, blob 00b58c14), so where the cap
-//   set the fee the sentence adds ", capped at $500", and only there: Recova's
-//   words alone would be untrue above the cap.
-//
-// ALL FOUR NOTICES are Capsomer's
-// `notice` template, as the recovery notification is (E10): Recova's bold first
-// line is the title and the mail's one heading, its sentences are the
-// paragraphs, and "Review dispute" is the button. Plain strings, never markup:
-// Capsomer escapes each one, so a customer name from Stripe is shown exactly as
-// written. Recova's bold runs (the reason, the deadline, the fee and its invoice
-// date) are plain text here.
-// The footer is Recova's wrapEmailHtml line with the connection's sender name
-// (disputeNoticeFooterNote), and send.ts puts "Manage email settings" under it.
-
 export const DISPUTE_CREATED_TEMPLATE = "merchant_dispute_created";
 export const DISPUTE_REMINDER_TEMPLATE = "merchant_dispute_reminder";
 export const DISPUTE_OUTCOME_TEMPLATE = "merchant_dispute_outcome";
 export const DISPUTE_AUTO_SUBMITTED_TEMPLATE = "merchant_dispute_auto_submitted";
 
-/** The platform's From name, as on the recovery notification. Recova sent
- *  these from its own disputes address under the platform name. */
+/** The platform's From name, as on the recovery notification. */
 export const DISPUTE_NOTICE_FROM_NAME = "Foxhound";
 
-/** Recova's `customer_name || customer_email || 'Unknown customer'`. */
 export function noticeCustomerLabel(name: string | null, email: string | null): string {
   return name || email || "Unknown customer";
 }
@@ -59,22 +23,25 @@ export interface ReminderBucket {
   daysLeft: 3 | 1;
 }
 
-/** The two bands, as hours before the evidence deadline. Recova's
- *  resolveReminderBucket, verbatim in its numbers. */
+/** The two bands, as hours before the evidence deadline. */
 export const REMINDER_BANDS: readonly (ReminderBucket & { fromHours: number; toHours: number })[] =
   [
     { eventType: "dispute_reminder_3d", daysLeft: 3, fromHours: 72, toHours: 96 },
     { eventType: "dispute_reminder_1d", daysLeft: 1, fromHours: 24, toHours: 48 },
   ];
 
-/** A reminder's idempotency key, `<band>:<dispute id>`: the send claim's key,
- *  the outcome's key, and what the reminder cron's selection excludes on. */
+/**
+ * A reminder's idempotency key, `<band>:<dispute id>`: the send claim's key,
+ * the outcome's key, and what the reminder cron's selection excludes on.
+ */
 export function reminderKey(eventType: ReminderBucket["eventType"], disputeId: string): string {
   return `${eventType}:${disputeId}`;
 }
 
-/** Which reminder a dispute is due, from the hours left before its deadline:
- *  at least `fromHours` and under `toHours`, else none. */
+/**
+ * Which reminder a dispute is due, from the hours left before its deadline: at
+ * least `fromHours` and under `toHours`, else none.
+ */
 export function resolveReminderBucket(hoursLeft: number): ReminderBucket | null {
   for (const band of REMINDER_BANDS) {
     if (hoursLeft >= band.fromHours && hoursLeft < band.toHours) {
@@ -84,8 +51,10 @@ export function resolveReminderBucket(hoursLeft: number): ReminderBucket | null 
   return null;
 }
 
-/** The monthly billing run's day and hour, read from its cron expression
- *  ("0 4 1 * *") so the date in the won notice cannot drift from the run. */
+/**
+ * The monthly billing run's day and hour, read from its cron expression ("0 4 1
+ * * *") so the date in the won notice cannot drift from the run.
+ */
 function monthlyRunAt(): { day: number; hour: number; minute: number } {
   const [minute, hour, day] = CRON_SCHEDULE_MONTHLY.split(" ").map((p) => Number(p));
   return { minute, hour, day };
@@ -93,11 +62,9 @@ function monthlyRunAt(): { day: number; hour: number; minute: number } {
 
 /**
  * When a dispute fee is invoiced: the first monthly billing run at or after the
- * resolution. PRICING.md: "Billed at the next monthly run after resolution", and
- * the billable predicate takes every win resolved before the run
- * (billableDisputeRowConditions, resolved_at <= asOf). Recova printed the first
- * of next month; this agrees with it except for a win resolved on the 1st before
- * the run, which that same run bills.
+ * resolution. PRICING.md: "Billed at the next monthly run after resolution",
+ * and the billable predicate takes every win resolved before the run
+ * (billableDisputeRowConditions, resolved_at <= asOf).
  */
 export function nextDisputeBillingRun(resolvedAt: Date): Date {
   const { day, hour, minute } = monthlyRunAt();
@@ -114,13 +81,8 @@ export interface NoticeMail {
   notice: EmailNotice;
 }
 
-/** The sender name Recova's dispute mail puts in its footer: the connection's
- *  `sender_name ?? 'Recova'`, with Foxhound's name. A blank name falls back as
- *  well, so the sentence never reads "from  about". */
 const DISPUTE_FOOTER_FALLBACK_SENDER = "Foxhound";
 
-/** Recova's footer sentence on these notices (lib/email.ts wrapEmailHtml with
- *  `params.senderName ?? 'Recova'`). Pure. */
 export function disputeNoticeFooterNote(
   senderName: string | null | undefined,
   year: number,
@@ -143,14 +105,12 @@ export interface CreatedNoticeInput {
   autoSubmit: boolean;
 }
 
-/** Recova's triage sentence, or null when the dispute has none stored. */
 function triageLine(triage: CreatedNoticeInput["triage"]): string | null {
   if (!triage) return null;
   const score = triage.confidence === null ? "" : ` (${triage.confidence}/100)`;
   return `Recommendation: ${triage.recommendation.toUpperCase()}${score}. ${triage.reasoning ?? ""}`.trim();
 }
 
-/** Recova's sendDisputeCreatedEmail. */
 export function createdNotice(input: CreatedNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const deadlineLine = input.evidenceDeadline
@@ -180,29 +140,24 @@ export interface ReminderNoticeInput {
   reason: string;
   daysLeft: number;
   disputeUrl: string;
-  /** A dispute_approvals row stands while the dispute is still unsubmitted:
-   *  the submission was refused, is in flight, or was never confirmed. */
+  /**
+   * A dispute_approvals row stands while the dispute is still unsubmitted: the
+   * submission was refused, is in flight, or was never confirmed.
+   */
   approved: boolean;
   /** The account's auto-submit setting (accounts.dispute_auto_submit). */
   autoSubmit: boolean;
 }
 
-/** Recova's lines, for a dispute nobody has approved yet, by auto-submit. */
 const REMINDER_ACTION_LINE =
   "Auto-submit is off. You need to review and submit, or choose to accept.";
 const REMINDER_AUTO_LINE =
   "Auto-submit is on. We will submit at the 24-hour mark using the staged evidence unless you cancel or override it.";
 
-/** The line for an approved dispute Stripe has not confirmed as submitted.
- * Accept is refused while an approval stands (PR 149
- *  review), so Recova's "or choose to accept" would offer what the page
- *  refuses; the page's Approve and submit resumes the standing approval, and
- *  Stripe is where the merchant can see whether the evidence arrived. Recova
- *  had no such state: its approval and submission were one step. */
+/** The line for an approved dispute Stripe has not confirmed as submitted. */
 const REMINDER_APPROVED_LINE =
   "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.";
 
-/** Recova's sendDisputeDeadlineReminderEmail. */
 export function reminderNotice(input: ReminderNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const due = plural(input.daysLeft, "day");
@@ -232,8 +187,6 @@ export interface AutoSubmittedNoticeInput {
   disputeUrl: string;
 }
 
-/** Recova's sendDisputeAutoSubmittedEmail, sent after the auto-submit job's
- *  submission is confirmed. */
 export function autoSubmittedNotice(input: AutoSubmittedNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   return {
@@ -243,9 +196,6 @@ export function autoSubmittedNotice(input: AutoSubmittedNoticeInput): NoticeMail
       body: [
         `We submitted evidence to Stripe for the ${amount} dispute from ${input.customerLabel} (reason: ${titleCase(input.reason)}).`,
         "What we included: transaction context, card verification (AVS, CVV, 3DS, Radar), prior charge history, subscription tenure where applicable, and recovery email engagement.",
-        // Recova's sentence went on "unless you want to add more evidence", but
-        // Stripe takes no more evidence once a response is submitted, and the
-        // dispute page locks it, so that clause is left out.
         "The cardholder bank now has 60 to 75 days to decide. No action needed from you.",
       ],
       action: { label: "View submission", url: input.disputeUrl },
@@ -260,21 +210,22 @@ export interface OutcomeNoticeInput {
   reason: string;
   /** Foxhound submitted the evidence (disputes.submitted_at set). */
   foxhoundSubmitted: boolean;
-  /** The fee the resolution writer snapshotted, or null when none is owed
-   *  (billing-exempt, or the cap could not be priced yet). */
+  /**
+   * The fee the resolution writer snapshotted, or null when none is owed
+   * (billing-exempt, or the cap could not be priced yet).
+   */
   feeCents: number | null;
   feeCurrency: string;
-  /** When the fee is invoiced (nextDisputeBillingRun of the resolution), or
-   *  null while the account is paused: the billing run skips a paused account
-   *  (accountBillingEligibleCondition) and bills the fee at the first run after
-   *  processing resumes, so no date is promised. */
+  /**
+   * When the fee is invoiced (nextDisputeBillingRun of the resolution), or null
+   * while the account is paused: the billing run skips a paused account
+   * (accountBillingEligibleCondition) and bills the fee at the first run after
+   * processing resumes, so no date is promised.
+   */
   invoiceDate: Date | null;
   listUrl: string;
 }
 
-/** The fee's terms in the won notice: Recova's "20% of the saved amount", and
- *  the cap only when the cap is what set the fee. The percentage and the cap
- *  are the constants the fee writer uses (disputeFeeCents). Pure. */
 function wonFeeTerms(amountCents: number, feeCents: number): string {
   const pct = DISPUTE_FEE_BPS / 100;
   const terms = `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% of the saved amount`;
@@ -284,8 +235,6 @@ function wonFeeTerms(amountCents: number, feeCents: number): string {
     : terms;
 }
 
-/** Recova's sendDisputeOutcomeEmail: two won variants and the lost one, each
- *  with "View dispute" to the disputes list (Recova's APP_URL/disputes). */
 export function outcomeNotice(input: OutcomeNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   const reason = titleCase(input.reason);

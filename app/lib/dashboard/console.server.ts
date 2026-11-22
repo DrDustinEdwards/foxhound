@@ -25,38 +25,10 @@ import {
 import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 
 // The console read model: the platform-level hero row, the four product tiles,
-// and the needs-attention feed. Legacy's parity source is app/(app)/console/
-// page.tsx plus lib/console-data.tsx (11 exported symbols).
-//
-// This is one page, served at Recova's /console since J09 (rulings 55 and 56;
-// it was /dashboard before). There is one console and login lands there.
-// Consolidating two routes into one was the decision; dropping the content was
-// not, and the content had been dropped.
-//
-// THREE legacy behaviors are deliberately not reproduced. Each was verified
-// against legacy source, not assumed:
-//
-// 1. Legacy's "At risk right now" hero value is the literal `const atRiskCents = 0`
-//    (page.tsx, with a `see vault/backlog.md: console-at-risk-amount-sum` note).
-//    It shipped a permanent $0 and pushed the real signal into the subtext.
-//    Foxhound sums the actual active failed-payment amounts, uncapped.
-// 2. Legacy's "Platform health" recomputes a LIFETIME rate whose denominator
-//    omits the is_renewal_noise filter every other aggregation applies and whose
-//    numerator has no deleted_at filter, so the same account showed a different
-//    recovery rate on two adjacent screens. This reuses the one cohort-anchored
-//    rate the rest of the app already renders.
-// 3. Legacy gates all four tiles on `account_products`. That table exists in
-//    Foxhound but nothing writes it (only an admin display list reads it), so
-//    porting the gate would render every tile permanently "inactive". Each tile
-//    is gated on the precondition that is actually real here instead: a Stripe
-//    connection for Recovery, nothing for Intelligence (free, Dustin
-//    2026-10-29), nothing for Disputes (intake is webhook-driven, there is no toggle) and
-//    nothing for Audit (legacy had no inactive state there either).
+// and the needs-attention feed.
 
 // Money is a CurrencyAmount[] everywhere on this view, one entry per currency,
-// built by groupSumByCurrency. The console used to keep one
-// figure and one currency per card, which summed EUR into USD on two cards and
-// dropped every currency but the first on the third.
+// built by groupSumByCurrency.
 
 export interface ConsoleHero {
   protectedThisMonth: CurrencyAmount[];
@@ -74,13 +46,16 @@ export interface ConsoleTiles {
   recoveryRatePct: number | null;
   openDisputeCount: number;
   disputesDueSoonCount: number;
-  /** Every high-risk customer's MRR, per currency. Empty without Intelligence. */
+  /**
+   * Every high-risk customer's MRR, per currency. Empty without Intelligence.
+   */
   highRiskMrr: CurrencyAmount[];
-  /** Every high-risk customer, uncapped, as Recova counts them. */
   highRiskCustomerCount: number;
   lastAuditAt: Date | null;
-  /** The last audit run's failed invoices plus open disputes, per currency
-   *  in currency-code order, as the run's own page shows them. */
+  /**
+   * The last audit run's failed invoices plus open disputes, per currency in
+   * currency-code order, as the run's own page shows them.
+   */
   auditLeaking: CurrencyAmount[];
 }
 
@@ -95,8 +70,10 @@ export interface AttentionRow {
   detail: string;
   /** Trailing emphasis phrase (a deadline, an expiry). Optional. */
   emphasis: string | null;
-  /** Monetary emphasis in cents, formatted by the component so money
-   *  formatting stays in one place. Optional. */
+  /**
+   * Monetary emphasis in cents, formatted by the component so money formatting
+   * stays in one place. Optional.
+   */
   mrrCents: number | null;
   /** The currency mrrCents is in: the customer's own. */
   mrrCurrency: string | null;
@@ -108,24 +85,24 @@ export interface AttentionRow {
 export interface ConsoleView {
   hero: ConsoleHero;
   tiles: ConsoleTiles;
-  /** Whether the daily sync will write this account an MRR snapshot, so the
-   *  empty MRR state promises one only when it will come. */
+  /**
+   * Whether the daily sync will write this account an MRR snapshot, so the
+   * empty MRR state promises one only when it will come.
+   */
   mrrSync: MrrSyncState;
   attention: AttentionRow[];
 }
 
-/** The label a row uses for its subject, with legacy's fallback chain. */
 function subjectLabel(name: string | null, email: string | null): string {
   return name || email || "Customer";
 }
 
 /**
  * The audit tile's leak: the run's failed invoices plus its open disputes,
- * added within each currency only and shown one per currency
- * (Dustin). A run stored before money_by_currency has one figure
- * per scope in its one currency, and shows that as it always did; one that
- * recorded no currency reads as USD, the engine's own fallback. No money at
- * all is a zero in the run's currency.
+ * added within each currency only and shown one per currency. A run stored
+ * before money_by_currency has one figure per scope in its one currency, and
+ * shows that as it always did; one that recorded no currency reads as USD, the
+ * engine's own fallback.
  */
 function auditLeaking(audit: {
   failedInvoicesCents: number | null;
@@ -184,9 +161,7 @@ export async function getConsoleView(
       .select({ n: count() })
       .from(recoveredPayments)
       .where(eq(recoveredPayments.accountId, accountId)),
-    // Uncapped. Legacy read a CONSOLE_ACTIVE_FAILED_LIMIT-capped window and then
-    // derived its at-risk figure and active-sequence count from it, so both were
-    // silently truncated on any account with more active failures than the cap.
+    // Uncapped.
     listActiveFailedPayments(db, accountId),
     db
       .select({ n: count() })
@@ -215,8 +190,6 @@ export async function getConsoleView(
       )
       .orderBy(disputes.evidenceDeadline)
       .limit(DISPUTE_ATTENTION_LIMIT),
-    // Every high-risk customer, uncapped: the Intelligence tile counts and sums
-    // them all, as Recova's intelligenceHighRiskResult did.
     db
       .select({
         stripeCustomerId: customerContext.stripeCustomerId,
@@ -235,8 +208,6 @@ export async function getConsoleView(
         ),
       )
       .orderBy(sql`${customerContext.mrrContributionCents} desc`),
-    // Recova's personal-outreach feed rows: the customers the nightly scoring
-    // flagged for personal outreach, highest MRR first, three of them.
     db
       .select({
         stripeCustomerId: customerContext.stripeCustomerId,
@@ -362,7 +333,6 @@ export async function getConsoleView(
     });
   }
 
-  // Recova's buildPersonalOutreachRows.
   for (const c of personalOutreach) {
     const label = subjectLabel(c.customerName, c.customerEmail);
     attention.push({

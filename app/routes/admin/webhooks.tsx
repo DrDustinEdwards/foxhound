@@ -59,15 +59,7 @@ const COLUMNS = 5;
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
 const LINK = "fh-row-link";
 
-// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
-// and his review of 2026-10-11: one page name (the shell's "Webhooks"), the
-// figures first, then one table in Capsomer's parts with plain sentence-case
-// words, relative times with the exact time on hover, a pending state and an
-// empty state. Recova's webhook log (app/admin/platform/webhooks, blobs
-// b0aaed26 and b0fcce84) is the inventory: the event-type filter, the errors
-// only toggle, the account column, the payload opened in place and 50 events a
-// page. Filters and pages are links in the address, read by the loader, so the
-// list works without script. Read only: nothing here changes an event.
+// One page name (the shell's "Webhooks"), the figures first, then one table in Capsomer's parts with plain sentence-case words, relative times with the exact time on hover, a pending state and an empty state: the event-type filter, the errors-only toggle, the account column, the payload opened in place and 50 events a page. Filters and pages are links in the address, read by the loader, so the list works without script. Read only.
 export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
   const { summary, list, filters } = loaderData;
   const pending = usePagePending(WEBHOOKS_PATH);

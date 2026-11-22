@@ -52,33 +52,18 @@ export const auditRuns = sqliteTable(
     cardUpdaterExpiredDeclinesInWindow: integer("card_updater_expired_declines_in_window"),
     cardUpdaterAdvisory: text("card_updater_advisory"),
     expiresByMonth: json("expires_by_month"),
-    // Explicit lift fields (SCHEMA.md): the audit's three bands.
     stripeBaselineRecoveredCents: integer("stripe_baseline_recovered_cents"),
     stillDyingCents: integer("still_dying_cents"),
     foxhoundAddsCents: integer("foxhound_adds_cents"),
-    // Every money figure per currency. The
-    // single-number columns above hold the figure in `currency` only. NULL on a
-    // run stored before this column, which renders its one total as it was.
+    // Every money figure per currency; the single-number columns above hold the figure in `currency` only. NULL on an older run, which renders its one total.
     moneyByCurrency: json<AuditMoneyByCurrency>("money_by_currency"),
   },
   (t) => [index("audit_runs_account_idx").on(t.accountId)],
 );
 
-// The monthly audit digest's per-account-per-month record (S30's cron).
-// It is BOTH the idempotency claim and the comparison's memory.
-//
-// IDEMPOTENCY IS THE DATABASE'S, never the application's. The unique index on
-// (account_id, period_month) refuses the second insert, so two concurrent
-// monthly runs cannot both send one merchant the same month's digest. Same
-// shape as alerts_sent's primary key for the same reason 314 item 3 gave: a
-// read-then-write in application code can interleave, an index cannot.
-//
-// THE COMPARISON reads the PRIOR month's row. `totals` is the CUMULATIVE
-// attributed-recovery snapshot at run time, because computeFoxhoundAddsCents
-// is all-time, so a month-over-month change is the difference between two
-// consecutive snapshots, per currency and never summed across currencies
-// (core.md records cross-currency summing as a live defect elsewhere; this
-// does not repeat it).
+// The monthly audit digest's per-account-per-month record: both the idempotency claim and the comparison's memory.
+// IDEMPOTENCY IS THE DATABASE'S: the unique index on (account_id, period_month) refuses a second insert, so two concurrent monthly runs cannot both send one merchant the same month's digest (a read-then-write in application code can interleave, an index cannot).
+// THE COMPARISON reads the PRIOR month's row. `totals` is the CUMULATIVE attributed-recovery snapshot at run time, so a month-over-month change is the difference between two snapshots, per currency and never summed across currencies.
 export const auditDigestRuns = sqliteTable(
   "audit_digest_runs",
   {
@@ -101,7 +86,6 @@ export const auditDigestRuns = sqliteTable(
   (t) => [uniqueIndex("audit_digest_runs_account_period_uq").on(t.accountId, t.periodMonth)],
 );
 
-// NEW: no-auth Turnstile-gated estimator; minimal PII (inputs + result only)
 export const estimatorRuns = sqliteTable("estimator_runs", {
   id: id(),
   createdAt: ts("created_at").notNull(),

@@ -13,23 +13,8 @@ import { SERVER, serveAdminMcp } from "./server";
 export { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 export { ToolCallLog } from "@dustinedwards/site-runtime/audit-log";
 
-// foxhound-admin-mcp: the Foxhound Admin MCP Worker at admin-mcp.foxhoundapp.com
-// (job_21de68b30fc2; MCP ruling 2026-10-10, rules 9, 12 and 13). The one
-// exception to Foxhound's single-Worker rule, kept apart so that the process an
-// admin AI talks to holds no Stripe key, no money binding and no database:
-// everything it does is a call to the admin API on the foxhound Worker.
-//
-// The Worker is site-runtime's adminMcpWorker, the door every admin MCP server
-// shares: the Origin and Host checks, the list-only test key, the OAuth provider
-// bound to PUBLIC_ORIGIN + /mcp (CIMD, and tightened registration for Grok and
-// Gemini), the Cloudflare Access sign-in, the rate limit, /owner, /health and
-// the tool-call log's daily copy (L6-L7).
-//
-// WHO IS AN ADMIN IS NEVER DECIDED HERE. `admit` puts the verified email to the
-// admin API's /me, which answers from Foxhound's ADMIN_EMAIL, at sign-in and on
-// every request; on every tool call the API asks again. A person dropped from
-// ADMIN_EMAIL loses this door on their next request, whatever grant this Worker
-// still holds.
+// foxhound-admin-mcp: the Foxhound Admin MCP Worker at admin-mcp.foxhoundapp.com. The one exception to Foxhound's single-Worker rule, kept apart so that the process an admin AI talks to holds no Stripe key, no money binding and no database: everything it does is a call to the admin API on the foxhound Worker. The Worker is site-runtime's adminMcpWorker, the door every admin MCP server shares: the Origin and Host checks, the list-only test key, the OAuth provider bound to PUBLIC_ORIGIN + /mcp (CIMD, and tightened registration for Grok and Gemini), the Cloudflare Access sign-in, the rate limit, /owner, /health and the tool-call log's daily copy.
+// WHO IS AN ADMIN IS NEVER DECIDED HERE. `admit` puts the verified email to the admin API's /me, which answers from Foxhound's ADMIN_EMAIL, at sign-in and on every request; on every tool call the API asks again. A person dropped from ADMIN_EMAIL loses this door on their next request, whatever grant this Worker still holds.
 
 export default adminMcpWorker<AdminMcpEnv>({
   name: "Foxhound Admin",

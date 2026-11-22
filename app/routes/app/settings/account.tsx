@@ -62,45 +62,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// S27, /settings/account, legacy's hub entry 12, "My account".
-//
-// LEGACY IS THE SPEC, read whole at HEAD:
-//   settings/account/page.tsx                     blob b42f9159  1,661 bytes
-//   settings/account/AccountProfileForm.tsx       blob 85bd1a33    863 bytes
-//   settings/components/AccountNameSection.tsx    blob bb58b169    875 bytes
-//   settings/components/AccountProfileSection.tsx blob 13a68d29  3,318 bytes
-//   settings/components/AppearanceSection.tsx     blob a687d482    503 bytes
-//   settings/components/AccountSection.tsx        blob a154ac8f  3,839 bytes
-//   settings/SaveBar.tsx                          blob f1d6eb23    830 bytes
-//   components/ThemeToggle.tsx                    blob 8f32b6c7  2,123 bytes
-//   settings/update/route.ts                      blob 878c0637 10,356 bytes
-//
-// RECOVA'S ORDER, top to bottom: the phone-only back link; "My account" and its
-// line; ONE form holding the account name card and the profile card (industry,
-// customer type, MRR) with one SaveBar under them; the Appearance card; then
-// the account card, the signed-in address with Sign out, and the Danger zone
-// below a rule in the same card.
-//
-// J32 rebuilt it from Capsomer 0.9.0's parts under Dustin's Q10 and Q11 answers
-// of 2026-10-14: PageHead, panels, field, Select, Segmented, Button, Status and
-// Alert, amber throughout.
-//
-// THE ENGINE IS FOXHOUND'S. The three context fields feed the recovery email
-// prompt ("Merchant context: ..." in recovery/email-generation.ts, the S27
-// reader of parity/SETTINGS-READERS.md), so Recova's "Used to personalize
-// recovery emails." is true here. They are written through
-// applyIntelligenceContext, the one writer the merchant's agent tool shares,
-// and the name through buildAccountProfileUpdate.
-//
-// THE APPROVED DIFFERENCES ON THIS PAGE. "Cancel account" keeps billing
-// records where Recova's "Delete account" erased them (APPROVED-DIFFERENCES,
-// "yes", 2026-09-19); Delete account is Recova's control, and it keeps the
-// record of recovered payments the fees are billed on (Q14, row S40, "yes",
-// 2026-10-14); Sign out is a button that posts ("yes", 2026-09-19); the
-// Sign-in panel after Appearance lists passkeys and joins Google or Apple, the
-// one place an account is joined (the family sign-in, APPROVED-DIFFERENCES
-// "Sign-in and invites", 2026-10-24), and lists the signed-in devices (the
-// family's account security, site-runtime ./sign-in).
+// /settings/account, "My account", in order: the phone-only back link; "My account" and its line; ONE form holding the account name card and the profile card (industry, customer type, MRR) with one SaveBar under them; the Appearance card; the Sign-in panel (passkeys, Google or Apple joined, the one place an account is joined, and the signed-in devices); then the account card, the signed-in address with Sign out, and the Danger zone below a rule in the same card.
+// The three context fields feed the recovery email prompt ("Merchant context: ..." in recovery/email-generation.ts). They are written through applyIntelligenceContext, the one writer the merchant's agent tool shares, and the name through buildAccountProfileUpdate. "Cancel account" keeps billing records, and the record of recovered payments the fees are billed on. Sign out is a button that posts.
 
 export function meta() {
   return [{ title: "My account - Foxhound" }, NOINDEX];
@@ -119,41 +82,25 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         auth.isDemo || auth.viewingAs
           ? null
           : await securityHistory(env.DB, auth.userId, SECURITY_HISTORY_SHOWN),
-      // The address the passkey providers are told (the Signal API), only on
-      // this person's own page: an admin's view names someone else's passkeys.
+      // The address the passkey providers are told (the Signal API), only on this person's own page: an admin's view names someone else's passkeys.
       signalAs: auth.isDemo || auth.viewingAs ? null : { id: auth.userId, email: auth.email },
     },
     account,
     cancelledAt: account.cancelledAt,
-    // The signed-in address, which legacy's AccountSection displays beside its
-    // sign-out control.
+    // The signed-in address, shown beside the sign-out control.
     userEmail: auth.email,
-    // Every account this person owns, which a deletion clears, so the
-    // confirmation can say which (S40 review fix F2). From the session's
-    // memberships, so this loader reads no other account's rows.
+    // Every account this person owns, which a deletion clears, so the confirmation can say which. From the session's memberships, so this loader reads no other account's rows.
     ownedAccountNames: ownedAccountNames(auth.memberships),
-    // The theme this account stores, which is the one the root drew the page
-    // in: accounts.theme is NOT NULL, so for a signed-in merchant
-    // resolveThemePreference always takes it (lib/theme.ts).
+    // The theme this account stores, which is the one the root drew the page in: accounts.theme is NOT NULL, so for a signed-in merchant resolveThemePreference always takes it (lib/theme.ts).
     theme: isThemeChoice(account.theme) ? account.theme : DEFAULT_THEME,
-    // Only the owner may cancel the account; the action enforces it, this
-    // only decides whether to draw the control (team.tsx does the same).
+    // Only the owner may cancel the account; the action enforces it, this only decides whether to draw the control (team.tsx does the same).
     isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
     // The demo saves nothing, the theme included (lib/settings/theme-choice.ts).
     isDemo: auth.isDemo,
   };
 }
 
-/**
- * The Sign-in panel's lists: this person's passkeys, as site-runtime's
- * accountPasskeys gives them (passkeyRows: name, provider, added, and last
- * used from auth_events), each with its credential id for the Signal API on
- * removal; and which of Google and Apple are joined. Read from Better Auth's
- * tables by the session's user, as the app's other reads of them are
- * (delete-account.server.ts), rather than through accountPasskeys's own
- * session read, which an admin's read-only view does not have. The demo
- * changes nothing, so it lists none.
- */
+/** The Sign-in panel's lists: this person's passkeys, as site-runtime's accountPasskeys gives them, each with its credential id for the Signal API on removal; and which of Google and Apple are joined. Read from Better Auth's tables by the session's user (as delete-account.server.ts does), not through accountPasskeys's own session read, which an admin's read-only view does not have. The demo changes nothing, so it lists none. */
 async function signInSettings(
   env: Env,
   userId: string,
@@ -195,12 +142,7 @@ async function signInSettings(
   };
 }
 
-/**
- * Where this person is signed in, from Better Auth's own list, which wants a
- * sign-in from the last 10 minutes: "stale" until then, and the panel asks for
- * one, as adding a passkey does. The demo and an admin's read-only view list
- * none: the request's session is not this person's.
- */
+/** Where this person is signed in, from Better Auth's own list, which wants a sign-in from the last 10 minutes: "stale" until then, and the panel asks for one, as adding a passkey does. The demo and an admin's read-only view list none: the request's session is not this person's. */
 async function signedInDevices(
   env: Env,
   request: Request,
@@ -245,16 +187,10 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   switch (intent) {
     case "profile": {
-      // Recova's one save for the name and the three context fields. Each
-      // context field is passed only when the form carries it, which is
-      // Recova's `formData.has(...)`: a Customer Type with no radio chosen
-      // posts nothing and leaves the stored value alone, where reading it as
-      // blank would clear it.
+      // One save for the name and the three context fields. Each context field is passed only when the form carries it (`formData.has(...)`): a Customer Type with no radio chosen posts nothing and leaves the stored value alone, where reading it as blank would clear it.
       const name = String(form.get("name") ?? "").trim();
       if (!name) {
-        // Foxhound's rule, not Recova's: Recova stores an empty name as NULL.
-        // The name is the business's name in the header and in every recovery
-        // email's prompt, so an empty one is refused before anything is written.
+        // An empty name is refused before anything is written: the name is the business's name in the header and in every recovery email's prompt.
         return data<ActionResult>(
           {
             action: intent,
@@ -267,9 +203,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       }
       const posted = (key: string) => (form.has(key) ? String(form.get(key)) : undefined);
       try {
-        // ONE BATCH, all or nothing: the name's update rides in the context's
-        // batch. The context's MRR check refuses before anything is
-        // committed, so a refused save writes nothing, the name included.
+        // ONE BATCH, all or nothing: the name's update rides in the context's batch. The context's MRR check refuses before anything is committed, so a refused save writes nothing, the name included.
         const db = getDb(env);
         const result = await applyIntelligenceContext(
           db,
@@ -296,33 +230,24 @@ export async function action({ request, context }: Route.ActionArgs) {
           );
         }
       } catch (err) {
-        // Recova answers a failed update with its SaveBar line, not an error
-        // page. The whole error is logged, stack included; it carries no form
-        // values.
+        // A failed update answers with the SaveBar line, not an error page. The whole error is logged, stack included; it carries no form values.
         console.error("account settings write failed:", err);
         return data<ActionResult>({ action: intent, ok: false }, { status: 500 });
       }
       return data<ActionResult>({ action: intent, ok: true });
     }
     case "cancel-account": {
-      // OWNER ONLY, refused before any read or write. Canceling disconnects
-      // every Stripe connection and stops all recovery on the account, and
-      // Recova never let a member do that: it had no Cancel, and its delete
-      // cascade cleared only the accounts the caller owned (api/auth/
-      // delete-account/route.ts, blob 2136362a). Same shape as team.tsx's gate.
+      // OWNER ONLY, refused before any read or write. Canceling disconnects every Stripe connection and stops all recovery on the account, so a member never does it (same shape as team.tsx's gate).
       if (auth.membership.role !== MEMBER_ROLE.OWNER) {
         return data<ActionResult>(
           { action: intent, ok: false, error: "Only the account owner can cancel the account." },
           { status: 403 },
         );
       }
-      // Otherwise S37's cancel, reaching no agent tool (canceling an account
-      // is on the HUMAN-FOREVER denylist).
+      // Canceling an account is on the HUMAN-FOREVER denylist: no agent tool reaches it.
       const db = getDb(env);
       const outcome = await cancelMerchant(env, accountId);
-      // Move this session to another account the caller holds, if any. With none
-      // left, the marker is cleared and the app shell lands them on the
-      // signed-in empty state at /connect the way an accountless session does.
+      // Move this session to another account the caller holds, if any. With none left, the marker is cleared and the app shell lands them on the signed-in empty state at /connect, as an accountless session does.
       const session = await getSession(env, request);
       if (session) {
         const remaining = (await listMemberships(db, auth.userId)).filter(
@@ -342,20 +267,11 @@ export async function action({ request, context }: Route.ActionArgs) {
       });
     }
     case "delete-account": {
-      // A sign-in from the last 10 minutes first (site-runtime
-      // requireFreshSession, the rule Better Auth holds its own risky changes
-      // to): a borrowed or forgotten session cannot delete the account. Stale
-      // answers as signing a device out does, and the page asks for a new
-      // sign-in.
+      // A sign-in from the last 10 minutes first (site-runtime requireFreshSession, the rule Better Auth holds its own risky changes to): a borrowed or forgotten session cannot delete the account. Stale answers as signing a device out does, and the page asks for a new sign-in.
       const fresh = await freshSession(env, request);
       if (!fresh)
         return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      // Better Auth's own delete (/delete-user), for the SIGNED-IN user only:
-      // it takes no id, so a person deletes themselves and nobody else, as
-      // Recova's route does with supabase.auth.getUser(). Foxhound's deletion
-      // runs in its hooks (delete-account.server.ts), and site-runtime's log
-      // line and notice follow it. Its answer clears the session cookie, and
-      // Recova then sends the person to "/".
+      // Better Auth's own delete (/delete-user), for the SIGNED-IN user only: it takes no id, so a person deletes themselves and nobody else. Foxhound's deletion runs in its hooks (delete-account.server.ts), and site-runtime's log line and notice follow it. Its answer clears the session cookie, and the person goes to "/".
       let deleted: Response | null = null;
       try {
         deleted = await (
@@ -367,7 +283,6 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (!deleted?.ok) {
         if (deleted)
           logEvent("account_deletion_failed", { status: deleted.status }, { level: "error" });
-        // Recova's own words for this failure (AccountSection.tsx, blob a154ac8f).
         return data<ActionResult>(
           {
             action: intent,
@@ -382,10 +297,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       return redirect("/", { headers });
     }
     case "change-email": {
-      // E1, through Better Auth's /change-email: the link goes to the CURRENT
-      // address first (auth.server.ts). A sign-in from the last 10 minutes
-      // first, as for delete; site-runtime refuses the endpoint without one
-      // too.
+      // Through Better Auth's /change-email: the link goes to the CURRENT address first (auth.server.ts). A sign-in from the last 10 minutes first, as for delete; site-runtime refuses the endpoint without one too.
       const fresh = await freshSession(env, request);
       if (!fresh)
         return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
@@ -398,9 +310,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       if (newEmail === fresh.user.email.toLowerCase())
         return refuse("That is already your address.");
       if (isDisposableEmail(newEmail)) return refuse("Disposable email addresses are not allowed.");
-      // An address nobody has confirmed would get the link at the new address
-      // alone (Better Auth's other branch), so it is refused: every way into
-      // Foxhound confirms the address, so this is only ever an old account.
+      // An address nobody has confirmed would get the link at the new address alone (Better Auth's other branch), so it is refused: every way into Foxhound confirms the address, so this is only ever an old account.
       if (!fresh.user.emailVerified)
         return refuse("Sign in with an email link first, then change your address.");
       try {
@@ -446,7 +356,6 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
-/** Recova's ten industries, in its order (AccountProfileSection, blob 13a68d29). */
 const INDUSTRIES = [
   "SaaS",
   "E-commerce",
@@ -462,9 +371,7 @@ const INDUSTRIES = [
 
 const CUSTOMER_TYPES = ["B2B", "B2C"] as const;
 
-/** The select's options. A stored industry outside Recova's list (the
- *  merchant's agent tool takes free text through the same writer) is kept as
- *  an option of its own, so saving the page does not silently erase it. */
+/** The select's options. A stored industry outside the list (the merchant's agent tool takes free text through the same writer) is kept as an option of its own, so saving the page does not silently erase it. */
 function industryOptions(stored: string | null) {
   const options = [
     { value: "", label: "Select an industry" },
@@ -474,12 +381,11 @@ function industryOptions(stored: string | null) {
   return options;
 }
 
-/** Recova's page.tsx: `String(cents / 100)`, so 500000 shows as 5000. */
+/** `String(cents / 100)`, so 500000 shows as 5000. */
 function mrrDollars(cents: number | null): string {
   return cents === null ? "" : String(cents / 100);
 }
 
-/** AccountProfileForm: the name card, the profile card and one SaveBar. */
 function ProfileForm({
   account,
   result,
@@ -594,15 +500,7 @@ function ProfileForm({
 const THEME_FAILED = "Failed to save theme. Please try again.";
 const THEME_LABEL: Record<Theme, string> = { dark: "Dark", light: "Light" };
 
-/**
- * AppearanceSection with Recova's ThemeToggle (blob 8f32b6c7): the two themes,
- * dark first, as Capsomer's segmented control. A choice applies at once, saves
- * to the account through /api/theme (Recova's /api/account/theme), and on a
- * failed save goes back and says Recova's line.
- *
- * Once the save lands, Capsomer's applyTheme remembers the choice in this
- * browser and tells the header's theme button, so the two never disagree.
- */
+/** The two themes, dark first, as Capsomer's segmented control. A choice applies at once, saves to the account through /api/theme, and on a failed save goes back and says so. Once the save lands, Capsomer's applyTheme remembers the choice in this browser and tells the header's theme button, so the two never disagree. */
 function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   const [theme, setTheme] = useState<Theme>(initial);
   const [pending, setPending] = useState(false);
@@ -613,8 +511,7 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
     if (next === theme || pending) return;
     setError(null);
     if (isDemo) {
-      // The demo's read-only refusal, as ReadOnlyForm gives every other
-      // write: nothing changes and nothing is sent.
+      // The demo's read-only refusal, as ReadOnlyForm gives every other write: nothing changes and nothing is sent.
       setRefused(true);
       return;
     }
@@ -637,11 +534,7 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
     <section className="cap-panel">
       <div className="cap-panel-body">
         <Segmented
-          // Recova's group is named "Theme" (aria-label) with no visible
-          // label. The name is visually hidden inside the legend, not with
-          // Capsomer's hideLegend: that sets .cap-sr-only, which lives in
-          // capsomer/base.css, and the merchant app does not load base.css
-          // (app/site-header.css), as /settings/audit records.
+          // The group is named "Theme" (aria-label) with no visible label. The name is visually hidden inside the legend, not with Capsomer's hideLegend: that sets .cap-sr-only, which lives in capsomer/base.css, and the merchant app does not load base.css (app/site-header.css).
           legend={<span className="cap-sr-only">Theme</span>}
           options={THEMES.map((t) => ({ value: t, label: THEME_LABEL[t] }))}
           value={theme}
@@ -662,7 +555,6 @@ function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolean }) {
   );
 }
 
-/** AccountSection's top row: the signed-in address, and Sign out beside it. */
 function SignedIn({ userEmail }: { userEmail: string }) {
   return (
     <div className="fh-setting-row">
@@ -674,12 +566,7 @@ function SignedIn({ userEmail }: { userEmail: string }) {
   );
 }
 
-/**
- * E1: change the sign-in address. The form asks Better Auth for the change
- * (the action's change-email), which mails the CURRENT address first; its link
- * then mails the new one, and that link makes the change. It needs a sign-in
- * from the last 10 minutes, as Delete account does.
- */
+/** Change the sign-in address. The form asks Better Auth for the change (the action's change-email), which mails the CURRENT address first; its link then mails the new one, and that link makes the change. It needs a sign-in from the last 10 minutes, as Delete account does. */
 function ChangeEmail({ result }: { result?: ActionResult }) {
   const navigation = useNavigation();
   const sending =
@@ -747,19 +634,7 @@ const CANCEL_CONSEQUENCE =
 /** Log in again and come back here (lib/auth/client.ts's signInAgain, as a link). */
 const SIGN_IN_AGAIN_HREF = `/login?${REAUTH_PARAM}&next=${encodeURIComponent("/settings/account")}`;
 
-/**
- * AccountSection's Danger zone (blob a154ac8f), below a rule in the account
- * card: the label, the controls at the right, and on a press the question
- * with the confirm and "Keep my account" in its place; while it runs, the
- * confirm says so and Keep is withdrawn.
- *
- * TWO CONTROLS. "Cancel account" (S37) stops processing and keeps the
- * account and its billing records; "Delete account" (S40) is Recova's, and
- * deletes the person while keeping the fee evidence. Each is its own
- * InlineConfirm, so focus moves to "Keep my account" when a confirmation opens
- * and back to the control that opened it when it closes. Without script the
- * first step is a link to ?confirm=<action>.
- */
+/** The Danger zone, below a rule in the account card: the label, the controls at the right, and on a press the question with the confirm and "Keep my account" in its place; while it runs, the confirm says so and Keep is withdrawn. TWO CONTROLS: "Cancel account" stops processing and keeps the account and its billing records; "Delete account" deletes the person while keeping the fee evidence. Each is its own InlineConfirm, so focus moves to "Keep my account" when a confirmation opens and back to the control that opened it when it closes. Without script the first step is a link to ?confirm=<action>. */
 function DangerZone({
   cancelledAt,
   isOwner,

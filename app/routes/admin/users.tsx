@@ -31,12 +31,7 @@ const HEADING_ID = "admin-users-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
 const LINK = "fh-row-link";
 
-// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14):
-// one page name (the shell's "Users"), a plain sentence with the count, then
-// Capsomer's table, one person per row. Recova's users page is the inventory
-// (email, last sign-in, joined, user id); a person may belong to several
-// accounts, so every account shows, pending invites marked.
-// Read only: the page has no actions.
+// One page name (the shell's "Users"), a plain sentence with the count, then Capsomer's table, one person per row (email, last sign-in, joined, user id). A person may belong to several accounts, so every account shows, pending invites marked. Read only.
 export default function AdminUsers({ loaderData }: Route.ComponentProps) {
   const { users } = loaderData;
   const pending = usePagePending("/admin/users");

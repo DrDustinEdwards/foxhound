@@ -13,22 +13,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/terms";
 
-// Recova's terms of service, word for word (Dustin, 2026-11-11: "the privacy
-// and terms page should have been word for word and then updated to be Foxhound
-// instead of recova and then adjusted for any changes we might have made to how
-// the sites work"). Source: recovamrr.com/terms as served on 2026-11-11, the
-// page built from legacy app/(marketing)/terms/page.tsx. Every section and
-// sentence is Recova's except where Foxhound works differently:
-//
-// - the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12);
-// - the product description is the one /privacy carries (LegalServiceDescription);
-// - the API terms and the MCP exception to "no automated access" (agent keys);
-// - sign-in is passwordless, and Foxhound has no usernames;
-// - billing follows PRICING.md: attribution, the maturity window, the dispute
-//   cap and free Intelligence, with every number from the engine's constants;
-// - "Erath, Texas" names the county, Erath County.
-//
-// The chrome kit is shared with /privacy in ~/components/legal-page.
+// The terms of service. Foxhound differs from the standard wording where it works differently: the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12); the product description is the one /privacy carries (LegalServiceDescription); the API terms and the MCP exception to "no automated access" (agent keys); sign-in is passwordless, and Foxhound has no usernames; billing follows PRICING.md (attribution, the maturity window, the dispute cap and free Intelligence), with every number from the engine's constants; "Erath, Texas" names the county, Erath County. The chrome kit is shared with /privacy in ~/components/legal-page.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

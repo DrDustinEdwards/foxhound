@@ -1,19 +1,16 @@
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 
-// The demo businesses. Legacy seeded two (lib/constants.ts DEMO_ACCOUNTS, blob
-// `a21b32b8`: Teamflow and Bolt Analytics) and let a visitor switch between
-// them from the account switcher; Foxhound does the same. Each id carries the
-// DEMO_ACCOUNT_ID_PREFIX so every prefix-based firewall (billable.ts,
-// recovery-tick, intelligence sync/ai) excludes it automatically.
+// The demo businesses.
 //
 // `idPrefix` starts every seeded row's id for that business, so the two
-// businesses' rows never share a primary key. Teamflow keeps the "d" ids it
-// always had; Bolt's rows start "dbolt_".
+// businesses' rows never share a primary key.
 export interface DemoBusiness {
   accountId: string;
   name: string;
-  /** Soft user id for the seeded member row (no Better Auth user backs it; the
-   *  demo view mode injects a synthetic membership, it never signs in). */
+  /**
+   * Soft user id for the seeded member row (no Better Auth user backs it; the
+   * demo view mode injects a synthetic membership, it never signs in).
+   */
   memberUserId: string;
   stripeUserId: string;
   idPrefix: string;
@@ -42,21 +39,17 @@ export const BOLT_DEMO: DemoBusiness = {
   idPrefix: "dbolt_",
 };
 
-/** Legacy's order: Teamflow first, so a visitor who has not switched sees it. */
 export const DEMO_BUSINESSES: readonly DemoBusiness[] = [TEAMFLOW_DEMO, BOLT_DEMO];
 
 // Both demo businesses share the one sample member address.
 export const DEMO_MEMBER_EMAIL = "demo@foxhoundapp.com";
 
-// Cookie that marks a browser as being in read-only demo mode. Carries NO account
-// id, so on its own it can only ever resolve to a demo account, never a real one.
+// Cookie that marks a browser as being in read-only demo mode. Carries NO
+// account id, so on its own it can only ever resolve to a demo account, never a
+// real one.
 export const DEMO_SESSION_COOKIE = "__Host-fh_demo";
 export const DEMO_SESSION_COOKIE_VALUE = "1";
 
-// Which demo business the visitor last switched to: legacy's
-// `active_demo_account` cookie (app/api/demo/switch-account/route.ts, blob
-// `f6786c87`). Its value is only ever matched against DEMO_BUSINESSES, so a
-// forged value falls back to Teamflow rather than naming any other account.
 export const DEMO_ACTIVE_ACCOUNT_COOKIE = "__Host-fh_demo_account";
 
 // The name registered in the cron registry for the daily demo-reset job, and
@@ -67,12 +60,13 @@ export const DEMO_RESET_CRON_NAME = "demo-reset";
 
 /**
  * The one copy of the message a demo visitor sees when a control they clicked
- * would have mutated something (TASK-foxhound-demo-system-completion.md
- * Phase 1). appShellMiddleware throws this as the body of its 405, and
- * app/root.tsx's ErrorBoundary reads it back off the thrown response so the
- * rejection reads as a normal product message instead of a raw framework
- * error page. It lives here, beside the other demo constants, because client components show it too and
- * session.ts imports the database: importing it from there put Drizzle in the browser bundle.
+ * would have mutated something (TASK-foxhound-demo-system-completion.md Phase
+ * 1). appShellMiddleware throws this as the body of its 405, and app/root.tsx's
+ * ErrorBoundary reads it back off the thrown response so the rejection reads as
+ * a normal product message instead of a raw framework error page. It lives
+ * here, beside the other demo constants, because client components show it too
+ * and session.ts imports the database: importing it from there put Drizzle in
+ * the browser bundle.
  */
 export const DEMO_READ_ONLY_MESSAGE =
   "Actions are disabled in this demo. Explore freely; nothing here can be changed.";

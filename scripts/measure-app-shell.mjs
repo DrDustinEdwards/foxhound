@@ -1,15 +1,4 @@
-// Ruling 146 (the <main> landmark) and 147 findings 1-3 (containers), measured.
-//
-// CONDITIONS, stated because 129/141 require the conditions AND the stores:
-//   - LOCAL dev server. NOT production. Ruling 87 bars comparing a local build
-//     to a deployed one, so no production claim is made here.
-//   - A DEMO session, entered through /demos/dashboard, because the harness
-//     holds no session cookie. Every claim below is demo-session evidence.
-//   - Ruling 146 asks for both sides of the tab-bar breakpoint, so every page is
-//     measured at 375 (bar renders) AND 1280 (bar does not).
-//   - Each width is re-read from inside the page by withViewport, which throws
-//     on mismatch, and the landing path is asserted so a /login bounce cannot
-//     masquerade as "no main".
+// Measures the <main> landmark and the app shell's containers. CONDITIONS: a LOCAL dev server, not production (a local build must not be compared to a deployed one); a DEMO session, entered through /demos/dashboard, because the harness holds no session cookie; every page measured at 375 (tab bar renders) AND 1280 (it does not). Each width is re-read from inside the page by withViewport, which throws on mismatch, and the landing path is asserted so a /login bounce cannot masquerade as "no main".
 
 import { withViewport } from "./viewport-harness.mjs";
 
@@ -33,9 +22,7 @@ async function measure(width, label, path) {
   return withViewport(
     String(width),
     async (page) => {
-      // Enter the demo session first, then navigate. goto on the entry route sets
-      // the cookie; without it every app route 302s to /login and every landmark
-      // reading would be about the wrong page (129's class).
+      // Enter the demo session first, then navigate: goto on the entry route sets the cookie; without it every app route 302s to /login and every landmark reading would be about the wrong page.
       const resp = await page.goto(`${BASE}${path}`, { waitUntil: "networkidle" });
       const landed = await page.evaluate(() => location.pathname);
       if (landed !== path) {
@@ -44,17 +31,7 @@ async function measure(width, label, path) {
             `never rendered and any "no main" reading here would be about the wrong page.`,
         );
       }
-      // THE PATH GUARD IS NOT ENOUGH. A 500 rendered by the root error boundary
-      // keeps location.pathname correct, so an earlier run reported "zero <main>"
-      // thirty times while the real cause was a JSX parse error and every page was
-      // an error page.
-      //
-      // THE FIRST VERSION OF THIS GUARD MATCHED BODY TEXT AND WAS WORTHLESS. It
-      // looked for "Something went wrong" and three siblings; the real 500 page's
-      // entire visible text is the single word "Error" in 1769 bytes, so the guard
-      // sat green through a deliberately broken page. That is ruling 114 in the
-      // instrument written to fix an instrument: it probed the COPY, not the
-      // MECHANISM. The status code is the mechanism and cannot be reworded.
+      // THE PATH GUARD IS NOT ENOUGH: a 500 rendered by the root error boundary keeps location.pathname correct. So the guard asserts the response status, the mechanism, which cannot be reworded; matching body text proved worthless (the real 500 page's entire visible text is the single word "Error").
       const status = resp ? resp.status() : 0;
       if (status !== 200) {
         throw new Error(
@@ -85,7 +62,7 @@ async function measure(width, label, path) {
 for (const [label, path, maxW, padPx] of PAGES) {
   for (const width of [375, 1280]) {
     const m = await measure(width, label, path);
-    // RULING 146: exactly one, and it must actually wrap the page content.
+    // Exactly one <main>, and it must actually wrap the page content.
     rec(width, label, "exactly one <main>", m.mainCount, 1, m.mainCount === 1);
     rec(
       width,
@@ -95,10 +72,7 @@ for (const [label, path, maxW, padPx] of PAGES) {
       true,
       m.mainIsAncestorOfContent,
     );
-    // Legacy keeps the footer a sibling of the page content, never inside main.
-    // GUARDED on main existing: with zero <main> this read `!false === true` and
-    // passed vacuously on all ten runs while the landmark was absent, which is
-    // ruling 89's empty-set problem inside the instrument.
+    // The footer is a sibling of the page content, never inside main. GUARDED on main existing: with zero <main> this read `!false === true` and passed vacuously.
     rec(
       width,
       label,

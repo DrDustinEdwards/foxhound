@@ -7,31 +7,13 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/button.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// button and the focus ring read. The site header loads the same file;
-// importing it here keeps the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the button and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import type { Route } from "./+types/demos";
 import "~/products.css";
 
-// The demo ENTRY point (audit priority #2). Not mock cards: each card is a
-// real anchor into the REAL app surface for that product (recovery, disputes,
-// intelligence), each its own GET route under /demos/* (app/routes/demos/)
-// that seeds and sets the demo cookie server-side before redirecting. Pointed
-// at a seeded demo account, read-only (the app-shell middleware injects a
-// demo membership and blocks every write).
-//
-// TASK-foxhound-demo-entry-parity.md item 1: the prior version rendered each
-// card as a <Form method="post"> button, so the served HTML carried zero
-// anchors into the demo (unreachable by crawlers, unbookmarkable, no deep
-// link). One path now: a real <Link>, no <Form> fallback beside it.
-//
-// Item 2: a second, static block below used to repeat Recovery/Disputes/
-// Intelligence with no action of any kind, and introduced Dashboard as the
-// one surface a visitor could see named but never reach. Collapsed into this
-// single row of four real entry links instead: no product appears twice,
-// once clickable and once not.
+// The demo ENTRY point: each card is a real anchor into the REAL app surface for that product, each its own GET route under /demos/* (app/routes/demos/) that seeds and sets the demo cookie server-side before redirecting to a seeded, read-only demo account (the app-shell middleware injects a demo membership and blocks every write). A real <Link>, so the served HTML carries anchors into the demo (reachable by crawlers, bookmarkable); no <Form> fallback beside it. One row of four entry links: no product appears twice.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

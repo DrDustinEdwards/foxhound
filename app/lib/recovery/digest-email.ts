@@ -1,26 +1,5 @@
-// The weekly digest's copy, ported from Recova's `buildDigestEmail` in
-// app/api/cron/weekly-digest/route.ts (blob `b6ff2a8c`, 22,247 bytes).
-// Pure: no env, no database, no clock. Extracted so a plant reads the real
-// assembly rather than a hand-built copy of it.
-//
-// ON CAPSOMER'S BLOCKS (E23). The digest is written as Capsomer's
-// typed blocks, Recova's words in Recova's order, and the send module renders
-// both parts from them. Capsomer escapes every value, so a
-// customer name carrying markup is shown as written.
-//
-// WHAT CAPSOMER CANNOT YET SAY, named in the PR as Capsomer jobs rather than
-// forked here: Recova's two figure tiles and its label-and-value rows have no
-// block of their own, so each is one line, "label: value"; Recova's h3 section
-// titles ("Disputes", "Intelligence") have no second heading level, so each is a
-// paragraph, keeping the mail's one h1 ("Your recovery summary"); Recova's
-// "View disputes" text link is a button, as every Capsomer link is.
-//
-// IT CARRIES RECOVA'S UNSUBSCRIBE (E23). Recova suppression-checks the digest
-// and wraps it with an unsubscribe token, so its footer carries Unsubscribe and
-// the postal address. The cron sends it on the "digest" audience, which is that
-// footer on this one merchant mail; every other merchant notice keeps none.
-// Its link is a digest token: following it switches off this
-// account's digest and suppresses no address.
+// Pure: no env, no database, no clock, built on Capsomer's blocks. Its link is a digest token:
+// following it switches off this account's digest and suppresses no address.
 
 import { plural } from "@drdustinedwards/site-helpers/text";
 import type { Block } from "capsomer/email";
@@ -49,42 +28,27 @@ export interface DigestNumbers {
 }
 
 export interface DigestInput extends DigestNumbers {
-  /** The merchant's sender name (`stripe_connections.sender_name`), for
-   *  Recova's footer sentence only. */
   senderName: string | null;
-  /** Recova gates the Disputes row and section on the product being active. */
   disputesActive: boolean;
   highRiskCustomers: { name: string; mrrCents: number | null; currency: string | null }[];
   /** Customers the nightly scoring flagged for personal outreach. */
   personalOutreachCount: number;
   /** The digest's own clock, so the header line and subject agree. */
   now: Date;
-  /** The app's origin (Recova's APP_URL). Passed in so this module stays free
-   *  of env. */
+  /** The app's origin. Passed in so this module stays free of env. */
   baseUrl: string;
 }
 
-/** Recova's `senderName = connection.sender_name || 'Recova'`, with Foxhound's
- *  brand in the fallback. It names the sender in the footer sentence. */
 const DIGEST_SENDER_FALLBACK = "Foxhound";
 
-/** Recova sends the digest from FROM_HELLO, `Recova <hello@...>`: the platform
- *  speaks, never the merchant's sender name. */
 const DIGEST_FROM_NAME = "Foxhound";
 
 /**
- * Recova's Intelligence section ends with "View recommendations", to
- * APP_URL/intelligence/recommendations. The button waited for that
- * page (RULES.md 2.7: an email ships after its link has somewhere to go), and
- * returns with it. A test holds this equal to whether routes.ts
- * serves the page.
+ * Whether the recommendations button is shown: true only while routes.ts serves the page it opens.
+ * A test holds the two equal.
  */
 const DIGEST_RECOMMENDATIONS_LIVE = true;
 
-/**
- * Legacy's currency resolution, in order: the most common currency across the
- * week's recovered payments, else the first failed payment's, else `usd`.
- */
 export function resolveDigestCurrency(
   recovered: { currency: string | null }[],
   failed: { currency: string | null }[],
@@ -109,13 +73,7 @@ function formatAmounts(amounts: CurrencyAmount[], fallbackCurrency: string): str
 }
 
 /**
- * Legacy's subject: `platform` when Intelligence or Disputes is active, else
- * `recovery`. Intelligence is on for every account (free, Dustin 2026-10-29),
- * so it is always `platform`.
- *
- * The date is formatted in UTC. Legacy's `toLocaleDateString` runs in the
- * server's zone; both platforms run UTC in production, and pinning it here
- * makes the render independent of where the test runs.
+ * Intelligence is on for every account, so it is always `platform`. The date is formatted in UTC.
  */
 function digestSubject(input: { now: Date }): string {
   const date = input.now.toLocaleDateString("en-US", {
@@ -126,15 +84,10 @@ function digestSubject(input: { now: Date }): string {
   return `Your weekly platform report: ${date}`;
 }
 
-/** Recova's label and value, on one line: its rows set the label left and
- *  the value right, which Capsomer has no block for. */
 function row(label: string, value: string): Block {
   return { type: "paragraph", text: `${label}: ${value}` };
 }
 
-/** Recova's Disputes section: rendered only when Disputes is active AND there
- *  is at least one open dispute. Recova sets the amount whenever the count is
- *  above zero, so a dispute with no amount reads "totaling $0.00". */
 function disputesSection(input: DigestInput): Block[] {
   if (!input.disputesActive || input.openDisputeCount === 0) return [];
   const noun = input.openDisputeCount === 1 ? "dispute" : "disputes";
@@ -151,8 +104,6 @@ function disputesSection(input: DigestInput): Block[] {
   ];
 }
 
-/** Recova's Intelligence section: the personal-outreach count, then the top
- *  at-risk customers, when there is either to report. */
 function intelligenceSection(input: DigestInput): Block[] {
   const outreach = input.personalOutreachCount;
   if (input.highRiskCustomers.length === 0 && outreach === 0) return [];
@@ -183,9 +134,8 @@ function intelligenceSection(input: DigestInput): Block[] {
   return out;
 }
 
-/** Recova's body, in Recova's order, with Recova's labels. Pure. */
+/** Pure. */
 export function buildDigestBlocks(input: DigestInput): Block[] {
-  // Legacy's recoveryRate: a whole percent, zero when nothing failed.
   const rate = percent(input.totalRecovered, input.totalFailed);
   const weekEnding = input.now.toLocaleDateString("en-US", {
     weekday: "long",
@@ -208,8 +158,6 @@ export function buildDigestBlocks(input: DigestInput): Block[] {
     ...(input.expiringCardCount > 0
       ? [row("Cards expiring soon", String(input.expiringCardCount))]
       : []),
-    // Recova writes "{n} &mdash; {amount}"; a comma here, as the dash is kept
-    // out of Foxhound's copy.
     ...(input.disputesActive && input.openDisputeCount > 0
       ? [
           row(
@@ -224,14 +172,7 @@ export function buildDigestBlocks(input: DigestInput): Block[] {
   ];
 }
 
-/**
- * Everything the digest says and carries, from its numbers. Pure, and shared
- * with the admin preview so a preview is this function's output: the
- * platform's From name, Recova's subject, the blocks, and Recova's footer
- * sentence, which names the merchant's sender (`sender_name || 'Recova'`). The
- * send module puts Unsubscribe and the postal address under that sentence on
- * the digest audience, as Recova's wrapEmailHtml does with a token.
- */
+/** Everything the digest says and carries, from its numbers. */
 export function digestContent(input: DigestInput): {
   fromName: string;
   subject: string;

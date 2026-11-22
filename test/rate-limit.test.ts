@@ -29,7 +29,7 @@ function post(path: string) {
 }
 
 // J52: these paths left this matcher for site-runtime's limiter inside their
-// actions (app/lib/auth/rate-limit.server.ts, test/auth-rate-limit-j52.test.ts).
+// actions (app/lib/auth/rate-limit.server.ts, test/auth-rate-limit.test.ts).
 // They are kept here as the list that must now resolve to no rule, so the two
 // limiters can never both count one request.
 //

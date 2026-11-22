@@ -12,10 +12,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/index";
 import "~/reference.css";
 
-// NEW in Phase 6 Pass 3 (net-new). /compare hub: a card grid linking to each
-// of the six named competitor pages (ROUTES.md Rev 2). Honest by
-// construction: card copy is each competitor's one-liner from the shared
-// data module, not marketing spin written separately here.
+// /compare hub: a card grid linking to each of the six competitor pages. Card copy is each competitor's one-liner from the shared data module, not separate marketing spin.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [

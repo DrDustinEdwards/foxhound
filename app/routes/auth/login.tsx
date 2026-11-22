@@ -24,14 +24,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// Row A2, /login: Recova's app/(auth)/login/page.tsx (blob ec09cd24),
-// read whole, for the frame: one card, "Welcome back", the line under it, the
-// providers, the "or" rule, Email, the error, then "Don't have an account?
-// Connect Stripe". The ways in are the family's one sign-in (site-runtime
-// ./sign-in; APPROVED-DIFFERENCES, "Sign-in and invites", 2026-10-24): a
-// passkey first, Google and Apple, and an emailed link in place of Recova's
-// password. The mechanism is Foxhound's: Better Auth on D1, never Recova's
-// Supabase client calls.
+// /login: one card, "Welcome back", the line under it, the providers, the "or" rule, Email, the error, then "Don't have an account? Connect Stripe". The ways in are the family's one sign-in (site-runtime ./sign-in): a passkey first, Google and Apple, and an emailed link. The mechanism is Better Auth on D1.
 
 export function meta() {
   return [{ title: "Sign in - Foxhound" }, NOINDEX];
@@ -40,17 +33,9 @@ export function meta() {
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const params = new URL(request.url).searchParams;
-  // Where to land after signing in: Recova's login read next=
-  // through validateRedirect, which /oauth/authorize relies on to bring a
-  // signed-out merchant back to the consent page with every parameter. The
-  // checks are anchored (app/lib/auth/next-path.ts); anything else lands on
-  // /console, as before.
+  // Where to land after signing in: next= through validateRedirect, which /oauth/authorize relies on to bring a signed-out merchant back to the consent page with every parameter. The checks are anchored (app/lib/auth/next-path.ts); anything else lands on /console.
   const next = safeNextPath(params.get("next"), { fallback: DEFAULT_NEXT_PATH });
-  // Same session read appShellMiddleware uses (guards.ts): a signed-in
-  // visitor hitting /login otherwise saw the sign-in form while the header
-  // already showed them authenticated.
-  // ?reauth (signInAgainIfStale) lets a signed-in person sign in again: adding
-  // a passkey or unlinking needs a sign-in from the last 10 minutes.
+  // Same session read appShellMiddleware uses (guards.ts): a signed-in visitor hitting /login otherwise saw the sign-in form while the header already showed them authenticated. ?reauth (signInAgainIfStale) lets a signed-in person sign in again: adding a passkey or unlinking needs a sign-in from the last 10 minutes.
   const reauth = params.has(REAUTH_PARAM);
   const session = await getSession(env, request);
   if (session && !reauth) throw redirect(await signedInLanding(env, session, next));

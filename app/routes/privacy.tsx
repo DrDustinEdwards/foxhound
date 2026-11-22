@@ -17,28 +17,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/privacy";
 
-// Recova's privacy notice, word for word (Dustin, 2026-11-11: "the privacy and
-// terms page should have been word for word and then updated to be Foxhound
-// instead of recova and then adjusted for any changes we might have made to how
-// the sites work"). Source: recovamrr.com/privacy as served on 2026-11-11, the
-// page built from legacy app/(marketing)/privacy/page.tsx. Every section, list
-// and sentence is Recova's except where Foxhound works differently:
-//
-// - the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12);
-// - the product description says what Foxhound does (silent retry first,
-//   dispute responses only on approval or the merchant's opt-in auto-submit);
-// - the personal information list, the other sources and the service
-//   providers are Foxhound's own (Cloudflare in place of Vercel, Supabase and
-//   Resend; Google and Apple sign-in; Amazon for off-site file backups);
-// - the retention windows are the engine's constants and the account deletion
-//   that keeps fee evidence (Q14 and Q16), not Recova's one month;
-// - the EU, UK, Swiss and Canadian paragraphs are left out, because the
-//   network's sites are written for US and Texas law only;
-// - the "Learn more" pointers in the summary link to their sections, which
-//   Recova's never did, and Recova's dead /contact link is gone (Foxhound has
-//   no contact page; the email is the way to reach us).
-//
-// The page has one main landmark: marketing.tsx renders it.
+// The privacy notice. Foxhound differs from the standard wording where it works differently: the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12); the product description says what Foxhound does (silent retry first, dispute responses only on approval or the merchant's opt-in auto-submit); the personal information list, the other sources and the service providers are Foxhound's own (Cloudflare; Google and Apple sign-in; Amazon for off-site file backups); the retention windows are the engine's constants and the account deletion keeps fee evidence; the EU, UK, Swiss and Canadian paragraphs are left out, because the network's sites are written for US and Texas law only; the "Learn more" pointers in the summary link to their sections. There is no contact page; the email is the way to reach us. The page has one main landmark: marketing.tsx renders it.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

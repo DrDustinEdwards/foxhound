@@ -61,8 +61,7 @@ export function ApproveButton({
   );
 }
 
-/** Recova's Row (formatters.tsx): the label in a 140px column, the value
- *  beside it. Multi-line evidence keeps its line breaks. */
+/** A row: the label in a 140px column, the value beside it. Multi-line evidence keeps its line breaks. */
 export function FieldRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="fh-dispute-fact">
@@ -76,11 +75,7 @@ export function FieldRow({ label, value }: { label: string; value: string }) {
 const UPLOAD_FETCHER_KEY = "dispute-evidence-upload";
 const DELETE_FETCHER_KEY = "dispute-evidence-delete";
 
-/**
- * The upload and remove forms, rendered after the draft form because
- * forms cannot nest. The section's file input and Remove file buttons belong
- * to them through the form attribute, so they sit where Recova shows them.
- */
+/** The upload and remove forms, rendered after the draft form because forms cannot nest. The section's file input and Remove file buttons belong to them through the form attribute. */
 export function EvidenceFileForms() {
   const upload = useFetcher<typeof action>({ key: UPLOAD_FETCHER_KEY });
   const remove = useFetcher<typeof action>({ key: DELETE_FETCHER_KEY });
@@ -96,15 +91,7 @@ export function EvidenceFileForms() {
   );
 }
 
-/**
- * Recova's DisputeFileUploads (1286eb21) on Capsomer's FileAttach: the title
- * with the limits line, an "Upload file" control while fewer than five files
- * are on the dispute, the files by name and date with "Remove file", or "No
- * files uploaded.". Choosing a file uploads it at once, as Recova's onChange
- * did, after the part's checks; without script its Upload button posts the same
- * form. Read-only once approved or submitted, and in the demo: no control and
- * no Remove file. With no bucket bound, the upload control's place says so.
- */
+/** The dispute's file uploads on Capsomer's FileAttach: the title with the limits line, an "Upload file" control while fewer than five files are on the dispute, the files by name and date with "Remove file". Choosing a file uploads it at once, after the part's checks; without script its Upload button posts the same form. Read-only once approved or submitted, and in the demo. With no bucket bound, the upload control's place says so. */
 export function EvidenceFiles({
   disputeId,
   files,

@@ -31,34 +31,17 @@ import { buildStripeEvidencePayload, submitDisputeEvidence } from "~/lib/dispute
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 // Disputes read models + the plain (non-money) evidence-edit write (Phase 5
-// slice 5c). Every query is account-scoped. Approval + submission orchestration
-// itself is app/lib/disputes/approval.ts's approveAndSubmit (kept there, not
-// .server.ts, because canApprove/hashEvidence are plain functions the
-// component also needs); this file is reads, the one edit-affordance write,
-// and (below) the one place that actually CALLS approveAndSubmit.
-//
-// getConnectionAccessToken / approveAndSubmitDispute (added for the perf-audit
-// ORM-leak fix, foxhound-audit-perf.md M-1): app/routes/app/disputes/
-// detail.tsx's action used to call approveAndSubmit({ writePendingApproval:
-// async () => { ...db.batch()... }, ... }) directly, passing closures that
-// touched drizzle-orm/table objects as VALUES into another function. Simply
-// moving those db.select()/db.batch() calls into named .server.ts functions
-// did NOT fix the leak (verified: rebuilt, grepped, drizzle symbols were
-// still present) as long as detail.tsx itself still constructed the closures
-// and called approveAndSubmit directly - every OTHER clean route in this repo
-// calls its .server.ts helpers as flat, directly-awaited calls, never wraps
-// them in closures passed to another function first. approveAndSubmitDispute
-// below is the flat call: it owns the closures AND the approveAndSubmit call
-// internally, so detail.tsx's action only ever does
-// `await approveAndSubmitDispute(db, env, {...plain data...})`.
+// slice 5c). Every query is account-scoped.
 
 export type DisputeRow = typeof disputes.$inferSelect;
 export type DisputeEvidenceRow = typeof disputeEvidence.$inferSelect;
 type DisputeApprovalRow = typeof disputeApprovals.$inferSelect;
 
-/** The account's disputes grouped for the /disputes stat cards
- *  (computeDisputeStatsFromGroups), counted and summed in SQL so the page never
- *  reads every row. */
+/**
+ * The account's disputes grouped for the /disputes stat cards
+ * (computeDisputeStatsFromGroups), counted and summed in SQL so the page never
+ * reads every row.
+ */
 export async function disputeStatGroups(db: Db, accountId: string): Promise<DisputeStatGroup[]> {
   const foxhoundSubmitted = sql<number>`(${disputes.submittedAt} is not null and coalesce(${disputes.submittedBy}, '') <> ${SUBMITTED_EXTERNALLY})`;
   const rows = await db
@@ -75,9 +58,6 @@ export async function disputeStatGroups(db: Db, accountId: string): Promise<Disp
   return rows.map((r) => ({ ...r, foxhoundSubmitted: Boolean(r.foxhoundSubmitted) }));
 }
 
-/** One page of the account's disputes, newest first as Recova orders them
- *  (id breaks a tie), read bounded in SQL, with the total for the page count.
- *  The /disputes table and the agent's list both read through it. */
 export async function listDisputesPage(
   db: Db,
   accountId: string,
@@ -105,8 +85,10 @@ export interface DisputeDetail {
   funds: DisputeFundsEntry[];
 }
 
-/** The full review-and-sign view for one dispute, scoped to the account. Null
- *  when the id does not exist or belongs to another account (the route 404s). */
+/**
+ * The full review-and-sign view for one dispute, scoped to the account. Null
+ * when the id does not exist or belongs to another account (the route 404s).
+ */
 export async function getDisputeDetail(
   db: Db,
   accountId: string,
@@ -157,27 +139,6 @@ export async function getDisputeDetail(
   return { dispute, evidence, approval: approvals[0] ?? null, funds };
 }
 
-/**
- * Save Recova's draft fields: the evidence narrative and the customer IP
- * from "Additional evidence", each held as one dispute_evidence row under its
- * Stripe evidence name, so the approved package and its hash carry exactly what
- * the merchant saved. An existing row is updated; a missing one is inserted only
- * when there is something to say, so a blank field never adds a row. The same
- * plain batch as saveDisputeEvidence: editing a draft is not a money write.
- *
- * Every statement carries its own guards, joined to the write,
- * so a check the caller made on an earlier read cannot be raced past:
- * - no dispute_approvals row for this dispute: once a merchant has approved,
- *   the evidence that approval's hash attests is never rewritten, even while
- *   the state is still approvable (Phase A writes the row before Stripe is
- *   called, and a rejected or unconfirmed submission leaves it there);
- * - the INSERT also needs the dispute to be this account's, and no row for the
- *   same field already, so two first-time saves cannot leave two rows.
- * A statement whose guard fails matches nothing and writes nothing, and that
- * is a failure to report, never a success: the result is true
- * only when every statement changed a row. SQLite counts a matched UPDATE even
- * when the value is unchanged, so saving an unchanged draft is still true.
- */
 export async function saveDisputeDraft(
   db: Db,
   accountId: string,
@@ -254,11 +215,13 @@ export async function saveDisputeDraft(
   return results.every((r) => changedRows(r) > 0);
 }
 
-/** The connected Stripe account's access token for a dispute's connection, or
- *  null if the connection row does not exist. `connectionId` is never
- *  client-supplied directly: the caller resolves it from an account-scoped
- *  dispute row first (see getDisputeDetail), so no additional accountId
- *  predicate is added here (that would be a behavior change, not a refactor). */
+/**
+ * The connected Stripe account's access token for a dispute's connection, or
+ * null if the connection row does not exist. `connectionId` is never
+ * client-supplied directly: the caller resolves it from an account-scoped
+ * dispute row first (see getDisputeDetail), so no additional accountId
+ * predicate is added here (that would be a behavior change, not a refactor).
+ */
 export async function getConnectionAccessToken(
   db: Db,
   connectionId: string,
@@ -271,7 +234,9 @@ export async function getConnectionAccessToken(
   return connection?.accessToken ?? null;
 }
 
-/** submittedAt for a dispute, scoped to the account, or null if unset/missing. */
+/**
+ * submittedAt for a dispute, scoped to the account, or null if unset/missing.
+ */
 async function getDisputeSubmittedAt(
   db: Db,
   accountId: string,
@@ -293,20 +258,22 @@ export interface ApproveAndSubmitDisputeInput {
   approvedByUserId: string | null;
   approvedByEmail: string;
   approvedAt: Date;
-  /** Set when the auto-submit job approves on the merchant's standing opt-in:
-   *  when approvedBy* turned auto-submit on. Null for the merchant's own
-   *  Approve and submit. It is stored on the approval row, and the submission
-   *  is marked SUBMITTED_AUTOMATICALLY instead of with the approver's email. */
+  /**
+   * Set when the auto-submit job approves on the merchant's standing opt-in:
+   * when approvedBy* turned auto-submit on. Null for the merchant's own Approve
+   * and submit. It is stored on the approval row, and the submission is marked
+   * SUBMITTED_AUTOMATICALLY instead of with the approver's email.
+   */
   standingOptInAt: Date | null;
 }
 
 /**
  * The whole approve-and-submit flow for one dispute, called flatly (a single
  * `await`) from detail.tsx's action. Owns the approveAndSubmit() closures
- * internally (Phase A write, Phase B Stripe submit, Phase C confirm) so
- * nothing in the route file itself constructs a closure over `db` and passes
- * it into another function; see the module comment above for why that
- * distinction is what keeps this out of the client bundle.
+ * internally (Phase A write, Phase B Stripe submit, Phase C confirm) so nothing
+ * in the route file itself constructs a closure over `db` and passes it into
+ * another function; see the module comment above for why that distinction is
+ * what keeps this out of the client bundle.
  */
 export async function approveAndSubmitDispute(
   db: Db,
@@ -340,10 +307,7 @@ export async function approveAndSubmitDispute(
         return submittedAt != null ? "already_submitted" : "resume";
       }
     },
-    // Phase B. The merchant's evidence files are read from the bucket
-    // here, inside the submit step, so Phase A and Phase C are untouched; a
-    // file that cannot be read is left out and the submission goes on, as
-    // Recova's submit route does, and with no EVIDENCE binding none are sent.
+    // Phase B.
     submit: async () =>
       submitDisputeEvidence(env, {
         stripeDisputeId: input.stripeDisputeId,
@@ -373,9 +337,8 @@ export async function approveAndSubmitDispute(
 
 /**
  * Intelligence health scores for the given Stripe customers, keyed by Stripe
- * customer id (J66: the disputes list shows one beside each customer, as
- * Recova's does when Intelligence is on). Account-scoped; customers with no
- * score yet are left out rather than reported as zero.
+ * customer id. Account-scoped; customers with no score yet are left out rather
+ * than reported as zero.
  */
 export async function getCustomerHealthScores(
   db: Db,
@@ -402,9 +365,8 @@ export async function getCustomerHealthScores(
 
 /**
  * Which of the given disputes hold at least one non-blank evidence field in
- * Foxhound's draft. The list says Recova's "Evidence ready" only of these
- * (disputeListStatus, labels.ts). Account-scoped on the evidence rows
- * themselves; the id list is one bound parameter, like the health lookup.
+ * Foxhound's draft. Account-scoped on the evidence rows themselves; the id list
+ * is one bound parameter, like the health lookup.
  */
 export async function getDisputesWithEvidence(
   db: Db,
@@ -423,16 +385,12 @@ export async function getDisputesWithEvidence(
     .from(disputeEvidence)
     .where(and(eq(disputeEvidence.accountId, accountId), inList(disputeEvidence.disputeId, ids)));
   for (const row of rows) {
-    // An uploaded file is not drafted evidence: Recova's "Evidence ready"
-    // read staged_at, which a file never set.
     if (row.fieldName !== EVIDENCE_FILE_FIELD && row.fieldValue.trim() !== "")
       found.add(row.disputeId);
   }
   return found;
 }
 
-/** S32's dispute settings (/settings/disputes) as their readers need them.
- *  NULL reads as off and empty, as Recova's `?? false` and `?? ''`. */
 export async function readDisputeSettings(
   db: Db,
   accountId: string,
@@ -460,10 +418,12 @@ export async function readDisputeSettings(
   };
 }
 
-/** Who turned dispute auto-submit on and when: the merchant's standing approval
- *  that every automatic submission's dispute_approvals row stands on. Read only;
- *  the toggle is written by applyDisputeSettings from the signed-in settings
- *  page and by nothing else (no agent tool turns it on, CLAUDE.md hard rule 4). */
+/**
+ * Who turned dispute auto-submit on and when: the merchant's standing approval
+ * that every automatic submission's dispute_approvals row stands on. Read only;
+ * the toggle is written by applyDisputeSettings from the signed-in settings
+ * page and by nothing else (no agent tool turns it on, CLAUDE.md hard rule 4).
+ */
 export async function readDisputeAutoSubmit(
   db: Db,
   accountId: string,
@@ -485,12 +445,9 @@ export async function readDisputeAutoSubmit(
 }
 
 /**
- * The Disputes on/off switch, as dispute intake reads it. Recova's
- * handleDisputeCreated step 1 (lib/dispute-handlers.ts, blob e2bb8de8) returned
- * before doing anything unless the account's disputes product was active; the
- * webhook intake and the manual import both ask this first. A read failure
- * counts as ON, so a database hiccup never drops a chargeback the merchant
- * needs to answer.
+ * The Disputes on/off switch, as dispute intake reads it. A read failure counts
+ * as ON, so a database hiccup never drops a chargeback the merchant needs to
+ * answer.
  */
 export async function readDisputesEnabled(db: Db, accountId: string): Promise<boolean> {
   try {
@@ -501,9 +458,10 @@ export async function readDisputesEnabled(db: Db, accountId: string): Promise<bo
   }
 }
 
-/** The merchant's own product description for dispute evidence (S32). Recova's
- *  buildEvidenceFields made it the product_description of every response. A
- *  read failure leaves it out rather than failing a dispute intake. */
+/**
+ * The merchant's own product description for dispute evidence. A read failure
+ * leaves it out rather than failing a dispute intake.
+ */
 export async function readDisputeProductDescription(
   db: Db,
   accountId: string,

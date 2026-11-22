@@ -3,36 +3,20 @@ import { eq } from "drizzle-orm";
 import type { Db } from "~/db";
 import { getDb, emailSends, emailSuppressions } from "~/db";
 
-// Bounce/complaint handling. Email Service delivery events are consumed off a
-// Queue; hard bounces and spam complaints add the recipient to email_suppressions
-// so the suppression gate (send.ts path) never sends to them again. Idempotent by
-// construction: one suppression per address is enforced by the unique index
-// email_suppressions_email_uq (migration 0003), so a redelivered bounce event
-// collapses via onConflictDoNothing rather than a read-then-write race.
-//
-// ATTRIBUTION (parity gap 9). Recova attributed every deliverability event to
-// its merchant by the provider's message id: Resend's `data.email_id` looked up
-// recovery_steps.resend_message_id and took that row's account_id
-// (recova app/api/webhooks/resend/route.ts, "R-13: read account_id straight off
-// recovery_steps"). Foxhound's equivalent of that row is email_sends, which
-// records the Email Service message id as provider_message_id, so an event's
-// `payload.messageId` resolves to the send and its account_id. An event whose
-// message id matches no send keeps account_id null, as before.
+// Bounce/complaint handling: hard bounces and spam complaints add the recipient to email_suppressions so
+// the gate never sends to them again. Idempotent via the unique index email_suppressions_email_uq
+// (a redelivered event collapses by onConflictDoNothing). An event is attributed to its merchant by
+// `payload.messageId` -> email_sends.provider_message_id -> account_id; no match keeps account_id null.
 
 export interface EmailServiceEvent {
-  /** Event kind (bounce, hard_bounce, soft_bounce, complaint, delivered, ...). */
   type: string;
   email: string;
-  /** Provider event id, stored as the suppression token for traceability. */
   eventId: string;
-  /** Email Service message id of the send this event is about, when known. */
   messageId?: string | null;
   reason?: string | null;
   accountId?: string | null;
 }
 
-/** The Email Sending event-subscription envelope as Queues delivers it
- *  (developers.cloudflare.com/email-service/reference/event-subscriptions/). */
 interface EmailSendingEnvelope {
   type?: string;
   payload?: {
@@ -45,11 +29,8 @@ interface EmailSendingEnvelope {
 
 const ENVELOPE_PREFIX = "cf.email.sending.message.";
 
-/** A queue body as an EmailServiceEvent. Accepts the Email Sending envelope
- *  (`cf.email.sending.message.*` with a `payload`) and the flat shape this
- *  module has always taken. A bounced envelope is a hard bounce unless its
- *  bounce type says soft, which is Recova's rule (hard, Permanent or absent
- *  counts as hard). Pure. */
+/** A queue body as an EmailServiceEvent: the Email Sending envelope or the flat shape. A bounce is hard
+ *  unless its bounce type says soft. Pure. */
 function normalizeEmailEvent(body: unknown): EmailServiceEvent {
   const raw = (body ?? {}) as EmailSendingEnvelope & Partial<EmailServiceEvent>;
   if (typeof raw.type === "string" && raw.type.startsWith(ENVELOPE_PREFIX) && raw.payload) {
@@ -83,13 +64,10 @@ function normalizeEmailEvent(body: unknown): EmailServiceEvent {
 
 const SUPPRESSING_TYPES = new Set(["bounce", "hard_bounce", "complaint", "spam"]);
 
-/** True for event types that should suppress the recipient. Pure. */
 export function shouldSuppress(event: EmailServiceEvent): boolean {
   return SUPPRESSING_TYPES.has(event.type) && !!event.email;
 }
 
-/** The account an event belongs to: the one it already names, else the
- *  account of the email_sends row carrying its message id, else null. */
 async function resolveEventAccountId(db: Db, event: EmailServiceEvent): Promise<string | null> {
   if (event.accountId) return event.accountId;
   if (!event.messageId) return null;
@@ -101,8 +79,7 @@ async function resolveEventAccountId(db: Db, event: EmailServiceEvent): Promise<
   return send?.accountId ?? null;
 }
 
-/** The email_suppressions insert for a suppressing event. Structurally idempotent:
- *  a duplicate address is a no-op via the unique index (email_suppressions_email_uq). */
+/** The suppression insert for a suppressing event; a duplicate address is a no-op via the unique index. */
 export function buildSuppressionInsert(
   db: Db,
   input: { email: string; token: string; reason: string; accountId: string | null; now: Date },
@@ -119,7 +96,6 @@ export function buildSuppressionInsert(
     .onConflictDoNothing({ target: emailSuppressions.email });
 }
 
-/** Record one queue body as a suppression, attributed to its send's account. */
 export async function recordEmailEvent(
   db: Db,
   body: unknown,
@@ -137,7 +113,6 @@ export async function recordEmailEvent(
   return "suppressed";
 }
 
-/** Process one Email Service event into a suppression, idempotently. */
 export async function processEmailEvent(
   env: Env,
   body: unknown,

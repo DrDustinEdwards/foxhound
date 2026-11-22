@@ -15,23 +15,25 @@ import { mediaUses } from "~/lib/media/usage.server";
 
 // Carrel's media group over the blog's media library: site-api's mediaLibrary
 // over the R2 bucket MEDIA and site-api's standard index tables (migration
-// 0080), written by its d1MediaStore. Carrel is the only writer; nothing here touches a merchant
-// table, Stripe, or a money path. What is the blog's own is set here: the
-// pictures it takes, its addresses and keys, the shrink size, the reference
-// check, where earlier bytes are kept, and the suggester. Not
-// `replaceKeepsSize`: a post's picture is sized from the index row each time
-// the post renders (markdown.server.ts), not from its address, so new bytes of
-// another size are honest here.
+// 0080), written by its d1MediaStore. Carrel is the only writer; nothing here
+// touches a merchant table, Stripe, or a money path.
 
-/** The pictures a post can show. No SVG (it can carry script) and nothing that is not a picture. */
+/**
+ * The pictures a post can show. No SVG (it can carry script) and nothing that
+ * is not a picture.
+ */
 const LIMITS = { maxBytes: 20 * 1024 * 1024, types: Object.keys(EXTENSIONS) };
 
-/** How much of the upload's hash a key carries, a few more characters on each clash. */
+/**
+ * How much of the upload's hash a key carries, a few more characters on each
+ * clash.
+ */
 const HASH_LENGTHS = [8, 12, 16, 64];
 
 /**
- * `<year>/<month>/<name>-<hash>.<ext>`, the only keys the media route serves (UPLOAD_KEY), so nothing else in the
- * bucket (the earlier bytes kept under revisions/) is ever public.
+ * `<year>/<month>/<name>-<hash>.<ext>`, the only keys the media route serves
+ * (UPLOAD_KEY), so nothing else in the bucket (the earlier bytes kept under
+ * revisions/) is ever public.
  */
 function uploadKey(file: MediaKeyInput, attempt: number): string {
   const length = HASH_LENGTHS[attempt - 1];
@@ -57,7 +59,8 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     resize: PICTURE_RESIZE,
     // One read of the posts answers every key (usage.server.ts).
     usage: () => mediaUses(db),
-    // In the served bucket, where they always were: the media route serves only UPLOAD_KEY (app/routes/files/media.ts).
+    // In the served bucket, where they always were: the media route serves only
+    // UPLOAD_KEY (app/routes/files/media.ts).
     history: { prefix: "revisions/" },
     suggest: (picture, id) => suggestFor(env, picture, id),
   });

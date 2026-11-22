@@ -75,9 +75,7 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
     cacheHints: mcpCacheHints({ ttlMs: 3_600_000 }),
     maxToolInputElements: 10_000,
   });
-  // WHO IS AN ADMIN IS THE API'S ANSWER (index.ts): it admitted this email at
-  // sign-in and checks it again on every call. The shared ownership check is
-  // handed that same email, so here it proves only that the grant names someone.
+  // WHO IS AN ADMIN IS THE API'S ANSWER (index.ts): it admitted this email at sign-in and checks it again on every call. The shared ownership check is handed that same email, so here it proves only that the grant names someone.
   const checkEnv = { ...env, ADMIN_EMAIL: session.actor };
   const caller = session.probe
     ? { kind: "probe" as const, principal: session.actor, scopes: [] }
@@ -105,7 +103,7 @@ function buildServer(env: AdminMcpEnv, session: AdminSession): McpServer {
       try {
         const outcome = await tool.run({ env, actor: session.actor, signal }, args);
         if (!outcome.ok) return result({ error: outcome.error, tool: tool.name }, true);
-        // Merchant names and notes, customer and webhook error text: data, never instructions (S2).
+        // Merchant names and notes, customer and webhook error text: data, never instructions.
         return tool.outside ? outsideResult(tool.outside, outcome.data) : result(outcome.data);
       } catch (err) {
         // An unexpected failure's text stays in the log: it was not written

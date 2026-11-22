@@ -1,17 +1,8 @@
-// The rest of the dispute lifecycle on the connected-account webhook, after
-// intake and resolution (dispute-handlers.ts): charge.dispute.updated keeps the
-// stored row current, charge.dispute.funds_withdrawn and funds_reinstated record
-// the money Stripe moved, and charge.dispute.closed as warning_closed closes an
-// inquiry. Dispatched from process.ts.
-//
-// NONE OF THIS TOUCHES BILLING. Only charge.dispute.closed with won or lost
-// resolves a dispute and snapshots a fee (buildDisputeResolutionUpdate). These
-// write Stripe's status, deadline, evidence counts, amount and reason, Stripe's
-// own balance transactions, and an inquiry's closed state, none of which a
-// billable predicate reads. Every statement rides the webhook claim through the
-// per-account money-write Durable Object, as every handled event does, and
-// carries its own guards, so a missing, resolved or newer row is left as it is
-// rather than read first and raced.
+// The rest of the dispute lifecycle on the connected-account webhook, after intake and resolution
+// (dispute-handlers.ts): charge.dispute.updated keeps the stored row current,
+// charge.dispute.funds_withdrawn and funds_reinstated record the money Stripe moved, and
+// charge.dispute.closed as warning_closed closes an inquiry. Only charge.dispute.closed with won or
+// lost resolves a dispute and snapshots a fee (buildDisputeResolutionUpdate).
 
 import { and, eq, isNull, lt, notInArray, or } from "drizzle-orm";
 
@@ -56,12 +47,9 @@ function buildFundsInserts(
 }
 
 /**
- * charge.dispute.updated: Stripe's status (needs_response, under_review and the
- * inquiry statuses), the evidence deadline, has_evidence and submission_count,
- * and the amount and reason. Only an open row is touched, and only by an event
- * newer than the last one applied. The deadline reminder reads
- * disputes.evidence_deadline when it selects, so a moved deadline is the one it
- * reminds against from the next tick.
+ * charge.dispute.updated: Stripe's status (needs_response, under_review and the inquiry statuses),
+ * the evidence deadline, has_evidence and submission_count, and the amount and reason. Only an open
+ * row is touched, and only by an event newer than the last one applied.
  */
 function buildDisputeUpdatedBatch(
   db: Db,
@@ -124,9 +112,10 @@ function buildDisputeFundsBatch(
   ];
 }
 
-/** charge.dispute.closed as warning_closed: the inquiry is over, with no ruling.
- *  No fee, no credit note and no won or lost notice, because nothing was won or
- *  lost; it only stops counting as open. */
+/**
+ * No fee, no credit note and no won or lost notice, because nothing was won or lost; it only stops
+ * counting as open.
+ */
 function buildInquiryClosedBatch(
   db: Db,
   input: { claim: WebhookClaimInput; accountId: string; stripeDisputeId: string; closedAt: Date },

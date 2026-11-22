@@ -10,17 +10,8 @@ import type { Route } from "./+types/oauth-register";
 import { readJson } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// POST /api/oauth/register, at Recova's path: RFC 7591 dynamic client
-// registration. The MCP authorization spec makes it a MAY beside client ID
-// metadata documents, which Claude, Claude Code and ChatGPT use; it stays for
-// Grok and Gemini, and only for the exact callbacks on the shared allowlist
-// (registerClient). A registered client can do nothing until a signed-in
-// merchant approves it.
-//
-// RATE LIMIT: site-runtime's registrationLimited numbers (constants.ts),
-// counted on the RateLimiter Durable Object rather than in KV, and failing
-// closed: a limiter that cannot answer refuses, since a registration that
-// waits an hour costs nobody anything. ACTION ONLY: a GET gets 405.
+// POST /api/oauth/register: RFC 7591 dynamic client registration. The MCP authorization spec makes it a MAY beside client ID metadata documents, which Claude, Claude Code and ChatGPT use; it stays for Grok and Gemini, and only for the exact callbacks on the shared allowlist (registerClient). A registered client can do nothing until a signed-in merchant approves it.
+// RATE LIMIT: site-runtime's registrationLimited numbers (constants.ts), counted on the RateLimiter Durable Object rather than in KV, and failing closed: a limiter that cannot answer refuses. ACTION ONLY: a GET gets 405.
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   if (request.method !== "POST") {

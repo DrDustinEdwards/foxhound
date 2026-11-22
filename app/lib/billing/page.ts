@@ -2,23 +2,16 @@ import { humanize } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
 
-// What /billing shows, in the shapes its sections render. Pure and
-// client-safe: the rows themselves are built on the server (page.server.ts) and
-// these are the types and the small formatting rules the sections share.
-//
-// Recova is the spec for every label here (app/(app)/billing/page.tsx at blob
-// 34e56833 and its four section components); the numbers are Foxhound's own
-// constants, never retyped.
+// What /billing shows, in the shapes its sections render. Pure and client-safe:
+// the rows themselves are built on the server (page.server.ts) and these are
+// the types and the small formatting rules the sections share.
 
 const BPS_PER_PERCENT = 100;
 
-/** 20, from RECOVERY_FEE_BPS: Recova's "{RECOVERY_FEE_PCT}% of attributed recoveries". */
 export const RECOVERY_FEE_PERCENT = RECOVERY_FEE_BPS / BPS_PER_PERCENT;
-/** 20, from DISPUTE_FEE_BPS: Recova's "{DISPUTES_FEE_PCT}% of disputes we win". */
 export const DISPUTE_FEE_PERCENT = DISPUTE_FEE_BPS / BPS_PER_PERCENT;
 
-/** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... 21st: the run's day of month as
- *  Recova writes it ("Invoiced on the 1st"). */
+/** 1st, 2nd, 3rd, 4th ... 11th, 12th, 13th ... */
 export function ordinal(n: number): string {
   const mod100 = n % 100;
   if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
@@ -34,8 +27,6 @@ export function ordinal(n: number): string {
   }
 }
 
-/** "August 1, 2026", in UTC: Recova's next invoice date. The run fires at 04:00
- *  UTC, and a local zone would show the previous day west of London. */
 export function formatLongDate(ms: number): string {
   return new Date(ms).toLocaleDateString("en-US", {
     month: "long",
@@ -45,20 +36,22 @@ export function formatLongDate(ms: number): string {
   });
 }
 
-/** A billing status's tone, in Capsomer's status words: paid is ok, a failed or
- *  abandoned collection is critical, everything else is a plain label. */
+/**
+ * A billing status's tone, in Capsomer's status words: paid is ok, a failed or
+ * abandoned collection is critical, everything else is a plain label.
+ */
 export type FeeStatusTone = "ok" | "crit" | "neutral";
 
-/** One of Recova's recovery assessment rows: one Foxhound invoice that billed
- *  recovery fees, with its recoveries and their fees only. */
 export interface RecoveryHistoryRow {
   invoiceId: string;
   periodLabel: string;
   currency: string;
   recoveredCents: number;
   feeCents: number;
-  /** Credit notes issued since against these fees (PRICING.md rev 5), as a
-   *  positive amount; 0 when none. */
+  /**
+   * Credit notes issued since against these fees, as a positive amount; 0 when
+   * none.
+   */
   creditedCents: number;
   statusLabel: string;
   statusTone: FeeStatusTone;
@@ -66,8 +59,6 @@ export interface RecoveryHistoryRow {
   stripeInvoiceId: string | null;
 }
 
-/** One of Recova's dispute fee rows: a dispute fee already invoiced, or one the
- *  next run will invoice (Pending). */
 export interface DisputeFeeRow {
   key: string;
   disputeId: string;
@@ -76,7 +67,10 @@ export interface DisputeFeeRow {
   feeCents: number;
   /** True when the $500 cap held the fee below the percentage. */
   feeCapped: boolean;
-  /** Credit notes issued since against this fee, as a positive amount; 0 when none. */
+  /**
+   * Credit notes issued since against this fee, as a positive amount; 0 when
+   * none.
+   */
   creditedCents: number;
   statusLabel: string;
   statusTone: FeeStatusTone;
@@ -84,7 +78,6 @@ export interface DisputeFeeRow {
   stripeInvoiceId: string | null;
 }
 
-/** The account_subscriptions fields Recova's Subscriptions section reads. */
 export interface SubscriptionView {
   id: string;
   product: string;
@@ -104,7 +97,6 @@ export function subscriptionStatusLabel(status: string): string {
   return SUBSCRIPTION_STATUS_LABELS[status] ?? humanize(status);
 }
 
-/** Recova's badge colors: active green, past due red, the rest neutral. */
 export function subscriptionStatusTone(status: string): FeeStatusTone {
   if (status === "active") return "ok";
   if (status === "past_due") return "crit";
@@ -116,16 +108,10 @@ const PRODUCT_DISPLAY_NAMES: Record<string, string> = {
   disputes: "Disputes",
 };
 
-/** Recova's productDisplayName, word for word. */
 export function productDisplayName(slug: string): string {
   return PRODUCT_DISPLAY_NAMES[slug] ?? humanize(slug);
 }
 
-/**
- * Recova's line under a subscription: "Renews", "Cancels on" or "Expired" with
- * the period end, and nothing without one. `warn` marks "Cancels on", which
- * Recova colors apart; here it takes Foxhound's amber accent.
- */
 export function subscriptionDetail(
   s: Pick<SubscriptionView, "status" | "canceledAt" | "currentPeriodEndsAt">,
 ): { text: string; warn: boolean } | null {

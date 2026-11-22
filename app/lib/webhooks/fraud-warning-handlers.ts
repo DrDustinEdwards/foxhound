@@ -15,19 +15,9 @@ import { resolveDisputedRecovery } from "./lookups";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 /**
- * Record the warning, one row per Stripe warning per account, claimed in the
- * same atomic batch as every other webhook side effect.
- *
- * A known warning only has its `actionable` flag moved (by .updated; a late
- * .created changes nothing). An unknown one, from either event, reads its charge
- * for the amount, currency and customer, links the Foxhound recovery the charge
- * was taken in when there is one, and inserts. The insert is guarded on the
- * (account, warning) unique index rather than relying on the read above, so two
- * events racing each other cannot make two rows.
- *
- * THE NOTICE goes out after the commit, on a redelivery too, for the same reason
- * the new-dispute notice does: its send claim (`early-fraud-warning:<row id>`)
- * keeps it to one email, and the notice itself skips a warning no longer open.
+ * Record the warning, one row per Stripe warning per account, claimed in the same atomic batch as
+ * every other webhook side effect. A known warning only has its `actionable` flag moved (by
+ * .updated; a late .created changes nothing).
  */
 export async function handleEarlyFraudWarning(
   ctx: WebhookContext,
@@ -97,11 +87,8 @@ export async function handleEarlyFraudWarning(
     }));
   }
 
-  // A failed lookup after the commit must not read as done: the merchant's
-  // notice would be lost, since a 200 means Stripe never redelivers. Answer an
-  // error instead, so the route 500s and Stripe retries; the redelivery is a
-  // duplicate claim that still reaches this send, whose own claim keeps it to
-  // one email.
+  // A failed lookup after the commit must not read as done: the merchant's notice would be lost,
+  // since a 200 means Stripe never redelivers.
   let warningId = existing;
   if (!warningId) {
     try {

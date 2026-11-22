@@ -1,22 +1,16 @@
 import { percent } from "capsomer/behavior/meter";
-// Pure MRR movement math (PRICING.md free tier: MRR, movements, churn, simple
-// cohorts; mrr_snapshots in SCHEMA.md). There is no subscription-history table
-// in the schema (the task's key architectural fact), so movements are computed
-// by diffing each customer's MRR contribution this run against the value
-// customer_context held for that customer BEFORE this run overwrote it. On an
-// account's very first-ever sync there is no prior state to diff against, so
-// movements are all zero: a fresh baseline, not fabricated churn/expansion
-// against nothing (the caller passes `null` for priorByCustomer in that case).
+// Pure MRR movement math. With no subscription-history table, movements come from diffing each customer's MRR
+// this run against the value customer_context held BEFORE this run overwrote it. On an account's first sync
+// there is no prior state (the caller passes `null` for priorByCustomer), so movements are all zero: a fresh
+// baseline, not fabricated churn or expansion.
 
-/** One signup cohort's figures: values[i] is a 0-100 share, one per column
- *  (months since the cohort started). Stored as JSON on mrr_snapshots. */
+/** One signup cohort: values[i] is a 0-100 share per column (months since the cohort started). Stored as JSON on mrr_snapshots. */
 export interface CohortRow {
   label: string;
   values: number[];
 }
 
-/** True when `value` structurally matches CohortRow[] (defensive: nothing in
- *  the schema fixes the shape of a JSON column). */
+/** True when `value` structurally matches CohortRow[] (nothing in the schema fixes a JSON column's shape). */
 export function isCohortRows(value: unknown): value is CohortRow[] {
   return (
     Array.isArray(value) &&
@@ -37,9 +31,7 @@ export interface CustomerMrrPoint {
   stripeCustomerId: string;
   mrrCents: number;
   planName: string | null;
-  /** Cohort bucket, e.g. the UTC year-month of the customer's Stripe `created`. */
   cohortKey: string;
-  /** Only meaningful when this customer's MRR dropped to 0 this run; ignored otherwise. */
   churnReason?: ChurnReason;
 }
 
@@ -64,18 +56,10 @@ function bps(part: number, whole: number): number {
 }
 
 /**
- * `priorByCustomer` is `null` on an account's first-ever sync (no prior state
- * exists at all: every current customer counts only toward totals, no movement
- * bucket). Otherwise it maps stripeCustomerId -> prior mrrCents, built from the
- * account's customer_context rows as they stood before this run's writes; a
- * customer absent from the map never had a context row before (a true "new"),
- * while one present with 0 had a row but no active subscription last time.
- *
- * Each current customer falls into exactly one bucket (no double-count, the
- * property a fresh-context review checks first): new / reactivation / churn /
- * expansion / contraction / unchanged. A prior customer entirely absent from
- * `current` (the connected account no longer returns that Stripe customer at
- * all) is still counted as churn, not silently dropped.
+ * `priorByCustomer` is `null` on a first-ever sync (every customer counts only toward totals). Otherwise it maps
+ * stripeCustomerId -> prior mrrCents from customer_context as it stood before this run: absent means a true "new",
+ * present with 0 means a row but no active subscription. Each current customer falls into exactly one bucket (new /
+ * reactivation / churn / expansion / contraction / unchanged); a prior customer absent from `current` counts as churn.
  */
 export function computeMrrMovements(
   priorByCustomer: Map<string, number> | null,
@@ -141,8 +125,7 @@ export function computeMrrMovements(
     }
   }
 
-  // A prior customer this run's enumeration never returned at all (deleted or
-  // otherwise vanished from the connected account) still churned; reason unknown.
+  // A prior customer the enumeration never returned (deleted or vanished) still churned; reason unknown.
   for (const [stripeCustomerId, prior] of priorByCustomer) {
     if (visited.has(stripeCustomerId) || prior <= 0) continue;
     churnMrrCents += prior;
@@ -177,7 +160,6 @@ export function computeMrrMovements(
   };
 }
 
-/** MRR cents by plan name (customers with 0 current MRR contribute nothing). */
 export function buildPlanBreakdown(current: CustomerMrrPoint[]): Record<string, number> {
   const out: Record<string, number> = {};
   for (const c of current) {
@@ -188,18 +170,9 @@ export function buildPlanBreakdown(current: CustomerMrrPoint[]): Record<string, 
   return out;
 }
 
-/**
- * One CohortRow per signup cohort (drawn on the console by
- * app/lib/dashboard/console-charts.ts), with a
- * single "retention now" column: the percentage of that cohort's customers
- * (everyone this run's enumeration saw with that cohort key, active or
- * churned-but-still-a-Stripe-customer) who still contribute MRR today.
- * PRICING.md's free tier promises "simple cohorts"; a full month-by-month
- * decay curve needs several months of accumulated snapshot history this
- * slice's first run does not have. One honest current data point per cohort
- * beats a fabricated curve, and later runs can extend this without a schema
- * change (CohortRow.values is already an array).
- */
+/** One CohortRow per signup cohort with a single "retention now" column: the share of that cohort's customers
+ *  who still contribute MRR. A full decay curve needs months of snapshot history; later runs can extend this
+ *  (CohortRow.values is already an array). */
 function buildCohortBreakdown(current: CustomerMrrPoint[]): CohortRow[] {
   const totalByCohort = new Map<string, number>();
   const activeByCohort = new Map<string, number>();
@@ -218,14 +191,11 @@ function buildCohortBreakdown(current: CustomerMrrPoint[]): CohortRow[] {
 export interface MrrSnapshotFields extends MrrMovements {
   perPlanBreakdown: Record<string, number>;
   perCohortBreakdown: CohortRow[];
-  /** Always {}: nothing in the schema tracks customer acquisition channel yet.
-   *  An honest empty object, not fabricated data (DESIGN.md: charts render real
-   *  data or an honest empty state). */
+  /** Always {}: nothing tracks acquisition channel yet; an honest empty object, not fabricated data. */
   perChannelBreakdown: Record<string, number>;
 }
 
-/** The full mrr_snapshots payload (minus id/accountId/snapshotDate/currency/
- *  createdAt, which the caller supplies) for one account's sync run. */
+/** The mrr_snapshots payload for one sync run, minus id/accountId/snapshotDate/currency/createdAt (the caller's). */
 export function buildMrrSnapshotFields(
   priorByCustomer: Map<string, number> | null,
   current: CustomerMrrPoint[],
@@ -238,7 +208,6 @@ export function buildMrrSnapshotFields(
   };
 }
 
-/** The columns of an mrr_snapshots row that rolling days into a month reads. */
 export interface DailyMrrRow {
   snapshotDate: Date;
   totalMrrCents: number;
@@ -255,16 +224,10 @@ export interface DailyMrrRow {
   grossRevenueRetentionBps: number | null;
 }
 
-/**
- * Daily snapshots rolled up into one row per UTC month, oldest first, for the
- * readers that speak in months (the console, the monthly narrative, alerts).
- * Each month is its LAST day's row, with the month's movements and customer
- * counts summed and its rates measured against the month's starting MRR (the
- * total of the day before its first row). Each day's churn rate was measured
- * against that day's prior total, so a day's churned cents are its rate times
- * the previous row's total. A month whose starting MRR is unknown (its first
- * row is the series' first) keeps null rates, as an account's first sync does.
- */
+/** Daily snapshots rolled up into one row per UTC month, oldest first. Each month is its LAST day's row, with
+ *  movements and customer counts summed and rates measured against the month's starting MRR (the previous day's
+ *  total; a day's churned cents are its rate times the previous row's total). A month with unknown starting MRR
+ *  keeps null rates. */
 export function rollUpByMonth<T extends DailyMrrRow>(rowsAsc: readonly T[]): T[] {
   const monthOf = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
   const months: T[] = [];

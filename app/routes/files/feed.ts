@@ -7,12 +7,7 @@ import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/feed";
 
-// Ported from legacy app/feed.rss/route.ts's structure (Phase 6 Pass 2),
-// queried against D1 instead of Supabase, every URL built from siteUrl(env)
-// instead of a hardcoded recovamrr.com. legacy's
-// app/(marketing)/blog/rss.xml/route.ts is NOT the reference here: this
-// repo's canonical feed path is /feed.rss (ROUTES.md), which is what legacy's
-// root-level route already was. The XML is Prelum's rssDocument.
+// Every URL is built from siteUrl(env). The canonical feed path is /feed.rss. The XML is Prelum's rssDocument.
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -21,19 +16,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   const posts = await getAllPublishedPosts(db);
 
-  // lastBuildDate is "the last time the content of the channel changed"
-  // (RSS 2.0): when a post last published, NOT when this request happened.
-  // Legacy stamps `new Date()` on every request. That is the same always-now
-  // defect ruling 89 refused to import into the sitemap, where legacy sets
-  // lastModified to now on every static entry, and it was caught here by
-  // ruling 90's cross-surface check: the sitemap and this feed serve the same
-  // crawler audience and were asserting opposite things about the same 45
-  // posts. Ruling 89 is EXTENDED to this file (Dustin).
-  // getAllPublishedPosts orders by publishedAt DESC, so the first post with a
-  // date is the newest. An item's pubDate is likewise OMITTED rather than
-  // defaulted to now (rssItem leaves it out when publishAt is null), same
-  // ruling: an item whose pubDate reads "now" on every fetch re-surfaces
-  // forever in any reader that sorts by date.
+  // lastBuildDate is "the last time the content of the channel changed" (RSS 2.0): when a post last published, NOT when this request happened. An always-now stamp would contradict the sitemap, which serves the same crawler audience. getAllPublishedPosts orders by publishedAt DESC, so the first post with a date is the newest. An item's pubDate is likewise OMITTED rather than defaulted to now (rssItem leaves it out when publishAt is null): an item whose pubDate reads "now" on every fetch re-surfaces forever in any reader that sorts by date.
   const newestPublishedAt = posts.find((post) => post.publishedAt)?.publishedAt;
 
   const rss = rssDocument({

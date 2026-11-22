@@ -1,5 +1,4 @@
-// Intelligence trend views (views.server.ts split): the MRR snapshot series,
-// the health-score distribution over time and the churn view.
+// Intelligence trend views: the MRR snapshot series, the health-score distribution over time and the churn view.
 
 import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { customerContext, healthScoreHistory, mrrSnapshots, type Db } from "~/db";
@@ -8,40 +7,26 @@ import { sampleEveryNth } from "./dashboard";
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
 import { healthBandCondition } from "./directory.server";
 
-/** How many high-risk customers the churn table lists. */
-// Ruling 399 entered NRRChart and MRRMovementChart on row S16 as legacy
-// elements the 394 walk never saw, because legacy's demo twin does not render
-// them. Both read the same mrr_snapshots rows legacy's dashboard selects at
-// app/(app)/intelligence/dashboard/page.tsx.
-
-/** Legacy's dashboard reads the last 90 days of its DAILY snapshots, and so
- *  does this: `intelligence-sync` runs daily (app/lib/cron/registry.ts). The
- *  series is every row; the NRR card samples it and the movement card sums it
- *  by week (dashboard.ts). */
+/** The last 90 days of DAILY snapshots (`intelligence-sync` runs daily). The series is every row; the NRR card
+ *  samples it and the movement card sums it by week (dashboard.ts). */
 const MRR_CHART_DAYS = 90;
 export interface MrrSnapshotPoint {
   at: Date;
-  /** The snapshot's MRR and active customers (Recova's MRRStatCards and
-   *  MRRTrendChart read the same two columns). */
   totalMrrCents: number;
   activeCustomersCount: number;
-  /** Net revenue retention as a percentage. null where the snapshot recorded
-   *  none: an account's first sync has no prior period to retain against, and
-   *  legacy's `?? 0` would draw that as total churn. */
+  /** Net revenue retention as a percentage. null where no prior period exists (first sync), so it is not drawn as total churn. */
   nrrPct: number | null;
   newMrrCents: number;
   expansionMrrCents: number;
   reactivationMrrCents: number;
   contractionMrrCents: number;
   churnMrrCents: number;
-  /** Plan name to MRR cents, as buildPlanBreakdown wrote it (Recova's
-   *  PlanBreakdown reads the latest snapshot's). */
+  /** Plan name to MRR cents, as buildPlanBreakdown wrote it. */
   perPlanBreakdown: unknown;
   currency: string;
 }
 
-/** The dashboard's MRR snapshot series. Caller must have already checked
- *  entitlement. */
+/** The dashboard's MRR snapshot series. The caller must have checked entitlement. */
 export async function getMrrSnapshotSeries(
   db: Db,
   accountId: string,
@@ -82,38 +67,19 @@ export async function getMrrSnapshotSeries(
   }));
 }
 
-// Ruling 399: legacy's REAL dashboard renders this chart, so Foxhound's
-// score-distribution card is a PORT to align rather than an addition. Legacy:
-// app/(app)/intelligence/dashboard/components/HealthDistributionChart.tsx, fed
-// from app/(app)/intelligence/dashboard/page.tsx's health_score_history select
-// over the last 90 days.
-
 const HEALTH_DISTRIBUTION_DAYS = 90;
-/** Legacy samples every 7th day so the x axis stays readable across the window. */
+/** Every 7th day keeps the x axis readable across the window. */
 const HEALTH_DISTRIBUTION_SAMPLE_STRIDE = 7;
 
 export interface HealthDistributionDay {
-  /** UTC calendar day, YYYY-MM-DD. */
   date: string;
   atRisk: number;
   watch: number;
   healthy: number;
 }
 
-/**
- * Customer count per health band per UTC day, sampled, over the last 90 days.
- *
- * The window is legacy's 90 days and it is TRUE of Foxhound's own data here:
- * `intelligence-ai` is a DAILY cron (app/lib/cron/registry.ts), the same cadence
- * legacy's scorer runs at, so ninety days of history means ninety rows to bucket
- * as the MRR snapshots now are too.
- *
- * The BANDS are Foxhound's, which is the 78/79 truth-over-treatment split the
- * S19 row already settled: legacy hardcodes 0-33 / 34-66 / 67-100 inside this
- * component, Foxhound scores against `healthScoreBand`, and rendering legacy's
- * cutoffs over Foxhound's scores would put a customer in a band the rest of the
- * app does not put them in.
- */
+/** Customer count per health band per UTC day, sampled, over the last 90 days. The bands are Foxhound's
+ *  `healthScoreBand`, so a customer is never in a band the rest of the app does not put them in. */
 export async function getHealthDistribution(
   db: Db,
   accountId: string,
@@ -152,8 +118,6 @@ export async function getHealthDistribution(
 
 const CHURN_TOP_HIGH_RISK_LIMIT = 20;
 
-// The churn-rate chart is legacy's: the last 90 days of daily snapshots,
-// every 7th row kept.
 const CHURN_CHART_DAYS = 90;
 
 interface ChurnBand {
@@ -178,18 +142,14 @@ interface ChurnRatePoint {
 
 export interface ChurnView {
   bands: ChurnBand[];
-  /** The sum across the three bands. This is the percentage denominator, and it
-   *  deliberately excludes unscored customers: the band numerators only count
-   *  scored ones, so dividing by every customer's MRR made the three shares
-   *  silently fail to sum to 100% with nothing on screen explaining why. */
+  /** The sum across the three bands: the percentage denominator, excluding unscored customers so the shares sum to 100%. */
   scoredMrrCents: number;
   scoredCustomerCount: number;
   topHighRisk: ChurnHighRiskRow[];
   ratePoints: ChurnRatePoint[];
 }
 
-/** Per-band customer counts and MRR, aggregated in SQL rather than by scanning
- *  every customer_context row into memory and reducing in JS. */
+/** Per-band customer counts and MRR, aggregated in SQL rather than in JS. */
 async function getChurnBands(db: Db, accountId: string): Promise<ChurnBand[]> {
   const bands: HealthScoreBand[] = ["at_risk", "watch", "healthy"];
   const rows = await Promise.all(
@@ -211,16 +171,9 @@ async function getChurnBands(db: Db, accountId: string): Promise<ChurnBand[]> {
   return rows;
 }
 
-/**
- * The churn-risk surface: MRR split across the three health bands, the
- * highest-MRR at-risk customers, and the involuntary-vs-voluntary churn rate
- * over the last 90 days.
- *
- * Bands come from healthScoreBand (40/70), the same thresholds driving the
- * overview's MRR-at-risk and the customer directory's band filter. Legacy split
- * this page at 33/66 while its own text tones used 40/70, so the same customer
- * could read "at risk" in one place and "medium" here.
- */
+/** The churn-risk surface: MRR split across the three health bands, the highest-MRR at-risk customers, and the
+ *  involuntary-vs-voluntary churn rate over 90 days. Bands come from healthScoreBand (40/70), the same
+ *  thresholds as the overview's MRR-at-risk and the directory's band filter. */
 export async function getChurnView(db: Db, accountId: string, nowMs: number): Promise<ChurnView> {
   const chartCutoff = new Date(nowMs - CHURN_CHART_DAYS * DAY_MS);
 
@@ -264,14 +217,11 @@ export async function getChurnView(db: Db, accountId: string, nowMs: number): Pr
       stripeCustomerId: r.stripeCustomerId,
       customerName: r.customerName,
       currentPlanName: r.currentPlanName,
-      // The band predicate guarantees a non-null score; the column is nullable
-      // so the type needs the coalesce.
+      // The band predicate guarantees a non-null score; the column is nullable, so coalesce.
       healthScore: r.healthScore ?? 0,
       mrrContributionCents: r.mrrContributionCents ?? 0,
     })),
-    // bps -> percent. A null rate is preserved as null, not coerced to 0: an
-    // account's first sync has no prior state to diff against, and "no rate
-    // yet" is not "0% churn".
+    // bps -> percent. A null rate stays null: "no rate yet" is not "0% churn".
     ratePoints: sampleEveryNth(snapshots).map((s) => ({
       at: s.snapshotDate,
       voluntaryPct: s.voluntaryChurnRateBps === null ? null : s.voluntaryChurnRateBps / 100,

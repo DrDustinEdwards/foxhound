@@ -13,25 +13,11 @@ import {
 } from "./account-health";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// THE STRIPE ACCOUNT HEALTH NOTICE: one merchant email and one Slack line when
-// account.updated shows a NEW problem on a connected account (the handler in
-// app/lib/webhooks/account-handlers.ts decides what is new). Legacy had no such
-// notice; it follows the dispute notices' rules (app/lib/disputes/notices.server.ts):
-//
-// RECIPIENT: accounts.notification_email ONLY, no fallback to a login address.
-// Sent through processEmailJob, so suppression, the per-account
-// live-send gate (which also holds every demo account) and the email_sends claim
-// apply. There is no per-notice toggle: like a new dispute, a Stripe account that
-// cannot charge is something the merchant has to hear about.
-//
-// NOT HELD WHILE PAUSED. A paused account still has a Stripe account that cannot
-// pay out, and pausing Foxhound is no reason to keep that from the merchant.
-//
-// SLACK: the same gate as the recovery posts (resolveSlackTarget), so NULL is
-// OFF and a demo account never fetches.
-//
-// WRITES NOTHING AND NEVER THROWS. The health is already stored when this runs,
-// and a mail failure must not fail the webhook.
+// THE STRIPE ACCOUNT HEALTH NOTICE: one merchant email and one Slack line when account.updated
+// shows a NEW problem on a connected account (the handler in app/lib/webhooks/account-handlers.ts
+// decides what is new). SLACK: the same gate as the recovery posts (resolveSlackTarget), so NULL is
+// OFF and a demo account never fetches. WRITES NOTHING AND NEVER THROWS. The health is already
+// stored when this runs, and a mail failure must not fail the webhook.
 
 export type AccountHealthNoticeOutcome =
   | { kind: "sent"; email: EmailJobResult | null; slack: SlackOutcome }
@@ -78,7 +64,6 @@ export async function sendAccountHealthNotice(
           fromName: ACCOUNT_HEALTH_FROM_NAME,
           subject: content.subject,
           notice: content.notice,
-          // Not Recova's "about a recent payment" line, which would be false here.
           footerNote: `You're receiving this from Foxhound about your connected Stripe account. \u00a9 ${new Date().getUTCFullYear()}`,
           template: "stripe_account_health",
           // Platform-to-merchant mail. See EmailAudience.

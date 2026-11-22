@@ -18,26 +18,9 @@ import { SectionTrail } from "~/components/section-trail";
 import "capsomer/chips.css";
 import "~/blog-index.css";
 
-// Ported from legacy app/(marketing)/blog/archive/page.tsx: a "Blog"
-// back-link, an H1 that names the active filter, an article count, a row of
-// tag-filter pills (?tag=slug, plus "All"), and a compact divided list
-// (title + excerpt + reading time per row), not a card grid. Legacy makes
-// that list/grid split deliberately: /blog/tag/:tag renders cards, this page
-// renders rows.
-//
-// Pills (Dustin, ruling 72 session): CANONICAL_TAGS stays the full canonical
-// list because the sitemap and llms.txt enumerate it, but a pill renders only
-// for a tag that has at least one published post. Legacy hardcodes five
-// categories; Foxhound's taxonomy has eight, and showing a chip that leads to
-// an empty page is worse than either. This replaces an unratified "the two
-// sites' tag taxonomies differ" note that had simply rendered all eight.
-//
-// Trimmed columns throughout: getAllPublishedPosts and getPublishedPostsByTag
-// both select SUMMARY_COLUMNS, and getPublishedPostsByTag filters in SQL
-// rather than fetching every published post and filtering in memory.
+// A "Blog" back-link, an H1 that names the active filter, an article count, a row of tag-filter pills (?tag=slug, plus "All"), and a compact divided list (title + excerpt + reading time per row), not a card grid (/blog/tag/:tag renders cards). CANONICAL_TAGS stays the full list because the sitemap and llms.txt enumerate it, but a pill renders only for a tag that has at least one published post: a chip that leads to an empty page is worse than none. Trimmed columns throughout: getAllPublishedPosts and getPublishedPostsByTag both select SUMMARY_COLUMNS, and getPublishedPostsByTag filters in SQL.
 
-// Legacy varies both title and description by the active tag; a static pair
-// described the unfiltered page even when ?tag= narrowed it.
+// Title and description vary by the active tag; a static pair would describe the unfiltered page even when ?tag= narrowed it.
 export function meta({ loaderData }: Route.MetaArgs) {
   const label = loaderData?.activeTag ? labelForTag(loaderData.activeTag) : null;
   return [

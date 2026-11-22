@@ -9,8 +9,7 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/consent.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// button, the alert and the focus ring read, as on /connect.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the button, the alert and the focus ring read, as on /connect.
 import "~/site-header.css";
 
 import { AUDIT_LOOKBACK_DAYS, RATE_LIMIT_AUDIT } from "~/lib/constants";
@@ -24,44 +23,10 @@ import { setAuditStateCookie } from "~/lib/stripe/state-cookie";
 import type { Route } from "./+types/connect";
 import "~/audit-tool.css";
 
-// Legacy's `/audit/connect` (blob `9d7075d8`, 2,139 bytes) plus its OAuth start
-// (`/api/audit/connect`, blob `dedddf99`, 1,093 bytes), phase (f).
-//
-// TWO LEGACY FILES BECOME ONE ROUTE, because React Router already gives a page
-// its own action. Legacy needs a client component and a separate GET API route
-// only because a Next server component cannot post anywhere; the split is a
-// framework artifact, not a decision, and merging it changes nothing a visitor
-// can see.
-//
-// THE SCOPE, AND WHAT THE PAGE SAYS ABOUT IT. Legacy requests `read_write` here
-// for an audit that never writes, on a page that tells the visitor "We need
-// read-only access" and lists "Create new charges or move money" under what it
-// can never do. 362 ruling 1 switched the request to `read_only` to make that
-// copy true; on 2026-10-29 Stripe refused read_only in production (only
-// Extensions may use it, see STRIPE_AUDIT_SCOPE), so the request is read_write
-// again and the copy changed instead: it says Stripe asks for read and write
-// access, that Foxhound only reads, and that Foxhound disconnects itself when
-// the window ends (audit-access.ts). "What we can never do" became "What we
-// never do", because with a read_write grant those lines are what Foxhound
-// does not do, not what it cannot.
-//
-// LEGACY'S PROGRESS TICKER KEEPS ONLY ITS TRUE STEP. Its button fakes a
-// four-step sequence ("Connecting to Stripe...", "Reading invoices...",
-// "Analyzing decline codes...", "Building summary...") on an 1800ms interval
-// while navigating away after 400ms, so every step after the first describes
-// work that is not happening and is shown to a visitor already on Stripe's
-// consent screen. Fixing copy where Recova lied needs no approval (RULES.md
-// 1.2), so the three untrue steps go and the first, which is true, stays,
-// announced through a polite status region as Recova's role="status" did.
-//
-// ERRORS LAND HERE, NOT ON /audit. Legacy redirects every failure to
-// `/audit?error=...` and its /audit page reads no error param at all, so a
-// visitor whose state check failed is returned to the marketing page with no
-// explanation and no idea the connection did not happen. Landing back on the
-// consent screen with the reason keeps the retry one click away, and is the
-// smallest correct version of a flow that currently fails silently. This is a
-// visible difference with no line in parity/APPROVED-DIFFERENCES.md yet; J42
-// left it standing and put it to Dustin rather than choosing a direction.
+// The consent page and its OAuth start, one route (React Router gives a page its own action).
+// THE SCOPE: Stripe refuses read_only outside Extensions, so the request is read_write and the copy says so: Stripe asks for read and write access, Foxhound only reads, and Foxhound disconnects itself when the window ends (audit-access.ts). "What we never do" lists what Foxhound does not do, not what it cannot.
+// The progress ticker keeps only its one true step ("Connecting to Stripe..."), announced through a polite status region; fake later steps would describe work that is not happening, shown to a visitor already on Stripe's consent screen.
+// ERRORS LAND HERE, NOT ON /audit: landing back on the consent screen with the reason keeps the retry one click away, where a redirect to /audit would leave the visitor with no explanation.
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -69,8 +34,7 @@ export const handle = { hydrate: true };
 export function meta() {
   return [
     { title: "Connect your Stripe account - Foxhound" },
-    // Not indexable: this is a step inside a flow, and legacy's own sitemap
-    // omits it too. robots.txt carries the same exclusion.
+    // Not indexable: this is a step inside a flow, and the sitemap omits it too. robots.txt carries the same exclusion.
     { name: "robots", content: "noindex" },
   ];
 }
@@ -109,10 +73,7 @@ export function loader({ request, context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
 
-  // 311's limiter, USED UNCHANGED, at legacy's own numbers (its RATE_LIMIT_AUDIT
-  // is 10 per hour on `audit-connect:{ip}`). Fail-open like every other caller,
-  // which is legacy's posture too: its Redis limiter returns true on any error
-  // for the same reason.
+  // The shared limiter, USED UNCHANGED: 10 per hour on `audit-connect:{ip}`. Fail-open like every other caller.
   const allowed = await isIpWithinRateLimit(env, request, "audit-connect", RATE_LIMIT_AUDIT);
   if (!allowed) return redirect("/audit/connect?error=rate_limited");
 
@@ -120,26 +81,14 @@ export async function action({ request, context }: Route.ActionArgs) {
     return redirect("/audit/connect?error=failed");
   }
 
-  // THE EXISTING STATE SHAPE WITH A NEW ACTION, not a parallel implementation.
-  // The cookie is the audit's own (`audit_oauth_state`, legacy's name), so a
-  // merchant with a half-finished /connect in another tab keeps it.
+  // THE EXISTING STATE SHAPE WITH A NEW ACTION, not a parallel implementation. The cookie is the audit's own (`audit_oauth_state`), so a merchant with a half-finished /connect in another tab keeps it.
   const state = buildConnectState(AUDIT_ACTION);
   return redirect(buildAuditAuthorizeUrl(env, state), {
     headers: { "Set-Cookie": setAuditStateCookie(state) },
   });
 }
 
-/**
- * Recova's frame: `flex items-center justify-center px-4 py-[60px]` around one
- * `w-full max-w-[480px]` card with `p-12`. The card is Capsomer's panel
- * through its HTML contract, body only, because the React Panel always draws
- * an h2 header band and this page's one heading is its h1 (the gap J62
- * named). The wrapper puts the parts in Capsomer's amber family with
- * Foxhound's neutrals (.fh-cap), so the button and its focus ring are amber
- *. The inner div adds 36px by 32px to the panel body's 12px by 16px,
- * which is Recova's 48px on every side at every width, as the sign-in card
- * does.
- */
+/** The frame: `flex items-center justify-center px-4 py-[60px]` around one `w-full max-w-[480px]` card with `p-12`. The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws an h2 header band and this page's one heading is its h1. The wrapper puts the parts in Capsomer's amber family with Foxhound's neutrals (.fh-cap). The inner div adds 36px by 32px to the panel body's 12px by 16px, which is 48px on every side at every width, as the sign-in card does. */
 function AuditConnectFrame({ children }: { children: ReactNode }) {
   return (
     <div className="fh-auditconnect-row">
@@ -159,14 +108,11 @@ function AuditConnectFrame({ children }: { children: ReactNode }) {
   );
 }
 
-/** Recova's only true progress step, shown while the browser leaves for Stripe. */
+/** The one true progress step, shown while the browser leaves for Stripe. */
 const PENDING_LABEL = "Connecting to Stripe...";
 
 export default function AuditConnect({ loaderData }: Route.ComponentProps) {
-  // Pending only while THIS form's POST is in flight. Any navigation sets the
-  // router's state, so following "See a demo first" or a header link would
-  // otherwise announce "Connecting to Stripe..." while going somewhere else
-  // (review round 1, must-fix 1).
+  // Pending only while THIS form's POST is in flight. Any navigation sets the router's state, so following "See a demo first" or a header link would otherwise announce "Connecting to Stripe..." while going somewhere else.
   const navigation = useNavigation();
   const formAction = useFormAction();
   const busy =

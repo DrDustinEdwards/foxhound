@@ -15,12 +15,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/accessibility";
 import { markup } from "capsomer/behavior/trusted-html";
 
-// /accessibility: the statement every site in the network carries, from
-// Prelum's accessibilityStatement, so the standard and the wording are the same
-// everywhere. Foxhound is built from Capsomer's components, and its links are
-// Capsomer's link system (capsomer/links.css in app.css, link.css on the public pages) with a line on hover (Capsomer's Foxhound entry). The page wears the legal pages' shell (/privacy, /terms,
-// /security): Capsomer's legal page in the 720px column, its headings and text
-// in the legal pages' classes. Prelum escapes every field it writes.
+// /accessibility: the statement every site in the network carries, from Prelum's accessibilityStatement, so the standard and the wording are the same everywhere. The page wears the legal pages' shell (/privacy, /terms, /security): Capsomer's legal page in the 720px column, its headings and text in the legal pages' classes. Prelum escapes every field it writes.
 
 const REVIEWED = "2026-11-13";
 

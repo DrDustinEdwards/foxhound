@@ -30,16 +30,11 @@ export const customerContext = sqliteTable(
     aiAssessment: text("ai_assessment"),
     aiAssessmentGeneratedAt: ts("ai_assessment_generated_at"),
     aiRecommendedActions: json("ai_recommended_actions"),
-    // Recova's recommendation rules' action for this customer (J78,
-    // app/lib/intelligence/recommend.ts), written by the nightly scoring batch.
-    // Its own column, because health_factors is a HealthFactor[] array here and
-    // cannot carry Recova's { recommended_action } key. Read by
-    // /intelligence/recommendations only: nothing on a money path reads it.
+    // The recommendation rules' action for this customer (app/lib/intelligence/recommend.ts), written by the nightly scoring batch. Its own column, because health_factors is a HealthFactor[] array and cannot carry a { recommended_action } key. Read by /intelligence/recommendations only: nothing on a money path reads it.
     recommendedAction: text("recommended_action"),
     createdAt: ts("created_at").notNull(),
     updatedAt: ts("updated_at").notNull(),
-    // Structured billing-behavior signals (SCHEMA.md; names are Phase-2 judgment,
-    // Phase 4 owns population). Nullable so every customer row can exist pre-scoring.
+    // Structured billing-behavior signals. Nullable so every customer row can exist pre-scoring.
     subscriptionAgeDays: integer("subscription_age_days"),
     planChangeCount: integer("plan_change_count"),
     seatChangeCount: integer("seat_change_count"),
@@ -59,13 +54,7 @@ export const customerContext = sqliteTable(
   ],
 );
 
-// One row per change Intelligence tracks on a connected account's
-// subscription, recorded from customer.subscription.updated the moment Stripe
-// sends it (app/lib/intelligence/subscription-change.ts): a cancellation
-// scheduled or taken back, collection paused or resumed, a downgrade. A log
-// beside customer_context, never a write to the columns the daily sync owns;
-// the health score reads both. Rides the webhook claim's batch, and the
-// (event, kind) index makes a redelivery a no-op.
+// One row per change Intelligence tracks on a connected account's subscription, recorded from customer.subscription.updated as Stripe sends it (app/lib/intelligence/subscription-change.ts): a cancellation scheduled or taken back, collection paused or resumed, a downgrade. A log beside customer_context, never a write to the columns the daily sync owns; the health score reads both. Rides the webhook claim's batch, and the (event, kind) index makes a redelivery a no-op.
 export const subscriptionChanges = sqliteTable(
   "subscription_changes",
   {
@@ -135,10 +124,7 @@ export const predictions = sqliteTable(
   ],
 );
 
-// One row per customer per nightly run: the bands, the evidence and the
-// recommendation the rules gave, with an outcome slot left empty, so the lift
-// of each action can be measured once outcomes are graded. Recova logged
-// the same to its outcomes table with outcome and outcome_at null.
+// One row per customer per nightly run: the bands, the evidence and the recommendation the rules gave, with an empty outcome slot so the lift of each action can be measured once outcomes are graded.
 export const recommendationLog = sqliteTable(
   "recommendation_log",
   {
@@ -154,8 +140,7 @@ export const recommendationLog = sqliteTable(
     valueBand: text("value_band").notNull(),
     // the three bands' evidence and band confidence, as recommend.ts returns them
     evidence: json("evidence").notNull(),
-    // MRR times 12 (Recova's estimated_mrr_at_risk_cents), for the two actions
-    // that ask for attention; null otherwise
+    // MRR times 12, for the two actions that ask for attention; null otherwise
     annualizedMrrAtRiskCents: integer("annualized_mrr_at_risk_cents"),
     currency: text("currency"),
     // which rules produced it, so a later rule change is told apart
@@ -197,9 +182,7 @@ export const mrrSnapshots = sqliteTable(
   },
   (t) => [
     index("mrr_snapshots_account_idx").on(t.accountId),
-    // One snapshot per account per UTC day (snapshot_date is ms): a second
-    // sync the same day replaces the day's row (sync.server.ts) instead of
-    // charting the day twice.
+    // One snapshot per account per UTC day (snapshot_date is ms): a second sync the same day replaces the day's row (sync.server.ts) instead of charting the day twice.
     uniqueIndex("mrr_snapshots_account_day_uq").on(
       t.accountId,
       sql`(${t.snapshotDate} / 86400000)`,
@@ -218,9 +201,7 @@ export const intelligenceReports = sqliteTable(
   },
   (t) => [
     index("intelligence_reports_account_idx").on(t.accountId),
-    // The nightly narrative (narrative.ts) refreshes the SAME monthly
-    // report every night (upsert), it does not accumulate a new archival row
-    // per night: one row per account per report_month, kept current.
+    // The nightly narrative (narrative.ts) refreshes the SAME monthly report every night (upsert): one row per account per report_month, kept current.
     uniqueIndex("intelligence_reports_account_month_uq").on(t.accountId, t.reportMonth),
   ],
 );
@@ -246,8 +227,7 @@ export const alertHistory = sqliteTable(
   "alert_history",
   {
     id: id(),
-    // NULL on the critical customers firing (E22), which has no alert row
-    // behind it, as Recova writes it (lib/alert-evaluation.ts, blob 0e28ecbf).
+    // NULL on the critical customers firing, which has no alert row behind it.
     alertId: text("alert_id").references(() => alerts.id),
     accountId: accountRef(),
     metric: text("metric").notNull(),

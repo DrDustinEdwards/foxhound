@@ -31,63 +31,26 @@ import {
 } from "~/lib/recovery/digest-email";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// THE WEEKLY DIGEST CRON. Ported from legacy's
-// app/api/cron/weekly-digest/route.ts (blob `b6ff2a8c`, 22,247 bytes).
-//
-// MONDAY 08:00 UTC, legacy's cadence, which needed a NEW wrangler trigger
-// (`0 8 * * MON`; Cloudflare's 1 is Sunday): this is the first Foxhound cron that cannot reuse an existing
-// expression. The CronLockDurableObject lease in run.ts stops two ticks
-// overlapping.
-//
-// THE WEEK IS A ROLLING SEVEN DAYS, not a calendar week. Legacy computes
-// `now - 7*24h` and every windowed query is `>= that`. Ported as written; the
-// arithmetic is UTC-safe because it is pure milliseconds.
-//
-// NULL IS OFF. `digest_enabled` is the ONE toggle with that semantic (337
-// binding 3): legacy selects `.eq('digest_enabled', true)`, so an account that
-// never opted in is not mailed.
+// THE WEEKLY DIGEST CRON.
 
-/** Legacy's window: seven days back from the tick. THE DATA WINDOW, and it does
- *  not move (350 binding 1, restated by 376 item 13). */
 export const DIGEST_WINDOW_MS = 7 * DAY_MS;
 
 /**
  * THE CLAIM WINDOW, which is the DATA window minus a day, and the reason is a
- * defect this constant exists to fix (376 item 13, a reversal of 350 binding 3).
+ * defect this constant exists to fix (376 item 13, a reversal of 350 binding
+ * 3).
  *
- * WHAT WENT WRONG. The claim asked "is there a digest send newer than
- * `now - 7d`", with `now` fixed at run start. Last week's run started at the
- * same clock time, so `now - 7d` lands on last week's run START, while last
- * week's `email_sends` row was written a moment AFTER that start, when the send
- * completed. The row is therefore inside the window by exactly the duration of
- * last week's run, the claim reads "already sent", and the digest skips itself.
- * Every other week, for nearly every account, and nondeterministically: whether
- * it fires depends on how long the previous run took.
- *
- * WHY A DAY RATHER THAN A SECOND. The gap being corrected for is bounded by how
- * long one run can take, and Cloudflare caps a Cron Trigger invocation at 15
- * minutes of wall time, so any slack over 15 minutes closes it. A day is 96
- * times that bound and needs no revisiting if the job gets slower; and it costs
- * nothing, because the job is weekly, so the only run that can land inside a
- * six-day claim window is one somebody triggered by hand.
- *
- * WHY NOT AN ISO WEEK KEY, the other option on the table: 350 binding 1 defines
- * this job's week as a ROLLING seven days and every data query is built on that.
- * Keying the claim on a calendar week would leave the job with two different
- * meanings of "week", and would change a shipped behavior (a digest sent last
- * Friday no longer blocks Monday's) that no ruling has asked to change.
+ * The row is therefore inside the window by exactly the duration of last week's
+ * run, the claim reads "already sent", and the digest skips itself.
  */
 const DIGEST_CLAIM_WINDOW_MS = DIGEST_WINDOW_MS - DAY_MS;
 
-/** Legacy takes the top three at-risk customers. */
 const DIGEST_HIGH_RISK_LIMIT = 3;
 
-/** Legacy's at-risk band for the Intelligence section: `health_score <= 33`. */
 const DIGEST_HIGH_RISK_MAX_SCORE = 33;
 
 /**
- * What happened to one account's digest, by name (RULES.md 3.16: a send path
- * returns a named outcome, never null). The send's own status from
+ * What happened to one account's digest, by name. The send's own status from
  * processEmailJob ("sent", "suppressed", "blocked", "failed", "duplicate"),
  * "already_sent" when this week's digest is already out, and "error" when
  * building the digest threw before a send was attempted.
@@ -106,17 +69,7 @@ export interface DigestAccount {
   senderName: string | null;
 }
 
-/**
- * The accounts a digest is owed to.
- *
- * Four gates, all legacy's: the toggle is TRUE (never NULL), a notification
- * email exists, a live primary connection exists, and the account is not demo
- * and not paused. The demo and paused halves both arrive through
- * `accountProcessingEligibleCondition()`, which already carries the
- * `DEMO_ACCOUNT_ID_PREFIX` notLike alongside the paused and canceled gates;
- * writing a second copy of that predicate here would read as defense in depth
- * while proving nothing (session 52's reversal 11).
- */
+/** The accounts a digest is owed to. */
 export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
   const candidates = await db
     .select({
@@ -152,9 +105,6 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
     );
   const byAccount = new Map(connections.map((c) => [c.accountId, c.senderName]));
 
-  // A missing or disconnected primary connection SKIPS the account, as legacy
-  // does: a digest about a Stripe account Foxhound can no longer read is a
-  // report on nothing.
   return withEmail
     .filter((a) => byAccount.has(a.accountId))
     .map((a) => ({
@@ -164,24 +114,6 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
     }));
 }
 
-/**
- * THE PER-WEEK CLAIM, and legacy has none.
- *
- * Legacy relies on its weekly schedule plus `acquireLock` and has no column, no
- * check and no per-account guard, so a second invocation in the same week sends
- * a second digest. Foxhound already records every send in `email_sends`, so the
- * claim needs NO MIGRATION: an existing row for this account with this template
- * inside the window means the digest is already out.
- *
- * IT IS A CHECK-THEN-ACT, NOT A DATABASE-LEVEL UNIQUE, and saying so matters.
- * What makes it safe is the CronLockDurableObject lease, which stops two ticks
- * running at once; the two are independent layers and each is reached alone in
- * the plants.
- *
- * THE CALLER PASSES THE CLAIM WINDOW, NOT THE DATA WINDOW. This
- * function takes whatever start it is given and has no opinion, which is why the
- * defect lived in the caller rather than here; see DIGEST_CLAIM_WINDOW_MS.
- */
 async function hasDigestThisWeek(db: Db, accountId: string, windowStart: Date): Promise<boolean> {
   const rows = await db
     .select({ id: emailSends.id })
@@ -232,7 +164,6 @@ export async function collectDigestNumbers(
             gte(recoveredPayments.recoveredAt, windowStart),
           ),
         ),
-      // NO WINDOW: legacy counts CURRENT active sequences, not this week's.
       db
         .select({ n: count() })
         .from(failedPayments)
@@ -255,17 +186,12 @@ export async function collectDigestNumbers(
             gte(recoverySteps.executedAt, windowStart),
           ),
         ),
-      // NO WINDOW, as legacy has it.
       db
         .select({ n: count() })
         .from(winBackSequences)
         .where(
           and(eq(winBackSequences.accountId, accountId), eq(winBackSequences.status, "active")),
         ),
-      // NO WINDOW AT ALL: legacy counts every alert row ever recorded for the
-      // account, not the ones raised this week. Ported as found. Cards only:
-      // the row reads "Cards expiring soon", which a trial with no payment
-      // method is not.
       db
         .select({ n: count() })
         .from(expiringCardAlerts)
@@ -304,7 +230,6 @@ export async function collectDigestNumbers(
       )
       .orderBy(desc(customerContext.mrrContributionCents))
       .limit(DIGEST_HIGH_RISK_LIMIT),
-    // Recova's count of customers flagged for personal outreach.
     db
       .select({ n: count() })
       .from(customerContext)
@@ -328,7 +253,6 @@ export async function collectDigestNumbers(
     openDisputeCount: disputeRows.length,
     openDisputeAmounts: totalsOf(disputeRows),
     currency: resolveDigestCurrency(recoveredRows, failedRows),
-    // Legacy's `(unnamed)` for a customer_context row with no name.
     highRisk: highRisk.map((c) => ({
       name: c.name ?? "(unnamed)",
       mrrCents: c.mrrCents,
@@ -360,10 +284,6 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
   };
   const windowStart = new Date(now.getTime() - DIGEST_WINDOW_MS);
   // TWO WINDOWS, DELIBERATELY DIFFERENT, and the difference is the whole fix.
-  // The DATA window stays legacy's seven days; the CLAIM window
-  // is a day shorter so last week's send row, written moments after last week's
-  // run started, falls OUTSIDE it and this week's digest is not skipped by its
-  // own predecessor.
   const claimWindowStart = new Date(now.getTime() - DIGEST_CLAIM_WINDOW_MS);
   const baseUrl = appOrigin(env);
 
@@ -375,9 +295,6 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
       }
 
       const numbers = await collectDigestNumbers(db, account.accountId, windowStart);
-      // LEGACY GATES THIS ON THE DISPUTES PRODUCT AND FOXHOUND HAS NO SUCH
-      // ENTITLEMENT: there is no DISPUTES_PRODUCT and no account_subscriptions
-      // row for it, so only the second half of legacy's condition survives.
       const disputesActive = numbers.openDisputeCount > 0;
 
       const outcome = await processEmailJob(
@@ -395,15 +312,7 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
             baseUrl,
           }),
           template: DIGEST_TEMPLATE,
-          // RECOVA'S UNSUBSCRIBE (E23). Recova runs checkAndRegisterUnsubscribe
-          // on the notification address and wraps the digest with its token.
-          // Foxhound's is the signed /u/ token for this address and account,
-          // marked `list: "digest"`: following it switches off THIS account's
-          // digest and suppresses nothing, so the merchant's notices and any
-          // other account on the address carry on, as a Recova merchant sees
-          // (PR 158 review round 1). processEmailJob's
-          // suppression gate still runs, so bounces, complaints and migrated
-          // opt-outs stop the digest as Recova's check does.
+          // RECOVA'S UNSUBSCRIBE.
           unsubscribeToken: await signUnsubscribeToken(env, {
             email: account.notificationEmail,
             accountId: account.accountId,
@@ -413,9 +322,6 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
           // (account, template, window). The key here identifies the WEEK the
           // digest is for, so a redelivery within one run cannot double-send.
           idempotencyKey: `weekly-digest:${account.accountId}:${windowStart.toISOString().slice(0, 10)}`,
-          // The DIGEST audience: Recova's footer with Unsubscribe and the postal
-          // address, on this merchant mail only. A missing
-          // address refuses the send, as on customer mail.
           audience: "digest",
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           cronRunId: null,

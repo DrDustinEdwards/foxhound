@@ -4,8 +4,7 @@ import { SecretReveal } from "capsomer/react/secret-reveal";
 import "capsomer/copy.css";
 import "capsomer/secret-reveal.css";
 
-/** The new key, shown once, in Capsomer's SecretReveal inside the card it
- *  always had, with Capsomer's CopyButton beside the Done link. */
+/** The new key, shown once, in Capsomer's SecretReveal, with Capsomer's CopyButton beside the Done link. */
 export function NewApiKey({ rawKey }: { rawKey: string }) {
   return (
     <section className="cap-panel">

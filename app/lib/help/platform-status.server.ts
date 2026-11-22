@@ -2,12 +2,8 @@ import { inArray } from "drizzle-orm";
 
 import { cronRuns, type Db } from "~/db";
 
-// /help's Platform status panel, ported from legacy app/(app)/help/page.tsx.
-//
-// Legacy reads a `cron_runs` table that keeps ONE ROW PER CRON carrying
-// `last_succeeded_at` and `last_run_status`. Foxhound's `cron_runs` is
-// site-runtime's, the same shape: `last_ok_at` is the last success, and the
-// newest of `last_ok_at` and `last_failed_at` says whether the last run failed.
+// /help's Platform status panel. `cron_runs` (site-runtime's) keeps one row per cron: `last_ok_at` is the last
+// success, and the newer of `last_ok_at` and `last_failed_at` says whether the last run failed.
 
 export type CronDisplayStatus = "ok" | "stale" | "error" | "pending";
 
@@ -18,23 +14,9 @@ export interface CronStatusRow {
   lastSucceededAt: Date | null;
 }
 
-/**
- * The crons that surface to a merchant, with legacy's own inclusion rule:
- * "Operator-only crons are intentionally hidden; platform health is the admin
- * team's responsibility, not the merchant's." So the retention sweeps,
- * cron-health, demo-reset and the billing job stay off this page exactly as
- * legacy keeps its own housekeeping off its own.
- *
- * THREE OF THESE ARE LEGACY'S, ONE IS NOT, AND THE SUBSTITUTION IS DELIBERATE.
- * Legacy shows process-recovery, process-winback, process-disputes and
- * expiring-cards. Foxhound has no dispute cron at all: dispute intake is
- * webhook-driven through the money DO (app/lib/webhooks/batches.ts
- * buildDisputeIntakeBatch), so there is no scheduled job whose health a
- * merchant could read, and rendering a "Dispute processing" row would name a
- * job that does not exist. `intelligence-ai` takes the fourth slot because it
- * is the remaining merchant-facing scheduled job: it is the nightly run that
- * produces the health scores and narrative the Intelligence pages show.
- */
+/** The crons that surface to a merchant. Operator-only crons (retention sweeps, cron-health, demo-reset,
+ *  billing) stay hidden. There is no dispute cron (intake is webhook-driven via the money DO), so
+ *  `intelligence-ai`, the nightly run behind the Intelligence pages, takes that slot. */
 const VISIBLE_CRONS = [
   "recovery-tick",
   "winback-send",
@@ -49,16 +31,8 @@ const CRON_LABELS: Record<string, string> = {
   "intelligence-ai": "Customer health scoring",
 };
 
-/**
- * Minutes of slack before a cron reads stale, legacy's per-cron map with
- * Foxhound's cadences in it.
- *
- * Legacy allows 90 minutes for its hourly `process-*` jobs and 1500 (25 hours)
- * for its daily one. recovery-tick and winback-send run every five minutes
- * here, so 90 minutes is eighteen missed ticks and is if anything more generous
- * than legacy's; expiring-cards and intelligence-ai are daily and take legacy's
- * daily allowance unchanged.
- */
+/** Minutes of slack before a cron reads stale: 90 for the five-minute recovery-tick and winback-send, 1500
+ *  (25 hours) for the daily expiring-cards and intelligence-ai. */
 const CRON_STALE_MINUTES: Record<string, number> = {
   "recovery-tick": 90,
   "winback-send": 90,
@@ -68,12 +42,8 @@ const CRON_STALE_MINUTES: Record<string, number> = {
 
 const DEFAULT_STALE_MINUTES = 90;
 
-/** Legacy's getCronStatus, with Foxhound's status vocabulary: `failed` is
- *  legacy's `'error'`. A cron with no run recorded at all is legacy's
- *  `pending_first_run`, expressed here as the absence of a row rather than as a
- *  sentinel string. A skipped run (disabled, not due, locked) records nothing,
- *  so a paused cron reads stale once it actually is, rather than reading as a
- *  failure the moment it is paused. */
+/** `failed` when the last run failed; no row at all is a cron that has not run yet. A skipped run (disabled,
+ *  not due, locked) records nothing, so a paused cron reads stale once it is, not failed. */
 export function cronDisplayStatus(
   lastRunStatus: string | null,
   lastSucceededAt: Date | null,
@@ -87,12 +57,7 @@ export function cronDisplayStatus(
   return ageMinutes > threshold ? "stale" : "ok";
 }
 
-/**
- * One row per visible cron, in the order VISIBLE_CRONS declares, whatever the
- * database returns. Legacy synthesizes a placeholder for any cron that has
- * never recorded a run "so the table is always four rows"; the same guarantee
- * holds here because the list is the spec and the query only decorates it.
- */
+/** One row per visible cron in VISIBLE_CRONS order, whatever the database returns. */
 export async function getVisibleCronStatus(db: Db, nowMs: number): Promise<CronStatusRow[]> {
   const rows = await db
     .select({ name: cronRuns.name, okAt: cronRuns.lastOkAt, failedAt: cronRuns.lastFailedAt })

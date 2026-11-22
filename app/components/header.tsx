@@ -23,23 +23,8 @@ export const NAV_LINKS = [
   { to: "/blog", label: "Blog" },
 ];
 
-// The public site's header, on Capsomer's site header (capsomer 0.9.0;
-// docs/design/design-site-header.md in capsomer). Dustin's answers of
-// 2026-10-13 are approved differences from legacy, recorded in
-// parity/APPROVED-DIFFERENCES.md: Recova's amber on the dark band (teal from 2026-10-14 to 2026-10-25), the
-// business switcher on the left as a square tile before the product switcher,
-// the avatar menu last in place of the gear, one icon button for the theme,
-// 56px and sticky, and the phone's one row with everything else in a sheet.
-//
-// What legacy fixed and this keeps: the band is Foxhound's chrome, dark in both
-// modes, full width with 24px sides; the wordmark in DM Mono links home; the
-// section links sit on the right, before a thin divider, with an underline on
-// the current one and legacy's weight 500; Free audit is the one button for a
-// visitor who is signed out.
-//
-// Signed out: Sign in holds the account's place, last, as a text link (an icon
-// on a phone). Signed in: the business switcher and the product switcher after
-// the wordmark, and the avatar menu last.
+// The public site's header, on Capsomer's site header: Foxhound's chrome band, dark in both modes, amber on it, 56px, sticky, full width with 24px sides; the wordmark in DM Mono links home; the business switcher on the left as a square tile before the product switcher; section links on the right, before a thin divider, with an underline on the current one; the avatar menu last; one icon button for the theme; on a phone, one row with everything else in a sheet.
+// Signed out: Free audit is the one button, and Sign in holds the account's place, last, as a text link (an icon on a phone). Signed in: the business switcher and the product switcher after the wordmark, and the avatar menu last.
 export function Header({
   isAuthenticated,
   theme,
@@ -56,20 +41,14 @@ export function Header({
   /** The layout's resolved theme. Left out on a page with no loader of its
    *  own for it, which then takes the root's (the theme <html> was drawn in). */
   theme?: Theme;
-  // Optional: the two standalone public-utility routes outside the
-  // marketing layout (card-update.tsx, unsubscribe.tsx) always render
-  // Header with isAuthenticated=false and have no session context to
-  // resolve these from.
+  // Optional: the two standalone public-utility routes outside the marketing layout (card-update.tsx, unsubscribe.tsx) always render Header with isAuthenticated=false and have no session context to resolve these from.
   isAdmin?: boolean;
   /** The business you are acting as, the label over its rows in the avatar
    *  menu. */
   accountLabel?: string;
-  /** Legacy gates Billing on this: an accountless visitor is redirected to
-   *  /connect, so Billing would be a dead row. */
+  /** Billing is gated on this: an accountless visitor is redirected to /connect, so Billing would be a dead row. */
   hasAccount?: boolean;
-  /** Every account the visitor actively holds, for the switcher (ruling 326
-   *  phase (e)). Empty for an anonymous visitor and for the two standalone
-   *  public-utility routes that render this header with no session. */
+  /** Every account the visitor actively holds, for the switcher. Empty for an anonymous visitor and for the two standalone public-utility routes that render this header with no session. */
   accounts?: SwitcherAccount[];
   activeAccountId?: string | null;
   userName?: string | null;
@@ -90,14 +69,10 @@ export function Header({
     current: pathname === item.to || pathname.startsWith(`${item.to}/`),
   }));
 
-  // LEGACY'S RENDER RULE for the business switcher (components/SiteNavClient.tsx):
-  // shown from ONE account, hidden only when the visitor has none.
+  // The business switcher is shown from one account, hidden only when the visitor has none.
   const business =
     isAuthenticated && accounts.length > 0 ? businessSwitcher(accounts, activeAccountId) : null;
-  // The product switcher, legacy's pill, listing legacy's Console, Audit,
-  // Recovery, Disputes, Intelligence. It names the product whose pages this
-  // header sits on (the anonymous /audit pages are the Audit product), and
-  // reads "Home" on every other marketing page, as legacy's always did.
+  // The product switcher lists Console, Audit, Recovery, Disputes, Intelligence. It names the product whose pages this header sits on (the anonymous /audit pages are the Audit product), and reads "Home" on every other marketing page.
   const currentProduct = MARKETING_PILL_ITEMS.find(
     (i) => pathname === i.to || pathname.startsWith(`${i.to}/`),
   )?.label;

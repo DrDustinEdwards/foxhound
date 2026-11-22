@@ -4,10 +4,8 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { NoticeMail } from "./notices";
 
 // EARLY FRAUD WARNINGS: the words and the pure rules, no database and no send.
-// A card network sends Stripe an early fraud warning (radar.early_fraud_warning)
-// days or weeks before a fraud chargeback. Refunding the charge first avoids the
-// dispute fee and keeps the dispute off the merchant's ratio. Recova had no such
-// surface; Dustin approved building it on 2026-10-29.
+// A card network sends Stripe an early fraud warning
+// (radar.early_fraud_warning) days or weeks before a fraud chargeback.
 //
 // Foxhound never refunds on its own. The merchant chooses Refund or Dismiss on
 // the disputes dashboard, and a refund earns Foxhound nothing: it is not a won
@@ -19,8 +17,10 @@ export const EARLY_FRAUD_WARNING_TEMPLATE = "merchant_early_fraud_warning";
 export const EARLY_FRAUD_WARNINGS_ANCHOR = "early-fraud-warnings";
 export const EARLY_FRAUD_WARNINGS_PATH = `/disputes/dashboard#${EARLY_FRAUD_WARNINGS_ANCHOR}`;
 
-/** Stripe's documented fraud_type values, in words. Anything else is shown
- *  as Stripe sent it, underscores turned to spaces. */
+/**
+ * Stripe's documented fraud_type values, in words. Anything else is shown as
+ * Stripe sent it, underscores turned to spaces.
+ */
 const FRAUD_TYPE_WORDS: Record<string, string> = {
   card_never_received: "Card never received",
   fraudulent_card_application: "Fraudulent card application",
@@ -35,9 +35,11 @@ export function fraudTypeWords(fraudType: string): string {
   return FRAUD_TYPE_WORDS[fraudType] || humanize(fraudType) || "Unknown";
 }
 
-/** A warning the merchant can still act on: Stripe still calls it actionable
- *  (the charge is neither fully refunded nor disputed), and nobody has refunded
- *  or dismissed it in Foxhound. */
+/**
+ * A warning the merchant can still act on: Stripe still calls it actionable
+ * (the charge is neither fully refunded nor disputed), and nobody has refunded
+ * or dismissed it in Foxhound.
+ */
 export function isOpenWarning(row: {
   actionable: boolean;
   refundedAt: Date | null;
@@ -64,8 +66,10 @@ export interface WarningNoticeInput {
   pageUrl: string;
 }
 
-/** The merchant's notice for a new actionable warning, on Capsomer's notice
- *  template like the dispute notices. */
+/**
+ * The merchant's notice for a new actionable warning, on Capsomer's notice
+ * template like the dispute notices.
+ */
 export function earlyFraudWarningNotice(input: WarningNoticeInput): NoticeMail {
   const amount = formatMoney(input.amountCents, input.currency);
   return {

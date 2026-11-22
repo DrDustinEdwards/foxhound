@@ -31,8 +31,7 @@ export function Arrow() {
 export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
   {
     title: "Connect Stripe",
-    // Recova: "Read-only OAuth." The connection is read and write,
-    // so "Read-only" goes and Recova's OAuth link stays.
+    // The connection is read and write, so the copy says "OAuth", not "Read-only OAuth".
     body: (
       <>
         <a href="https://stripe.com/docs/connect/oauth-standard-accounts" rel="external">
@@ -44,9 +43,7 @@ export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
   },
   {
     title: "Foxhound runs sequences",
-    // Recova's sentence, with the engine's silent retry named where it runs
-    // (ratified 2026-08-01). Recova's "timed to card network retry windows" is
-    // left out: the engine times its steps by category, not by network window.
+    // The engine's silent retry is named where it runs. No "timed to card network retry windows": the engine times its steps by category, not by network window.
     body: (
       <>
         When a payment fails, Foxhound classifies the decline and starts a{" "}

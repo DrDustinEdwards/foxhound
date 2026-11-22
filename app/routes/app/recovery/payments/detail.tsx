@@ -26,8 +26,7 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/link.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// the payments list and /disputes load them.
+// Capsomer's tokens and the amber family, which the components above read, as the payments list and /disputes load them.
 import "~/site-header.css";
 
 import { getDb } from "~/db";
@@ -86,20 +85,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
   const category = detail.failedPayment.declineCategory;
-  // The two action gates, computed HERE from the same selectors the server
-  // dispatcher gates on (step-state.ts), over the same step order it reads, so
-  // the buttons offered and the POSTs accepted cannot drift. The trigger button
-  // names the step it will fire, as Recova's does ("Trigger Day 3 email now"),
-  // in the engine's own words for the payment's schedule (J75's
-  // paymentStepLabel).
+  // The two action gates, computed HERE from the same selectors the server dispatcher gates on (step-state.ts), over the same step order it reads, so the buttons offered and the POSTs accepted cannot drift. The trigger button names the step it will fire ("Trigger Day 3 email now"), in the engine's own words for the payment's schedule (paymentStepLabel).
   const next = nextPendingStep(detail.steps);
   const nextStepLabel = next ? paymentStepLabel(category, next.stepType) : null;
   const canResend = lastResendableEmailStep(detail.steps) !== null;
-  // Ruling 256: sanitize SERVER-SIDE, through the helper the sequences preview
-  // already uses, and send ONLY the sanitized body, so no unsanitized HTML is
-  // part of the response at all. Recova orders its timeline by scheduled time
-  // (page.tsx 6034a8ba, `.order('scheduled_at', { ascending: true })`), so a
-  // resend, which has no step number, sits last rather than first.
+  // Sanitize SERVER-SIDE, through the helper the sequences preview already uses, and send ONLY the sanitized body, so no unsanitized HTML is part of the response at all. The timeline is ordered by scheduled time, so a resend, which has no step number, sits last rather than first.
   const steps = [...detail.steps]
     .sort(
       (a, b) =>
@@ -112,8 +102,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       previewHtml: aiBodyHtml ? sanitizeEmailPreviewHtml(aiBodyHtml) : null,
     }));
   const nowMs = Date.now();
-  // Recova's IntegrityLayerBanner reads the customer's recommendation. A read
-  // failure leaves the banner out rather than failing the page.
+  // A read failure leaves the recommendation banner out rather than failing the page.
   const prediction = await recommendOneCustomer(
     db,
     auth.membership.accountId,
@@ -123,17 +112,12 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return { ...detail, steps, nextStepLabel, canResend, nowMs, prediction };
 }
 
-// Manual per-payment actions: all five are wired, each committing through
-// the per-account money-write DO. Mark as recovered enters
-// through the spine's own buildRecoveryBatch and is never a second writer of
-// recovered_payments. This route only reports what the dispatcher decided.
+// Manual per-payment actions: all five commit through the per-account money-write DO. Mark as recovered enters through the spine's own buildRecoveryBatch and is never a second writer of recovered_payments. This route only reports what the dispatcher decided.
 
-/** Recova's 2000ms hold on a success message (PaymentDetailClient.tsx 167,
- *  `setTimeout(() => { setActionResult(null); router.refresh() }, 2000)`). An
- *  error stays until the next action, as Recova's does. */
+/** The hold on a success message before it clears. An error stays until the next action. */
 export const ACTION_SUCCESS_CLEAR_MS = 2000;
 
-/** Recova's 2000ms hold on "Saved" beside Save note (PaymentDetailClient.tsx 189). */
+/** The hold on "Saved" beside Save note. */
 export const NOTE_SAVED_CLEAR_MS = 2000;
 
 /** A result that clears on its own: a success notice (an error stays). */
@@ -164,9 +148,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
       resend: resendDepsFor(env),
     });
   } catch (err) {
-    // Recova's client answers a failed request with "<label> failed"
-    // (PaymentDetailClient.tsx 169). The whole error goes to the log, never to
-    // the page.
+    // The whole error goes to the log, never to the page.
     console.error("payment detail action failed", err);
     const error = isDetailActionIntent(intent)
       ? `${ACTION_LABELS[intent]} failed`
@@ -193,10 +175,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     );
   }
 
-  // Legacy's own status codes and strings, per intent, from
-  // parity/S7-PHASE2-SCOPE.md section 1.7. Every reason the dispatcher can
-  // return has a case below, and the default is a typed exhaustiveness check,
-  // so a NEW reason is a compile error here instead of a string a merchant reads.
+  // Each reason the dispatcher can return has a case below, and the default is a typed exhaustiveness check, so a NEW reason is a compile error here instead of a string a merchant reads.
   switch (outcome.reason) {
     case "not_found":
       throw new Response("Not Found", { status: 404 });
@@ -209,15 +188,12 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     case "unknown_step_type":
       return data({ error: "Unknown step type" }, { status: 400 });
     case "processing_paused":
-      // No legacy counterpart: legacy has no emergency brake. Executing a step
-      // is processing, so a paused or braked account refuses here exactly as the
-      // cron would skip it (approved 2026-08-14).
+      // Executing a step is processing, so a paused or braked account refuses here exactly as the cron would skip it.
       return data({ error: "Recovery processing is paused for this account." }, { status: 409 });
     case "customer_unsubscribed":
       return data({ error: "Customer has unsubscribed from emails" }, { status: 409 });
     case "live_sends_disabled":
-      // No legacy counterpart: legacy has no send switch. Honest rather than a
-      // silent success, because nothing was mailed.
+      // Honest rather than a silent success, because nothing was mailed (the live-send flag is off).
       return data(
         { error: "Live email sending is switched off for this account." },
         { status: 409 },
@@ -248,9 +224,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
         { status: 502 },
       );
     case "already_resolved":
-      // Legacy answers 200 `{ success: true, alreadyResolved: true }` and its
-      // client then reports plain success, which tells the merchant something
-      // untrue. Same status code, honest sentence: class (c).
+      // Same status code as a plain success, but an honest sentence: telling the merchant a resolved payment was just acted on would be untrue.
       return data(
         {
           notice:
@@ -283,12 +257,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   }
 }
 
-// Legacy's action set, in legacy's order, read from PaymentDetailClient.tsx at
-// 7f54aa45: trigger the next step, mark recovered, stop the sequence, resend the
-// last email. "Stop recovery" is the ratified substitution for "Cancel
-// recovery" (approved 2026-08-10); do not restore legacy's wording. The trigger
-// button names its step when it renders ("Trigger Day 3 email now"); this label
-// is its fallback only.
+// The action set: trigger the next step, mark recovered, stop the sequence, resend the last email. "Stop recovery", not "Cancel recovery". The trigger button names its step when it renders ("Trigger Day 3 email now"); this label is its fallback only.
 export const MANUAL_ACTIONS = [
   { intent: "trigger", label: "Trigger next step now", variant: "primary", needs: "nextStep" },
   { intent: "mark_recovered", label: "Mark as recovered", variant: "default", needs: null },
@@ -296,15 +265,13 @@ export const MANUAL_ACTIONS = [
   { intent: "resend", label: "Resend last email", variant: "default", needs: "lastEmail" },
 ] as const;
 
-// Ruling 250: NO action buttons render in a terminal state. Legacy's own gate is
-// `payment.status === 'active'`.
+// NO action buttons render in a terminal state; the gate is `payment.status === 'active'`.
 export const ACTIONS_VISIBLE_STATUS = "active";
 
-/** Legacy's back link, PaymentDetailClient.tsx 130-132. */
 export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
 export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
 
-/** Recova's demo title on every control that needs a Stripe account. */
+/** The demo title on every control that needs a Stripe account. */
 const DEMO_DISABLED_REASON = "Connect Stripe to use this";
 
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
@@ -329,16 +296,15 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const busy = navigation.state !== "idle";
   const pressedIntent = navigation.formData?.get("intent") ?? null;
 
-  // Recova's action result: a success clears after 2000ms, an error stays until the next press.
+  // A success clears after 2000ms, an error stays until the next press.
   const [shownActionData] = useShownFor(actionData, ACTION_SUCCESS_CLEAR_MS, isNotice);
-  // Pressing an action clears the last result at once, as Recova's does.
+  // Pressing an action clears the last result at once.
   const actionResult = visibleActionResult({
     actionData: shownActionData,
     pendingIntent: pressedIntent,
   });
 
-  // Recova saves a note in place (PaymentDetailClient.tsx saveNote): "Saving..."
-  // on the button, then "Saved" beside it for 2000ms, or its error line.
+  // A note saves in place: "Saving..." on the button, then "Saved" beside it for 2000ms, or its error line.
   const noteFetcher = useFetcher<typeof action>();
   const noteSaving = noteFetcher.state !== "idle";
   const noteResult = noteFetcher.data;
@@ -511,8 +477,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         )}
       </div>
       {isDemo ? (
-        // Capsomer's disabled buttons keep focus and say why in visible text
-        // (button.md); Recova's say it only in a title.
+        // Capsomer's disabled buttons keep focus and say why in visible text (button.md), not only in a title.
         <p className="fh-payment-pull">
           <span className="cap-btn-reason" id={demoReasonId}>
             {DEMO_DISABLED_REASON}
@@ -686,8 +651,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 const executed = step.executedAt !== null;
                 const pending = !executed && step.result === null;
                 const email = isEmailStep(step.stepType);
-                // Recova's gate for the per-step engagement row (540): an
-                // executed email step that did not fail to send.
+                // The per-step engagement row shows for an executed email step that did not fail to send.
                 const showEngagement = executed && email && step.result !== "email_failed";
                 const showExpander = executed && step.previewHtml !== null;
                 const expanded = expandedStepId === step.id;
@@ -868,14 +832,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   );
 }
 
-/**
- * Recova's timeline node, PaymentDetailClient.tsx 452-463: a 32px round node with
- * an envelope on an email step and a repeat glyph on a retry, tinted by the
- * result once executed and gray while pending. The glyphs are drawn icons, not
- * Recova's text symbols (approved 2026-08-15). The node reads the same tone as
- * the result chip beside it, so the two always agree. Capsomer has no timeline
- * node; this is the page's own until it does.
- */
+/** The timeline node: a 32px round node with an envelope on an email step and a repeat glyph on a retry, tinted by the result once executed and gray while pending, the same tone as the result chip beside it so the two always agree. Capsomer has no timeline node; this is the page's own until it does. */
 function StepGlyph({
   executed,
   isEmail,
@@ -899,8 +856,7 @@ function StepGlyph({
   );
 }
 
-/** Recova's Row, PaymentDetailClient.tsx 676-693: the label left, the value right
- *  and cut to 200px, ids small and mono. */
+/** A row: the label left, the value right and cut to 200px, ids small and mono. */
 function DetailRow({
   label,
   value,

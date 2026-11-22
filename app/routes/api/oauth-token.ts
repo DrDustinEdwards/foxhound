@@ -6,11 +6,7 @@ import { exchangeToken, oauthResponse, parseOAuthBody } from "~/lib/oauth/provid
 
 import type { Route } from "./+types/oauth-token";
 
-// POST /api/oauth/token, at Recova's path: the authorization-code and
-// refresh-token grants. The work is in app/lib/oauth/provider.server.ts.
-//
-// RATE LIMIT: Recova's 30 a minute per IP, on 311's limiter, failing open like
-// every other caller. ACTION ONLY: a GET gets 405.
+// POST /api/oauth/token: the authorization-code and refresh-token grants. The work is in app/lib/oauth/provider.server.ts. RATE LIMIT: 30 a minute per IP, failing open like every other caller. ACTION ONLY: a GET gets 405.
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return oauthResponse({ status: 405, body: { error: "invalid_request" } }, { Allow: "POST" });

@@ -13,26 +13,12 @@ import { siteUrl, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/llms-full";
 
-// Rewritten from scratch against legacy app/llms-full.txt/route.ts (Phase 6
-// Pass 2). Same constraints as llms.ts: real product lineup only (no
-// Scale/Grow/AI Cost), no stale pricing, all URLs from siteUrl(env), and no
-// enumerated blog article list. That last point's ORIGINAL reason ("nothing
-// is imported yet") went stale once 45 posts landed and is corrected here:
-// the article list still is not enumerated, but now because the archives and
-// the sitemap are the always-accurate index, not because there is nothing to
-// list. No specific pricing numbers appear anywhere below, same
-// reasoning as llms.ts (a Phase 6 review found the prior draft's "spec
-// sheet, not blog copy" exemption didn't hold against the standing rule,
-// which names this file directly); /pricing is the one place numbers are
-// stated plainly.
+// The real product lineup only (no Scale/Grow/AI Cost), no stale pricing, all URLs from siteUrl(env), and no enumerated blog article list: the archives and the sitemap are the always-accurate index. No specific pricing numbers appear anywhere below, as in llms.ts: an AI citing a stale number as current fact is the risk, and /pricing is the one place numbers are stated plainly.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = siteUrl(env);
 
-  // Only archives carrying a published post are listed, and the count claim
-  // ("8 canonical tags") is gone with them. Three of the eight
-  // served zero posts, so this file asserted content that does not exist on
-  // the highest-authority surface we publish.
+  // Only archives carrying a published post are listed, so this file never asserts content that does not exist on the highest-authority surface we publish.
   const tagLines = (await getPublishedTagSet(getDb(env)))
     .map((tag) => `- ${url}/blog/tag/${tag}`)
     .join("\n");

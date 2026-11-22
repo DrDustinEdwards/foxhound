@@ -40,13 +40,7 @@ import type { loader as rootLoader } from "~/root";
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
 
-// The ONE gate for /admin. Cloudflare Access signs the person in before a
-// request reaches the Worker; this re-verifies Access's JWT and the
-// ADMIN_EMAIL and CO_OWNER_EMAILS roster (site-runtime accessAdmin), so a request that got
-// round Access, or an Access setup that is wrong, never reaches an admin loader
-// or action. Anything else gets a 404, as before, so /admin's existence is not
-// disclosed. /admin no longer sits under the merchant app shell: no Better Auth
-// session, no account, no demo cookie are involved.
+// The ONE gate for /admin. Cloudflare Access signs the person in before a request reaches the Worker; this re-verifies Access's JWT and the ADMIN_EMAIL and CO_OWNER_EMAILS roster (site-runtime accessAdmin), so a request that got round Access, or an Access setup that is wrong, never reaches an admin loader or action. Anything else gets a 404, so /admin's existence is not disclosed. No Better Auth session, account or demo cookie is involved.
 // Drawn for one reader and kept out of Web Analytics (site-runtime PRIVATE_PAGE_HEADERS); the children inherit it.
 export const headers = () => PRIVATE_PAGE_HEADERS;
 
@@ -56,12 +50,7 @@ export const middleware: Route.MiddlewareFunction[] = [
     const { env } = context.get(cloudflareContext);
     const session = await accessAdmin(request, env);
     if (!session) throw new Response("Not Found", { status: 404 });
-    // ONLY THIS ORIGIN MAY WRITE. Access's CF_Authorization cookie rides along
-    // on a POST from any site the admin has open, so every admin action (the
-    // brake, merchant pauses, staged confirms, crons) would otherwise run on a
-    // cross-site form. Checked after the session, so the 404 still hides
-    // /admin from everyone else. site-runtime's shared check: a write whose
-    // Origin is another site (or "null") gets its 403.
+    // ONLY THIS ORIGIN MAY WRITE. Access's CF_Authorization cookie rides along on a POST from any site the admin has open, so every admin action (the brake, merchant pauses, staged confirms, crons) would otherwise run on a cross-site form. Checked after the session, so the 404 still hides /admin from everyone else. A write whose Origin is another site (or "null") gets site-runtime's 403.
     const refusal = refuseCrossSite(request);
     if (refusal) throw refusal;
     context.set(adminContext, { email: session.email });
@@ -75,10 +64,7 @@ export function loader({ context }: Route.LoaderArgs) {
 
 const icon = (d: string) => <Icon d={d} className="cap-admin-icon" />;
 
-// The admin's pages, grouped as the menu shows them. The shell marks the
-// current one from the address (its `pathname`, the longest href winning).
-// The phone's tab bar takes the first five (Capsomer 0.9.0: no More tab,
-// because the header's menu button opens the full list).
+// The admin's pages, grouped as the menu shows them. The shell marks the current one from the address (the longest href winning). The phone's tab bar takes the first five; the header's menu button opens the full list.
 const ENTRIES: AdminEntry[] = [
   {
     id: "overview",
@@ -153,10 +139,7 @@ const ENTRIES: AdminEntry[] = [
   },
 ];
 
-// The family strip as Capsomer draws it, with Foxhound's own mark in its place.
-// Capsomer's strip still draws the x for Foxhound until Dustin picks the real
-// logo (capsomer #65 item 15); here Foxhound shows its PLACEHOLDER hound head
-// (app/lib/brand/hound-mark.ts) meanwhile. Every other app keeps Capsomer's mark.
+// The family strip as Capsomer draws it, with Foxhound's PLACEHOLDER hound head (app/lib/brand/hound-mark.ts) in place of the x until the real logo is picked.
 const STRIP_APPS: AdminApp[] = FAMILY_APPS.map(({ id, label, href, logo }) => ({
   id,
   label,
@@ -165,12 +148,7 @@ const STRIP_APPS: AdminApp[] = FAMILY_APPS.map(({ id, label, href, logo }) => ({
   current: id === "foxhound",
 }));
 
-// Capsomer's tokens are keyed on data-cap-theme. It follows the site's own
-// theme, which the root loader already resolved for <html data-theme>, so the
-// server render has the right palette and nothing flashes. The header's theme
-// button sets <html data-theme>, saves the choice to Foxhound's fh_theme cookie
-// (themeMemory) and announces a "cap-theme" event; this keeps the admin's
-// palette in step with it.
+// Capsomer's tokens are keyed on data-cap-theme. It follows the site's own theme, which the root loader already resolved for <html data-theme>, so the server render has the right palette and nothing flashes. The header's theme button sets <html data-theme>, saves the choice to the fh_theme cookie (themeMemory) and announces a "cap-theme" event; this keeps the admin's palette in step.
 function useAdminTheme(): { served: Theme; showing: Theme } {
   const rootData = useRouteLoaderData<typeof rootLoader>("root");
   const initial = rootData?.theme ?? DEFAULT_THEME;
@@ -195,21 +173,13 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
   const page = adminPageName(matches) ?? "Foxhound admin";
   const { email } = loaderData;
 
-  // Your admin (Capsomer's owner variant): the strip of the family's apps,
-  // Foxhound marked with its PLACEHOLDER hound head (STRIP_APPS), then the
-  // grouped menu. The header is the family letterhead: the mark and names, the
-  // theme button and the avatar menu last. Search and Inbox are left out: the Foxhound admin
-  // has no search and no inbox for them to open, and a control that does
-  // nothing is worse than none.
+  // Capsomer's owner variant: the strip of the family's apps (STRIP_APPS), then the grouped menu. The header is the family letterhead: the mark and names, the theme button and the avatar menu last. No Search or Inbox: the Foxhound admin has neither, and a control that does nothing is worse than none.
   return (
     <div data-cap-theme={theme} data-family="amber" className="fh-admin">
       <AdminShell
         variant="owner"
         app="foxhound"
-        // The family letterhead, as dustinedwards.info and Carrel have it, but
-        // standalone: "Foxhound Admin" with no "Dustin Edwards" over it and no
-        // family stripe, because Foxhound is a commercial app apart from the
-        // Dustin Edwards network (Dustin).
+        // The family letterhead, but standalone: "Foxhound Admin" with no "Dustin Edwards" over it and no family stripe, because Foxhound is a commercial app apart from the Dustin Edwards network.
         letterhead
         title="Foxhound admin"
         // Each admin route's meta title stays the browser title.
@@ -225,23 +195,20 @@ export default function AdminShellLayout({ loaderData }: Route.ComponentProps) {
         updated={{ at: readAt }}
         status={<h1 className="fh-admin-page-name">{page}</h1>}
         viewSite="/"
-        // /help is a merchant page behind the app shell; the admin has no merchant
-        // session, so its Help opens the public docs.
+        // /help is a merchant page behind the app shell; the admin has no merchant session, so its Help opens the public docs.
         onHelp={() => void navigate("/docs")}
         account={{
-          // The Access login, not the family owner's name: Foxhound stands
-          // apart from the Dustin Edwards network.
+          // The Access login, not the family owner's name.
           name: email,
           initials: initials(null, email),
           role: "Admin",
-          // Access owns sign-out: it ends the Access session, then shows its
-          // own login.
+          // Access owns sign-out: it ends the Access session, then shows its own login.
           accessLogout: true,
         }}
       >
         {/* The one page frame (Capsomer's .cap-admin-page): every admin page
             starts at the same left edge with the same width and padding. No
-            page sets its own column (test/admin-review-1011.test.ts). */}
+            page sets its own column. */}
         <div className="cap-admin-page">
           <Outlet />
         </div>

@@ -35,49 +35,10 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// S31, /settings/brand-voice.
-//
-// LEGACY IS THE SPEC, read whole:
-//   settings/brand-voice/page.tsx            blob 81435702  1,308 bytes
-//   settings/brand-voice/BrandVoiceForm.tsx  blob 8dd126bf  2,372 bytes
-//   settings/components/BrandVoiceSection.tsx blob 9f4de70c 4,362 bytes
-//   settings/SaveBar.tsx                     blob f1d6eb23    830 bytes
-//
-// J36 rebuilt the page from Capsomer 0.9.0's parts under
-// Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, a Panel's card,
-// Select, a cap-input textarea, Button and Status, amber throughout. Recova
-// stays the spec for what is here and in what order: the phone-only back
-// link, the title and its line, one card that opens with its own line and
-// holds the four categories (dot, label and help, then the preset picker, then
-// the custom box when Custom is chosen), then SaveBar's right-aligned "Save
-// changes" with "Saved" or "Failed to save. Please try again." beside it.
-//
-// FOUR FIELDS AND NO GENERAL ONE. Recova's page posts the four category hidden
-// inputs and connection_id, nothing else (BrandVoiceSection.tsx lines 63 to
-// 66), so its update route leaves `brand_voice` alone on this save. Session 59
-// added a general voice box here on a misreading of that file; J36 took it out
-// under RULES.md 1.2 and 1.3 (a control Recova never had is an addition). The
-// action therefore never names `general`, and applyBrandVoice leaves an absent
-// key as it is.
-//
-// Foxhound's DECLINE_CATEGORIES has `revoked` and `unknown` as well, and legacy
-// has no column for either: its resolver's default arm sends them to the
-// general voice. Rendering a field for them would be inventing a column.
-//
-// NO BOUND ON ANY FIELD, which is legacy: no maxLength, no pattern, no
-// required. An empty selection stores NULL and reads back as "Same as main
-// voice".
-//
-// SAMPLE EMAILS, an approved difference from Recova (Dustin, 2026-10-24,
-// parity/APPROVED-DIFFERENCES.md): a second card where the merchant pastes up
-// to five emails they wrote themselves, which recovery and win-back drafts are
-// written from (app/lib/recovery/voice-samples.ts). It posts with the same
-// Save changes. Each box is cut at VOICE_SAMPLE_MAX_CHARS, so it carries a
-// maxLength, unlike the voice fields above.
-//
-// DIVERGENCE, class (a): legacy's write path is the shared /settings/update
-// handler (unbuilt). This is the route's own action, exactly S30's
-// divergence 1.
+// /settings/brand-voice: the phone-only back link, the title and its line, one card that opens with its own line and holds the four categories (dot, label and help, then the preset picker, then the custom box when Custom is chosen), then the right-aligned "Save changes" with "Saved" or "Failed to save. Please try again." beside it.
+// FOUR FIELDS AND NO GENERAL ONE: the action never names `general`, and applyBrandVoice leaves an absent key as it is, so `brand_voice` is left alone on this save. DECLINE_CATEGORIES also has `revoked` and `unknown`, which have no column (the resolver's default arm sends them to the general voice), so no field is rendered for them.
+// NO BOUND ON ANY FIELD: no maxLength, no pattern, no required. An empty selection stores NULL and reads back as "Same as main voice".
+// SAMPLE EMAILS: a second card where the merchant pastes up to five emails they wrote themselves, which recovery and win-back drafts are written from (app/lib/recovery/voice-samples.ts). It posts with the same Save changes. Each box is cut at VOICE_SAMPLE_MAX_CHARS, so it carries a maxLength, unlike the voice fields above.
 
 export function meta() {
   return [{ title: "Brand voice - Foxhound" }, NOINDEX];
@@ -110,17 +71,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   const auth = context.get(authContext);
   const form = await readForm(request, BODY_MAX_BYTES);
 
-  // FOUR NAMED FIELDS, read here and validated nowhere here. A form posting
-  // `voice_revoked`, `brandVoice` or any other column name contributes
-  // nothing: the input is built by naming each key, and `applyBrandVoice`
-  // names each column. `general` is never named, so the main voice is left as
-  // it is, which is what Recova's update route does with this form's post.
+  // FOUR NAMED FIELDS, read here and validated nowhere here. A form posting `voice_revoked`, `brandVoice` or any other column name contributes nothing: the input is built by naming each key, and `applyBrandVoice` names each column. `general` is never named, so the main voice is left as it is.
   const read = (key: CategoryVoiceKey): string => String(form.get(voiceFieldName(key)) ?? "");
 
-  // A refusal (no connection, or one on another account) says its own
-  // sentence: Recova said "Saved" when it matched no connection, which was not
-  // true. A write that throws says Recova's SaveBar line on this page instead
-  // of an error page.
+  // A refusal (no connection, or one on another account) says its own sentence rather than "Saved". A write that throws says the SaveBar failure line on this page instead of an error page.
   let result: Awaited<ReturnType<typeof applyBrandVoice>>;
   try {
     result = await applyBrandVoice(getDb(env), auth.membership.accountId, {
@@ -149,10 +103,7 @@ const PRESET_OPTIONS = [
   { value: CUSTOM_PRESET, label: "Custom..." },
 ];
 
-/** One of BrandVoiceSection's four rows: the dot with the label and its help,
- *  the preset picker, and the custom box when Custom is chosen. The picker is
- *  Capsomer's Select, named with Recova's aria-label and described by the help
- *  line; the box is a cap-input textarea with Recova's aria-label. */
+/** One of the four rows: the dot with the label and its help, the preset picker, and the custom box when Custom is chosen. The picker is Capsomer's Select, named with an aria-label and described by the help line; the box is a cap-input textarea with an aria-label. */
 function CategoryVoice({
   row,
   stored,

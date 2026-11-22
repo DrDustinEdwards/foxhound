@@ -16,21 +16,10 @@ import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
 import type { ProductKey } from "./products";
 
-// The home page's copy, out of the route so tests and the JSON-LD
-// read one source. Recova's spec is app/(marketing)/page.tsx (blob c10db7d5),
-// read whole at HEAD.
-//
-// RECOVA'S WORDS, EXCEPT WHERE RECOVA WAS FALSE. The copy-drift items of
-// parity/M3-DIVERGENCES.md (1b, 4, 6, 7, 21, 25, 26, 27, 30, 50, and the
-// how-it-works links of 9b) move back to Recova's wording. The sanctioned
-// truthfulness divergences (read and write scope, review-and-sign disputes,
-// baseline free, 30-day maturity, attribution language) stay.
-// Every product fact is read from the engine, never typed: the
-// fee, the cap, the price, the maturity window, the sequence length, the
-// decline categories and the Stripe statistic.
-//
-// Where Recova's sentence states something Foxhound's engine does not do, the
-// fix is named beside the string. Each is listed under Needs Dustin in the PR.
+// The home page's copy, out of the route so tests and the JSON-LD read one source. Every product fact is read from the
+// engine, never typed: the fee, the cap, the price, the maturity window, the sequence length, the decline categories and the
+// Stripe statistic. Where a sentence would claim more than the engine does, the fix is beside the string (read and write
+// scope, review-and-sign disputes, baseline free, 30-day maturity, attribution language).
 
 const usd = (cents: number) => formatMoneyShort(cents, "usd");
 
@@ -42,20 +31,15 @@ export const SEQUENCE_DAYS = RECOVERY_SEQUENCE_DAYS;
 const STRIPE_RATE = `${STRIPE_RECOVERY_RATE_PERCENT}%`;
 export const STRIPE_GAP = `${STRIPE_UNRECOVERED_RATE_PERCENT}%`;
 
-/** Recova's title, "Recova: Recover failed Stripe payments", in Foxhound's name (divergence 50). */
 export const HOME_TITLE = "Foxhound: Recover failed Stripe payments";
 
-/** Recova's description. Two truthfulness fixes: Foxhound drafts dispute
- *  evidence and the merchant signs it (Recova said automation), and nothing is
- *  billed until a recovery has matured (Recova said "until then"). */
+/** Dispute evidence is drafted and the merchant signs it; nothing is billed until a recovery has matured. */
 export const HOME_META_DESCRIPTION = `Foxhound recovers failed Stripe payments, builds dispute evidence you sign, and adds customer intelligence. You pay ${RECOVERY_FEE} of what it recovers, after ${MATURITY_DAYS} days.`;
 
-/** Recova's first five hero sentences, word for word in Foxhound's name. */
 export const HERO_LEAD =
   "Most churn is not people quitting. It is cards that fail. Foxhound gets that revenue back. Stripe takes the payment. Foxhound wins back the ones that fail.";
 
-/** The trust row. Item 1 is Recova's; items 2 and 3 are the sanctioned
- *  baseline-free and maturity facts (divergence 22); item 4 is Recova's. */
+/** The trust row: baseline-free and maturity facts included. */
 export const TRUST_ITEMS = [
   "Baseline recoveries are free",
   `No fee until ${MATURITY_DAYS}-day maturity`,
@@ -65,17 +49,13 @@ export const TRUST_ITEMS = [
 export interface HomeStat {
   stat: string;
   body: string;
-  /** The exact page; the citation shows it without its scheme. */
   href: string;
 }
 
-/** A cited page as the citation shows it: the address without https://. */
 export const citation = (href: string) => href.replace(/^https:\/\//, "");
 
-/** Recova's three statistics, each with its exact page. The first
- *  is Stripe's own rate, read from lib/marketing/statistics.ts. "failed
- *  payments" rather than Recova's "failed recurring payments" is the source's
- *  own wording. */
+/** Three statistics, each with its exact page. The first is Stripe's own rate (lib/marketing/statistics.ts); "failed
+ *  payments" is the source's own wording. */
 export const STATS: HomeStat[] = [
   {
     stat: STRIPE_RATE,
@@ -108,11 +88,8 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
     stripeBody:
       "Fixed retry schedule. No customer communication. No logic for why the payment failed. Soft decline, expired card, and fraud all treated the same.",
     foxhoundTitle: `Intelligent ${SEQUENCE_DAYS}-day sequences`,
-    // Recova: "AI-written emails timed to card network windows. Decline
-    // classification by soft, network, expired, and fraud, each handled with a
-    // different sequence." The engine classifies into the categories
-    // RECOVERY_SCHEDULES names, two of them share one schedule, and only the
-    // retryable ones get a silent retry, ahead of the first email.
+    // The engine classifies into the categories RECOVERY_SCHEDULES names, two share one schedule, and only the retryable ones
+    // get a silent retry, ahead of the first email.
     foxhoundBody: `AI-written emails, with a silent retry ahead of the first email wherever the decline can be retried. Decline classification by ${DECLINE_CATEGORY_LIST_AND}, each handled by its category's own schedule.`,
     foxhoundHref: "/product/recovery",
   },
@@ -120,16 +97,13 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
     stripeTitle: "Dispute notifications",
     stripeBody:
       "Stripe emails you when a dispute opens and shows you a deadline. Evidence submission, response writing, and Stripe submission are all manual.",
-    // Sanctioned (divergence 5): Recova's "Automated dispute responses" and
-    // "Auto-submitted before the deadline"; the merchant signs, and auto-submit
-    // is an opt-in that is off by default.
+    // The merchant signs; auto-submit is an opt-in that is off by default.
     foxhoundTitle: "Evidence drafted, you review and sign",
     foxhoundBody: `Evidence built from your recovery history, Stripe signals, and transaction data. You approve every submission before the deadline, or turn on auto-submit. ${DISPUTE_FEE} only when you win, capped at ${DISPUTE_CAP}.`,
     foxhoundHref: "/product/disputes",
   },
 ];
 
-/** The statement section's body, Recova's, with the numbers read from the engine. */
 export const STATEMENT_BODY = `Stripe's Smart Retries recover ${STRIPE_RATE} on average. The other ${STRIPE_GAP} needs something Stripe doesn't do: personalized email sequences, decline classification, and ${SEQUENCE_DAYS} days of follow-through.`;
 
 export interface HomeProductCard {
@@ -137,11 +111,8 @@ export interface HomeProductCard {
   price: string;
 }
 
-/** Recova's four product cards. Audit is Recova's word for word. Recovery is
- *  Recova's with the engine's counts: it schedules more categories than
- *  sequences, so it says both rather than "handled differently". Disputes is
- *  the sanctioned review-and-sign wording (divergence 16). Intelligence keeps
- *  Recova's three features and is free (Dustin), in /pricing's words. */
+/** The four product cards. Recovery uses the engine's counts: more categories than sequences, so it says both. Disputes is
+ *  the review-and-sign wording. Intelligence is free, in /pricing's words. */
 export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
   audit: {
     description: "Full Stripe diagnostic. See what is leaking before you commit.",
@@ -162,32 +133,23 @@ export const PRODUCT_CARDS: Record<ProductKey, HomeProductCard> = {
   },
 };
 
-/** The billing question, which the route draws in its linked form. */
 export const BILLING_FAQ_QUESTION = "How does billing work exactly?";
 
 export interface HomeFaq {
   question: string;
-  /** Plain text: the source for the FAQPage JSON-LD, as Recova's answer is. */
   answer: string;
 }
 
-/** Recova's five questions and the billable-recovery one. FAQ 1 is the
- * sanctioned read-and-write answer, FAQ 2 Recova's reply question, FAQ 3 the
- * sanctioned billable-recovery definition, FAQ 4 the
- *  sanctioned maturity and cap timing in Recova's question and Recova's closing
- *  sentence, FAQ 5 the 376 item 19 fix and FAQ 6 Recova's with the maturity
- *  qualifier. The billing answer is drawn with Recova's four product links in
- *  the route (BILLING_FAQ_QUESTION); this plain text is the same sentence. */
+/** The FAQs. The billing answer is drawn with the four product links in the route (BILLING_FAQ_QUESTION); this plain text
+ *  is the same sentence. */
 export const FAQS: HomeFaq[] = [
   {
     question: "Does Foxhound touch my Stripe billing configuration?",
     answer:
       "No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: retrying an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, subscription plans, or any other Stripe setting, and never reaches your payouts.",
   },
-  // Recova's second question, restored (parity audit, 2026-11-10). Recova sent
-  // replies to the merchant's own address; Foxhound does the same through the
-  // reply-to setting (app/lib/email/send.ts), and until one is saved a reply goes
-  // to the From line, as /docs/platform says.
+  // Replies go to the merchant's own address through the reply-to setting (app/lib/email/send.ts); until one is saved a reply
+  // goes to the From line, as /docs/platform says.
   {
     question: "What happens if a customer replies to a recovery email?",
     answer:
@@ -214,8 +176,7 @@ export const FAQS: HomeFaq[] = [
   },
 ];
 
-/** The billing answer in its linked form: text runs and the four product links,
- *  in Recova's places (the product names). Joined, it is that FAQ's answer. */
+/** The billing answer in its linked form: text runs and the four product links. Joined, it is that FAQ's answer. */
 export const BILLING_FAQ_PARTS: (string | { to: string; label: string })[] = [
   { to: "/product/recovery", label: "Recovery" },
   ` is ${RECOVERY_FEE} of the prior month's matured recoveries, meaning recoveries you've held for ${MATURITY_DAYS} or more days, billed in each monthly run. `,
@@ -227,9 +188,7 @@ export const BILLING_FAQ_PARTS: (string | { to: string; label: string })[] = [
   " are always free. You owe nothing for sequences that do not recover.",
 ];
 
-/** Recova's security chips. Chip 1 is the sanctioned replacement of "Read-only
- *  Stripe access" (divergence 24); chip 5 replaces "US-based · US servers",
- *  because Foxhound runs on Cloudflare's global network, not on US servers. */
+/** Security chips. Chip 5 does not say "US servers" because Foxhound runs on Cloudflare's global network. */
 export const SECURITY_CHIPS = [
   "Never touches your billing configuration",
   "No card data stored",

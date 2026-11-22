@@ -21,31 +21,16 @@ import { hourlyPreview } from "./hourly-preview";
 
 import type { IntelligencePreview, PreviewBand, PreviewCustomerRow } from "./intelligence-preview";
 
-// The data behind the /product/intelligence previews: the demo account's
-// seed, never a merchant's rows. Recova draws these from hand-written numbers
-// (IntelligenceDashboardPreview.tsx, blob 11972333; IntelligenceCustomerTable.tsx,
-// blob 6ae7c73f; ChurnRiskSummary.tsx, blob ba1fbb51). Foxhound builds the
-// Teamflow account its demo runs on (app/lib/demo/, the pure builders, no
-// database and no Stripe, in the order seedDemoAccount builds them) and reads
-// it the way the merchant Intelligence pages read their own rows:
-//
-// - Dashboard: the latest MRR snapshot's MRR and active customers, written as
-//   the dashboard's StatCards write them; its per-plan MRR through
-//   planBreakdownRows, as the dashboard's PlanCard; and the month's report,
-//   which for the demo is buildNarrativeSeed's.
-// - Customers: listCustomerDirectory's default order, health ascending, with
-//   its plan pill (planTierPill) and its MRR cell ("-" with none).
-// - Bands: getChurnBands, per healthScoreBand (the engine's 40/70 cutoffs),
-//   totaled with groupSumByCurrency.
-//
-// Strings are formatted here, on the server, so the page renders the same
-// text on the server and in the browser.
+// The data behind the /product/intelligence previews: the demo account's seed, never a merchant's rows. Foxhound builds the Teamflow
+// account its demo runs on (app/lib/demo/, pure builders) and reads it the way the merchant Intelligence pages do: Dashboard from
+// the latest MRR snapshot (as the StatCards write it), planBreakdownRows and the month's report (buildNarrativeSeed's);
+// Customers from listCustomerDirectory's default order (health ascending) with planTierPill and an MRR cell ("-" with none);
+// Bands from getChurnBands per healthScoreBand (the 40/70 cutoffs), totaled with groupSumByCurrency. Strings are formatted here,
+// on the server, so server and browser render the same text.
 
-/** Recova's customer table preview lists five customers. */
 const PREVIEW_CUSTOMER_ROWS = 5;
 const BAND_ORDER: HealthScoreBand[] = ["at_risk", "watch", "healthy"];
 
-/** Build the preview as of `now`. Pure: the same instant gives the same preview. */
 function buildIntelligencePreview(now: Date): IntelligencePreview {
   const customers = buildTeamflowBase(now);
   const recovery = buildRecoverySeed(DEMO_ACCOUNT_ID, customers, now);
@@ -59,7 +44,6 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     disputes: disputes.disputes,
   });
 
-  // getMrrSnapshotSeries orders by snapshot date; the dashboard reads the last.
   const snapshots = [...seed.mrrSnapshots].sort(
     (a, b) => a.snapshotDate.getTime() - b.snapshotDate.getTime(),
   );
@@ -88,8 +72,7 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
     currency: c.currency ?? "usd",
   }));
 
-  // listCustomerDirectory: unscored last, then health ascending. Array sort is
-  // stable, so ties keep the seed's order.
+  // listCustomerDirectory: unscored last, then health ascending. Array sort is stable, so ties keep the seed's order.
   const directory = scored
     .filter((c): c is typeof c & { healthScore: number } => c.healthScore !== null)
     .sort((a, b) => a.healthScore - b.healthScore);
@@ -108,8 +91,7 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
 
   const bands = BAND_ORDER.map((band): PreviewBand => {
     const members = directory.filter((c) => healthScoreBand(c.healthScore) === band);
-    // The demo bills in one currency; a second one would be a seed change, and
-    // this shows the first, as the Recovery spoke's preview does.
+    // The demo bills in one currency; a second would be a seed change.
     const [total] = groupSumByCurrency(
       members.map((c) => ({ currency: c.currency, cents: c.mrrCents })),
     );
@@ -138,5 +120,4 @@ function buildIntelligencePreview(now: Date): IntelligencePreview {
   };
 }
 
-// One preview per clock hour (hourlyPreview).
 export const intelligencePreviewFor = hourlyPreview(buildIntelligencePreview);

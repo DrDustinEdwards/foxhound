@@ -10,22 +10,6 @@ import { mergeEvidence, readDisputeIntakeContext } from "./context.server";
 import { buildDisputeIntakeBatch } from "~/lib/webhooks/batches";
 import { resolveDisputedRecovery } from "~/lib/webhooks/lookups";
 
-// Manual dispute import: legacy's "Sync dispute from Stripe" control
-// (app/(app)/disputes/dashboard/SyncDisputeLink.tsx, backed by
-// app/api/disputes/sync/route.ts), built in FOXHOUND'S STRONGER FORM as ruled by
-// 400 halt ruling 1.
-//
-// WHAT LEGACY DOES AND WHY IT IS NOT PORTED VERBATIM. Legacy retrieves the
-// dispute, guards against a double import with a pre-check SELECT, inserts a
-// minimal row, then re-enters its webhook handler with a SYNTHESIZED event id
-// (`sync_${Date.now()}`). That synthesized id is the problem: it is fresh on
-// every click, so it is not an idempotency key at all, and the only thing
-// standing between two clicks and two dispute rows is a SELECT that ran before
-// the INSERT. That is a read-then-write race on a row that gates a 20%-of-won
-// fee.
-//
-// FOXHOUND'S FORM, and the three properties it buys:
-//
 //   1. The claim key is `manual_dispute:{stripeDisputeId}` (MANUAL_CLAIM_PREFIX
 //      below). The Stripe dispute id is nature's idempotency key for this
 //      object: it is stable, it is the thing being imported, and it is the same
@@ -46,24 +30,25 @@ import { resolveDisputedRecovery } from "~/lib/webhooks/lookups";
 //      webhook-then-manual therefore converge on ONE row whichever arrives
 //      first. That index is not added here: it has existed since migration
 //      0000 and was verified present in production D1 (3ad240ed) this session.
-//
-// NOTHING HERE RUNS INSIDE THE DO BATCH THAT DEPENDS ON STRIPE. The retrieve and
-// the enrichment happen first and the batch is built from their results, which
-// is the standing rule that a write depending on an external API call cannot
-// live inside the batch.
 
-/** The manual-import claim key prefix. Exported so a test asserts the KEY the
- *  code derives rather than re-deriving one of its own. */
+/**
+ * The manual-import claim key prefix. Exported so a test asserts the KEY the
+ * code derives rather than re-deriving one of its own.
+ */
 const MANUAL_CLAIM_PREFIX = "manual_dispute:";
 
-/** The webhook_events.event_type recorded for a manual import, so the claim row
- *  says what it was rather than impersonating a Stripe event. */
+/**
+ * The webhook_events.event_type recorded for a manual import, so the claim row
+ * says what it was rather than impersonating a Stripe event.
+ */
 export const MANUAL_CLAIM_EVENT_TYPE = "foxhound.dispute.manual_import";
 
-/** The money-DO idempotency key AND the webhook_events claim id for importing
- *  one dispute. Derived from the dispute id ALONE: no clock, no randomness, no
- *  account, so two clicks in the same second and two clicks a week apart
- *  produce the same key and collapse to one row. */
+/**
+ * The money-DO idempotency key AND the webhook_events claim id for importing
+ * one dispute. Derived from the dispute id ALONE: no clock, no randomness, no
+ * account, so two clicks in the same second and two clicks a week apart produce
+ * the same key and collapse to one row.
+ */
 export function manualImportClaimKey(stripeDisputeId: string): string {
   return `${MANUAL_CLAIM_PREFIX}${stripeDisputeId}`;
 }
@@ -79,14 +64,9 @@ export type ManualImportResult =
 /**
  * Import one dispute by its Stripe id into `accountId`.
  *
- * ACCOUNT SCOPING IS THE TOKEN, not a filter this function applies. The
- * connected account's OAuth access token IS an API key for that account, so
+ * The connected account's OAuth access token IS an API key for that account, so
  * retrieving a dispute belonging to somebody else's Stripe account fails at
- * Stripe with a not-found and never reaches a write. There is no code path here
- * that could be pointed at another account's dispute by changing the posted
- * value, which is why legacy's extra `charges.retrieve` cross-check has no
- * counterpart: legacy needs it because it passes `stripeAccount` as a header on
- * a PLATFORM key, and a header is a claim about scope rather than scope itself.
+ * Stripe with a not-found and never reaches a write.
  */
 export async function importDisputeFromStripe(
   env: Env,
@@ -96,10 +76,6 @@ export async function importDisputeFromStripe(
 ): Promise<ManualImportResult> {
   const stripeDisputeId = rawDisputeId.trim();
   if (!isStripeDisputeId(stripeDisputeId)) return { status: "invalid_id" };
-  // Disputes switched off on /settings/disputes: nothing is retrieved or
-  // written, as the webhook intake skips it (Recova's handleDisputeCreated
-  // step 1). Recova's sync still inserted a bare row before that step
-  // returned; Foxhound creates none, which is what "off" says.
   if (!(await readDisputesEnabled(getDb(env), accountId))) {
     console.info(
       `manual dispute import ${stripeDisputeId}: Disputes is off for account ${accountId}; not created`,
@@ -120,9 +96,7 @@ export async function importDisputeFromStripe(
   } catch (err) {
     // Stripe's 404 (resource_missing): a dispute on another account, a typo, or
     // a deleted object. The same answer to the merchant and the same non-event
-    // to the ledger: nothing is written. Anything else (a revoked grant, a rate
-    // limit, Stripe down) is not "not found": it is thrown, so the route logs
-    // it and says to try again.
+    // to the ledger: nothing is written.
     if (isStripeNotFound(err)) return { status: "not_found" };
     throw err;
   }

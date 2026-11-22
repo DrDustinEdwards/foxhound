@@ -27,28 +27,14 @@ import type { Route } from "./+types/audit";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/products.css";
 
-// The Audit spoke. Recova's spec, read whole at HEAD:
-// app/(marketing)/product/audit/page.tsx (blob 210ce79d) and the files it draws
-// from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2) and
-// components/docs/AuditScopeCard.tsx (dc1d18dd).
-//
-// Recova's sections, in Recova's order: the hero, How it works, three feature
-// blocks (the scope card, plain; the AI summary, lifted; the audit history,
-// plain), Pricing, Questions and the closing block. Parts are Capsomer's, amber,
-// on the five text sizes (product-sections-cap.tsx, audit-previews.tsx). Copy
-// is Recova's with every product fact read from the engine and its
-// truthfulness fixes named (lib/marketing/audit-copy.ts). Recova draws no chart
-// here, so neither does this page.
-//
-// The path is Recova's own /product/audit since J09.
+// The Audit spoke, in order: the hero, How it works, three feature blocks (the scope card, plain; the AI summary, lifted; the audit history, plain), Pricing, Questions and the closing block (product-sections-cap.tsx, audit-previews.tsx). Every product fact is read from the engine (lib/marketing/audit-copy.ts). No chart here. The path is /product/audit.
 
 const PATH = "/product/audit";
 const TITLE = "Audit";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification, as Recova emits it: the selectors point at
-  // the classes product-sections-cap.tsx puts on the sections.
+  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
   return [
     ...marketingMeta({
       title: TITLE,

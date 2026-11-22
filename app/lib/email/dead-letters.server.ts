@@ -5,22 +5,8 @@ import { alertDeadLetters } from "~/lib/cron/alerts.server";
 import { hashRecipient } from "./dispatch";
 import type { EmailJob } from "./types";
 
-/** The dead-letter trace (313, escalated by 312: discard-with-no-trace dies).
- *
- *  BEFORE THIS: wrangler.jsonc declared `dead_letter_queue: "foxhound-email-dlq"`
- *  as a bare queue NAME with no consumer. Measured at 313: the queue exists
- *  (created 2026-07-25) and had ZERO consumers, so the config's own comment was
- *  exactly right, "a dunning email that keeps failing is discarded with no trace
- *  after max_retries". This is the trace.
- *
- *  SCOPE IS DELIBERATELY ONE STEP: write the row, alert once per day. Retry-from-
- *  DLQ is NOT built here and is not implied by this table. A row a human can query
- *  is the cheapest honest fix, and 313 ranked it first for that reason: knowing a
- *  send died beats a sophisticated recovery for a failure nobody can currently
- *  see.
- *
- *  PRIVACY: stores a recipient HASH, never the address, matching email_sends. A
- *  dead letter is a diagnostic, not a mailbox. */
+/** The dead-letter trace: a row a human can query for an email that exhausted its retries. One step only:
+ *  write the row, alert once per day; retry-from-DLQ is not built. Stores a recipient HASH, never the address. */
 
 interface DeadLetterRecord {
   id: string;
@@ -35,8 +21,6 @@ interface DeadLetterRecord {
   createdAt: Date;
 }
 
-/** Build the row for one dead-lettered job. Pure apart from the hash, so the
- *  shape is assertable without a queue or a database. */
 async function buildDeadLetterRecord(
   job: EmailJob,
   input: {
@@ -66,11 +50,8 @@ export interface DeadLetterBatchResult {
   alerted: boolean;
 }
 
-/** Persist a batch of dead letters and raise ONE alert for the batch.
- *
- *  NEVER THROWS PAST ITSELF on a single bad message: one unparseable payload must
- *  not discard the rest of the batch, which would reproduce the very
- *  silent-discard this table exists to end. Failures are counted and reported. */
+/** Persist a batch of dead letters and raise one alert. A single bad message never throws past itself, so
+ *  one unparseable payload cannot discard the rest; failures are counted and reported. */
 export async function recordDeadLetters(
   env: Env,
   db: Db,
@@ -96,8 +77,7 @@ export async function recordDeadLetters(
     }
   }
 
-  // One alert per day for the whole class, deduped by the same mechanism the
-  // cron alerts use. A burst of dead letters is one problem, not N.
+  // One alert per day for the whole class.
   const alert = await alertDeadLetters(env, { written, failed }, now);
 
   return { written, failed, alerted: alert.sent };

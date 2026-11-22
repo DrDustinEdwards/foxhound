@@ -14,49 +14,12 @@ import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/sitemap";
 
-// Ported from legacy app/sitemap.ts + app/(marketing)/blog/sitemap.ts (Phase
-// 6 Pass 2), composed into the ONE /sitemap.xml resource route this repo
-// registers (no sitemap-index pattern). Sources concatenated into one
-// <urlset>:
-//   1. STATIC_PAGES: every hand-listed route (home, pricing, products,
-//      about, demos, docs index, /audit, privacy, terms, blog index,
-//      decline-codes hub, compare hub).
-//   2. docEntries: one entry per DOC_GUIDES slug (/docs/:slug).
-//   3. One entry per published blog post (D1, lastModified from
-//      updated_at ?? published_at).
-//   4. One entry per canonical tag with >=1 published post.
-//   5. declineCodeEntries / compareEntries: one entry per DECLINE_CODES /
-//      COMPETITOR_ORDER slug.
-//
-// Any new dynamic-route source (a new static-array-backed section or a new
-// D1-driven one) must be added the same way: map the existing source of
-// truth into a SitemapEntry[] here, never hand-list URLs that already exist
-// as data elsewhere in the repo.
+// The ONE /sitemap.xml resource route (no sitemap-index pattern). Sources concatenated into one <urlset>: STATIC_PAGES (every hand-listed route); docEntries (one per DOC_GUIDES slug); one entry per published blog post (D1, lastModified from updated_at ?? published_at); one entry per canonical tag with >=1 published post; declineCodeEntries / compareEntries (one per DECLINE_CODES / COMPETITOR_ORDER slug). A new dynamic-route source maps its existing source of truth into a SitemapEntry[] here, never hand-listing URLs that already exist as data elsewhere.
 
 // Prelum's entry, with a path where Prelum takes the absolute loc (the origin comes from env at request time).
 type SitemapEntry = Omit<PrelumEntry, "loc"> & { path: string };
 
-// Every static (non-parameterized) public marketing route belongs here.
-// test/sitemap.test.ts walks the real route tree (app/routes.ts) and asserts
-// every one of them, MINUS the documented EXCLUDED_PREFIXES list it also
-// defines, appears in this array - so a new static marketing route added to
-// routes.ts and never added here now fails CI instead of silently missing
-// from search indexing (TASK-foxhound-seo-remediation.md M4:
-// foxhound-audit-seo.md flagged /features missing this way).
-// Priorities and changeFrequency are aligned to legacy's app/sitemap.ts
-// (ruling 89, for LEGACY-PAIRED entries only; the NET-NEW entries below keep
-// their own values, having no legacy spec, per ruling 56). They are format
-// hints with no truth content, so legacy is the spec. An earlier version of
-// this comment cited ruling 91, which is the index cell cap, not this;
-// corrected. Legacy's lastModified is deliberately NOT restored: it sets
-// `new Date()` on every static entry, telling crawlers every page changed on
-// this request, which is false and degrades crawl scheduling. Ruling 39
-// class, do not restore a legacy defect. A static entry's lastmod is the day its text last
-// changed, which the daily page-dates job keeps (app/lib/page-dates.server.ts).
-//
-// The product pages are Recova's /product/* (singular), served at the same
-// path since J09. The old /products/<name> addresses this file
-// used to list answer a 301 to them.
+// Every static (non-parameterized) public marketing route belongs here. test/sitemap.test.ts walks the real route tree (app/routes.ts) and asserts every one of them, MINUS the documented EXCLUDED_PREFIXES list, appears in this array, so a new static marketing route never added here fails CI instead of silently missing from search indexing. Priorities and changeFrequency are format hints with no truth content. lastModified is deliberately NOT `new Date()` on every entry (which tells crawlers every page changed on this request, false and harmful to crawl scheduling): a static entry's lastmod is the day its text last changed, which the daily page-dates job keeps (app/lib/page-dates.server.ts). The product pages are /product/* (singular); the old /products/<name> addresses answer a 301 to them.
 export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/", changefreq: "weekly", priority: 1.0 },
   { path: "/pricing", changefreq: "monthly", priority: 0.8 },
@@ -66,9 +29,7 @@ export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/product/disputes", changefreq: "monthly", priority: 0.9 },
   { path: "/product/intelligence", changefreq: "monthly", priority: 0.9 },
   { path: "/features", changefreq: "monthly", priority: 0.8 },
-  // NET-NEW (no legacy pair): /about, /decline-codes, /compare and their
-  // children. Ruling 56 permits a NET-NEW surface listing ITSELF; none of
-  // them changes an entry for a ported page.
+  // /about, /decline-codes, /compare and their children list themselves.
   { path: "/about", changefreq: "monthly", priority: 0.5 },
   { path: "/contact", changefreq: "yearly", priority: 0.4 },
   { path: "/demos", changefreq: "monthly", priority: 0.7 },
@@ -79,11 +40,8 @@ export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/security", changefreq: "yearly", priority: 0.3 },
   { path: "/accessibility", changefreq: "yearly", priority: 0.3 },
   { path: "/blog", changefreq: "weekly", priority: 0.8 },
-  // TASK-foxhound-parity-cluster-b.md fix 3: restores legacy's archive page.
   { path: "/blog/archive", changefreq: "weekly", priority: 0.7 },
-  // Pass 3 extension point: decline-codes and compare hubs + their
-  // templated per-code/per-competitor pages, added below via
-  // DECLINE_CODES/COMPETITOR_ORDER rather than hand-listed here.
+  // Decline-codes and compare hubs + their templated per-code/per-competitor pages are added below via DECLINE_CODES/COMPETITOR_ORDER rather than hand-listed here.
   { path: "/decline-codes", changefreq: "monthly", priority: 0.8 },
   { path: "/compare", changefreq: "monthly", priority: 0.7 },
 ];
@@ -140,10 +98,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     }
   }
   const tagsWithPosts = new Set<string>(posts.flatMap((post) => post.tags));
-  // Legacy hardcodes five tag URLs at 0.7, except comparisons at 0.6. A
-  // generator cannot reproduce a per-tag exception without hand-listing the
-  // very data it derives from, so all tags take legacy's majority value; the
-  // comparisons nuance is recorded rather than encoded.
+  // All tags take one priority (0.7): a generator cannot reproduce a per-tag exception without hand-listing the very data it derives from.
   const tagEntries: SitemapEntry[] = [...tagsWithPosts].map((tag) => ({
     path: `/blog/tag/${tag}`,
     lastmod: tagNewest.get(tag),

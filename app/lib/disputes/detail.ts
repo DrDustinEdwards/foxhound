@@ -3,25 +3,14 @@ import { DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
-// Pure pieces of /disputes/:id, client-safe: no database, no
-// Stripe. Recova is the spec: app/(app)/disputes/[id]/DisputeDetailClient.tsx
-// (blob 3d56b55d) and components/disputes/formatters.tsx (81bf7f8b).
+// Pure pieces of /disputes/:id, client-safe: no database, no Stripe.
 
-/** Recova's back link, DisputeDetailClient.tsx: "Back to disputes" to the
- *  disputes dashboard, and "All disputes" in the demo. Foxhound's demo opens
- *  the real list, so both go to the same page. */
 export const BACK_LINK_REAL = { href: "/disputes/dashboard", label: "Back to disputes" };
 export const BACK_LINK_DEMO = { href: "/disputes/dashboard", label: "All disputes" };
 
-/** The Stripe evidence field that holds Recova's editable narrative. */
 export const NARRATIVE_FIELD = "uncategorized_text";
-/** The Stripe evidence field that holds Recova's "Customer IP". */
 export const CUSTOMER_IP_FIELD = "customer_purchase_ip";
 
-/** Recova's three shipping inputs (DisputeDetailClient.tsx, shown when the
- *  account ships physical goods, S32), as the Stripe evidence fields they are
- *  submitted in. Recova kept them in disputes.shipping_* and copied them into
- *  the evidence at submit; Foxhound saves them as evidence with the draft. */
 export const SHIPPING_TRACKING_FIELD = "shipping_tracking_number";
 export const SHIPPING_CARRIER_FIELD = "shipping_carrier";
 export const SHIPPING_DATE_FIELD = "shipping_date";
@@ -31,21 +20,14 @@ export const SHIPPING_FIELDS = [
   SHIPPING_DATE_FIELD,
 ] as const;
 
-/** Recova's carrier select, in its order. */
 export const SHIPPING_CARRIERS = ["UPS", "FedEx", "USPS", "DHL", "Other"] as const;
 
 /** Accept's confirmation line (DisputeActionBar.tsx), with Foxhound's name. */
 export const ACCEPT_CONFIRM_LINE = "Accept this dispute? You won't be charged a Foxhound fee.";
-/** Shown in Accept's place while an approval stands. Not
- *  Recova's: Recova offered Accept until submission. Listed for Dustin. */
+/** Shown in Accept's place while an approval stands. Listed for Dustin. */
 export const ACCEPT_UNAVAILABLE_APPROVED_LINE =
   "Accept is not available once the evidence has been approved for submission.";
 
-/**
- * The header's deadline line, in Recova's words: "No deadline set",
- * "Deadline passed", or "N days remaining". Recova printed "1 days remaining";
- * one day reads "1 day remaining".
- */
 export function deadlineRemaining(days: number | null): string {
   if (days === null) return "No deadline set";
   if (days <= 0) return "Deadline passed";
@@ -53,7 +35,6 @@ export function deadlineRemaining(days: number | null): string {
   return `${days} days remaining`;
 }
 
-/** The outcome badge Recova shows once a dispute is closed. */
 export function outcomeWord(state: string): string | null {
   if (state === "resolved_won") return "Won";
   if (state === "resolved_lost") return "Lost";
@@ -61,8 +42,6 @@ export function outcomeWord(state: string): string | null {
   return null;
 }
 
-/** Stripe's evidence field names, as a merchant should read them: Recova's
- *  fieldLabel map, with the other names Foxhound can hold in sentence case. */
 const EVIDENCE_FIELD_LABELS: Record<string, string> = {
   billing_address: "Billing address",
   cancellation_policy_disclosure: "Cancellation policy disclosure",
@@ -92,13 +71,6 @@ export interface EvidenceRowLike {
   fieldValue: string;
 }
 
-/**
- * Recova's "Staged evidence" split: every structured field as a read-only row
- * except the narrative, which is the editable textarea. While the "Additional
- * evidence" Customer IP box is on screen, the IP row is left out of the list so
- * it is not shown twice, and the same holds for the shipping fields while their
- * inputs are on screen.
- */
 export function splitEvidence(
   evidence: EvidenceRowLike[],
   ipEditable: boolean,
@@ -129,8 +101,10 @@ export function splitEvidence(
   return { structured, narrative, customerIp, shipping };
 }
 
-/** The fee terms on the approve card, read from the billing constants rather
- *  than typed. */
+/**
+ * The fee terms on the approve card, read from the billing constants rather
+ * than typed.
+ */
 export function disputeFeeTerms(): string {
   const pct = DISPUTE_FEE_BPS / 100;
   return `${Number.isInteger(pct) ? pct : pct.toFixed(1)}% of the disputed amount, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}`;

@@ -1,14 +1,6 @@
-// Revoking a disconnected Stripe grant, and retrying one that failed (Grok
-// audit FH-7). Cancel, disconnect and account deletion all commit the local
-// disconnect first and then call oauth.deauthorize, which never rolls the local
-// state back. A failed call used to be a log line and nothing else, so a Stripe
-// outage at that moment left the platform's grant on the merchant's account
-// for good. Now the failure is stamped on the connection row, which keeps its
-// stripe_user_id after a disconnect and after an account scrub, and the daily
-// stripe-deauthorize-retry cron retries it until Stripe accepts.
-//
-// Plain writes, not executeMoneyWrite: this is account state on
-// stripe_connections, cancelMerchant's posture.
+// Revoking a disconnected Stripe grant, and retrying one that failed (Grok audit FH-7). Cancel,
+// disconnect and account deletion all commit the local disconnect first and then call
+// oauth.deauthorize, which never rolls the local state back.
 
 import { and, eq, isNotNull, isNull } from "drizzle-orm";
 
@@ -51,11 +43,8 @@ async function stampRetry(env: Env, connectionId: string, now: Date): Promise<bo
 }
 
 /**
- * Revoke each just-disconnected connection's grant. A failure is stamped on
- * the row for the retry cron and returned for the caller to surface; it never
- * throws and never undoes the disconnect. A stamp that cannot be written is
- * part of the returned failure (queued: false, and said in its error), since
- * then nothing will ever retry that grant.
+ * Revoke each just-disconnected connection's grant. A failure is stamped on the row for the retry
+ * cron and returned for the caller to surface; it never throws and never undoes the disconnect.
  */
 export async function revokeDisconnectedGrants(
   env: Env,
@@ -91,12 +80,7 @@ export interface DeauthorizeRetryResult {
   failed: DeauthorizeFailure[];
 }
 
-/**
- * Retry every revoke that failed. Before each call it checks that no live
- * connection holds the same Stripe account: oauth.deauthorize cuts the
- * platform's whole connection to that account, so revoking after the merchant
- * reconnected would disconnect them from Stripe behind Foxhound's back.
- */
+/** Retry every revoke that failed. */
 export async function retryFailedDeauthorizations(
   env: Env,
   db: Db,

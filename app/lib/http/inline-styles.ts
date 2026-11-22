@@ -1,22 +1,9 @@
-// THE ONLY INLINE <style> ELEMENTS ON THE SITE, and the hashes the CSP trusts
-// them by (J22, F16). site-runtime's policy has no 'unsafe-inline' for style
-// elements (style="" attributes are still allowed, style-src-attr), so each
-// inline <style> is trusted by the SHA-256 of its exact text.
-//
-// A HASH, NOT THE NONCE, on purpose. The nonce reaches components through the
-// root loader's data, which the client keeps from the first document; if the
-// root loader revalidates after an action, a <style> rendered on a later
-// client-side navigation would carry the NEW request's nonce, which the
-// document's policy never named, and the browser would drop it silently. A
-// hash names the content, so it holds on every render path.
-//
-// test/security-headers.test.ts recomputes each hash from these strings and
-// fails if one drifts, and fails if any <style> element in app/ renders
-// anything other than one of these constants.
+// The only inline <style> elements on the site, trusted by SHA-256 hash because site-runtime's policy has no
+// 'unsafe-inline' for style elements. A hash, not the nonce: after an action revalidates the root loader, a
+// <style> rendered on a later client navigation would carry a new nonce the document's policy never named
+// and the browser would drop it. test/security-headers.test.ts recomputes each hash and fails on drift.
 
-// /features: the CSS-only product filter, ported from legacy's mechanism.
-// FeatureFilterShell sets data-feature-filter on the wrapper and these
-// selectors hide any card whose data-product does not match.
+// /features: the CSS-only product filter; FeatureFilterShell sets data-feature-filter and these hide cards whose data-product differs.
 export const FEATURE_FILTER_CSS = `
 [data-feature-filter="Recovery"] [data-product]:not([data-product="Recovery"]) { display: none; }
 [data-feature-filter="Disputes"] [data-product]:not([data-product="Disputes"]) { display: none; }
@@ -25,7 +12,7 @@ export const FEATURE_FILTER_CSS = `
 [data-feature-filter="Platform"] [data-product]:not([data-product="Platform"]) { display: none; }
 `.trim();
 
-// /blog: the classes of legacy's hand-drawn cover fallback SVG.
+// /blog: the hand-drawn cover fallback SVG's classes.
 export const BLOG_COVER_FALLBACK_CSS = `
 .dz-base { fill: var(--ground); }
 .dz-band { fill: var(--accent-text); }

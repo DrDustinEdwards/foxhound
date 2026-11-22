@@ -1,5 +1,4 @@
-/* The parts only the docs index and pages use, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the docs index and pages use. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-docs-cross {
     transition-property: opacity;

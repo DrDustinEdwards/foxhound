@@ -12,9 +12,7 @@ import "capsomer/panel.css";
 import "capsomer/row-list.css";
 import "capsomer/table.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as the legal pages do.
+// Capsomer's tokens and the amber family, which the components above read. The shell loads the same file through its header; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { getDb } from "~/db";
@@ -30,65 +28,13 @@ import {
 import type { Route } from "./+types/help";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /help, ported toward legacy app/(app)/help/page.tsx.
-//
-// Ruling 399 re-measured the 394 walk's claims against that REAL file, after
-// 398 found the walk had compared against app/recovery/demo/help/page.tsx. Four
-// of the walk's S23 items were false and are NOT actioned here: the H1 is
-// "Help" on both sides, the container matches, there is no green reassurance
-// banner on the real page, and there is no card-geometry divergence. What the
-// walk could not see, because the demo twin does not render them, is what this
-// commit builds: the Guides section, the Platform status section, the MCP
-// connectors table, and the mailto contact block. Common questions goes from
-// five differently-titled prose cards to legacy's six question-and-answer
-// pairs.
-//
-// LEGACY'S SECTION ORDER IS KEPT: Common questions, Guides, Platform status,
-// Contact. Legacy's raw type values are mapped onto Foxhound's app scale rather
-// than ported literally, because 179/187 freeze the type scale in both
-// directions; every other class string is legacy's (154).
-//
-// LOOK FROM CAPSOMER (J13, Dustin's Q10 ruling of 2026-10-14). Content,
-// sections, order and the 720px column stay legacy's; the parts are now
-// Capsomer 0.9.0's, in the amber family the shell sets, with no Foxhound CSS
-// over any of them: PageHead for the H1 and subtitle, a Panel titled by its
-// link for each guide card and for the contact block (so every description
-// shows in full; row-list's detail line would cut it), Panel around each
-// status list, Capsomer's table for the job and connector rows, and Status for each
-// cron's state as a glyph, a word and a color. The page also stops rendering
-// a second <main> inside the shell's. Where Capsomer's defaults
-// differ from legacy's look (radius, hover, type, the status word), the
-// difference waits for Capsomer's per-site style layer and is listed with J13.
+// /help: the H1, then Common questions, Guides, Platform status and Contact, in a 720px column. The parts are Capsomer's with no Foxhound CSS over them: PageHead for the H1 and subtitle, a Panel titled by its link for each guide card and for the contact block (so every description shows in full; row-list's detail line would cut it), Panel around each status list, Capsomer's table for the job and connector rows, and Status for each cron's state as a glyph, a word and a color. The page renders no second <main> inside the shell's.
 
 export function meta() {
   return [{ title: "Help - Foxhound" }, NOINDEX];
 }
 
-/**
- * Legacy's six QUICK_ANSWERS, checked one at a time against what Foxhound
- * actually does. Four are legacy's verbatim. TWO ARE REWRITTEN, both class (c)
- * truthfulness, and each names what made legacy's answer false here:
- *
- *   Q1 legacy: "The first email sends within an hour of the failure." False of
- *   Foxhound. Ruling 80 made recovery SILENT-RETRY-FIRST: a soft or network
- *   decline leads with a quiet retry before the customer is emailed at all
- *   (app/lib/recovery/schedule.ts RECOVERY_SCHEDULES). Telling a merchant an
- *   email goes out in the first hour would misdescribe the product's main
- *   selling point.
- *
- *   Q6 legacy: "On any pending email step in a payment timeline, you can also
- *   edit the body directly before it sends." False of Foxhound, and
- *   deliberately so: ruling 304 records Dustin declining to reproduce legacy's
- *   custom-body editor, whose own save path 404s in legacy. The brand
- *   voice half of the answer IS true and is kept, including per-category tone,
- *   which app/routes/app/settings/brand-voice.tsx renders.
- *
- * The other four were verified rather than assumed: the recovery-rate bands are
- * DESIGN.md's 0-20 red / 21-35 caution (orange) / 36+ green; the payments list really does
- * label a running sequence "Active" (app/lib/recovery/labels.ts); fraud
- * schedules really do carry no retry step; and the payment detail really does
- * render a sent step's subject and body with per-step open and click counts.
- */
+/** The six quick answers, each checked against what Foxhound actually does. Two differ from the obvious wording: (1) recovery is SILENT-RETRY-FIRST, so a soft or network decline leads with a quiet retry before the customer is emailed at all (app/lib/recovery/schedule.ts RECOVERY_SCHEDULES), which "the first email sends within an hour" would misdescribe; (6) there is no per-step body editor, so only the brand voice half of that answer is kept, including per-category tone (app/routes/app/settings/brand-voice.tsx). The recovery-rate bands are DESIGN.md's 0-20 red / 21-35 caution (orange) / 36+ green; the payments list labels a running sequence "Active" (app/lib/recovery/labels.ts); fraud schedules carry no retry step; and the payment detail renders a sent step's subject and body with per-step open and click counts. */
 export const QUICK_ANSWERS = [
   {
     q: "Why hasn't my payment recovered yet?",
@@ -116,12 +62,7 @@ export const QUICK_ANSWERS = [
   },
 ];
 
-// Platform sits above the four product guides as a full-width card, the same
-// hero layout the public docs index uses, so merchants see the same shape on
-// both surfaces. Product order matches the docs index: Audit first because it
-// is the lowest-friction surface.
-//
-// Slugs are Foxhound's own /docs routes.
+// Platform sits above the four product guides as a full-width card, the same hero layout the public docs index uses. Product order matches the docs index: Audit first because it is the lowest-friction surface. Slugs are Foxhound's own /docs routes.
 const PLATFORM_GUIDE = {
   href: "/docs/platform",
   title: "Platform",
@@ -140,18 +81,7 @@ const PRODUCT_GUIDES = [
   },
 ];
 
-/**
- * Foxhound's real MCP surface, which is ONE endpoint.
- *
- * Legacy lists two connectors, merchant and admin. Foxhound serves only the
- * merchant one: workers/app.ts matches the single pathname `/mcp` and no
- * `/mcp/admin` exists, so a second row would name an endpoint that is not
- * there. The tool count is ruling 383's measured 23 (15 reads, 8 writes).
- *
- * Legacy's note reads "For Claude.ai". Foxhound never names an AI vendor in
- * user-facing copy (capsid/conventions.md), so the note says what the endpoint
- * is for instead of who makes the client.
- */
+/** Foxhound's real MCP surface is ONE endpoint: workers/app.ts matches the single pathname `/mcp` and no `/mcp/admin` exists, so a second row would name an endpoint that is not there. The tool count is 23 (15 reads, 8 writes). The note says what the endpoint is for, never an AI vendor's name (capsid/conventions.md). */
 const MCP_CONNECTORS = [
   {
     name: "Foxhound Merchant",
@@ -171,9 +101,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 export default function Help({ loaderData }: Route.ComponentProps) {
   const { crons, nowMs } = loaderData;
 
-  // A div, not a main: the shell's AdminShell owns the page's one main
-  // landmark, and every other app page renders inside it the same
-  // way. The 720px column and its padding are legacy's page layout.
+  // A div, not a main: AdminShell owns the page's one main landmark. The 720px column and its padding are the page layout.
   return (
     <div className="fh-help">
       <div className="fh-help-head">
@@ -277,19 +205,10 @@ export default function Help({ loaderData }: Route.ComponentProps) {
   );
 }
 
-/** Legacy's micro uppercase section label, on the five text sizes. A page
- *  heading style, not a shared component, so it stays the page's own. */
+/** The micro uppercase section label, on the five text sizes. A page heading style, not a shared component. */
 const SECTION_LABEL = "fh-help-label fh-tiny fh-medium fh-caps-wide fh-quiet";
 
-/**
- * Legacy's four cron states on Capsomer's status tones. Legacy drew a colored
- * dot only, and the old port put the state in an aria-label on a div, which is
- * prohibited on a generic element and so was never reliably read. Capsomer's
- * Status says it as a glyph, a word and a color together: the word is the
- * accessible text and color is never the only cue. Pending is Capsomer's no
- * data tone, the neutral one, which is legacy's own reading of a cron that has
- * never run (a sentinel, not a level).
- */
+/** The four cron states on Capsomer's status tones. Capsomer's Status says it as a glyph, a word and a color together: the word is the accessible text and color is never the only cue. Pending is Capsomer's neutral no-data tone, for a cron that has never run (a sentinel, not a level). */
 const CRON_TONE: Record<CronDisplayStatus, { tone: StatusTone; word: string }> = {
   ok: { tone: "ok", word: "OK" },
   stale: { tone: "warn", word: "Stale" },
@@ -297,12 +216,7 @@ const CRON_TONE: Record<CronDisplayStatus, { tone: StatusTone; word: string }> =
   pending: { tone: "nodata", word: "Pending" },
 };
 
-/**
- * A Capsomer Panel holding a Capsomer table, flush to the panel's edges, in a
- * focusable scroll region named by the panel's heading (table.md). The column
- * headers are for assistive tech only (sr-only; Capsomer's base.css, which defines cap-sr-only, is not loaded in the app): legacy's lists show no
- * header row, but each cell still needs its column's name read out.
- */
+/** A Capsomer Panel holding a Capsomer table, flush to the panel's edges, in a focusable scroll region named by the panel's heading (table.md). The column headers are for assistive tech only (sr-only; Capsomer's base.css, which defines cap-sr-only, is not loaded in the app): each cell still needs its column's name read out. */
 function StatusTable({
   title,
   headingId,

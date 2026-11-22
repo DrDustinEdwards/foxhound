@@ -19,21 +19,11 @@ export interface NavContext {
 type WaitUntil = (promise: Promise<unknown>) => void;
 
 /**
- * Resolves nav context ONCE per app-shell request (task Part 2 rule 1: zero
- * extra DB queries in the nav component itself). Always reads
- * last_visited_product (nav assessment F-1:
- * this used to be read-on-platform-page-only, write-on-product-page-only;
- * that meant a blind write on EVERY product-page GET, which both violated
- * the demo read-only invariant - a demo visitor's browsing bled
- * last_visited_product across concurrent demo visitors - and was unbounded
- * write amplification for a value that rarely changes). The one added read
- * is the price of eliminating that.
- *
- * Writes only when ALL of: the page has a current product, it differs from
- * the stored value, and the caller is not the demo account. The write is
- * deferred via waitUntil (not awaited) so it never adds to navigation
- * latency; callers pass ctx.waitUntil directly (foxhound-nav-assessment.md
- * F-1, TASK-foxhound-nav-loader-write.md).
+ * Resolves nav context ONCE per app-shell request (task Part 2 rule 1: zero extra DB queries in the
+ * nav component itself). Writes only when ALL of: the page has a current product, it differs from
+ * the stored value, and the caller is not the demo account. The write is deferred via waitUntil
+ * (not awaited) so it never adds to navigation latency; callers pass ctx.waitUntil directly
+ * (foxhound-nav-assessment.md F-1, TASK-foxhound-nav-loader-write.md).
  */
 export async function resolveNavContext(
   db: Db,

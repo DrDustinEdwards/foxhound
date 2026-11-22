@@ -13,35 +13,38 @@ import { getConnectedStripe } from "~/lib/stripe/client";
 // Card-update payment-method collection (Phase 5 slice 5g, PRICING.md
 // card_update: "payment method updated through a Foxhound link/page"). Mirrors
 // billing-setup's Stripe-hosted Checkout Session in `setup` mode
-// (app/lib/billing/platform-customer.ts), but scoped to the CONNECTED
-// account (the merchant's own Stripe, via the customer's decrypted OAuth
-// access token) instead of Foxhound's platform account: this collects a
-// payment method for the merchant's customer, not for Foxhound's own billing.
-//
-// LIVE redirects are exercised in Phase 8 (needs a live Stripe test-mode
-// session); the seams here typecheck and are unit-proven at the pure level.
+// (app/lib/billing/platform-customer.ts), but scoped to the CONNECTED account
+// (the merchant's own Stripe, via the customer's decrypted OAuth access token)
+// instead of Foxhound's platform account: this collects a payment method for
+// the merchant's customer, not for Foxhound's own billing.
 
 export interface CardUpdateSession {
   url: string;
 }
 
-/** The customer's billing currency, for a setup session with no failed
- *  payment to take one from. A customer never billed has none: usd then,
- *  which still saves a card that later charges in any currency. */
+/**
+ * The customer's billing currency, for a setup session with no failed payment
+ * to take one from. A customer never billed has none: usd then, which still
+ * saves a card that later charges in any currency.
+ */
 async function customerCurrency(stripe: Stripe, customerId: string): Promise<string> {
   const customer = await stripe.customers.retrieve(customerId);
   return ("deleted" in customer && customer.deleted ? null : customer.currency) ?? "usd";
 }
 
-/** A Stripe-hosted Checkout Session in `setup` mode on the connected account:
- *  collects a payment method for the given customer without us ever touching
- *  card data or the merchant's Stripe secret key. */
+/**
+ * A Stripe-hosted Checkout Session in `setup` mode on the connected account:
+ * collects a payment method for the given customer without us ever touching
+ * card data or the merchant's Stripe secret key.
+ */
 export async function createCardUpdateSession(input: {
   accessToken: string;
   customerId: string;
   /** The link's own row (failed payment or alert id), checked on return. */
   linkRef: string;
-  /** The failed payment's currency; absent in alert mode, where nothing failed. */
+  /**
+   * The failed payment's currency; absent in alert mode, where nothing failed.
+   */
   currency?: string;
   successUrl: string;
   cancelUrl: string;
@@ -70,21 +73,21 @@ export interface FinalizeCardUpdateResult {
   error?: string;
 }
 
-/** Called on the success_url return: retrieves the completed setup session
- *  and sets the collected payment method as the customer's default, and the
- *  subscription's default if one is known, so the next recovery retry uses
- *  the new card.
+/**
+ * Called on the success_url return: retrieves the completed setup session and
+ * sets the collected payment method as the customer's default, and the
+ * subscription's default if one is known, so the next recovery retry uses the
+ * new card.
  *
- *  session_id comes from the URL, so the session must be the one THIS link
- *  made: setup mode, this link's reference, this link's customer. Without it,
- *  any completed setup session on the merchant's account (an older one of the
- *  customer's own) recorded a billable card_update with no new card (Mythos
- *  billing review, finding 3). Billing setup has had the customer check
- *  (assertSessionBelongsToAccount) all along. */
+ * session_id comes from the URL, so the session must be the one THIS link made:
+ * setup mode, this link's reference, this link's customer.
+ */
 export async function finalizeCardUpdateSession(input: {
   accessToken: string;
   sessionId: string;
-  /** The link's customer and reference, as passed to createCardUpdateSession. */
+  /**
+   * The link's customer and reference, as passed to createCardUpdateSession.
+   */
   customerId: string;
   linkRef: string;
   subscriptionId?: string | null;
@@ -110,8 +113,8 @@ export async function finalizeCardUpdateSession(input: {
   await stripe.customers.update(owned.customerId, {
     invoice_settings: { default_payment_method: paymentMethodId },
   });
-  // A subscription's own default card outranks the customer's, so a retry
-  // would still charge the declined card unless the subscription moves too.
+  // A subscription's own default card outranks the customer's, so a retry would
+  // still charge the declined card unless the subscription moves too.
   let subscriptionId = input.subscriptionId ?? null;
   if (!subscriptionId && input.invoiceId) {
     const invoice = await stripe.invoices.retrieve(input.invoiceId);
@@ -125,14 +128,6 @@ export async function finalizeCardUpdateSession(input: {
   }
   return { ok: true };
 }
-
-// ── Resubscribe ──────────────────────────────────────────────
-// Legacy's win-back email links to a Stripe billing portal session created at
-// SEND time, once per step, on the merchant's account. Foxhound creates nothing
-// at send time: the email carries a signed token, and the Stripe object is
-// created only when a customer actually clicks. Stripe hosts the subscription
-// creation, so Foxhound never calls `subscriptions.create` and never writes a
-// subscription itself.
 
 // The metadata keys the created Checkout Session and its subscription carry.
 // They live in ~/lib/recovery/winback-metadata so the webhook classifier that
@@ -152,12 +147,6 @@ interface ResubscribeSessionParamsInput {
  * The Checkout Session arguments, assembled pure so a plant can read exactly
  * what goes to Stripe (337 binding 4: a test that rebuilds the input by hand
  * proves the test, not the code).
- *
- * The metadata pair is set TWICE on purpose. `checkout.session.completed`
- * carries `session.metadata`, but `invoice.payment_succeeded`, the event legacy
- * actually keys its reactivation on, carries only the invoice, whose
- * subscription carries `subscription_data.metadata`. Setting both leaves
- * session 52 an exact match on either event.
  */
 function buildResubscribeSessionParams(input: ResubscribeSessionParamsInput) {
   const metadata = {
@@ -180,15 +169,7 @@ interface ResubscribePlan {
   quantity: number;
 }
 
-/**
- * Read the canceled subscription's price back off Stripe.
- *
- * `win_back_sequences` stores `plan_name`, `amount_cents` and `currency` and NO
- * price id, on both sides, because legacy's billing portal needed none. A
- * Checkout Session does, and a canceled subscription is still retrievable, so
- * the price is re-read at click rather than stored. This is a READ: it creates
- * and modifies nothing.
- */
+/** Read the canceled subscription's price back off Stripe. */
 async function loadResubscribePlan(input: {
   accessToken: string;
   subscriptionId: string;
@@ -201,9 +182,11 @@ async function loadResubscribePlan(input: {
   return { priceId, quantity: item?.quantity ?? 1 };
 }
 
-/** Create the Checkout Session on the CONNECTED account. Foxhound creates no
- *  subscription of its own; Stripe does, on the merchant's account, when the
- *  customer completes the session. */
+/**
+ * Create the Checkout Session on the CONNECTED account. Foxhound creates no
+ * subscription of its own; Stripe does, on the merchant's account, when the
+ * customer completes the session.
+ */
 export async function createResubscribeSession(input: {
   accessToken: string;
   customerId: string;

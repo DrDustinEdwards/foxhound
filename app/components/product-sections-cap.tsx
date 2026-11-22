@@ -15,28 +15,10 @@ import "capsomer/panel.css";
 import "capsomer/price-card.css";
 import "capsomer/process.css";
 import "capsomer/button.css";
-// Capsomer's tokens and the amber family (capbase layer), which every part
-// below reads. The site header loads the same file; importing it here keeps
-// the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which every part below reads. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
-// The /product spoke sections built from Capsomer's parts. Recova's
-// spec is components/product/ProductSections.tsx (blob ba3aed7c) and
-// components/product/ProductFAQ.tsx (blob 7c08a5a2), read whole: the same six
-// sections, in the same order, at Recova's five container widths (680 hero,
-// 760 how it works, 1100 feature blocks, 480 pricing and closing) and its
-// 620px FAQ.
-//
-// All four spokes render from this file. It began as a second file beside the
-// pre-Capsomer product-sections.tsx while each spoke's job moved it here; the
-// audit spoke was the last, and the old file and its product-faq.tsx went
-// with it.
-//
-// Look is Capsomer's: buttons, panels, badges, the FAQ's disclosure, the
-// eyebrow, the process steps and the feature blocks. Text is at
-// Recova's sizes, accents amber. Recova's card padding and button heights are
-// set through Capsomer's own variables (--pad-card, --cap-btn-h), not by CSS
-// laid over its parts.
+// The /product spoke sections built from Capsomer's parts: six sections at five container widths (680 hero, 760 how it works, 1100 feature blocks, 480 pricing and closing) and a 620px FAQ. All four spokes render from this file. Card padding and button heights are set through Capsomer's own variables (--pad-card, --cap-btn-h), not by CSS laid over its parts.
 
 interface CTA {
   href: string;
@@ -58,7 +40,7 @@ function PrimaryLink({ cta }: { cta: CTA }) {
   );
 }
 
-/** A section's name as its heading, centered, as Recova's. */
+/** A section's name as its heading, centered. */
 function SectionLabel({ children, className }: { children: React.ReactNode; className: string }) {
   return <h2 className={`fh-label ${className} fh-center`}>{children}</h2>;
 }
@@ -116,9 +98,9 @@ export interface ProductFeatureBlock {
   title: string;
   body: React.ReactNode;
   ui: React.ReactNode;
-  /** Recova's middle block: the whole block on a lifted surface. */
+  /** The middle block: the whole block on a lifted surface. */
   lifted?: boolean;
-  /** Recova's tall UI (a table): a window that scrolls, named here. */
+  /** A tall UI (a table): a window that scrolls, named here. */
   tallLabel?: string;
 }
 
@@ -179,11 +161,7 @@ export function ProductPricing({
   );
 }
 
-/**
- * Recova's per-product FAQ: one question open at a time. Capsomer's disclosure
- * is a native details element, so sections sharing a name open one at a time
- * with no script, and every answer is in the HTML (conventions-web.md 6).
- */
+/** The per-product FAQ: one question open at a time. Capsomer's disclosure is a native details element, so sections sharing a name open one at a time with no script, and every answer is in the HTML (conventions-web.md 6). */
 export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a: string }[] }) {
   return (
     <section className="fh-product-band-2">

@@ -52,15 +52,7 @@ function moneyFigure(amounts: ReadonlyArray<{ cents: number; currency: string }>
     : amounts.map((m) => formatMoney(m.cents, m.currency)).join(" + ");
 }
 
-// The family admin pattern for an overview (Capsomer patterns.md, Q9 of
-// 2026-10-14) and Dustin's review of 2026-10-11: the figures first, then the
-// one worst-first list of what needs a person, then the top of the audit log
-// and the crons' health, each with a link to its full page. One name for the
-// page (Overview), plain sentences in normal case, numbers said in words,
-// relative times with the exact time on hover, real icons, no row of buttons
-// repeating the menu. Recova's overview (app/admin/page.tsx) is the inventory:
-// its stats, its Needs attention and its Recent admin actions, all computed by
-// Foxhound's engine.
+// The overview: the figures first, then the one worst-first list of what needs a person, then the top of the audit log and the crons' health, each with a link to its full page. Plain sentences in normal case, numbers said in words, relative times with the exact time on hover, real icons, no row of buttons repeating the menu.
 export default function AdminOverview({ loaderData }: Route.ComponentProps) {
   const { overview, d1SizeBytes, recentActions, now } = loaderData;
   const pending = usePagePending("/admin");
@@ -73,9 +65,7 @@ export default function AdminOverview({ loaderData }: Route.ComponentProps) {
     failed === 0
       ? "No cron runs failed in the last 24 hours."
       : `${plural(failed, "cron run", "cron runs")} failed in the last 24 hours.`;
-  // While the page's data is read again the last good data stays on screen,
-  // each list marked busy with a spinner saying so (patterns.md "Loading"):
-  // the attention list's and each panel's `reading`.
+  // While the page's data is read again the last good data stays on screen, each list marked busy with a spinner saying so: the attention list's and each panel's `reading`.
 
   return (
     <div className="cap-stack" data-gap="6">

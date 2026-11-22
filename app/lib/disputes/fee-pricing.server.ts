@@ -11,28 +11,24 @@ import { sendDisputeFeeNotice } from "./notices.server";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE PRICING RETRY for a won dispute whose fee could not be priced at
-// resolution (Dustin, 2026-10-25, "Skip until priced").
+// resolution.
 //
 // Resolution converts the USD 500 cap into the dispute's currency with a Stripe
-// FX quote. When that quote fails the win resolves with no
-// stored fee, and the billing run skips it (billableDisputeRowConditions). This
-// is what prices it later: daily, before the monthly run on the 1st, every such
-// win gets a fresh quote. A quote that works stores the fee exactly as the
-// resolution writer would have, through the account's money Durable Object,
-// and the merchant is sent the won notice again, now with its fee sentence, so
-// the fee is told before the next run bills it. A quote that fails again
-// changes nothing and is tried the next day.
-//
-// The rate is today's, not the resolution day's: the resolution day's rate is
-// the one that could not be had. Its timestamp is stored with it, as at
-// resolution.
+// FX quote. A quote that works stores the fee exactly as the resolution writer
+// would have, through the account's money Durable Object, and the merchant is
+// sent the won notice again, now with its fee sentence, so the fee is told
+// before the next run bills it.
 
-/** How many unpriced wins one run prices. Each is one Stripe call and one
- *  money write; a backlog larger than this drains over the following days. */
+/**
+ * How many unpriced wins one run prices. Each is one Stripe call and one money
+ * write; a backlog larger than this drains over the following days.
+ */
 const DISPUTE_FEE_PRICING_LIMIT = 50;
 
-/** The stored fee for one unpriced win, conditioned on it still being unpriced,
- *  so a second writer that got there first makes this touch zero rows. */
+/**
+ * The stored fee for one unpriced win, conditioned on it still being unpriced,
+ * so a second writer that got there first makes this touch zero rows.
+ */
 function buildDisputeFeePricingUpdate(
   db: Db,
   input: {
@@ -73,8 +69,10 @@ export interface DisputeFeePricingResult {
   failed: number;
   notified: number;
   errors: string[];
-  /** Fees priced in the last day whose basis disagrees with what Stripe
-   *  withdrew (checkPricedFeesAgainstStripe). Logged only. */
+  /**
+   * Fees priced in the last day whose basis disagrees with what Stripe withdrew
+   * (checkPricedFeesAgainstStripe). Logged only.
+   */
   mismatched: number;
 }
 
@@ -85,13 +83,6 @@ const DAY_MS = 86_400_000;
  * priced on disputes.amount_cents; Stripe's charge.dispute.funds_withdrawn
  * balance transactions (dispute_balance_transactions, dispute-lifecycle.ts)
  * record the amount it really took from the merchant, and its own dispute fee.
- * For every win priced in the last day (resolved in it, or priced by this cron
- * in it), when Stripe's withdrawal is in the fee's currency and its amount
- * differs from the amount the fee was priced on, a structured warning is
- * logged. It changes no money and sends nothing: a mismatch is for a person to
- * read. A withdrawal in another (settlement) currency cannot be compared and is
- * skipped. Stripe's own dispute fee is carried in the log for context; it is
- * not Foxhound's fee and is never compared to it.
  */
 export async function checkPricedFeesAgainstStripe(env: Env, now: Date): Promise<number> {
   const since = new Date(now.getTime() - DAY_MS);
@@ -213,8 +204,8 @@ export async function priceUnpricedDisputeFees(
     if (notice.kind === "sent" && notice.result.status === "sent") result.notified += 1;
   }
 
-  // After pricing, so a fee this run just stored is checked too. A failed
-  // check must not fail the pricing it follows.
+  // After pricing, so a fee this run just stored is checked too. A failed check
+  // must not fail the pricing it follows.
   try {
     result.mismatched = await checkPricedFeesAgainstStripe(env, now);
   } catch (err) {
@@ -235,8 +226,10 @@ export function describeDisputeFeePricing(result: DisputeFeePricingResult): stri
     : base;
 }
 
-/** An alert while any win stays unpriced, so a quote that keeps failing is
- *  heard about rather than leaving a fee unbilled in silence. */
+/**
+ * An alert while any win stays unpriced, so a quote that keeps failing is heard
+ * about rather than leaving a fee unbilled in silence.
+ */
 export function disputeFeePricingFailureError(result: DisputeFeePricingResult): string | null {
   if (result.failed === 0) return null;
   return `${result.failed} won dispute fee(s) could not be priced: ${result.errors.slice(0, 5).join("; ")}`;

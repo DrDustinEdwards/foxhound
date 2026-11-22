@@ -6,6 +6,7 @@ import {
   formatRelativeLastSeen,
   hasActiveRecoverySignal,
   hasDisputeHistorySignal,
+  planTierPill,
 } from "~/lib/intelligence/customer-directory";
 import { listCustomerDirectory, listCustomerTiers } from "~/lib/intelligence/directory.server";
 
@@ -44,6 +45,17 @@ describe("capitalizeTier / signal helpers", () => {
     );
     expect(hasDisputeHistorySignal({})).toBe(false);
     expect(hasDisputeHistorySignal(null)).toBe(false);
+  });
+});
+
+describe("planTierPill", () => {
+  it("gives a dash for no tier, never a raw database value, and matches free text whatever its case or space", () => {
+    expect(planTierPill(null).label).toBe("-");
+    expect(planTierPill("enterprise").label).toBe("Enterprise");
+    expect(planTierPill("Growth")).toEqual({ label: "Growth", tone: "info" });
+    expect(planTierPill("SCALE")).toEqual({ label: "Scale" });
+    expect(planTierPill(" pro ")).toEqual({ label: "Pro" });
+    expect(planTierPill("Starter").label).toBe("Starter");
   });
 });
 

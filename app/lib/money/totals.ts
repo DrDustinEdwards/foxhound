@@ -1,6 +1,5 @@
-// The one money-total path (hard rule 2): sum per currency, never across
-// currencies. A total that ignores currency adds yen to dollars and labels the
-// result with whichever row came first. Client-safe: no server imports.
+// The one money-total path (hard rule 2): sum per currency, never across currencies, or yen is added to dollars under the
+// first row's label. Client-safe: no server imports.
 
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
@@ -9,7 +8,6 @@ export interface CurrencyAmount {
   cents: number;
 }
 
-/** Sum minor units per currency, in first-seen currency order. */
 export function groupSumByCurrency(rows: readonly CurrencyAmount[]): CurrencyAmount[] {
   const totals = new Map<string, number>();
   for (const row of rows) {
@@ -18,18 +16,14 @@ export function groupSumByCurrency(rows: readonly CurrencyAmount[]): CurrencyAmo
   return [...totals.entries()].map(([currency, cents]) => ({ currency, cents }));
 }
 
-/** Per-currency totals side by side, each in its own currency; none at all
- *  reads as zero. A total across currencies is meaningless, so
- *  the parts are never added together. The /disputes cards use it, and so does
- *  the /product/disputes preview of them. */
+/** Per-currency totals side by side, each in its own currency; none at all reads as zero. Never added together. Used by the
+ *  /disputes cards and the /product/disputes preview. */
 export function formatAmounts(rows: readonly CurrencyAmount[]): string {
   if (rows.length === 0) return formatMoney(0, "usd");
   return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");
 }
 
-/** The order per-currency totals are shown in: by currency code, as
- *  /intelligence orders them (app/lib/intelligence/views.server.ts), so a
- *  figure's lines do not move with the order Stripe's rows happened to come. */
+/** Per-currency totals ordered by currency code (as /intelligence does), so a figure's lines do not move with Stripe's row order. */
 export function byCurrencyCode(a: { currency: string }, b: { currency: string }): number {
   return a.currency.localeCompare(b.currency);
 }

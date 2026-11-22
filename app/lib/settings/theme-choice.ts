@@ -1,22 +1,14 @@
 import type { Theme } from "~/lib/theme";
 
-// The account page's theme save (Recova's ThemeToggle, blob 8f32b6c7), apart
-// from the component so it can be tested without a browser. Client-safe.
+// The account page's theme save, apart from the component so it can be tested without a browser.
+// Client-safe.
 
 export type ThemeChoiceOutcome = "saved" | "failed" | "demo";
 
 /**
- * Save a theme choice to the account through /api/theme (Recova's
- * /api/account/theme).
- *
- * IN THE DEMO IT SAVES NOTHING. /api/theme writes the signed-in person's own
- * active account, so a person viewing the demo over their session would
- * otherwise change their real account from a read-only page. The demo refuses
- * here the way ReadOnlyForm refuses every other demo write, before anything
- * leaves the browser.
- *
- * A refused response and a lost connection are both "failed": Recova shows the
- * same line for either.
+ * Save a theme choice to the account through /api/theme. IN THE DEMO IT SAVES NOTHING. /api/theme
+ * writes the signed-in person's own active account, so a person viewing the demo over their session
+ * would otherwise change their real account from a read-only page.
  */
 export async function chooseTheme(
   theme: Theme,

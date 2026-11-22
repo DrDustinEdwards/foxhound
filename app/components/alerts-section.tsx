@@ -33,33 +33,7 @@ import {
 } from "~/lib/settings/alert-metrics";
 import type { AlertActionResult, loadAlertsSection } from "~/lib/settings/alerts-section.server";
 
-// The alerts part of /settings/notifications (S28, once its own page at
-// /settings/alerts; combined on Dustin's word of 2026-10-29). Legacy: alerts/page.tsx (blob 3c1d6bb0, 1,794 bytes)
-// and alerts/AlertsClient.tsx (blob ee8dac99, 20,909 bytes).
-//
-// J33 rebuilt the page on Capsomer 0.9.0's parts,
-// amber throughout. Recova is the spec for what is on it and
-// in what order: the phone-only Settings link, the head, a card with the count
-// line, Create alert, the alerts table and the create form, then a Recent
-// triggers card. The settings layout gives the page Recova's 800px column and
-// padding, so the page adds no width of its own. No Foxhound class sits on a
-// Capsomer element; what Recova's look still needs is listed for Capsomer's
-// per-site layer in the J33 pull request.
-//
-// THE READER CAME FIRST HERE, which is the inverse of 315's usual failure. The
-// nightly evaluator (`evaluateAlerts`) has been reading `alerts` and writing
-// `alert_history` since Intelligence shipped, against a table nothing could put
-// a row in. ALERT_METRICS' own comment says it stands "until a settings UI for
-// creating alerts exists": this is that UI.
-//
-// RECOVA'S PAGE IN FULL since the parity fixes of 2026-10-29: its eleven
-// metrics, each computed (computeAlertMetrics), its subtitle and "email goes
-// to" note, its Channel column and Email or Slack picker (Slack disabled until
-// a webhook is saved, as Recova's is), and its threshold "$" and "%".
-//
-// Legacy's transport is REST at /api/settings/alerts with optimistic updates
-// and silent reverts on failure. This is the route's own action, class (a),
-// S30's divergence 1, and a failure is shown rather than reverted invisibly.
+// The alerts part of /settings/notifications. The nightly evaluator (evaluateAlerts) reads alerts and writes alert_history; this is the UI that creates the rows. Email or Slack channel (Slack disabled until a webhook is saved). A failed action is shown, never silently reverted.
 
 function dateOrNever(at: Date | null): string {
   return at ? (formatDate(new Date(at), { style: "medium" }) ?? "") : "Never";
@@ -113,8 +87,7 @@ export function AlertsSection({
                 ) : null}
               </p>
               {creating ? (
-                // Recova keeps the button on screen and disabled while the
-                // form is open. Capsomer's Button says why it is disabled.
+                // The button stays on screen, disabled while the form is open; Capsomer's Button says why it is disabled.
                 <div className="cap-cluster" data-gap="3">
                   <Button variant="primary" disabledReason="The form is open below.">
                     Create alert
@@ -258,13 +231,7 @@ export function AlertsSection({
   );
 }
 
-/**
- * Recova's On and Off status control, on Capsomer's Switch: a real switch with
- * its On or Off word beside it, named for its alert so a screen reader hears
- * which one it moves. Changing it posts the toggle at once, as Recova's pill
- * does. The switch follows the stored value, so a refused change (the demo, a
- * failed write) springs back rather than showing a state nothing saved.
- */
+/** On and Off status control on Capsomer's Switch: a real switch with its word beside it, named for its alert. Changing it posts the toggle at once. The switch follows the stored value, so a refused change (the demo, a failed write) springs back. */
 function AlertSwitch({
   id,
   enabled,
@@ -292,16 +259,10 @@ function AlertSwitch({
   );
 }
 
-/** Recova's order and default: "Drops below" first and chosen. The evaluator's
- *  enum lists "above" first, so the page orders its own copy. */
+/** "Drops below" first and chosen; the evaluator's enum lists "above" first, so the page orders its own copy. */
 const DIRECTION_ORDER: readonly AlertDirection[] = ["below", "above"];
 
-/**
- * Recova's "Create a new alert" form, nested in the first card, with its fields
- * in Recova's order: Metric, Direction, Threshold, Label. The metric is held in
- * state so the threshold shows Recova's $ for a money metric and its
- * placeholder follows the metric, as Recova's does.
- */
+/** The "Create a new alert" form, nested in the first card: Metric, Direction, Threshold, Label. The metric is held in state so the threshold shows $ for a money metric and its placeholder follows the metric. */
 function CreateAlertForm({
   busy,
   error,

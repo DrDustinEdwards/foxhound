@@ -32,31 +32,14 @@ import type { Route } from "./+types/disputes";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/products.css";
 
-// The Disputes spoke. Recova's spec, read whole at HEAD:
-// app/(marketing)/product/disputes/page.tsx (blob c412d54f) and the files it
-// draws from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2),
-// DisputesDashboardPreview.tsx (dcde195e) with the DisputesDashboardView it
-// renders (3c1b7a98), and DisputesTablePreview.tsx (ed33fa95) with
-// DisputeStatusPill (8eb22d08) and TriagePill (1485726d).
-//
-// Recova's sections, in Recova's order: the hero, How it works, three feature
-// blocks (the disputes dashboard, tall; the numbers, lifted; the dispute
-// table, tall), Pricing, Questions and the closing block. Parts are
-// Capsomer's, amber, on the five text sizes (product-sections-cap.tsx). Copy is
-// Recova's with every product fact read from the engine and its truthfulness
-// fixes named (lib/marketing/disputes-copy.ts). The previews draw the demo
-// account's seed, never a merchant's rows
-// (lib/marketing/disputes-preview.server.ts).
-//
-// The path is Recova's own /product/disputes since J09.
+// The Disputes spoke, in order: the hero, How it works, three feature blocks (the disputes dashboard, tall; the numbers, lifted; the dispute table, tall), Pricing, Questions and the closing block (product-sections-cap.tsx). Every product fact is read from the engine (lib/marketing/disputes-copy.ts). The previews draw the demo account's seed, never a merchant's rows (lib/marketing/disputes-preview.server.ts). The path is /product/disputes.
 
 const PATH = "/product/disputes";
 const TITLE = "Disputes";
 const CONNECT = { href: "/connect", label: "Connect Stripe" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification, as Recova emits it: the selectors point at
-  // the classes product-sections-cap.tsx puts on the sections.
+  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
   return [
     ...marketingMeta({
       title: TITLE,

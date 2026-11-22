@@ -10,18 +10,7 @@ import {
   iconShield,
 } from "capsomer/react/icons";
 
-// S25's settings sub-nav, ported from legacy's SettingsSidebar. On a settings
-// page the app shell's left menu shows these rows in place of the product's
-// (app/layouts/app-shell.tsx), so the page has one menu, not two side by side
-// (Dustin).
-//
-// (blob `e1a283ec`, 4,047 bytes). 336 binding 2 rules the hub and its sub-nav
-// the spec and Foxhound's inline cards the rule to remove, superseding ruling
-// 57's deferral of the split.
-//
-// LEGACY'S ITEMS, in legacy's groups, less three combined into others (Dustin,
-// 2026-10-29): Features into Email, Alerts into Notifications, and
-// Intelligence, which had no working control, removed.
+// The settings sub-nav. On a settings page the app shell's left menu shows these rows in place of the product's (app/layouts/app-shell.tsx), so the page has one menu, not two side by side. Features is combined into Email, Alerts into Notifications, and Intelligence (no working control) is gone.
 
 interface SettingsNavItem {
   to: string;
@@ -34,9 +23,7 @@ export interface SettingsNavGroup {
   items: SettingsNavItem[];
 }
 
-/**
- * Legacy's five groups in legacy's order. `Products` holds Disputes and Audit.
- */
+/** Five groups. `Products` holds Disputes and Audit. */
 export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   {
     label: "Recovery",
@@ -70,13 +57,7 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   },
 ];
 
-/**
- * Legacy's active rule, both halves.
- *
- * OVERVIEW IS EXACT-MATCH, and legacy's own comment says why: `startsWith`
- * would make it permanently active, because every settings route begins with
- * `/settings`. Every other item matches itself or a child path.
- */
+/** OVERVIEW IS EXACT-MATCH: `startsWith` would make it permanently active, because every settings route begins with `/settings`. Every other item matches itself or a child path. */
 export function isSettingsItemActive(pathname: string, to: string): boolean {
   if (to === "/settings") return pathname === "/settings";
   return pathname === to || pathname.startsWith(`${to}/`);

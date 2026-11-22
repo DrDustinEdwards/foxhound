@@ -11,7 +11,7 @@ const METER = { source: "test", accountId: null };
 // leaks, and a hard strip of whatever still leaks. These plants prove each
 // layer on both seams.
 //
-// THE MODEL IS STUBBED AT ~/lib/ai/client, the pattern audit-summary-phase-c
+// THE MODEL IS STUBBED AT ~/lib/ai/client, the pattern audit-engine
 // uses: every seam calls askStructured, so replacing it scripts each reply in
 // order and records every request that would have left.
 

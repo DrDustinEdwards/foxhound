@@ -14,29 +14,14 @@ import "capsomer/status.css";
 import "capsomer/table.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part on
 // this page reads. The site header loads the same file; importing it here keeps
-// the page whole under any layout (as /docs does, J17).
+// the page whole under any layout (as /docs does).
 import "~/site-header.css";
 
 import type { Route } from "./+types/page";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/docs.css";
 
-// The five docs guides on one :slug route. Recova's spec is
-// app/(marketing)/docs/{platform,audit,recovery,disputes,intelligence}/page.tsx
-// (blobs 2b69517b, 3b1153b4, 6166a6be, 598fcbaa, e7f18266), read whole.
-//
-// LAYOUT IS RECOVA'S: the 760px column with px-6 and py-16, the breadcrumb, the
-// page heading, the Contents card with "Part N." links in two columns from sm,
-// and each Part's h2. LOOK IS CAPSOMER'S: the breadcrumb, the Contents card (a body-only
-// panel), the tables, callouts and pills, in the amber family, with text
-// at Recova's sizes. CONTENT is app/lib/marketing/docs-content.ts.
-//
-// The page heading is Recova's page's own ("Platform setup",
-// "Recovery sequences"), which differ from the /docs card's title and
-// description; the breadcrumb keeps the card's short title, as Recova's does.
-//
-// Ids are generated from Foxhound's section headings. The wrapper is a div: the
-// marketing layout already renders the page's one <main>.
+// The five docs guides on one :slug route: the 760px column with px-6 and py-16, the breadcrumb, the page heading, the Contents card (a body-only panel) with "Part N." links in two columns from sm, and each Part's h2. Content is app/lib/marketing/docs-content.ts. The page heading is the guide's own ("Platform setup", "Recovery sequences"), which differs from the /docs card's title; the breadcrumb keeps the card's short title. Ids are generated from Foxhound's section headings. The wrapper is a div: the marketing layout already renders the page's one <main>.
 
 export function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -50,8 +35,7 @@ export function loader({ params, context }: Route.LoaderArgs) {
 export function meta({ loaderData }: Route.MetaArgs) {
   if (!loaderData) return [{ title: "Docs - Foxhound" }];
   const { guide, siteUrl: url } = loaderData;
-  // JSON-LD (368 roadmap item 2): one block, an array of two. The headline
-  // is the same value the h1 renders, so the two cannot drift.
+  // JSON-LD: one block, an array of two. The headline is the same value the h1 renders, so the two cannot drift.
   return [
     ...marketingMeta({
       title: guide.title,

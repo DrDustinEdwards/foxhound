@@ -24,15 +24,8 @@ import { strayContent, voiceSampleLines } from "./voice-samples";
 // The subject always comes from cache-or-generation; a merchant custom body never
 // gets regenerated once set.
 
-// Em dash / en dash: the most recognizable AI tell. Replace a dash (with any
-// surrounding spaces) by a comma so the pause reads naturally.
-//
-// The two characters are written as \u escapes rather than literals, per
-// capsid/conventions.md: where source code needs the literal dash (it names a
-// normalization regex as the example), write it as a \uXXXX escape so the
-// file stays clean under the rule it enforces, and stays greppable. A regex
-// character class reads the escape as that character, so the pattern is
-// unchanged. Ruling 331.
+// Em dash / en dash: the most recognizable AI tell. Replace a dash (with any surrounding spaces) by
+// a comma so the pause reads naturally.
 const DASH_PATTERN = /\s*[\u2014\u2013]\s*/g;
 
 /** Strip em/en dashes, replacing each with a comma. Pure, deterministic. */
@@ -66,33 +59,15 @@ const TIMING_TELL_PATTERNS: readonly RegExp[] = [
   /\b(?:since|after)\s+\d+\s+(?:hours?|days?)\b/i,
 ];
 
-//
-// The customer may read the email hours or days after it was sent, so no
-// recovery or win-back email may say WHEN it is being read ("today", "tonight").
-// Legacy guards this in four layers and Foxhound ports all four:
-//   1. the prompt rule (legacy lib/email-generation.ts blob `e28d780e` line 139;
-//      here in buildSystemPrompt and buildWinbackPrompt),
-//   2. the detector, legacy's exact nine-phrase regex (same blob, line 83),
-//   3. one retry when the SUBJECT leaks (legacy recovery-execution.ts blob
-//      `3a8f8768` lines 313 to 344; here in applyTimingWordGuard),
-//   4. the hard strip of whatever still leaks (blob `e28d780e` lines 85 to 101;
-//      blob `3a8f8768` lines 345 to 351; process-winback blob `18f20de9` lines
-//      393 to 404).
-// The quality gate below also reads the detector as `timing_leak`, so anything
-// that somehow reaches it with a timing word sends the template instead.
-//
-// ONE ADAPTATION: legacy's bodies were plain text, Foxhound's are HTML. The
-// detector and the strip read only TEXT OUTSIDE TAGS, so an href token or an
-// attribute that happens to contain "today" is never read and never altered,
-// and the update-link check downstream is never tripped by the strip.
+// The customer may read the email hours or days after it was sent, so no recovery or win-back email
+// may say WHEN it is being read ("today", "tonight"). The detector and the strip read only TEXT
+// OUTSIDE TAGS, so an href token or an attribute that happens to contain "today" is never read and
+// never altered, and the update-link check downstream is never tripped by the strip.
 
-/** Legacy's pattern, byte for byte (blob `e28d780e` line 83). Not global, so
- *  `.test` carries no lastIndex between calls. */
+/** Not global, so `.test` carries no lastIndex between calls. */
 const TIMING_WORD_PATTERN =
   /\b(today|tonight|yesterday|this morning|this afternoon|this evening|right now|immediately|by end of day)\b/i;
 
-/** Legacy's retry instruction, verbatim (blob `3a8f8768` line 321), appended to
- *  the same user message for the one retry. */
 export const TIMING_RETRY_INSTRUCTION =
   "\n\nADDITIONAL INSTRUCTION:\nThe previous subject contained a timing word like 'today' or 'tonight'. Rewrite it without any timing-specific words. The customer may read this hours or days after it was sent.";
 
@@ -104,13 +79,11 @@ function textParts(text: string): string[] {
   return text.split(TAG_SPLIT).filter((_, i) => i % 2 === 0);
 }
 
-/** True when the text outside any tag carries one of legacy's nine phrases.
- *  Safe for a plain subject and for an HTML body. */
+/** Safe for a plain subject and for an HTML body. */
 export function hasTimingWord(text: string): boolean {
   return textParts(text).some((part) => TIMING_WORD_PATTERN.test(part));
 }
 
-/** Legacy's replacements, in legacy's order (blob `e28d780e` lines 89 to 97). */
 const TIMING_WORD_REPLACEMENTS: readonly [RegExp, string][] = [
   [/\bcloses tonight\b/gi, "will close soon"],
   [/\bends today\b/gi, "is ending"],
@@ -124,13 +97,8 @@ const TIMING_WORD_REPLACEMENTS: readonly [RegExp, string][] = [
 ];
 
 /**
- * Remove the nine timing phrases with legacy's replacements, then tidy the
- * spaces a removal leaves (a run of spaces, a space before punctuation).
- *
- * Legacy's tidy is `\s+` to one space across the whole string, which would
- * flatten an HTML body's newlines. Here the tidy is spaces and tabs only, and
- * only in a text part the strip actually changed; tags are never touched and
- * untouched text stays byte for byte. The whole result is trimmed, as legacy's.
+ * Here the tidy is spaces and tabs only, and only in a text part the strip actually changed; tags
+ * are never touched and untouched text stays byte for byte.
  */
 export function hardStripTimingWords(text: string): string {
   const parts = text.split(TAG_SPLIT);
@@ -148,18 +116,8 @@ export function hardStripTimingWords(text: string): string {
 }
 
 /**
- * Layers 3 and 4 for one generated email, shared by both model seams.
- *
- * `retry` is the seam's own model call with TIMING_RETRY_INSTRUCTION appended
- * to the same user message. It runs AT MOST ONCE, and only when the SUBJECT
- * leaks, which is legacy's trigger: a second call to fix a body phrase is left
- * to the strip (blob `3a8f8768` lines 313 to 318). Retry copy replaces the
- * first only when it has both a subject and a body; a retry that throws or
- * returns nothing usable keeps the first copy, as legacy's catch does. Then
- * whatever still leaks is hard-stripped, subject and body separately.
- *
- * A first-call failure is not handled here: it throws out of the seam, and the
- * caller sends the template.
+ * Layers 3 and 4 for one generated email, shared by both model seams. Then whatever still leaks is
+ * hard-stripped, subject and body separately.
  */
 export async function applyTimingWordGuard(
   first: EmailCopy,
@@ -189,13 +147,7 @@ export async function applyTimingWordGuard(
   };
 }
 
-/**
- * Read one structured-output reply into copy as the model wrote it. Shared by
- * the dunning and win-back seams, which parse the same `{subject, bodyHtml}`
- * schema. `finishCopy` sanitizes after the retries, so the stock-phrasing check
- * sees the filler the sanitizer would cut and asks for a rewrite, rather than
- * the sentence the cut leaves behind.
- */
+/** Read one structured-output reply into copy as the model wrote it. */
 export function readGeneratedCopy(
   result: Awaited<ReturnType<typeof askStructured<{ subject: string; bodyHtml: string }>>>,
   label: string,
@@ -210,9 +162,8 @@ export function readGeneratedCopy(
 }
 
 /**
- * The seams' last steps, after both retries: the deterministic sanitizer, then
- * the stray-content check (voice-samples.ts), which throws so the caller sends
- * the template.
+ * The seams' last steps, after both retries: the deterministic sanitizer, then the stray-content
+ * check (voice-samples.ts), which throws so the caller sends the template.
  */
 export function finishCopy(copy: EmailCopy, samples: readonly string[], url: string): EmailCopy {
   const done = { subject: sanitizeCopy(copy.subject), bodyHtml: sanitizeCopy(copy.bodyHtml) };
@@ -239,10 +190,8 @@ function readableText(copy: EmailCopy): string {
 }
 
 /**
- * One retry when the first draft carries stock phrasing; a retry that loses its
- * subject or body is never kept. Phrases the merchant's own emails use are
- * theirs, not stock. What a retry leaves is sent: one stock word costs less
- * than throwing out the merchant's voice for the template.
+ * One retry when the first draft carries stock phrasing; a retry that loses its subject or body is
+ * never kept.
  */
 export function applyStockPhrasingGuard(
   first: EmailCopy,
@@ -257,12 +206,7 @@ export function applyStockPhrasingGuard(
   );
 }
 
-/**
- * Flag brand-voice violations in a piece of copy. Used as the quality gate before
- * a generated email is allowed to send: any violation means regenerate or reject.
- * Post-`sanitizeCopy`, `em_dash` should be clear; `timing_leak` is the
- * detector that a sanitizer cannot safely fix.
- */
+/** Flag brand-voice violations in a piece of copy. */
 export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[] {
   const violations = new Set<BrandVoiceViolation>();
   const both = `${copy.subject}\n${copy.bodyHtml}`;
@@ -271,12 +215,7 @@ export function findBrandVoiceViolations(copy: EmailCopy): BrandVoiceViolation[]
   for (const pat of TIMING_TELL_PATTERNS) {
     if (pat.test(both)) violations.add("timing_leak");
   }
-  // Job J01, defense in depth: the seams strip legacy's nine timing words, so
-  // copy reaching here with one means a path skipped that layer. Read outside
-  // tags only, so an href token is never a leak. The body is also read with
-  // its tags removed, so a phrase split by a tag ("this <b>morning</b>"),
-  // which the per-part detector and the strip cannot see, still sends the
-  // template.
+  // Read outside tags only, so an href token is never a leak.
   if (
     hasTimingWord(copy.subject) ||
     hasTimingWord(copy.bodyHtml) ||
@@ -307,10 +246,9 @@ export type ContentPlan =
   | { source: "generate"; customBody: string | null };
 
 /**
- * Decide whether a step can send from cache/custom content or must generate.
- * Body precedence is custom_body > cached ai_body_html; subject comes from the
- * cached subject. If either the resolved body or the subject is missing, we must
- * generate (carrying any custom_body forward so it is never overwritten).
+ * Decide whether a step can send from cache/custom content or must generate. If either the resolved
+ * body or the subject is missing, we must generate (carrying any custom_body forward so it is never
+ * overwritten).
  */
 export function resolveContentPlan(cached: CachedStepContent): ContentPlan {
   const body = cached.customBody ?? cached.cachedBodyHtml;
@@ -326,10 +264,9 @@ export function resolveContentPlan(cached: CachedStepContent): ContentPlan {
 }
 
 /**
- * Combine freshly generated copy with any merchant override: the custom body
- * always wins for the body; the subject is taken from generation. This is applied
- * after `generateDunningEmail` so a generation for a step that has a custom_body
- * only contributes the subject.
+ * Combine freshly generated copy with any merchant override: the custom body always wins for the
+ * body; the subject is taken from generation. This is applied after `generateDunningEmail` so a
+ * generation for a step that has a custom_body only contributes the subject.
  */
 export function applyCustomBody(generated: EmailCopy, customBody: string | null): EmailCopy {
   return {
@@ -343,15 +280,11 @@ export interface MerchantBrandVoice {
   merchantName: string;
   /** Optional merchant-configured tone/voice description. */
   voiceDescription?: string | null;
-  /** S27's three merchant-context fields, from `accounts`. All optional: a
-   *  merchant who filled none gets no context line at all, which is legacy's
-   *  behavior and not a placeholder. */
+  /** The three merchant-context fields, from `accounts`. */
   industry?: string | null;
   customerType?: string | null;
   mrrCents?: number | null;
-  /** S31's four per-category voices, from `stripe_connections`. Each is the
-   *  voice for ONE decline category; absent means "same as main voice", which
-   *  is what legacy's own select labels the empty option. */
+  /** The four per-category voices, from `stripe_connections`. */
   voiceSoft?: string | null;
   voiceExpired?: string | null;
   voiceNetwork?: string | null;
@@ -362,19 +295,8 @@ export interface MerchantBrandVoice {
 }
 
 /**
- * Legacy's merchant-context line, reproduced from
- * `lib/email-generation.ts:243-249` (blob `e28d780e`).
- *
- * THIS IS THE READER FOR S27's THREE COLUMNS. They had a writer on /settings and
- * no reader anywhere, under legacy's own help string "Used to personalize
- * recovery emails", so the promise was false at HEAD (336 binding 4 rules the
- * fix is the reader, not removing the fields).
- *
- * Legacy's exact shape, kept rather than improved: three optional parts joined
- * by a SPACE, prefixed "Merchant context: ", and the whole line omitted when
- * every part is absent. MRR is stored in cents and divided by 100 for the
- * prompt, as legacy divides it. `mrrCents` of 0 is falsy on both sides, so a
- * merchant reporting zero MRR contributes no part.
+ * Reads the three merchant-context columns. `mrrCents` of 0 is falsy on both sides, so a merchant
+ * reporting zero MRR contributes no part.
  */
 function merchantContextLine(merchant: MerchantBrandVoice): string | null {
   const parts: string[] = [];
@@ -384,31 +306,14 @@ function merchantContextLine(merchant: MerchantBrandVoice): string | null {
   return parts.length > 0 ? `Merchant context: ${parts.join(" ")}` : null;
 }
 
-/** Legacy's `BRAND_VOICE_DEFAULT`, byte for byte (`lib/constants.ts:21`).
- *  ALIGNED under ruling 338: this string is user-facing output in every email a
- *  merchant who sets no voice sends, and legacy is the spec for that output.
- *  Foxhound's own wording, "warm, plain, and direct; a real person from the
- *  business writing a short note", was an unratified divergence on the third
- *  rung of resolveBrandVoice. */
+/**
+ * The last rung of resolveBrandVoice, used when neither the merchant nor the category sets a voice.
+ */
 const DEFAULT_VOICE = "Friendly and direct. Write like a real person, not a company.";
 
 /**
- * Resolve the brand-voice descriptor for the prompt.
- *
- * LEGACY'S ORDER, PORTED VERBATIM from `lib/email-generation.ts:38-48`
- * (blob `e28d780e`): the category's own voice, else the general voice, else a
- * constant default. Every rung uses a falsy check on both sides, so an EMPTY
- * STRING and NULL behave identically and both fall through. That is what makes
- * "Same as main voice" storable as NULL rather than needing a sentinel.
- *
- * THE CATEGORY ARGUMENT IS THE WHOLE POINT and its absence was the defect:
- * Foxhound narrowed a legacy feature to a single voice by dropping it (337
- * binding 6, removed under 324 as a Foxhound-internal narrowing).
- *
- * SIX CATEGORIES, FOUR COLUMNS, and the two extras need no decision. Legacy's
- * `switch` has a `default:` arm returning the fallback for any category it has
- * no column for, so `revoked` and `unknown` resolve to the general voice by
- * porting the switch rather than by inventing columns for them.
+ * Resolve the brand-voice descriptor for the prompt. That is what makes "Same as main voice"
+ * storable as NULL rather than needing a sentinel.
  */
 export function resolveBrandVoice(merchant: MerchantBrandVoice, declineCategory: string): string {
   const general = merchant.voiceDescription?.trim();
@@ -418,8 +323,7 @@ export function resolveBrandVoice(merchant: MerchantBrandVoice, declineCategory:
   return categoryVoice && categoryVoice.length > 0 ? categoryVoice : fallback;
 }
 
-/** The column for one category, or undefined where legacy has none. Separated
- *  so the six-against-four mapping is one readable place. */
+/** Separated so the six-against-four mapping is one readable place. */
 function categoryVoiceFor(
   merchant: MerchantBrandVoice,
   declineCategory: string,
@@ -469,8 +373,6 @@ function buildSystemPrompt(brandVoice: string, samples: readonly string[]): stri
     "Rules you must follow exactly:",
     "- Never mention how many days or hours it has been, or reference an internal",
     "  schedule ('day 3', '72 hours ago'). Speak only to the present.",
-    // Job J01, layer 1: legacy's rule (blob `e28d780e` line 139), widened to
-    // the body and to all nine phrases its detector and quality check name.
     "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning',",
     "  'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day'",
     "  in the subject or the body. You do not know when the customer will read this.",
@@ -484,12 +386,11 @@ function buildSystemPrompt(brandVoice: string, samples: readonly string[]): stri
 }
 
 /**
- * Extra, category-specific framing folded into the generation prompt so the copy
- * matches what actually happened, not a generic "your payment failed, please pay".
- * Most categories share the default recovery framing (fix the payment via the
- * link); `revoked` is deliberately different: the customer explicitly revoked
- * authorization, so the note must offer a clean cancel-or-update choice rather
- * than dun them. Returns null when the default framing is correct.
+ * Extra, category-specific framing folded into the generation prompt so the copy matches what
+ * actually happened, not a generic "your payment failed, please pay". Most categories share the
+ * default recovery framing (fix the payment via the link); `revoked` is deliberately different: the
+ * customer explicitly revoked authorization, so the note must offer a clean cancel-or-update choice
+ * rather than dun them.
  */
 export function categoryGuidance(declineCategory: string): string | null {
   if (declineCategory === "revoked") {
@@ -508,7 +409,7 @@ export function categoryGuidance(declineCategory: string): string | null {
 export function buildUserPrompt(input: GenerateEmailInput): string {
   const guidance = categoryGuidance(input.declineCategory);
   // Exported so a plant can observe the prompt the model actually receives.
-  // The merchant-context line is the OUTPUT of S27's reader: without it the
+  // The merchant-context line is the output of merchantContextLine: without it the
   // three columns reach nothing.
   const merchantContext = merchantContextLine(input.merchant);
   return [
@@ -525,22 +426,10 @@ export function buildUserPrompt(input: GenerateEmailInput): string {
 }
 
 /**
- * Generate dunning copy via Sonnet. Isolated seam: constructs the Anthropic client
- * per call from env (mirrors the Stripe client factory), asks for structured
- * output, then sanitizes the result. The caller is responsible for the quality
- * gate and for `applyCustomBody`. Throws if ANTHROPIC_API_KEY is unset.
- *
- * NOTE: not live-verified this pass; ANTHROPIC_API_KEY is Dustin-gated
- * and the end-to-end send path lands in Phase 4c. The pure helpers above are the
- * tested surface.
+ * Generate dunning copy via Sonnet. The caller is responsible for the quality gate and for
+ * `applyCustomBody`.
  */
-/**
- * The exact prompt pair `generateDunningEmail` sends. PURE and exported so the
- * brand-voice resolution is observable: the resolved voice lands in the SYSTEM
- * string, not the user string, so a plant reading only the user prompt would
- * miss it entirely. 337 binding 4: reach the real assembly, do not rebuild it
- * in the test.
- */
+/** The exact prompt pair `generateDunningEmail` sends. */
 export function buildPrompts(input: GenerateEmailInput): { system: string; user: string } {
   return {
     system: buildSystemPrompt(
@@ -581,8 +470,7 @@ export async function generateDunningEmail(
     return readGeneratedCopy(result, "recovery email");
   };
 
-  // Stock phrasing first, then job J01, layers 3 and 4 (legacy
-  // recovery-execution.ts blob `3a8f8768` lines 313 to 351).
+  // Stock phrasing first, then layers 3 and 4.
   const samples = input.merchant.voiceSamples ?? [];
   const allow = ownPhrasing(samples);
   const copy = await applyTimingWordGuard(

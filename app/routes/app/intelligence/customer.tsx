@@ -10,9 +10,7 @@ import { Panel } from "capsomer/react/panel";
 import "capsomer/breadcrumb.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /intelligence/customers does.
+// Capsomer's tokens and the amber family, which the components above read. The shell loads the same file through its header; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import "~/components/charts.css";
@@ -39,34 +37,7 @@ import type { Route } from "./+types/customer";
 import { NOINDEX } from "~/lib/seo/meta";
 import "capsomer/table.css";
 
-// /intelligence/customers/:id. Recova is the spec: its real
-// page, app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d, with
-// HealthSparkline (f4a163f5), RawDataToggle (640505cd), IntegrityLayerBanner
-// (1614dfaf) and lib/intelligence/customer-context-ssr.ts (a499c285), each
-// read whole. In Recova's order and 1080px width: the breadcrumb, the back
-// link and the recovery payments link, the header card, the three signal
-// cards, the health score with its chart, the assessment when there is
-// one, and the footer.
-//
-// Built from Capsomer 0.9.0's parts, the chart by Enarratio, amber
-// throughout. No Foxhound class sits on a Capsomer element. Recova's
-// 12px card radius, its uppercase mono labels, the score beside the "Health
-// score" heading and its plan colors wait for Capsomer's per-site layer,
-// listed in the J68 pull request.
-//
-// Foxhound's engine, never Recova's: the signal cards are counted from
-// Foxhound's own tables (getCustomerActivity), the score and its color are
-// Foxhound's bands, and LTV, which nothing in Foxhound computes, says so.
-// The IntegrityLayerBanner is Recova's
-// rules worked out when the page loads (recommendOneCustomer), as Recova's
-// score-ssr did. The admin-only raw data toggle is not built (Foxhound's admin
-// is behind Cloudflare Access, Q6, and the toggle printed raw database values,
-// RULES.md 1.5).
-//
-// The factors list and the predictions table are Foxhound's own and HELD for
-// Dustin, as the dashboard's at-risk table is: kept exactly as they
-// were, after Recova's sections. The docs guide's Recommendations section
-// names the factors list (docs-content.ts).
+// /intelligence/customers/:id, in a 1080px column: the breadcrumb, the back link and the recovery payments link, the header card, the three signal cards, the health score with its chart (Enarratio), the assessment when there is one, and the footer. The signal cards are counted from Foxhound's own tables (getCustomerActivity), the score and its color are Foxhound's bands, and LTV, which nothing in Foxhound computes, says so. The recommendation banner is worked out when the page loads (recommendOneCustomer). No raw data toggle: it would print raw database values. The factors list and the predictions table are Foxhound's own, held for Dustin, after the other sections; the docs guide's Recommendations section names the factors list (docs-content.ts).
 
 export function meta() {
   return [{ title: "Customer health - Foxhound" }, NOINDEX];
@@ -119,8 +90,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
       predictions: detail.predictions,
     },
     activity,
-    // Recova's IntegrityLayerBanner reads the customer's recommendation. A
-    // read failure leaves the banner out rather than failing the page.
+    // A read failure leaves the recommendation banner out rather than failing the page.
     prediction: await recommendOneCustomer(db, accountId, detail.stripeCustomerId, nowMs).catch(
       () => null,
     ),
@@ -134,8 +104,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
   const recoveryCount = activity.recovery.failedPaymentCount;
   const hasDisputeHistory = activity.disputes.count > 0;
 
-  // Recova's main: max-w-[1080px] mx-auto px-4 md:px-8 py-8. The shell owns
-  // the page's one <main>, so this is a plain wrapper.
+  // max-w-[1080px] mx-auto px-4 md:px-8 py-8. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-customer">
       <div className="fh-customer-back">
@@ -242,10 +211,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
   );
 }
 
-/** Recova's header card: the name as the page's h1, email and Stripe id
- *  beneath, the plan pill and MRR on the right, then Tenure, LTV, Last seen
- *  and Customer since, two across on a phone and four from md. A body-only
- *  Capsomer panel, since Recova's card has no title of its own. */
+/** The header card: the name as the page's h1, email and Stripe id beneath, the plan pill and MRR on the right, then Tenure, LTV, Last seen and Customer since, two across on a phone and four from md. A body-only Capsomer panel, since the card has no title of its own. */
 function HeaderCard({
   customer,
   lastSeenAt,
@@ -327,8 +293,7 @@ function HeaderCard({
   );
 }
 
-/** One of Recova's three signal cards: its title, then each field's label and
- *  value on a line, or Recova's empty sentence. */
+/** One signal card: its title, then each field's label and value on a line, or an empty sentence. */
 function SignalCard({
   title,
   fields,
@@ -356,8 +321,7 @@ function SignalCard({
   );
 }
 
-/** Recova's health score card: the score out of 100 in its band's color and,
- *  with two readings or more, the chart of the last 30, oldest first. */
+/** The health score card: the score out of 100 in its band's color and, with two readings or more, the chart of the last 30, oldest first. */
 function HealthScoreCard({ score, history }: { score: number | null; history: HealthReading[] }) {
   const readings = useMemo(() => [...history].reverse(), [history]);
   const draw = useCallback(
@@ -381,8 +345,7 @@ function HealthScoreCard({ score, history }: { score: number | null; history: He
   );
 }
 
-/** Foxhound's own factors list and predictions table, HELD for Dustin and kept
- *  exactly as they were before J68 (see the note at the top of this file). */
+/** Foxhound's own factors list and predictions table, held for Dustin (see the note at the top of this file). */
 function HeldSections({ customer }: { customer: Loaded["customer"] }) {
   const factors = customer.healthFactors;
   return (

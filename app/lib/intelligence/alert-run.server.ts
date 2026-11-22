@@ -55,20 +55,12 @@ import {
 import { accountProcessingEligible } from "./sync.server";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// Recova's evaluateAlerts (lib/alert-evaluation.ts, blob 0e28ecbf), which ran
-// at the tail of its recovery, disputes and scheduled-audit crons: each
-// account's enabled alerts against Recova's eleven metrics, then the always-on
-// critical customers check. Foxhound runs it on the recovery tick
-// (app/lib/cron/registry.ts), which is every five minutes, so an alert is
-// noticed no later than Recova noticed it; the 24 hour cooldown keeps the
-// mail to one a day.
+// Evaluates each account's enabled alerts against the eleven metrics, then the always-on critical customers
+// check. Runs on the five-minute recovery tick (app/lib/cron/registry.ts); the 24 hour cooldown keeps the mail to one a day.
 
-/** Recova's computeMetrics, metric for metric, on Foxhound's tables. Three
- *  words differ, each because Foxhound already has one definition:
- *  the recovery rate is the dashboard's (getRecoveryStats), "open" for a
- *  dispute is a state not yet resolved (the digest's), and the high-risk band
- *  is Recova's health score of 33 or less. Amounts are summed per currency,
- *  never across currencies. */
+/** The alert metrics on Foxhound's tables. Where Foxhound already has a definition it is used: the recovery rate is
+ *  the dashboard's (getRecoveryStats), "open" for a dispute is a state not yet resolved, and the high-risk band
+ *  is a health score of 33 or less. Amounts are summed per currency, never across currencies. */
 async function computeAlertMetrics(
   db: Db,
   accountId: string,
@@ -142,9 +134,8 @@ async function computeAlertMetrics(
       .limit(2),
   ]);
 
-  // Counts add across currencies; amounts never do (hard rule 2). A threshold
-  // is one number, so an amount alert compares against the largest
-  // single-currency total: it fires when any one currency crosses it.
+  // Counts add across currencies; amounts never do (hard rule 2). A threshold is one number, so an amount alert
+  // fires when any one currency's largest total crosses it.
   const totalCount = (rows: { n: number }[]) => rows.reduce((sum, r) => sum + r.n, 0);
   const largestCents = (rows: { cents: number }[]) =>
     Math.max(0, ...rows.map((r) => Number(r.cents)));
@@ -161,20 +152,15 @@ async function computeAlertMetrics(
     high_risk_customers_count: totalCount(highRiskRow),
     intelligence_mrr_at_risk_cents: largestCents(highRiskRow),
     audit_leaking_cents: leaking(auditRows[0]),
-    // Recova's: 0 without a prior run, so "above 0" cannot fire on the first.
+    // 0 without a prior run, so "above 0" cannot fire on the first.
     audit_leaking_delta_cents:
       auditRows.length >= 2 ? leaking(auditRows[0]) - leaking(auditRows[1]) : 0,
   };
 }
 
-/**
- * Evaluate the account's enabled alerts and, for each that fires, notify and
- * then record, in Recova's order (lib/alert-evaluation.ts, blob 0e28ecbf):
- * the email or Slack post first, then the alert_history row with whether it
- * went, then last_triggered_at, which starts the 24 hour cooldown. Returns the
- * number of alerts that fired. A notification never throws (alert-notify), so
- * one failed send never stops the next alert or the run.
- */
+/** Evaluate the account's enabled alerts; for each that fires, notify, then record the alert_history row (with
+ *  whether it went), then last_triggered_at, which starts the 24 hour cooldown. Returns the number fired. A
+ *  notification never throws, so one failed send never stops the run. */
 export async function evaluateAndRecordAlerts(
   env: Env,
   db: Db,
@@ -221,20 +207,10 @@ export type CriticalCustomersOutcome =
     }
   | { kind: "error"; message: string };
 
-/**
- * The customers that are critical now: an active, undeleted failed payment, a
- * customer_context health score of 33 or less, and an open dispute, for the
- * same Stripe customer on the same account. One query with joins rather than
- * Recova's three reads with growing id lists, because D1 caps bound
- * parameters.
- *
- * "OPEN" IS FOXHOUND'S. Recova reads disputes.status in (needs_response,
- * under_review); Foxhound stores Stripe's status at intake and never updates
- * it, and keeps the dispute's life in `state`, so open is a state not yet
- * resolved, the same predicate the digest counts. The dispute's
- * customer is stripe_customer_id, which Foxhound writes at intake; Recova's
- * customer_id is a provenance column here.
- */
+/** The critical customers: an active, undeleted failed payment, a health score of 33 or less, and an open
+ *  dispute, for the same Stripe customer on the same account, in one query (D1 caps bound parameters). "Open"
+ *  is a dispute `state` not yet resolved (Stripe's status is stored at intake and never updated), the same
+ *  predicate the digest counts. Matches on stripe_customer_id. */
 async function findCriticalCustomerIds(db: Db, accountId: string): Promise<string[]> {
   const rows = await db
     .selectDistinct({ stripeCustomerId: failedPayments.stripeCustomerId })
@@ -258,7 +234,7 @@ async function findCriticalCustomerIds(db: Db, accountId: string): Promise<strin
         eq(failedPayments.accountId, accountId),
         eq(failedPayments.status, FAILED_PAYMENT_STATUS_ACTIVE),
         isNull(failedPayments.deletedAt),
-        // Recova drops the empty string its webhook writes for a missing customer.
+        // The webhook writes "" for a missing customer.
         ne(failedPayments.stripeCustomerId, ""),
         lte(customerContext.healthScore, CRITICAL_HEALTH_SCORE_MAX),
         notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
@@ -267,14 +243,9 @@ async function findCriticalCustomerIds(db: Db, accountId: string): Promise<strin
   return rows.map((r) => r.stripeCustomerId);
 }
 
-/**
- * Recova's cross-product critical customer check (E22), for one account, in
- * Recova's order: the cooldown on the account's last cross_product_critical
- * row, the customers, the notification (notifyCriticalCustomers: email first,
- * Slack without an address), then one alert_history row with whether it went.
- * The row is written here, not in the notification module, as
- * evaluateAndRecordAlerts does for E21. Never throws.
- */
+/** The cross-product critical customer check for one account: cooldown on the last cross_product_critical row,
+ *  the customers, the notification, then one alert_history row with whether it went. The row is written here,
+ *  not in the notification module. Never throws. */
 export async function runCriticalCustomersCheck(
   env: Env,
   db: Db,
@@ -315,11 +286,8 @@ export async function runCriticalCustomersCheck(
   }
 }
 
-/**
- * One account's alerts, as Recova's evaluateAlerts runs them: the metrics are
- * read only when the account has an enabled alert, then the critical
- * customers check, which needs none. Returns how many threshold alerts fired.
- */
+/** One account's alerts: metrics are read only when it has an enabled alert, then the critical customers check
+ *  (which needs none). Returns how many threshold alerts fired. */
 async function evaluateAccountAlerts(
   env: Env,
   db: Db,
@@ -339,16 +307,14 @@ async function evaluateAccountAlerts(
   return fired;
 }
 
-/** Every processing-eligible account's alerts. One account's failure never
- *  stops the rest, as Recova's per-account try/catch. */
+/** Every processing-eligible account's alerts; one account's failure never stops the rest. */
 export async function runAlertsForAllAccounts(
   env: Env,
   nowMs: number,
 ): Promise<{ accounts: number; fired: number }> {
   const db = getDb(env);
   const now = new Date(nowMs);
-  // Whether each account has an enabled alert comes with the account list, one
-  // query, not one more per account (Sentry FOXHOUND-1).
+  // Whether each account has an enabled alert comes with the account list: one query, not one per account.
   const eligible = await db
     .select({
       id: accounts.id,

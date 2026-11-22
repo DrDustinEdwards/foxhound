@@ -1,5 +1,4 @@
-/* The parts only the features page uses, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the features page uses. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-feature-filter-block {
     margin-bottom: var(--space-7-5);
@@ -42,7 +41,7 @@
   }
   .fh-features-band {
     scroll-margin-top: var(--space-9-5);
-    /* Recova's feature cards: p-4, two to a row. */
+    /* Feature cards: p-4, two to a row. */
     --pad-card: var(--space-5);
     --cap-feature-card-min: 22rem;
   }

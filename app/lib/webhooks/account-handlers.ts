@@ -1,7 +1,5 @@
-// The connected account's own intents of the connected-account webhook:
-// account.updated, the Stripe account's health, and
-// account.application.deauthorized, the grant revoked. Dispatched from
-// process.ts.
+// The connected account's own intents of the connected-account webhook: account.updated, the Stripe
+// account's health, and account.application.deauthorized, the grant revoked.
 
 import { and, eq, isNull, lt, or } from "drizzle-orm";
 import { getDb, stripeConnections } from "~/db";
@@ -14,14 +12,8 @@ import { buildClaimOnlyBatch } from "./batches";
 import type { IntentOf, WebhookContext, WebhookOutcome } from "./handler-context";
 
 /**
- * Store the account's latest health on its connection and, when the event shows
- * a problem the stored state did not have, tell the merchant once.
- *
- * The stored state is read before the batch (an external send cannot ride it),
- * and the write rides the claim's batch so a redelivery collapses to `applied:
- * false` and sends nothing. The write is also conditioned on the stored
- * health_updated_at being older than this event, so an older event delivered
- * late changes nothing; that case is claimed and ignored.
+ * Store the account's latest health on its connection and, when the event shows a problem the
+ * stored state did not have, tell the merchant once.
  */
 export async function handleAccountHealth(
   ctx: WebhookContext,
@@ -84,19 +76,9 @@ export async function handleAccountHealth(
 }
 
 /**
- * The merchant revoked Foxhound's grant from their Stripe dashboard. The live
- * connection this event resolved to is stamped disconnected through Settings'
- * own local disconnect, so disconnected_at keeps its one writer, and Stripe is
- * not called: the grant is already gone there.
- *
- * THE DISCONNECT COMMITS BEFORE THE CLAIM, because the two cannot share a batch
- * (the disconnect is a plain batch by ruling 333, the claim rides the
- * money-write Durable Object). In this order a failed claim 500s, Stripe
- * redelivers, and the redelivery finds no live connection and is claimed as an
- * unknown account. The other order would claim first and lose the disconnect
- * for good if it then failed. An event for a Stripe account Foxhound does not
- * hold live, an audit grant included, never reaches here: process.ts claims
- * and ignores it as unknown.
+ * The merchant revoked Foxhound's grant from their Stripe dashboard. An event for a Stripe account
+ * Foxhound does not hold live, an audit grant included, never reaches here: process.ts claims and
+ * ignores it as unknown.
  */
 export async function handleConnectionDeauthorized(ctx: WebhookContext): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;

@@ -5,14 +5,10 @@ import { AUDIT_SUMMARY_MAX_TOKENS, MODEL_AUDIT_SUMMARY } from "~/lib/constants";
 import type { AuditResult } from "./engine";
 import { AUDIT_SUMMARY_FALLBACK, buildAuditSummaryPrompt, sanitizeSummary } from "./summary";
 
-// The audit summary's one call, through site-runtime's caller (~/lib/ai/client). Phase (c).
+// The audit summary's one call, through site-runtime's caller
+// (~/lib/ai/client). Phase (c).
 //
-// NEVER THROWS INTO THE ENGINE. Legacy returns its fallback string with no API
-// key and again inside a catch; Foxhound returns a DISCRIMINATED outcome instead,
-// so the caller can tell a real summary from the fallback and
-// record which. Both arms carry a usable string, so no caller has to handle an
-// absent summary, and none of them can mistake the fallback for a reading of
-// this merchant's numbers.
+// NEVER THROWS INTO THE ENGINE.
 
 export type AuditSummaryOutcome =
   | { source: "model"; summary: string }
@@ -31,7 +27,8 @@ export async function generateAuditSummary(
   }
 
   try {
-    // The audit can run before any Foxhound account exists, so its cost row has none.
+    // The audit can run before any Foxhound account exists, so its cost row has
+    // none.
     const prompt = `${buildAuditSummaryPrompt(result)}\n\n${PLAIN_WRITING_PROMPT}`;
     const call = async (instruction = ""): Promise<string> => {
       const answer = await askModel(
@@ -47,10 +44,10 @@ export async function generateAuditSummary(
       if (!answer.ok) throw new Error(`the model call failed: ${answer.kind}`);
       return sanitizeSummary(answer.text);
     };
-    // One retry when the summary reads as machine-written (ai/plain-writing.ts).
+    // One retry when the summary reads as machine-written
+    // (ai/plain-writing.ts).
     const summary = await retryStockPhrasing(await call(), (text) => text, call);
-    // An empty reply is a failure wearing a success. Legacy falls back on it and
-    // so does this, with the reason recorded rather than inferred.
+    // An empty reply is a failure wearing a success.
     if (!summary) {
       return {
         source: "fallback",

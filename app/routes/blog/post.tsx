@@ -43,26 +43,11 @@ import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { MarketingError } from "~/components/error-view";
 import { markup } from "capsomer/behavior/trusted-html";
 
-// Ported from legacy app/(marketing)/blog/[slug]/{page,PostDetailBody}.tsx
-// (Phase 6 Pass 2). Structure kept: cover image, tag chips, byline row,
-// title/excerpt, share row, inline (mobile) + sidebar (desktop) TOC,
-// rendered body, further-reading links (blog_post_links), author box,
-// prev/next nav, closing audit CTA.
-//
-// Share row + author avatar restored (TASK-foxhound-parity-cluster-b.md fix
-// 4), confirmed live on recova-eta.vercel.app before building. The avatar
-// is /favicon.svg, the same Foxhound organization mark organizationJsonLd
-// already uses for its `logo` field below, not a Person image - this repo
-// has no Person identity for blog authorship (every current post's author
-// column is "Foxhound", per the Phase 6 brand-token remediation).
+// Structure: cover image, tag chips, byline row, title/excerpt, share row, inline (mobile) + sidebar (desktop) TOC, rendered body, further-reading links (blog_post_links), author box, prev/next nav, closing audit CTA. The author avatar is /favicon.svg, the same Foxhound organization mark organizationJsonLd uses for its `logo`, not a Person image (every post's author column is "Foxhound").
 export async function loader({ request, params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  // WITHDRAWN POSTS ANSWER 410, NOT 404. The row is unpublished, so the
-  // lookup below would return null and this route would 404, which says "we have
-  // nothing here" and is indistinguishable from a typo. 410 says the page existed
-  // and is deliberately gone. Checked before the lookup so the answer does not depend on what the database
-  // happens to hold.
+  // WITHDRAWN POSTS ANSWER 410, NOT 404. The row is unpublished, so the lookup would return null and this route would 404, which says "we have nothing here" and is indistinguishable from a typo; 410 says the page existed and is deliberately gone. Checked before the lookup so the answer does not depend on what the database holds.
   const gone = goneResponse(
     request,
     WITHDRAWN_BLOG_SLUGS.map((slug) => `/blog/${slug}`),
@@ -112,9 +97,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   };
 }
 
-// Legacy passes the post EXCERPT as `description` and renders it on the card
-// (legacy app/og/route.tsx). Foxhound had been passing the first tag instead,
-// which legacy's card never carried; corrected under ruling 96.
+// The post EXCERPT is the card's `description`.
 function ogImageUrl(url: string, title: string, description: string | undefined): string {
   const params = new URLSearchParams({ title });
   if (description) params.set("description", description);
@@ -140,14 +123,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
         alt: title,
       };
 
-  // JSON-LD goes through meta, which React Router escapes, because the title,
-  // excerpt and FAQ text come from Carrel and JSON.stringify leaves `</script>`
-  // as it is. organizationJsonLd (and personJsonLd, when the author is Dustin)
-  // render the full node the Article's publisher/author @id references point
-  // at. Rich Results parsers combine every JSON-LD block on ONE page into a
-  // single graph, but do NOT fetch other pages to resolve an @id, so a bare
-  // {"@id": ...} reference with no matching node on THIS page would not
-  // actually resolve.
+  // JSON-LD goes through meta, which React Router escapes, because the title, excerpt and FAQ text come from Carrel and JSON.stringify leaves `</script>` as it is. organizationJsonLd (and personJsonLd, when the author is Dustin) render the full node the Article's publisher/author @id references point at: Rich Results parsers combine every JSON-LD block on ONE page into a single graph but do NOT fetch other pages to resolve an @id, so a bare {"@id": ...} reference with no matching node on THIS page would not resolve.
   const byDustin = post.author.trim().toLowerCase() === "dustin edwards";
   return [
     ...marketingMeta({

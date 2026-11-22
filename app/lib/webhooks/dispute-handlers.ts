@@ -31,12 +31,9 @@ import {
 import { findDisputeByStripeId, resolveDisputedRecovery } from "./lookups";
 
 /**
- * Send the won or lost notice for a resolved dispute and, when it went out,
- * stamp disputes.outcome_notified_at, the timeline's "Outcome notification
- * sent." Recova stamped it after its send too. The stamp is its own small batch
- * through the money-write Durable Object, keyed on the dispute and guarded on
- * the column still being empty, so it is written once and never moves; the
- * notice module itself writes nothing. Never throws.
+ * The stamp is its own small batch through the money-write Durable Object, keyed on the dispute and
+ * guarded on the column still being empty, so it is written once and never moves; the notice module
+ * itself writes nothing. Never throws.
  */
 async function notifyDisputeOutcome(env: Env, accountId: string, disputeId: string): Promise<void> {
   const notice = await sendDisputeOutcomeNotice(env, { accountId, disputeId });
@@ -71,19 +68,17 @@ export async function handleStampDispute(
   intent: IntentOf<"stamp_dispute">,
 ): Promise<WebhookOutcome> {
   const { env, accountId, connectionId, claim, idempotencyKey } = ctx;
-  // Disputes switched off on /settings/disputes: Recova's step 1, log and
-  // return. The claim still commits, so a redelivery stays a duplicate.
+  // The claim still commits, so a redelivery stays a duplicate.
   if (!(await readDisputesEnabled(getDb(env), accountId))) {
     console.log(
       `dispute ${intent.stripeDisputeId}: Disputes is off for account ${accountId}; not created`,
     );
     return claimOnly(ctx, "disputes_disabled");
   }
-  // charge.dispute.created (dispute intake): resolve the recovery this
-  // charge belongs to (if any, the Phase 8-live enrichment seam above),
-  // draft evidence grounded only in what that resolution and our own
-  // recovery_steps actually show, and create the dispute row, "awaiting
-  // merchant review" (state pending_review), never auto-submitted.
+  // charge.dispute.created (dispute intake): resolve the recovery this charge belongs to, draft
+  // evidence grounded only in what that resolution and our own recovery_steps actually show, and
+  // create the dispute row, "awaiting merchant review" (state pending_review), never
+  // auto-submitted.
   const linked = await resolveDisputedRecovery(
     env,
     accountId,
@@ -95,8 +90,6 @@ export async function handleStampDispute(
     linked?.steps ?? [],
     await readDisputeProductDescription(getDb(env), accountId),
   );
-  // Recova's Stripe context and triage (app/lib/disputes/triage.ts), read
-  // before the batch because an external call cannot ride it.
   const stripeContext = await readDisputeIntakeContext(env, {
     accountId,
     connectionId,
@@ -141,15 +134,8 @@ export async function handleStampDispute(
         contextColumns: stripeContext.columns,
       }),
   });
-  // THE NEW-DISPUTE NOTICE, after the intake has committed and
-  // changing nothing about it, as the recovery notification above. Recova
-  // sends it at the end of handleDisputeCreated. It never throws.
-  //
-  // SENT ON A REDELIVERY TOO. A Worker that dies between
-  // the intake commit and the send leaves the merchant untold, and Stripe's
-  // redelivery comes back `applied: false`. So a replay sends for the row
-  // that exists; the notice's send claim (`dispute-created:<row id>`) is
-  // what keeps it to one email, not `applied`.
+  // THE NEW-DISPUTE NOTICE, after the intake has committed and changing nothing about it, as the
+  // recovery notification above.
   const noticeFor = applied
     ? disputeId
     : await findDisputeByStripeId(env, intent.stripeDisputeId).then(
@@ -162,11 +148,10 @@ export async function handleStampDispute(
   if (noticeFor) {
     await sendDisputeCreatedNotice(env, { accountId, disputeId: noticeFor });
   }
-  // A CHARGEBACK ON A RECOVERED PAYMENT credits that recovery's fee if it was
-  // already invoiced, keyed on the fee line exactly as a refund is, so a refund
-  // and a dispute on the same payment still credit it once. Only on `applied`,
-  // as the refund path: a failure here is picked up by the daily
-  // credit-note-retry sweep, which reads the same disputed_at stamp.
+  // A CHARGEBACK ON A RECOVERED PAYMENT credits that recovery's fee if it was already invoiced,
+  // keyed on the fee line exactly as a refund is, so a refund and a dispute on the same payment
+  // still credit it once. Only on `applied`, as the refund path: a failure here is picked up by the
+  // daily credit-note-retry sweep, which reads the same disputed_at stamp.
   if (applied && linked) {
     for (const recoveredPaymentId of await disputedRecoveryIdsFor(env, linked.failedPayment.id)) {
       await issueCreditNoteForEvidence(
@@ -197,20 +182,15 @@ export async function handleDisputeResolved(
       idempotencyKey,
       build: (db) => buildClaimOnlyBatch(db, claim),
     });
-    // A dispute the merchant ACCEPTED is resolved before Stripe's closing
-    // event arrives. Recova still sent its lost notice on that event
-    // (handleDisputeClosed, gated on outcome_notified_at), so this does
-    // too; the notice's send claim keeps it to one per dispute.
+    // A dispute the merchant ACCEPTED is resolved before Stripe's closing event arrives.
     if (applied) await notifyDisputeOutcome(env, accountId, dispute.id);
     return applied ? { status: "ignored", reason: "already_resolved" } : { status: "duplicate" };
   }
-  // THE CAP IS CONVERTED HERE, BEFORE THE BATCH. It needs a
-  // Stripe FX quote and an external call cannot ride the money batch. A
-  // failure is recorded and the fee is left unsnapshotted, which is the
-  // fail-closed shape: the dispute resolves either way, and an unpriced win
-  // is simply not billable until it can be priced. The old flat 50,000 is
-  // never used as a fallback, because a wrong number invoiced silently is
-  // worse than a right one invoiced late.
+  // THE CAP IS CONVERTED HERE, BEFORE THE BATCH. It needs a Stripe FX quote and an external call
+  // cannot ride the money batch. A failure is recorded and the fee is left unsnapshotted, which is
+  // the fail-closed shape: the dispute resolves either way, and an unpriced win is simply not
+  // billable until it can be priced. The old flat 50,000 is never used as a fallback, because a
+  // wrong number invoiced silently is worse than a right one invoiced late.
   let cap: ResolvedDisputeCap | null = null;
   let capError: string | null = null;
   if (intent.won && dispute.submittedAt != null) {
@@ -242,15 +222,9 @@ export async function handleDisputeResolved(
       }),
   });
 
-  // A lost dispute credits any fee line it carries, after the commit,
-  // never unwinding it, keyed on the fee line. Stripe does not move a dispute
-  // from won to lost: an issuer that re-files opens a NEW dispute object with
-  // its own charge.dispute.created (Stripe's "Receiving multiple disputes per
-  // payment" FAQ), and a resolved row takes the already_resolved branch above.
-  // So a fee is billed only on a won dispute, and this credit finds nothing
-  // to credit on a dispute that reaches here unresolved. Whether a later lost
-  // dispute on the same charge should credit the first one's fee is a pricing
-  // question for Dustin, not something this branch decides.
+  // A lost dispute credits any fee line it carries, after the commit, never unwinding it, keyed on
+  // the fee line. So a fee is billed only on a won dispute, and this credit finds nothing to credit
+  // on a dispute that reaches here unresolved.
   if (applied && !intent.won) {
     await issueCreditNoteForEvidence(
       env,

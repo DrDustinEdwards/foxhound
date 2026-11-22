@@ -36,34 +36,9 @@ import "~/site-header.css";
 import type { Route } from "./+types/features";
 import "~/features.css";
 
-// /features. Recova's spec is app/(marketing)/features/page.tsx
-// (blob 04aa91d8) with components/features/FeatureCard.tsx (dd6c9a87),
-// FeatureFilter.tsx (4e2ef1fa) and FeatureFilterShell.tsx (707d79df), all read
-// whole. The content is lib/marketing/features-content.ts: Recova's sections
-// and entries, each one a capability Foxhound ships, every number read from
-// the engine.
-//
-// Layout is Recova's: the shared page header, one 1100px column, the filter
-// row, the 220px sticky section nav beside the sections at lg, each section's
-// h2 and intro, the per-section inline example, the two-column card grid, and
-// the closing line and audit link. Look is Capsomer's: the page sits in
-// the amber family with Foxhound's neutrals (.fh-cap, as the site header, the
-// legal pages and the /products hub), the filter is Capsomer's chips, each
-// card is Capsomer's panel, each product tag a Capsomer badge, and the closing
-// link Capsomer's primary button.
-//
-// Text is at Recova's sizes: the h2 1.25rem, the intro and card name 0.875rem,
-// card description, nav links and the band line 0.8125rem, the closing line
-// 0.9375rem.
-//
-// Recova renders a third inline example in Visibility, two stat tiles reading
-// its own 26.6% and $6,884. Those are Recova's figures, so the tiles are not
-// drawn; which numbers, if any, Foxhound shows there is
-// left open for a ruling.
+// /features. Content is lib/marketing/features-content.ts: each entry a capability Foxhound ships, every number read from the engine. Layout: the shared page header, one 1100px column, the filter row, the 220px sticky section nav beside the sections at lg, each section's h2 and intro, the per-section inline example, the two-column card grid, and the closing line and audit link. The page sits in the amber family with Foxhound's neutrals (.fh-cap), the filter is Capsomer's chips, each card is Capsomer's panel, each product tag a Capsomer badge. Text: the h2 1.25rem, the intro and card name 0.875rem, card description, nav links and the band line 0.8125rem, the closing line 0.9375rem. No third inline example in Visibility (two stat tiles): which numbers, if any, Foxhound shows there is open.
 
-// Recova's inline examples, keyed by section id. The automation timeline reads
-// RECOVERY_SCHEDULES and the badges read healthScoreBand; the
-// sentence states the same bands, from the same constants.
+// Inline examples, keyed by section id. The automation timeline reads RECOVERY_SCHEDULES and the badges read healthScoreBand; the sentence states the same bands, from the same constants.
 function SectionInlineExample({ id }: { id: string }) {
   if (id === "automation") {
     return (

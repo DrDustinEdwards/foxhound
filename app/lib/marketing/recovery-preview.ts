@@ -1,11 +1,8 @@
 import type { DeclineCategory } from "~/lib/constants";
 import type { RecoveryRateTone } from "~/lib/dashboard/recovery-rate";
 
-// The shape of the /product/recovery preview data, shared by the server
-// module that builds it (recovery-preview.server.ts) and the components that
-// draw it (app/components/recovery-previews.tsx), so no client module imports
-// from a .server file. Every value is a plain string or number:
-// it crosses the loader as JSON.
+// The shape of the /product/recovery preview data, shared by the server module that builds it and the components that draw it, so no
+// client module imports from a .server file. Every value is a plain string or number: it crosses the loader as JSON.
 
 export interface RoiColumn {
   recovered: string;
@@ -26,14 +23,12 @@ export interface PreviewPaymentRow {
   nextStep: string | null;
   status: string;
   statusLabel: string;
-  /** The customer's failed payments in total, this one included. */
   failureCount: number;
   detectedAgo: string;
   detectedDate: string;
 }
 
 export interface RecoveryPreview {
-  /** The instant the seed was built at (ISO), so a reader can rebuild it. */
   asOf: string;
   dashboard: {
     recovered30d: string;

@@ -1,19 +1,12 @@
-// How a customer's recommendation is shown outside /intelligence/recommendations:
-// Recova's chip after the name on /intelligence/customers (customers/page.tsx,
-// blob 0413f035, chipLabelFor) and its IntegrityLayerBanner on the payment, the
-// dispute and the customer pages (components/intelligence/IntegrityLayerBanner.tsx,
-// blob 1614dfaf), both read whole. Only the four actions Recova's table produces
-// are here (recommend.ts says why the other three are not ported).
-//
-// CLIENT-SAFE BY CONSTRUCTION: the routes render these, so this module imports
-// nothing from a `.server` file.
+// How a customer's recommendation is shown outside /intelligence/recommendations: the chip after the name on the
+// customers list and the banner on the payment, dispute and customer pages. Only the four actions recommend.ts
+// produces are here. Client-safe by construction: nothing is imported from a `.server` file.
 
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { CustomerRecommendation, RecommendedAction } from "./recommend";
 
-/** Recova's chipLabelFor. */
 export function chipLabelFor(action: string | null | undefined): string {
   switch (action) {
     case "personal_outreach":
@@ -31,9 +24,7 @@ export function chipLabelFor(action: string | null | undefined): string {
 
 export type BannerSurface = "recovery" | "dispute" | "customer";
 
-/** Recova's shouldRenderBanner: nothing to say when the case is automated and
- *  both read-only bands are green, or when both are unknown and the customer
- *  is not high value. */
+/** Nothing to say when the case is automated and both read-only bands are green, or both are unknown and the customer is not high value. */
 export function shouldRenderBanner(p: CustomerRecommendation | null): p is CustomerRecommendation {
   if (!p) return false;
   const automated = p.recommendation.action === "continue_automated";
@@ -49,12 +40,12 @@ export function shouldRenderBanner(p: CustomerRecommendation | null): p is Custo
   return true;
 }
 
-/** Recova's colorVariantFor, in Capsomer's tones: red is crit, amber is warn. */
+/** Red is crit, amber is warn. */
 export function bannerToneFor(action: RecommendedAction): "crit" | "warn" {
   return action === "personal_outreach" ? "crit" : "warn";
 }
 
-/** Recova's headlineFor. "Intelligence" names the product, as Recova's did. */
+/** "Intelligence" names the product. */
 export function bannerHeadline(action: RecommendedAction, surface: BannerSurface): string {
   switch (action) {
     case "personal_outreach":
@@ -79,7 +70,6 @@ export function bannerHeadline(action: RecommendedAction, surface: BannerSurface
 
 const DAY_MS = 86_400_000;
 
-/** Recova's engagementEvidence. */
 export function engagementEvidence(e: CustomerRecommendation["engagement"], nowMs: number): string {
   if (e.band === "unknown") return "Engagement: unknown (fewer than 3 emails sent in last 30 days)";
   const { emailsSent30d: sent, emailsOpened30d: opened, lastOpenAtMs } = e.evidence;
@@ -90,13 +80,12 @@ export function engagementEvidence(e: CustomerRecommendation["engagement"], nowM
   return `Engagement: ${e.band} (${sent} sent, ${opened} opened in last 30 days)`;
 }
 
-/** Recova's historyEvidence. */
 export function historyEvidence(h: CustomerRecommendation["history"]): string {
   if (h.band === "unknown") return "Recovery history: unknown (fewer than 3 prior failures)";
   return `Recovery history: ${h.band} (${h.evidence.priorRecoveriesCount} of ${h.evidence.priorFailuresCount} prior failures recovered)`;
 }
 
-/** Recova's valueEvidence, in the customer's own currency. */
+/** Value evidence, in the customer's own currency. */
 export function valueEvidence(v: CustomerRecommendation["value"], currency: string): string {
   const amount = `${formatMoney(v.evidence.mrrContributionCents, currency)}/mo`;
   if (v.band === "high") return `Value: high (top 25%, ${amount})`;
@@ -104,11 +93,7 @@ export function valueEvidence(v: CustomerRecommendation["value"], currency: stri
   return `Value: low (bottom 25%, ${amount})`;
 }
 
-/**
- * Recova's mrrAtRiskText. Recova printed twelve months of MRR as "$X MRR at
- * risk", which overstated it twelvefold as a monthly figure, so the line names
- * it as a year.
- */
+/** The MRR-at-risk line; twelve months of MRR is named as a year, not a monthly figure. */
 export function atRiskText(
   r: CustomerRecommendation["recommendation"],
   currency: string,

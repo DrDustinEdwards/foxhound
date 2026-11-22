@@ -1,24 +1,10 @@
-// Deterministic per-customer health scoring (PRICING.md universal-coverage
-// precondition: every customer must score, never "unknown"). Pure math only,
-// no AI call: the narrative (narrative.ts) states this score, it never
-// invents it. Weighs the deterministic signals customer_context already
-// carries (app/lib/intelligence/signals.ts); this file reads those values,
-// it does not recompute them.
-//
-// Score convention: 0-100, HIGHER is HEALTHIER (matches the column name
-// health_score, not risk_score). A customer with all-baseline signals (brand
-// new, no plan changes, no refunds, no engagement history) scores an honest
-// middle score with an empty factors list, not a penalty and not "unknown".
-//
-// One deliberate scope limit: the deterministic layer (signals.ts) counts
-// billing-terms CHANGES (planChangeCount / intervalSwitchCount) but not their
-// DIRECTION (upgrade vs downgrade, annual->monthly vs monthly->annual).
-// Scoring change COUNT as general volatility, rather than guessing a
-// direction the data does not carry, is the same non-fabrication discipline
-// PRICING.md holds the narrative to. The one direction the score does
-// read is the one Stripe states outright: a scheduled cancellation, a paused
-// collection or a lower monthly amount, recorded as it happens from the
-// customer.subscription.updated webhook (subscription-change.ts).
+// Deterministic per-customer health scoring: every customer scores, never "unknown". Pure math, no AI call; the
+// narrative (narrative.ts) states this score and never invents it. Reads the signals customer_context already
+// carries (signals.ts). Score is 0-100, HIGHER is HEALTHIER; an all-baseline customer scores the baseline with
+// an empty factors list. The change COUNT (planChangeCount / intervalSwitchCount) is scored as volatility because
+// the data carries no direction; the one direction read is what Stripe states outright (a scheduled
+// cancellation, a paused collection or a lower monthly amount, from the customer.subscription.updated
+// webhook, subscription-change.ts).
 
 import { formatDate } from "capsomer/behavior/time";
 import { DAY_MS } from "~/lib/constants";
@@ -26,11 +12,8 @@ import type { EngagementSignals, RecoverySignals } from "./signals";
 import type { SubscriptionChangeState } from "./subscription-change";
 
 export interface HealthFactor {
-  /** Stable machine key for the signal that moved the score. */
   signal: string;
-  /** Signed points contributed, relative to the baseline. */
   deltaPoints: number;
-  /** Human-readable explanation; safe to surface in the UI or narrative prompt. */
   detail: string;
 }
 
@@ -50,26 +33,16 @@ export interface HealthScoreInput {
   disputeCount: number | null;
   recoverySignals: RecoverySignals | null;
   engagementSignals: EngagementSignals | null;
-  /** Pending cancellation, pause or recent downgrade from the recorded
-   *  subscription changes; absent or null when there is none. */
   subscriptionChanges?: SubscriptionChangeState | null;
-  /** Stripe's card funding (credit, debit, prepaid, unknown) on the
-   *  customer's latest failed payment; absent or null when unknown. */
   latestFailedCardFunding?: string | null;
 }
 
-/** The score a customer with no signal away from baseline gets. Exported so
- *  copy that names it (the /product/intelligence FAQ) reads it, never types it. */
+/** The score for a customer with no signal away from baseline. Exported so copy that names it reads it. */
 export const HEALTH_SCORE_BASELINE = 70;
 const BASELINE_SCORE = HEALTH_SCORE_BASELINE;
 
-/**
- * The signals the score weighs, keyed by the factor's `signal`, each with the
- * words a person reads for it. Every scoring function below names its signal
- * through this map (`satisfies HealthSignal`), marketing copy lists the signals
- * from here, and test/product-intelligence-j58.test.ts
- * drives computeHealthScore to check the two sets are the same.
- */
+/** The signals the score weighs, keyed by the factor's `signal`, with the words a person reads. Marketing copy
+ *  lists the signals from here, and test/product-intelligence.test.ts checks the two sets match. */
 export const HEALTH_SIGNAL_LABELS = {
   payment_latency: "payment timing",
   billing_volatility: "billing changes",
@@ -97,18 +70,11 @@ function scoreLatencyDrift(driftDays: number | null): HealthFactor | null {
   };
 }
 
-// The weights of a change Stripe has stated, each against the baseline of 70:
-// - A scheduled cancellation, -40: Stripe ends the subscription on that date
-//   unless the customer takes it back, so it is churn the customer has already
-//   chosen, the strongest churn evidence the score sees. On its own it takes a
-//   baseline customer to 30, inside the high-risk band (CRITICAL_HEALTH_SCORE_MAX,
-//   33) the alerts count, which is how the merchant hears of it the same day.
-// - Paused collection, -20: no invoice is collected while paused, but the
-//   customer is still subscribed and a pause often has a resume date, so it
-//   takes a baseline customer to 50, "watch", not at risk.
-// - A downgrade in the last quarter, -10: contraction the customer chose, the
-//   direction the change count alone cannot see, but the customer stayed.
-// A cancellation outweighs a pause on the same customer; they do not add.
+// Weights of a change Stripe has stated, against the baseline of 70: a scheduled cancellation -40 (churn the
+// customer already chose; takes a baseline customer to 30, inside the high-risk band the alerts count, so the
+// merchant hears the same day); paused collection -20 (still subscribed, often a resume date: "watch");
+// a downgrade in the last quarter -10 (contraction the change count cannot see). A cancellation outweighs a
+// pause on the same customer; they do not add.
 const CANCELLATION_PENDING_POINTS = -40;
 const PAUSE_PENDING_POINTS = -20;
 const RECENT_DOWNGRADE_POINTS = -10;
@@ -205,13 +171,9 @@ function scoreEngagement(
   return null;
 }
 
-// A prepaid card, -5: prepaid balances run out and are often not topped up,
-// so a recurring charge on one fails for insufficient funds more often than on
-// a credit or debit card. Read off the card on the customer's latest failed
-// payment (failed_payments.card_funding, filled at intake), so it only ever
-// applies to a customer whose payment has already failed once, and it is kept
-// small for that reason. Debit and credit carry no weight: nothing here says
-// which of the two fails more for this merchant.
+// A prepaid card, -5: balances run out, so a recurring charge fails more often. Read off the latest failed
+// payment's card (failed_payments.card_funding), so it applies only after a failure and stays small. Debit and
+// credit carry no weight: nothing says which fails more for this merchant.
 const PREPAID_CARD_POINTS = -5;
 
 function scorePaymentMethod(
@@ -236,11 +198,7 @@ function scoreTenure(subscriptionAgeDays: number | null): HealthFactor | null {
   };
 }
 
-/**
- * Score one customer from their deterministic signals. Always returns a
- * number (never "unknown") and a factors list of only the signals that
- * actually moved the score away from the baseline.
- */
+/** Score one customer. Always returns a number and a factors list of only the signals that moved the score from baseline. */
 export function computeHealthScore(input: HealthScoreInput): HealthScoreResult {
   const factors = [
     scoreLatencyDrift(input.paymentLatencyDriftDays),

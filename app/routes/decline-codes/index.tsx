@@ -16,12 +16,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/index";
 import "~/reference.css";
 
-// NEW in Phase 6 Pass 3 (net-new, no legacy equivalent): the decline-code
-// reference library hub. Cards are grouped by classification category
-// (soft/network/expired/fraud) rather than alphabetically, since that
-// grouping mirrors what actually determines recovery behavior
-// (app/lib/recovery/decline.ts) and is more useful to a merchant scanning
-// the page than an alphabetical list would be.
+// The decline-code reference library hub. Cards are grouped by classification category (soft/network/expired/fraud), which mirrors what determines recovery behavior (app/lib/recovery/decline.ts), rather than alphabetically.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [

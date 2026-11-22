@@ -32,38 +32,15 @@ import type { Route } from "./+types/intelligence";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/products.css";
 
-// The Intelligence spoke. Recova's spec, read whole at HEAD:
-// app/(marketing)/product/intelligence/page.tsx (blob 4f258429) and the files
-// it draws from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2),
-// IntelligenceDashboardPreview.tsx (11972333) with the MRRStatCards (2920fa3b)
-// and PlanBreakdown (65b5674f) it mounts, IntelligenceCustomerTable.tsx
-// (6ae7c73f) with HealthScoreBadge (f25f29d8), and ChurnRiskSummary.tsx
-// (ba1fbb51). IntegrityLayerBanner.tsx (1614dfaf) was read too: it is the
-// source of Recova's recommended actions, and no part of it reaches this page.
-//
-// Recova's sections, in Recova's order: the hero, How it works, three feature
-// blocks (the dashboard, plain; the customer table, lifted; the churn bands,
-// plain), Pricing, Questions and the closing block. Parts are Capsomer's,
-// amber, on the five text sizes (product-sections-cap.tsx), and the one chart
-// is Enarratio's. Copy is Recova's with every product fact read from the
-// engine and its truthfulness fixes named (lib/marketing/intelligence-copy.ts).
-// The previews draw the demo account's seed, never a merchant's rows
-// (lib/marketing/intelligence-preview.server.ts).
-//
-// This page does not claim Intelligence changes failed-payment Recovery timing
-// or computes dispute triage (APPROVED-DIFFERENCES, the Intelligence entry).
-// The FAQ says the one timing it does change: the first win-back email waits
-// longer on an account with Intelligence (winback-copy.ts, process.ts).
-//
-// The path is Recova's own /product/intelligence since J09.
+// The Intelligence spoke, in order: the hero, How it works, three feature blocks (the dashboard, plain; the customer table, lifted; the churn bands, plain), Pricing, Questions and the closing block (product-sections-cap.tsx); the one chart is Enarratio's. Every product fact is read from the engine (lib/marketing/intelligence-copy.ts). The previews draw the demo account's seed, never a merchant's rows (lib/marketing/intelligence-preview.server.ts).
+// This page does not claim Intelligence changes failed-payment Recovery timing or computes dispute triage. The FAQ says the one timing it does change: the first win-back email waits longer on an account with Intelligence (winback-copy.ts, process.ts). The path is /product/intelligence.
 
 const PATH = "/product/intelligence";
 const TITLE = "Intelligence";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification, as Recova emits it: the selectors point at
-  // the classes product-sections-cap.tsx puts on the sections.
+  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
   return [
     ...marketingMeta({
       title: TITLE,

@@ -1,24 +1,10 @@
-// Recova's recommendation rules, ported as rules onto Foxhound's own inputs
-// (Dustin 2026-10-25: "Port now, measure, improve later").
-//
-// Recova is the spec, read whole at these blobs:
-//   lib/intelligence/bands.ts      119bec74 (the three bands and their cut points)
-//   lib/intelligence/recommend.ts  b753ab76 (the table, the confidence rule, the text)
-//   lib/intelligence/schema.ts     8969589a (the band and action names)
-//
-// Pure: no database, no clock. The inputs are read by recommendations.server.ts
-// from Foxhound's tables, and the nightly scoring batch (ai-run.server.ts) stores
-// the action in customer_context.recommended_action.
-//
-// NOTHING ON A MONEY PATH READS THE ACTION. Recova's table only ever produces
-// the four actions below. Recova's schema also names winback_priority,
-// expansion_outreach and accept_loss_dispute, which no rule produces, so they
-// are not ported: a winback_priority writer would move a customer's first
-// win-back email from 4 hours to 1 (webhooks/lookups.ts), and Recova never
-// actually ran its 48 hour deprioritize delay, which Foxhound does not have.
-//
-// The rationale is Recova's word for word, except five lines that claimed more
-// than the data can show. Each is marked below with Recova's text.
+// Recommendation rules ported from Recova onto Foxhound's own inputs, as rules ("port now, measure, improve later").
+// Pure: no database, no clock; recommendations.server.ts reads the inputs and the nightly scoring batch
+// (ai-run.server.ts) stores the action in customer_context.recommended_action. Nothing on a money path reads
+// the action. Only the four actions below are produced; Recova's winback_priority, expansion_outreach and
+// accept_loss_dispute have no rule and are not ported (a winback_priority writer would move a customer's first
+// win-back email from 4 hours to 1, webhooks/lookups.ts). The rationale is Recova's word for word except five
+// lines that claimed more than the data can show, each marked below with Recova's text.
 
 export type EngagementBand = "green" | "yellow" | "red" | "unknown";
 export type RecoveryBand = "green" | "yellow" | "red" | "unknown";
@@ -32,8 +18,7 @@ export type RecommendedAction =
   | "continue_automated_priority"
   | "continue_automated_deprioritize";
 
-/** The actions that ask the merchant to do something, in Recova's page order.
- *  Recova's list also held the three actions nothing produces (see above). */
+/** The actions that ask the merchant to do something, in page order. */
 export const ACTIONABLE_RECOMMENDATIONS = [
   "personal_outreach",
   "continue_automated_priority",
@@ -47,11 +32,8 @@ function nonNeg(n: number | null | undefined): number {
 }
 
 export interface EngagementInput {
-  /** Recovery emails sent to this customer in the last 30 days. */
   sent30d: number;
-  /** Tracked opens of those emails in the last 30 days. */
   opened30d: number;
-  /** The customer's most recent tracked open, or null. */
   lastOpenAtMs: number | null;
   nowMs: number;
 }
@@ -62,9 +44,7 @@ export interface EngagementHealth {
   evidence: { emailsSent30d: number; emailsOpened30d: number; lastOpenAtMs: number | null };
 }
 
-/** Under 3 sends: unknown. No opens: red. Last open within 14 days: green.
- *  Anything older, or an open with no time: yellow. Recova's boundaries are
- *  inclusive (14 days exactly is green). */
+/** Under 3 sends: unknown. No opens: red. Last open within 14 days (inclusive): green. Older, or an open with no time: yellow. */
 export function engagementBand(input: EngagementInput): EngagementHealth {
   const sent = nonNeg(input.sent30d);
   const opened = nonNeg(input.opened30d);
@@ -94,8 +74,7 @@ export interface RecoveryHistory {
   };
 }
 
-/** Under 3 failed payments: unknown. Then recovered / failed: 60% and up
- *  green, 30% and up yellow, below that red. */
+/** Under 3 failed payments: unknown. Then recovered / failed: 60% and up green, 30% and up yellow, else red. */
 export function recoveryHistoryBand(input: {
   failedPaymentCount: number;
   recoveredCount: number;
@@ -123,8 +102,7 @@ export interface CustomerValue {
   evidence: { mrrContributionCents: number; percentileWithinAccount: number };
 }
 
-/** The customer's MRR as a percentile of every customer on the account: 75
- *  and up high, 25 and under low, and no MRR at all low. */
+/** The customer's MRR as a percentile of every customer on the account: 75 and up high, 25 and under low, no MRR low. */
 export function customerValueBand(input: {
   mrrContributionCents: number;
   accountMrrAscending: readonly number[];
@@ -162,8 +140,7 @@ function percentileRank(value: number, sortedAsc: readonly number[]): number {
 export interface Recommendation {
   action: RecommendedAction;
   rationale: string;
-  /** Recova's estimated_mrr_at_risk_cents: MRR times 12, so a year of revenue,
-   *  named for what it is. Set only for the two actions that ask for attention. */
+  /** MRR times 12, a year of revenue, set only for the two actions that ask for attention. */
   annualizedMrrAtRiskCents: number | null;
   confidence: RecommendationConfidence;
 }

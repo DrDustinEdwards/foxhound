@@ -7,30 +7,7 @@ import { recordOutcome } from "~/lib/engine/outcomes";
 
 import { WINBACK_STATUS } from "./winback";
 
-// THE WIN-BACK REACTIVATION, ported from legacy's win-back attribution block in
-// handlePaymentSucceeded (app/api/webhooks/stripe/route.ts, blob `deb585e4`,
-// lines 560 to 615).
-//
-// TWO THINGS ARE LEGACY'S AND ONE IS NOT.
-//
-// LEGACY'S: the transition is a CLAIM, conditional on the prior status, so a
-// replayed event flips zero rows and records no second outcome; and the outcome
-// is `winback_reactivated`, product recovery, carrying the sequence's amount and
-// the days since cancellation.
-//
-// NOT LEGACY'S: the MATCH. Legacy selects on
-// (account_id, stripe_customer_id, status='active') and compares no
-// subscription at all, so an ordinary renewal of a DIFFERENT subscription the
-// same customer still holds is credited as a win-back. 344 binding 1 rules that
-// a legacy defect and matches on the sequence id carried in the Checkout
-// Session's metadata instead. Class (c).
-//
-// IT IS NOT A MONEY WRITE. 343 binding 3 puts the flip on the PLAIN batch path
-// (333's class): an account-state write is not outcome recording, billing or a
-// webhook claim, and it runs after and independent of the recovery branch's
-// money write, never inside it. No `recovered_payments` row is written and no
-// attribution signal is recorded, because a win-back is not a Foxhound
-// recovery under PRICING rev 3.
+// Class (c).
 
 /** The statuses a reactivation may claim FROM. `exhausted` is included because
  *  step 3's own send flips the sequence terminal, so the customer who acts on
@@ -71,15 +48,7 @@ async function loadReactivatableSequence(
   return { ...row, accountId: row.accountId };
 }
 
-/**
- * THE CLAIM. Conditional on the sequence still being reactivatable AND on
- * `reactivated_at` still being NULL, so a second delivery of either event
- * affects zero rows. Legacy's is `.eq('status','active')` plus a
- * `.is('reactivated_at', null)` on the read; both conditions are on the UPDATE
- * here, which is the stronger placement.
- *
- * Returns whether this call took the claim.
- */
+/** THE CLAIM. Returns whether this call took the claim. */
 async function claimWinbackReactivation(db: Db, sequenceId: string, now: Date): Promise<boolean> {
   // The UPDATE says itself whether it matched (RETURNING), so the claim never
   // rests on a re-read of reactivated_at: two deliveries in the same
@@ -98,8 +67,6 @@ async function claimWinbackReactivation(db: Db, sequenceId: string, now: Date): 
   return claimed.length === 1;
 }
 
-/** Legacy's `days_since_cancel`: whole days between the sequence's creation and
- *  the reactivation. */
 function daysSinceCancel(createdAt: Date, now: Date): number {
   return Math.floor((now.getTime() - createdAt.getTime()) / DAY_MS);
 }
@@ -111,11 +78,8 @@ export type ReactivationOutcome =
   | { status: "duplicate"; sequenceId: string };
 
 /**
- * Reactivate the named sequence, recording legacy's outcome only when the claim
- * was taken.
- *
- * A DISCRIMINATED OUTCOME, never null: a deliberate refusal and
- * a swallowed failure must not look alike.
+ * A DISCRIMINATED OUTCOME, never null: a deliberate refusal and a swallowed failure must not look
+ * alike.
  */
 export async function reactivateWinbackSequence(
   env: Env,

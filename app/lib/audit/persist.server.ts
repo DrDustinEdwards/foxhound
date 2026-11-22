@@ -5,27 +5,7 @@ import type { Db } from "~/db";
 
 import type { AuditResult, ScopeOutcome } from "./engine";
 
-// Phase (d) of the audit port. The insert legacy performs, onto the 29 columns
-// `audit_runs` already carries.
-//
-// NO MIGRATION, which the walk found and 363 confirmed: the table was built with
-// legacy's full column set and has sat empty since. This is code, not schema.
-// One column was added since: money_by_currency (0041), the per-currency
-// figures legacy never kept.
-//
-// WHERE THE PER-SCOPE STATUS LIVES, since 362 ruling 2 gave the engine one and
-// the table has no column for it: IN THE NULLS. Every scope column is nullable,
-// so a scope that was READ stores its number (0 included) and a scope that could
-// NOT be read stores NULL. The distinction survives the round trip without a
-// column, and the render derives "could not be read" from NULL rather than being
-// told separately. The one place NULL would be ambiguous is
-// `card_updater_advisory`, which is legitimately NULL when no advisory fires, so
-// it is disambiguated by `card_updater_events_in_window`, NULL only on failure.
-//
-// A SAVE IS HISTORY, NOT A CACHE. Legacy inserts a row per run and renders from
-// the in-memory result, never reading the row back on the same request. Foxhound
-// keeps that: `saveAuditRun` appends, and `getAuditRun` exists for phase (e)'s
-// shareable page, which is legacy's only reader of a stored run.
+// Phase (d) of the audit port.
 
 /** A scope's number, or NULL when the scope could not be read. */
 function value<T, V>(scope: ScopeOutcome<T>, pick: (data: T) => V): V | null {
@@ -34,16 +14,11 @@ function value<T, V>(scope: ScopeOutcome<T>, pick: (data: T) => V): V | null {
 
 export interface SaveAuditRunContext {
   accountId: string;
-  /** Legacy's own flag: true for a run saved against a signed-in account. */
   isAuthenticated: boolean;
   summary: string;
   now: Date;
 }
 
-/**
- * The row legacy builds, field for field. Pure and exported so a plant can drive
- * the real mapping rather than a reproduction of it.
- */
 function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
   return {
     accountId: context.accountId,
@@ -82,8 +57,8 @@ function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
     voluntaryChurnRateBps: value(result.health, (d) => d.voluntaryChurnRateBps),
     involuntaryChurnRateBps: value(result.health, (d) => d.involuntaryChurnRateBps),
 
-    // Every money figure per currency. The single-number
-    // columns above are the figure in `currency` only (engine.ts).
+    // Every money figure per currency. The single-number columns above are the
+    // figure in `currency` only (engine.ts).
     moneyByCurrency: {
       failedInvoices: value(result.failedInvoices, (d) => d.totals),
       declineBreakdown: value(result.failedInvoices, (d) => d.byCategoryTotals),
@@ -105,9 +80,7 @@ function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
 /**
  * Append one run. Returns its id for phase (e)'s link.
  *
- * A PLAIN INSERT, NOT A MONEY WRITE. The audit is free under PRICING rev 3: this
- * records no outcome, attributes no recovery and gates no fee, so it fails 333's
- * test for the money DO on every clause.
+ * A PLAIN INSERT, NOT A MONEY WRITE.
  */
 export async function saveAuditRun(
   env: Env,
@@ -125,9 +98,9 @@ export type AuditRunRow = typeof auditRuns.$inferSelect;
 /**
  * One stored run, scoped to the account.
  *
- * ACCOUNT-SCOPED IN THE PREDICATE, not by the caller. The id
- * reaches this from a URL on phase (e)'s shareable page, so a run belonging to
- * another merchant must return null rather than another merchant's numbers.
+ * The id reaches this from a URL on phase (e)'s shareable page, so a run
+ * belonging to another merchant must return null rather than another merchant's
+ * numbers.
  */
 export async function getAuditRun(
   db: Db,

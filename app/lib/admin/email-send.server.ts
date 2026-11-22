@@ -70,43 +70,6 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 // behind your admin key". #1: after a deploy, send every email type to a test
 // inbox to confirm delivery, links, unsubscribe and Reply-To. #2: render any
 // email as a chosen merchant's customer would get it, without sending.
-//
-// WHO IT CAN MAIL. The acting admin's own address, or an address on the
-// ADMIN_EMAIL_TEST_RECIPIENTS list, and nobody else (RULES.md 4.7: an address
-// typed into a request would make Foxhound an open mail relay). Unset, the list
-// is empty and only the caller's own inbox can receive.
-//
-// WHAT IT RENDERS. Each message is built by the same function the real sender
-// uses, with the chosen merchant's sender name and Reply-To from its primary
-// Stripe connection, and SAMPLE customer data: no customer row is ever read, so
-// no customer's name or address can reach a preview or an inbox. The copy is the
-// deterministic template, which is what a send uses whenever generation is not
-// used or fails; brand voice only shapes model-written copy, and
-// this module never calls the model, so the voice is returned beside the preview
-// rather than applied to it.
-//
-// WHAT IT NEVER CREATES. No email_sends row (the real path's claim rows feed the
-// weekly digest's counts and its once-a-week check, so a test row would skip a
-// merchant's real digest), no engagement token, no tracked click, no open pixel,
-// no scanner trap and no card-update token: every button points at the stand-in
-// page below, so a click in a test mail records nothing anywhere and nothing a
-// bill reads can come of it. The one signed link is the unsubscribe link, which
-// works for real: following it suppresses the test inbox, as it would a
-// customer's, which is what lets the unsubscribe path be checked end to end.
-//
-// HOW IT SENDS. Only through the one send module (app/lib/email/send.ts):
-// sendJobEmail for customer and merchant mail, the transactional senders for
-// platform mail. Customer and merchant mail honors suppression, as
-// processEmailJob does, but skips the per-account live-send gate, because that
-// gate exists to keep a merchant's customers from being mailed before the
-// merchant is switched on, and this mail goes only to the caller's own inbox.
-//
-// EVERY EMAIL FOXHOUND SENDS IS HERE (parity gap 15): customer mail, every
-// merchant notice (recovery, sequence end, the alerts E21 and E22, the four
-// dispute notices, the monthly audit, the team invite), the sign-in link, and
-// the operations mail to the support inbox (cron failure, cron stale, dead
-// letters), which a test send delivers to the caller instead. A sender added
-// without a type here is a gap.
 
 type AdminEmailAudience = "customer" | "merchant" | "platform";
 
@@ -116,8 +79,10 @@ export interface AdminEmailType {
   description: string;
 }
 
-/** Where every button in a test mail points instead of a tracked or card-update
- *  link: the page the merchant's own "Send test email" button already uses. */
+/**
+ * Where every button in a test mail points instead of a tracked or card-update
+ * link: the page the merchant's own "Send test email" button already uses.
+ */
 export const ADMIN_EMAIL_STAND_IN_PATH = "/settings/email";
 
 export const ADMIN_EMAIL_AUDIT_ACTION = "email.test_send";
@@ -136,8 +101,7 @@ const RECOVERY_STEPS: Record<string, { stepType: string; declineCategory: string
     },
   };
 
-/** The five dispute notices, by type (E16, E17, E19, E20, and the
- *  auto-submitted notice). */
+/** The five dispute notices, by type. */
 const DISPUTE_TYPES = [
   "dispute_created",
   "dispute_reminder",
@@ -247,7 +211,7 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
     type: "team_invite",
     audience: "merchant",
     description:
-      "The team invite (E2) a teammate gets. Its Accept Invite button goes to /settings/team with no token, so it joins nobody to anything.",
+      "The team invite a teammate gets. Its Accept Invite button goes to /settings/team with no token, so it joins nobody to anything.",
   },
   {
     type: "sign_in_link",
@@ -332,8 +296,10 @@ export interface MerchantEmailSettings {
   };
 }
 
-/** The account and its primary live connection's sender settings, or null for
- *  an unknown account. Reads no customer data. */
+/**
+ * The account and its primary live connection's sender settings, or null for an
+ * unknown account. Reads no customer data.
+ */
 export async function loadMerchantEmailSettings(
   db: Db,
   accountId: string,
@@ -378,7 +344,8 @@ export type PreparedEmail =
   | { channel: "rendered"; to: string; rendered: Rendered }
   | { channel: "transactional"; to: string; subject: string; bodyHtml: string };
 
-// Sample data, the same sample the merchant's Send test email uses where it has one.
+// Sample data, the same sample the merchant's Send test email uses where it has
+// one.
 const SAMPLE_AMOUNT_CENTS = 9900;
 const SAMPLE_AMOUNT = "$99.00";
 const SAMPLE_CURRENCY = "usd";
@@ -568,8 +535,6 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       return job({ ...copy, footerNote: resendFooterNote(senderName, now.getUTCFullYear()) });
     }
     if (type.type === "settings_test") {
-      // The merchant's own preview, built by the function its control uses: a
-      // "preview" job, with Recova's preview footer and no unsubscribe (E3).
       return {
         channel: "job",
         audience: "preview",
@@ -615,13 +580,6 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
     };
     const paymentUrl = `${baseUrl}/recovery/payments`;
     if (type.type === "weekly_digest") {
-      // The digest's own content function and its own audience (E23): the
-      // platform's From, Recova's footer sentence, and a real signed digest
-      // unsubscribe with the postal address, as the cron sends it. Signed for
-      // the test inbox, which is not the merchant's notification address, so
-      // following it reports the link as expired and switches nothing off.
-      // Its unsubscribe is signed for an account, so it needs a merchant, as
-      // customer mail does.
       if (!merchant) throw new Error("the weekly digest needs a merchant");
       const flags = { now, disputesActive: true };
       return {
@@ -662,17 +620,17 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       };
     }
     if (type.type === "recovery_notification") {
-      // The notifier's own content function (E10): the notice and its footer.
+      // The notifier's own content function: the notice and its footer.
       return merchantJob(
         recoveryNotifyContent({ ...sample, declineCategory: "soft" }, paymentUrl, now),
       );
     }
     if (type.type === "sequence_complete") {
-      // The notifier's own content function (E11): the notice and its footer.
+      // The notifier's own content function: the notice and its footer.
       return merchantJob(sequenceCompleteContent(sample, paymentUrl, now));
     }
     if (type.type === "alert_threshold") {
-      // The alert's own content function (E21).
+      // The alert's own content function.
       const firing = {
         alertId: "alert_sample",
         accountId: merchant?.accountId ?? "",
@@ -685,13 +643,12 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       return merchantJob(thresholdAlertContent(firing, baseUrl, now));
     }
     if (type.type === "alert_critical_customers") {
-      // The alert's own content function (E22).
+      // The alert's own content function.
       return merchantJob(criticalCustomersContent(2, baseUrl, now));
     }
     if ((DISPUTE_TYPES as readonly string[]).includes(type.type)) {
-      // The notices' own content functions (E16, E17, E19, E20 and the
-      // auto-submitted notice) on a sample
-      // dispute. Every button goes to the disputes list: the sample has no row.
+      // The notices' own content functions on a sample dispute. Every button
+      // goes to the disputes list: the sample has no row.
       const listUrl = `${baseUrl}/disputes/dashboard`;
       const dispute = {
         amountCents: 4900,
@@ -732,8 +689,8 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       });
     }
     if (type.type === "monthly_audit") {
-      // The report's own builder (E24) on a sample audit, with a first month
-      // and a prior one to compare against.
+      // The report's own builder on a sample audit, with a first month and a
+      // prior one to compare against.
       const email = buildMonthlyAuditEmail({
         result: sampleAuditResult(now),
         summary: "A sample month: recoveries are up, and three cards expire soon.",
@@ -751,7 +708,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
       });
     }
     if (type.type === "team_invite") {
-      // The invite's own job builder (E2), with no token in the link.
+      // The invite's own job builder, with no token in the link.
       const invite = buildTeamInviteJob({
         accountId: merchant?.accountId ?? "",
         to,
@@ -826,7 +783,9 @@ export interface EmailPreview {
   headers: Record<string, string>;
 }
 
-/** The message the send module would hand the binding, without sending. Pure. */
+/**
+ * The message the send module would hand the binding, without sending. Pure.
+ */
 export function previewAdminEmail(
   env: Env,
   type: AdminEmailType,

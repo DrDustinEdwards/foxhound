@@ -1,9 +1,7 @@
 import { and, eq, isNull, type SQL } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-// Account scoping by construction. Tenant queries pass their table's account_id
-// column through byAccount(); nothing queries a tenant table without a scope.
-// (ARCHITECTURE.md: account_id scoping on every tenant table.)
+// Account scoping by construction. Tenant queries pass their table's account_id column through byAccount(); nothing queries a tenant table without a scope.
 
 /** account_id = :accountId */
 export function byAccount(accountIdColumn: SQLiteColumn, accountId: string): SQL {

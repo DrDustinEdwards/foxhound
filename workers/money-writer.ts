@@ -6,16 +6,7 @@ import {
   type CommitResult,
 } from "~/lib/money/serializer";
 
-// Per-account money-write Durable Object (ARCHITECTURE.md: "per-account
-// money-write serializer"). Addressed by idFromName(accountId): all money writes
-// for one account hit the same instance and are committed one at a time as
-// atomic D1 batches. Different accounts get different instances and run in
-// parallel. See docs/engine/money-writes.md.
-//
-// It receives already-compiled { sql, params } statements (the executor compiles
-// Drizzle builders via .toSQL() in the calling Worker), so no closures or Drizzle
-// internals cross the RPC boundary. The DO owns nothing but serialization,
-// idempotency bookkeeping, and the atomic batch.
+// Per-account money-write Durable Object. Addressed by idFromName(accountId): all money writes for one account hit the same instance and are committed one at a time as atomic D1 batches. Different accounts get different instances and run in parallel (docs/engine/money-writes.md). It receives already-compiled { sql, params } statements (the executor compiles Drizzle builders via .toSQL() in the calling Worker), so no closures or Drizzle internals cross the RPC boundary. The DO owns nothing but serialization, idempotency bookkeeping, and the atomic batch.
 export class MoneyWriteDurableObject extends DurableObject<Env> {
   private readonly committer: SerialMoneyCommitter;
 

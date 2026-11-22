@@ -10,7 +10,7 @@ import {
 // totals the per-account outcomes, so a suite about WHAT the audit does to one
 // account can keep asking it in one call. The queue wiring itself (the
 // registered cron, handleQueueBatch, ack and retry) is proven in
-// test/audit-monthly-queue-apa.test.ts.
+// test/audit-monthly.test.ts.
 
 export interface DrivenMonthlyAudit {
   eligible: number;

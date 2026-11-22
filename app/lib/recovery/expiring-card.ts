@@ -1,15 +1,11 @@
-// Expiring-card pre-dunning (PRICING.md differentiator): alert a customer BEFORE
-// their card expires, so the payment never fails in the first place. Pure
-// date logic; the cron that queries Stripe cards and sends the alert is Phase 4c
-// (send) / 4e (cron). A card is "expiring soon" if its last valid month is
-// within `withinMonths` months of now (inclusive of the current month).
+// Expiring-card pre-dunning (PRICING.md differentiator): alert a customer BEFORE their card
+// expires, so the payment never fails in the first place.
 
 const MONTHS_LOOKAHEAD_DEFAULT = 1;
 
 /**
- * True when a card with expiry (expiresYear, expiresMonth, 1-based) is at or past
- * its final usable month within `withinMonths` of `now`. A card is valid through
- * the END of its expiry month, so we compare year*12+month indices.
+ * True when a card with expiry (expiresYear, expiresMonth, 1-based) is at or past its final usable
+ * month within `withinMonths` of `now`.
  */
 export function isCardExpiringSoon(
   expiresYear: number,

@@ -1,15 +1,11 @@
-// Pure presentation helpers for the Intelligence customer directory
-// (TASK-foxhound-intelligence-customer-directory.md). Kept separate from the
-// query (views.server.ts) and the route component so the formatting rules
-// are unit-testable without a DB or a render tree.
+// Pure presentation helpers for the Intelligence customer directory, separate from the query (views.server.ts) so
+// the formatting rules are unit-testable.
 
 import { capitalize } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { DAY_MS } from "~/lib/constants";
 
-/** Recova's lastSeenLabel (lib/intelligence-display.ts, blob 379635a7) word
- *  for word: "today" / "yesterday" / "Nd ago" (under 30 days) / "1mo ago"
- *  (30 to 59 days) / "Nmo ago". Lowercase, as Recova's are. */
+/** "today" / "yesterday" / "Nd ago" (under 30 days) / "1mo ago" (30 to 59 days) / "Nmo ago". Lowercase. */
 export function formatRelativeLastSeen(date: Date | null, now: Date): string {
   if (!date) return "-";
   const days = Math.floor((now.getTime() - date.getTime()) / DAY_MS);
@@ -28,8 +24,7 @@ interface RecoverySignalsShape {
   activeRecoveryId?: string | null;
 }
 
-/** True when the JSON blob (whatever shape it came from - the demo seeder or
- *  the live intelligence sync) indicates a recovery is currently in progress. */
+/** True when the JSON blob (demo seeder or live sync) indicates a recovery is in progress. */
 export function hasActiveRecoverySignal(recoverySignals: unknown): boolean {
   if (!recoverySignals || typeof recoverySignals !== "object") return false;
   const activeRecoveryId = (recoverySignals as RecoverySignalsShape).activeRecoveryId;
@@ -42,27 +37,19 @@ interface DisputeSignalsShape {
   lostCount?: number;
 }
 
-/** True when the customer has ever been party to a dispute (open, won, or lost). */
 export function hasDisputeHistorySignal(disputeSignals: unknown): boolean {
   if (!disputeSignals || typeof disputeSignals !== "object") return false;
   const s = disputeSignals as DisputeSignalsShape;
   return (s.openDisputesCount ?? 0) > 0 || (s.wonCount ?? 0) > 0 || (s.lostCount ?? 0) > 0;
 }
 
-/** Capsomer status tones a plan pill may carry. */
 export type PlanPillTone = "info" | "nodata";
 
-/** Recova's planTierBadge (app/(app)/intelligence/customers/page.tsx, blob
- *  0413f035): starter, growth, scale, pro and hobby in sentence case, each in
- *  a rounded outline pill with one of three colors. Recova's colors were
- *  subtle (starter, hobby, anything else), blue (growth) and the old warm
- *  accent (scale, pro). With amber throughout, the ranks map onto
- *  Capsomer's outline pill: the no-data tone's muted text, the info tone's
- *  blue, and no tone at all, which is the strongest text color. An unknown
- *  tier is capitalized, where Recova showed the raw value (RULES 1.5). */
+/** Plan tier as a sentence-case outline pill: starter and hobby in the no-data tone's muted text, growth in the
+ *  info tone's blue, scale, pro and anything else with no tone (the strongest text color). An unknown tier is
+ *  capitalized, never shown raw. */
 export function planTierPill(tier: string | null): { label: string; tone?: PlanPillTone } {
-  // current_plan_tier is free text (SCHEMA.md), so "Growth" and " pro " are
-  // Recova's tiers too.
+  // current_plan_tier is free text, so "Growth" and " pro " normalize.
   const key = tier?.trim().toLowerCase() ?? null;
   switch (key) {
     case "growth":
@@ -76,11 +63,9 @@ export function planTierPill(tier: string | null): { label: string; tone?: PlanP
   }
 }
 
-/** "Scheduled to cancel on Jan 5, 2026" / "Scheduled to change on Jan 5, 2026"
- *  from customer_context's scheduled_change_kind and _at, written by the
- *  nightly sync from a subscription schedule or cancel_at. Null when nothing
- *  is scheduled, or when the date has already passed and the next sync has
- *  not yet caught up, so a stale plan never reads as upcoming. */
+/** "Scheduled to cancel on Jan 5, 2026" / "Scheduled to change on ...", from customer_context's
+ *  scheduled_change_kind and _at. Null when nothing is scheduled or the date has passed and the next sync has not
+ *  caught up, so a stale plan never reads as upcoming. */
 export function scheduledChangeLabel(
   kind: string | null,
   at: Date | null,

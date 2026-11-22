@@ -5,45 +5,22 @@ import type { Db } from "~/db";
 import { stripeConnections } from "~/db";
 import type { Membership } from "~/lib/auth/account";
 
-// The account switcher's data, assembled the way legacy assembles it.
-//
-// RULING 328 PUT THIS IN THE NAV'S OWN LOADER, NOT THE AUTH CHOKEPOINT, and
-// legacy agrees: `resolveAccount` (lib/account.ts, blob `9bb58874`) never joins
-// `stripe_connections`, and components/SiteNav.tsx:73-90 (blob `21f28324`) runs
-// a SEPARATE query over the memberships it already has. Keeping it here is what
-// stops a stripe_connections join landing on the path of every authenticated
-// request, including the money routes, for a value only the header reads.
+// Keeping it here is what stops a stripe_connections join landing on the path of every
+// authenticated request, including the money routes, for a value only the header reads.
 
 export interface SwitcherAccount {
   id: string;
   name: string | null;
-  /** The PRIMARY connection's Stripe account id, or null when the account has
-   *  no primary connection. Null is a real state, not a gap: legacy's map lookup
-   *  is `stripeUserIdByAccountId.get(id) ?? null` (SiteNav.tsx:88), and an
-   *  account created but not yet connected genuinely has none. The label falls
-   *  back through it rather than showing a placeholder. */
+  /**
+   * The PRIMARY connection's Stripe account id, or null when the account has no primary connection.
+   */
   stripeUserId: string | null;
 }
 
 /**
- * `{id, name, stripe_user_id}[]` for the memberships the caller holds.
- *
- * ONE query for every account at once, keyed by `is_primary`, exactly legacy's
- * `.in('account_id', accountIds).eq('is_primary', true)`. The membership list is
- * the caller's, so this cannot widen past accounts they already hold: the query
- * is scoped by ids that came out of `account_members` for this user.
- *
- * An empty membership list short-circuits without touching the database, which
- * also keeps the anonymous marketing loader at zero DB reads (ruling 59's rule
- * for that surface) since it never gets here with memberships in hand.
- *
- * FILTERED ON `disconnected_at IS NULL`. This paragraph used to
- * argue the opposite, that a disconnected primary still names the Stripe
- * account and SiteNav.tsx filters on `is_primary` alone. S37 made that reading
- * wrong rather than merely debatable: once a merchant can disconnect from
- * Settings, `is_primary` survives the disconnect by design (333 ruled against
- * promotion and against clearing the flag), so an unfiltered reader keeps
- * naming a Stripe account the merchant just severed. The flag is only harmless
+ * `{id, name, stripe_user_id}[]` for the memberships the caller holds. An empty membership list
+ * short-circuits without touching the database, which also keeps the anonymous marketing loader at
+ * zero DB reads since it never gets here with memberships in hand. The flag is only harmless
  * because its readers filter, and this is reader 1 of the three.
  */
 export async function listSwitcherAccounts(

@@ -1,7 +1,4 @@
-// Recova's Billing exempt list (app/admin/merchants/billing-exempt/page.tsx,
-// blob a0c4f9da) at its own address. On the family admin
-// pattern it is a filter of the Merchants page: the Merchants page's
-// loader with this list, and its action, writers, Undo and page.
+// The Billing exempt list at its own address: a filter of the Merchants page, using its loader with this list, and its action, writers, Undo and page.
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { loadMerchantsPage } from "~/lib/admin/merchants-page.server";
 import type { AdminHandle } from "~/lib/admin/page";
@@ -11,9 +8,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 
 export { action, default } from "./index";
 
-// Its own browser title, as Recova's heading named the list. AdminShell sets
-// document.title itself today (blocked); this is right for
-// when that lands.
+// Its own browser title naming the list. AdminShell does not set document.title itself yet; this is right for when it does.
 export function meta() {
   return [{ title: "Billing exempt merchants - Foxhound admin" }, NOINDEX];
 }

@@ -4,42 +4,24 @@ import { outcomes } from "~/db";
 import type { AttributionKind } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
-// recordOutcome: the Network Intelligence Layer write (the moat). Ported from
-// legacy lib/outcomes.ts with its two load-bearing invariants preserved:
-//
-//   1. NEVER THROWS. Outcomes are analytics; a failure here must never block the
-//      recovery/dispute/billing path that called it. Failures are captured and
-//      dropped: an error line, which site-runtime also reports to Sentry.
-//   2. ATTRIBUTION IS FIRST-CLASS. attributionKind + attributedRef are recorded
-//      on the row (SCHEMA.md spine #1), so lift and billing derive from the row.
-//
-// Unlike legacy (a bare Supabase insert), the write is routed through the
-// per-account money-write Durable Object: outcomes is a money/moat table, so it
-// rides the same serialized, idempotent path as billing. The row carries a
-// required idempotency key (outcomes_idempotency_uq) closing the legacy
-// at-most-once crash gap (SCHEMA.md spine #4).
+// recordOutcome: the Network Intelligence Layer write. Never throws: outcomes are analytics and must never
+// block the recovery/dispute/billing path that called it. attributionKind + attributedRef are recorded on the
+// row so lift and billing derive from it. The write rides the per-account money-write Durable Object with a
+// required idempotency key (outcomes_idempotency_uq).
 
 export interface RecordOutcomeParams {
   accountId: string;
-  /** recovery | disputes | intelligence | audit (SCHEMA.md product vocabulary). */
   product: string;
-  /** The outcomes-table event vocabulary (e.g. recovery_succeeded, dispute_won). */
   eventType: string;
   eventData?: Record<string, unknown>;
   outcome?: string;
   outcomeAt?: Date;
-  /** Attribution (SCHEMA.md spine #1). Required for billable recovery outcomes. */
   attributionKind?: AttributionKind;
-  /** FK/id of the attributing action (retry step, engagement event, card update). */
   attributedRef?: string;
-  /** Stable per logical event; a replay collapses via outcomes_idempotency_uq. */
   idempotencyKey: string;
 }
 
-/**
- * Record an outcome. Never throws. Returns true when the row was newly written,
- * false on an idempotent no-op (already recorded) or a swallowed failure.
- */
+/** Record an outcome. Never throws. True when newly written, false on an idempotent no-op or a swallowed failure. */
 export async function recordOutcome(env: Env, params: RecordOutcomeParams): Promise<boolean> {
   try {
     const now = new Date();
@@ -63,7 +45,6 @@ export async function recordOutcome(env: Env, params: RecordOutcomeParams): Prom
     });
     return applied;
   } catch (err) {
-    // Moat write must not block the caller. Capture and drop (legacy semantics).
     logEvent(
       "record_outcome_failed",
       { account_id: params.accountId, event_type: params.eventType, error: err },

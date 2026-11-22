@@ -1,8 +1,5 @@
-// Shared product metadata (Phase 6 Pass 1). The home page's product cards take
-// key, name and href (their copy is in home-copy.ts since J59), and the /products hub
-// (app/routes/products/index.tsx) takes only key, name and href, with its card
-// copy from products-hub.ts. Mirrors legacy lib/products.ts; each href is
-// Recova's own /product/<name> page, which Foxhound serves since J09.
+// Shared product metadata. The home page's product cards take key, name and href (copy in home-copy.ts); the /products hub
+// (app/routes/products/index.tsx) takes the same, with its card copy from products-hub.ts. Each href is a /product/<name> page.
 
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";

@@ -27,13 +27,9 @@ import { healthScoreInput, loadScoreExtras, scoreColumns } from "./score-inputs.
 import { accountProcessingEligible } from "./sync.server";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// The Intelligence nightly orchestration: scoring -> predictions -> narrative,
-// for one account, then for every processing-eligible account
-// (TASK-foxhound-intelligence-ai.md deliverable 5; the file keeps its name).
-// Consumes the deterministic signals customer_context/mrr_snapshots already
-// carry (app/lib/intelligence/{signals,mrr,sync.server}.ts); never recomputes
-// them. Nothing here calls a model: the narrative is a template
-// (narrative.ts), because Intelligence is free.
+// The Intelligence nightly orchestration: scoring -> predictions -> narrative, for one account, then every
+// processing-eligible account. Consumes the deterministic signals customer_context/mrr_snapshots already carry
+// (signals, mrr, sync.server); never recomputes them. Nothing here calls a model: the narrative is a template.
 
 interface ScoredCustomer {
   customerContextId: string;
@@ -42,7 +38,6 @@ interface ScoredCustomer {
   mrrContributionCents: number;
   score: number;
   factors: HealthFactor[];
-  /** Recova's recommendation rules' result. */
   recommendation: CustomerRecommendation;
 }
 
@@ -87,15 +82,13 @@ async function scoreAccountCustomers(
       mrrContributionCents: row.mrrContributionCents ?? 0,
       score,
       factors,
-      // recommendForAccount returns one entry per row it was given.
       recommendation: recommendations.get(row.stripeCustomerId)!,
     };
   });
 }
 
-/** One customer's writes: score and recommended action, history append,
- *  prediction log, recommendation log. None is a money write, and nothing on a
- *  money path reads recommended_action. */
+/** One customer's writes: score and recommended action, history append, prediction log, recommendation log. None is
+ *  a money write, and nothing on a money path reads recommended_action. */
 function buildCustomerScoringWrites(
   db: Db,
   accountId: string,
@@ -156,7 +149,6 @@ function buildScoringBatch(
 export interface AccountAiRunResult {
   accountId: string;
   customersScored: number;
-  /** Why the account's run failed, or null. */
   error: string | null;
 }
 
@@ -183,8 +175,7 @@ export async function runIntelligenceAiForAccount(
     await db.batch([batch[0], ...batch.slice(1)]);
   }
 
-  // Alerts are not evaluated here: Recova checks them after each recovery
-  // run, and so does Foxhound (alert-run.server.ts, on the recovery tick).
+  // Alerts are not evaluated here; alert-run.server.ts runs them on the recovery tick.
   const mrr = await getMrrAnalytics(db, accountId, nowMs);
 
   const result = writeIntelligenceNarrative(
@@ -199,9 +190,8 @@ export async function runIntelligenceAiForAccount(
   };
 }
 
-/** The one writer of intelligence_reports: this month's report (upserted, so
- *  a regenerate replaces it) and each assessment on its own customer, in one
- *  batch. */
+/** The one writer of intelligence_reports: this month's report (upserted, so a regenerate replaces it) and each
+ *  assessment on its own customer, in one batch. */
 export async function writeNarrativeReport(
   db: Db,
   input: {
@@ -236,9 +226,7 @@ export async function writeNarrativeReport(
   await db.batch([narrativeBatch[0], ...narrativeBatch.slice(1)]);
 }
 
-/** The full nightly run: every processing-eligible account. Mirrors
- *  runIntelligenceSyncForAllAccounts's per-account try/catch-continue (one
- *  account's failure never aborts the rest). */
+/** The full nightly run: every processing-eligible account; one account's failure never aborts the rest. */
 export async function runIntelligenceAiForAllAccounts(
   env: Env,
   nowMs: number,

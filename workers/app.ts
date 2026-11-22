@@ -39,9 +39,7 @@ export { CronTickerDurableObject } from "./cron-ticker";
 // signup limiter (app/lib/auth/rate-limit.server.ts).
 import { RateLimiter } from "@dustinedwards/site-runtime/rate-limit/durable-object";
 export { RateLimiter };
-// RATE_LIMITER (app/lib/http/rate-limit.ts) counts with the same class under
-// its old name, which keeps its namespace: retiring the name would delete a
-// Durable Object namespace, which waits for Dustin.
+// RATE_LIMITER (app/lib/http/rate-limit.ts) counts with the same class under its old name, which keeps its namespace: retiring the name would delete a Durable Object namespace.
 export class RateLimiterDurableObject extends RateLimiter {}
 // The merchant MCP's append-only tool-call log, bound as TOOL_CALL_LOG
 // (app/lib/mcp/call-log.server.ts).
@@ -59,13 +57,7 @@ const serverBuild = () => import("virtual:react-router/server-build") as Promise
  */
 const rateLimit: GatewayStep<Env> = (request, env) => enforceRateLimit(request, env);
 
-/**
- * CARREL'S SITE API with its preview links (/preview/<token>, site-api's PREVIEW_LINK_PATH). Inside /api/carrel/v1 the
- * package enforces rate limit, key and route in that order. The path is checked before the import so the adapter graph
- * stays off every page render. A preview link is noindex, private, no-store and no-referrer from the package (the set
- * does not overwrite them, so the token, which is the address, is never sent on) and writes nothing; any write Carrel
- * makes (a post, its schedule, a media library picture a post shows) can change a stored page, so the pages are purged.
- */
+/** CARREL'S SITE API with its preview links (/preview/<token>, site-api's PREVIEW_LINK_PATH). Inside /api/carrel/v1 the package enforces rate limit, key and route in that order. The path is checked before the import so the adapter graph stays off every page render. A preview link is noindex, private, no-store and no-referrer from the package (the set does not overwrite them, so the token, which is the address, is never sent on) and writes nothing; any write Carrel makes (a post, its schedule, a media library picture a post shows) can change a stored page, so the pages are purged. */
 const carrel = siteApiStep<Env>(async (env, kit) => {
   const { carrelSiteApi } = await import("~/lib/carrel/handler.server");
   // A preview renders the draft through the post's own route in-process (kit.render), never stored.
@@ -85,11 +77,7 @@ const operator: GatewayStep<Env> = async (request, env, _ctx, kit) => {
   return operatorAnswer(request, env);
 };
 
-/**
- * THE MERCHANT MCP ENDPOINT (370, roadmap item 3): JSON-RPC over POST with its own header contract and bearer auth.
- * The path is checked before the import, which keeps the tool modules' graph (the ORM, the billing and intelligence
- * views) off every marketing request. The cache policy (respond) classes /mcp private, which is what pins it no-store.
- */
+/** THE MERCHANT MCP ENDPOINT: JSON-RPC over POST with its own header contract and bearer auth. The path is checked before the import, which keeps the tool modules' graph (the ORM, the billing and intelligence views) off every marketing request. The cache policy (respond) classes /mcp private, which is what pins it no-store. */
 const mcp: GatewayStep<Env> = async (request, env, _ctx, kit) => {
   if (kit.url.pathname !== "/mcp") return undefined;
   const { MERCHANT_TOOLS } = await import("~/lib/mcp/tools.server");
@@ -165,22 +153,11 @@ export class Renderer extends siteRenderer(WorkerEntrypoint<Env>, site) {}
 
 // Under Sentry (site-runtime ./sentry) with the shared fetch: the queue consumer and Foxhound's own cron.
 export default siteWorker(site, {
-  // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit,
-  // foxhound-email (no producer; live sends are synchronous in the recovery
-  // cron), its dead-letter queue, and foxhound-email-events (bounces and
-  // complaints).
+  // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit, foxhound-email (no producer; live sends are synchronous in the recovery cron), its dead-letter queue, and foxhound-email-events (bounces and complaints).
   async queue(batch, env, ctx) {
-    // Arms the five-minute ticker if its alarm is not set (a no-op once it
-    // is). The queues run whenever mail is sent or an email event arrives, so
-    // this arms the ticker soon after a deploy rather than at the next 03:00
-    // UTC daily run. Off the batch's path: it never throws and is not awaited.
+    // Arms the five-minute ticker if its alarm is not set (a no-op once it is). The queues run whenever mail is sent or an email event arrives, so this arms the ticker soon after a deploy rather than at the next 03:00 UTC daily run. Off the batch's path: it never throws and is not awaited.
     ctx.waitUntil(ensureCronTickerArmed(env));
-    // TWO QUEUES, ONE HANDLER. The dead-letter queue routes here too, so
-    // the branch is on the queue NAME. Before this, foxhound-email-dlq had ZERO
-    // consumers (measured) and a repeatedly-failing dunning email was discarded
-    // with no trace after max_retries; this branch writes the row that ends
-    // that. Imported dynamically for the same reason scheduled() is: it keeps
-    // the dead-letter and alerting import graph out of the normal send path.
+    // TWO QUEUES, ONE HANDLER. The dead-letter queue routes here too, so the branch is on the queue NAME: a repeatedly-failing dunning email would otherwise be discarded with no trace after max_retries; this branch writes the row that records it. Imported dynamically, like scheduled(), to keep the dead-letter and alerting import graph out of the normal send path.
     if (batch.queue === EMAIL_DLQ_QUEUE_NAME) {
       const { recordDeadLetters } = await import("~/lib/email/dead-letters.server");
       const { getDb } = await import("~/db");
@@ -194,18 +171,13 @@ export default siteWorker(site, {
     }
     await handleQueueBatch(batch, env);
   },
-  // Cron Triggers: Foxhound's own, not the shared `cron`, because each job runs
-  // behind Foxhound's gates (config + interval + DO lock, app/lib/cron/run.ts)
-  // and the five-minute ticker must be re-armed on every trigger. Jobs
-  // are independent, run sequentially to keep D1 load bounded.
+  // Cron Triggers: Foxhound's own, not the shared `cron`, because each job runs behind Foxhound's gates (config + interval + DO lock, app/lib/cron/run.ts) and the five-minute ticker must be re-armed on every trigger. Jobs are independent, run sequentially to keep D1 load bounded.
   async scheduled(controller, env) {
     // Every trigger, on every schedule, makes sure the five-minute ticker's
     // alarm is set, so the daily 03:00 UTC run re-arms it even while the
     // "*/5 * * * *" trigger is not firing. Idempotent, and it never throws.
     await ensureCronTickerArmed(env);
-    // Dynamic, not static: keeps the billing/Intelligence-AI/recovery-tick
-    // import graph (app/lib/cron/registry.ts) out of the fetch()/queue()
-    // code paths, which never call this. See foxhound-audit-perf.md H-2.
+    // Dynamic, not static: keeps the billing/Intelligence-AI/recovery-tick import graph (app/lib/cron/registry.ts) out of the fetch()/queue() code paths, which never call this.
     const { jobsForSchedule } = await import("~/lib/cron/registry");
     // NO TRY/CATCH HERE, AND THAT IS DELIBERATE. Per-job isolation lives in
     // site-runtime's runJobs: a throw, from a handler or its gates, is that

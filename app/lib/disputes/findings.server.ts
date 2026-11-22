@@ -5,36 +5,21 @@ import { customerContext, failedPayments, recoverySteps } from "~/db";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { isEmailStep } from "~/lib/recovery/schedule";
 
-// "What Foxhound found" on /disputes/:id: the parts of Recova's
-// DisputeEvidenceSummary (blob 96ba82d4) that read something Foxhound writes.
-// Recova read three sources for the disputed customer, and each
-// is read here from Foxhound's own writer of the same fact:
-//
-// - Dispute history: Recova's customer_context.dispute_signals won and lost
-//   counters. Foxhound's Intelligence sync writes the same two counters
-//   (buildDisputeSignals, app/lib/intelligence/signals.ts).
-// - Fraud decline on record: Recova's recovery_signals.fraud_decline_flag, set
-//   when the recovery engine classed one of the customer's payments as fraud.
-//   Foxhound stores that class on the failed payment itself
-//   (failed_payments.decline_category), so the flag is read from there.
-// - Recovery context and Recovery email history: Recova's most recent
-//   failed_payment for the customer with its recovery_steps (page.tsx a9452f59),
-//   and the recovery emails it sent. Foxhound has both tables.
-//
-// Every query takes the account first and scopes on it. Nothing
-// here writes.
-
 interface DisputeRecoveryEmail {
   id: string;
   label: string;
   executedAt: Date;
-  /** Opens counted by Foxhound's engagement recorder; null when never counted. */
+  /**
+   * Opens counted by Foxhound's engagement recorder; null when never counted.
+   */
   openedCount: number | null;
 }
 
 export interface DisputeFindings {
-  /** Lifetime won and lost disputes for this customer; null when both are zero
-   *  or the customer has no Intelligence row. */
+  /**
+   * Lifetime won and lost disputes for this customer; null when both are zero
+   * or the customer has no Intelligence row.
+   */
   disputeHistory: { won: number; lost: number } | null;
   /** The customer's most recent fraud-class decline, or null when none. */
   fraudDecline: { code: string | null } | null;
@@ -125,8 +110,6 @@ export async function getDisputeFindings(
     recovery = {
       declineCategory: latest.declineCategory,
       status: latest.status,
-      // Recova counted every step row under "Steps attempted", scheduled ones
-      // too. Only an executed step was attempted, so only those are counted.
       stepsAttempted: executed.length,
       emails: executed
         .filter((s) => isEmailStep(s.stepType))

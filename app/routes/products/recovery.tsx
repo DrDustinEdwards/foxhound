@@ -35,29 +35,14 @@ import "~/products.css";
 // draws no table, so the stylesheet loads here rather than with the module.
 import "capsomer/table.css";
 
-// The Recovery spoke. Recova's spec, read whole at HEAD:
-// app/(marketing)/product/recovery/page.tsx (blob ec4aded8) and the files it
-// draws from, ProductSections.tsx (ba3aed7c), ProductFAQ.tsx (7c08a5a2),
-// RecoveryDashboardPreview.tsx (565b772c), RecoveryPaymentsPreview.tsx
-// (da19edf0), CategoryPill.tsx (c7dc96f1) and SequenceTimeline.tsx (aa6a85fc).
-//
-// Recova's sections, in Recova's order: the hero, How it works, three feature
-// blocks (the category sequences; the dashboard, lifted; the payments table,
-// tall), Pricing, Questions and the closing block. Parts are Capsomer's, amber,
-// on the five text sizes (product-sections-cap.tsx). Copy is Recova's with
-// every product fact read from the engine (lib/marketing/recovery-copy.ts).
-// The previews draw the demo account's seed, never a merchant's rows
-// (lib/marketing/recovery-preview.server.ts).
-//
-// The path is Recova's own /product/recovery since J09.
+// The Recovery spoke, in order: the hero, How it works, three feature blocks (the category sequences; the dashboard, lifted; the payments table, tall), Pricing, Questions and the closing block (product-sections-cap.tsx). Every product fact is read from the engine (lib/marketing/recovery-copy.ts). The previews draw the demo account's seed, never a merchant's rows (lib/marketing/recovery-preview.server.ts). The path is /product/recovery.
 
 const PATH = "/product/recovery";
 const TITLE = "Recovery";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification, as Recova emits it: the selectors point at
-  // the classes product-sections-cap.tsx puts on the sections.
+  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
   return [
     ...marketingMeta({
       title: TITLE,

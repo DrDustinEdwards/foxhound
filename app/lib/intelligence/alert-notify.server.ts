@@ -15,54 +15,25 @@ import type { AlertFiring } from "./alerts";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// THE ALERT EMAILS. Ported from Recova's
-// lib/alert-evaluation.ts (blob 0e28ecbf, 18,968 bytes): fireEmail and
-// fireSlack for a threshold alert, and the cross-product critical customers
-// check with its email-then-Slack order. Recova's words, Foxhound's name.
-//
-// MERCHANT MAIL. Recova sends both through wrapEmailHtml(body, 'Recova') with
-// no unsubscribe token, so the footer is "You're receiving this from Recova
-// about a recent payment" and a "Manage email settings" link; Foxhound's
-// merchant audience writes the same footer (E10), and no unsubscribe or postal
-// address. Each goes through processEmailJob, so suppression,
-// the live-send gate and the email_sends claim all apply.
-//
-// ON CAPSOMER'S NOTICE TEMPLATE. The notice has one
-// heading, which Recova's mails do not: the threshold alert takes its subject
-// as the heading, and the critical customers alert its own first line, so no
-// word is added that Recova does not send. Recova's bold runs are plain text
-// here (a bold run inside a paragraph).
-//
-// WRITES NOTHING. The firing's alert_history row and the
-// cooldown reads belong to the caller, evaluateAndRecordAlerts and
-// runCriticalCustomersCheck in ai-run.server.ts, which record after the send in
-// Recova's order. Every send path returns a named outcome.
-//
-// SLACK HERE, NOT app/lib/notify/slack.server.ts. That sender gates on the
-// account's Slack notifications toggle, as Recova's recovery-event posts do;
-// Recova's alert path reads only slack_webhook_url and ignores the toggle, so
-// postAlertToSlack below keeps that, with the same host and demo refusals.
+// The alert emails: a threshold alert (fireEmail/fireSlack) and the cross-product critical customers check
+// (email then Slack). Merchant mail: the notice template with the merchant audience footer, no unsubscribe or
+// postal address, through processEmailJob so suppression, the live-send gate and the email_sends claim apply.
+// The notice has one heading: the threshold alert uses its subject, the critical alert its first line. This
+// file WRITES NOTHING: the caller (evaluateAndRecordAlerts, runCriticalCustomersCheck in ai-run.server.ts)
+// records alert_history and cooldowns after the send. Slack is posted here, not via
+// app/lib/notify/slack.server.ts, because the alert path reads only slack_webhook_url and ignores the
+// Slack notifications toggle; same host and demo refusals.
 
 const THRESHOLD_ALERT_TEMPLATE = "alert_threshold";
 const CRITICAL_ALERT_TEMPLATE = "alert_critical_customers";
 
-/** Recova's From for both mails is FROM_HELLO, "Recova <hello@...>", and its
- *  footer names "Recova". The platform speaks, never the merchant's sender. */
+/** The platform speaks, never the merchant's sender. */
 const ALERT_FROM_NAME = "Foxhound";
 
-/**
- * THE CRITICAL CUSTOMERS ALERT WAITED UNTIL ITS BUTTON HAD SOMEWHERE TO GO.
- *
- * Recova's mail and Slack line both send the merchant to
- * /intelligence/recommendations. RULES.md 2.7 says an email ships
- * after its link has somewhere to go, so the nightly run called this check only
- * once that page existed; it does now. A test holds this equal to
- * whether routes.ts serves the page.
- */
+/** The critical customers alert links /intelligence/recommendations; a test holds this equal to whether routes.ts serves the page. */
 export const CRITICAL_CUSTOMERS_ALERT_LIVE = true;
 
-/** Recova's formatThreshold: every cents metric as US dollars, Intl's default
- *  two decimals; anything else as the bare number. */
+/** Every cents metric as US dollars (two decimals); anything else as the bare number. */
 function formatAlertValue(metric: string, value: number): string {
   if (isCentsMetric(metric)) {
     return formatMoney(value, "usd");
@@ -77,8 +48,7 @@ export interface AlertMailContent {
   footerNote: string;
 }
 
-/** The threshold alert (E21): Recova's fireEmail subject, sentence and button,
- *  with Foxhound's name. Pure. */
+/** The threshold alert's subject, sentence and button. Pure. */
 export function thresholdAlertContent(
   firing: AlertFiring,
   baseUrl: string,
@@ -101,7 +71,6 @@ export function thresholdAlertContent(
   };
 }
 
-/** Recova's fireSlack line for a threshold alert, with Foxhound's name. Pure. */
 function thresholdAlertSlackText(firing: AlertFiring): string {
   const label = alertMetricLabel(firing.metric);
   return (
@@ -114,14 +83,8 @@ function customerWord(count: number): string {
   return count === 1 ? "customer" : "customers";
 }
 
-/**
- * The critical customers alert (E22): Recova's subject and body, Foxhound's
- * name. Recova's bold first line is the notice's title. Two words differ from
- * Recova's, both recorded in the pull request: "a health score below 33" says
- * "of 33 or below", because Recova's own check is `health_score <= 33` and the
- * sentence was false for a score of 33; and Recova's `&mdash;` before "all
- * simultaneously" is a comma, as no em dash is ported (monthly.server.ts). Pure.
- */
+/** The critical customers alert's subject and body; the bold first line is the notice's title. "of 33 or below"
+ *  matches the `health_score <= 33` check, and no em dash is used (monthly.server.ts). Pure. */
 export function criticalCustomersContent(
   count: number,
   baseUrl: string,
@@ -143,7 +106,6 @@ export function criticalCustomersContent(
   };
 }
 
-/** Recova's Slack line for the critical customers alert, emoji included. Pure. */
 function criticalCustomersSlackText(count: number, baseUrl: string): string {
   return (
     `\u{1F6A8} Foxhound: ${count} critical ${customerWord(count)} flagged ` +
@@ -152,8 +114,7 @@ function criticalCustomersSlackText(count: number, baseUrl: string): string {
   );
 }
 
-/** The account's two channels, read as Recova reads them: notification_email
- *  only (no fallback to a login address) and slack_webhook_url. */
+/** The account's two channels: notification_email only (no fallback to a login address) and slack_webhook_url. */
 export interface AlertTarget {
   notificationEmail: string | null;
   slackWebhookUrl: string | null;
@@ -179,14 +140,8 @@ type SlackPostOutcome =
   | { status: "refused"; reason: "demo" | "host_not_allowed" }
   | { status: "failed"; reason: string };
 
-/**
- * Post one line to the account's webhook, as Recova's fireSlack does: one
- * JSON body `{ text }`, `res.ok` is the answer, a throw is false. Recova reads
- * only the webhook, not the Slack notifications toggle, on both alert paths.
- * Two refusals Recova lacks: a demo account never fetches (the demo firewall,
- * RULES.md 4.12), and a stored URL off hooks.slack.com is never fetched.
- * Never throws, and never logs the URL, which is a credential.
- */
+/** Post one `{ text }` line to the account's webhook; `res.ok` is the answer, a throw is false. A demo account
+ *  never fetches and a stored URL off hooks.slack.com is never fetched. Never throws, never logs the URL (a credential). */
 async function postAlertToSlack(
   accountId: string,
   webhookUrl: string,
@@ -196,8 +151,7 @@ async function postAlertToSlack(
   const checked = normalizeSlackWebhookUrl(webhookUrl);
   if (!checked.ok || !checked.value) return { status: "refused", reason: "host_not_allowed" };
   try {
-    // A redirect is never followed: a 3xx is not ok, so hooks.slack.com is the
-    // only host this request can reach.
+    // A redirect is never followed: a 3xx is not ok, so hooks.slack.com is the only host reachable.
     const res = await fetch(checked.value, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -210,8 +164,7 @@ async function postAlertToSlack(
   }
 }
 
-/** What one alert notification came to. `sent` is what alert_history records
- *  as notification_sent. */
+/** What one alert notification came to; `sent` is what alert_history records as notification_sent. */
 export type AlertNotifyOutcome =
   | { channel: "email"; sent: boolean; result: EmailJobResult }
   | { channel: "slack"; sent: boolean; slack: SlackPostOutcome }
@@ -235,7 +188,6 @@ async function sendAlertMail(
       to: input.to,
       ...input.content,
       template: input.template,
-      // Platform-to-merchant mail. See EmailAudience.
       audience: "merchant",
       unsubscribeToken: "",
       physicalAddress: "",
@@ -246,14 +198,9 @@ async function sendAlertMail(
   );
 }
 
-/**
- * Notify one threshold alert firing on its channel, as Recova's loop does:
- * email when the channel is email and the account has a notification address,
- * Slack when the channel is slack and it has a webhook, otherwise nothing.
- * Every alert is created with channel email today (ALERT_DEFAULT_CHANNEL; the
- * settings page offers no picker, J33), so email is the path that runs.
- * Never throws.
- */
+/** Notify one threshold alert firing on its channel: email when the channel is email and the account has a
+ *  notification address, Slack when slack and it has a webhook, else nothing. Alerts default to email
+ *  (ALERT_DEFAULT_CHANNEL), so email is the path that runs. Never throws. */
 export async function notifyThresholdAlert(
   env: Env,
   target: AlertTarget,
@@ -269,7 +216,6 @@ export async function notifyThresholdAlert(
         to: target.notificationEmail,
         content: thresholdAlertContent(firing, appOrigin(env), firedAt),
         template: THRESHOLD_ALERT_TEMPLATE,
-        // One logical send per firing: a firing is one alert at one instant.
         idempotencyKey: `alert:${firing.alertId}:${firedAt.getTime()}`,
       });
       return { channel: "email", sent: result.status === "sent", result };
@@ -294,24 +240,15 @@ export async function notifyThresholdAlert(
   }
 }
 
-/** What the critical customers notification came to: the channel tried (or
- *  none), whether it went, and the send or post result. */
 export interface CriticalNotifyOutcome {
   channel: "email" | "slack" | "none";
   notificationSent: boolean;
   detail: EmailJobResult | SlackPostOutcome | null;
 }
 
-/**
- * Notify the merchant of `count` critical customers in Recova's order: email
- * when the account has a notification address and the mail binding exists
- * (Recova's `notification_email && resend`), else Slack when it has a webhook,
- * else neither. Writes nothing: the caller records the firing
- * (runCriticalCustomersCheck in ai-run.server.ts). A provider refusal or a
- * refused Slack host comes back in the outcome; only a database failure
- * throws, and the caller turns that into its own named outcome, writing no
- * row, as Recova's try/catch does.
- */
+/** Notify of `count` critical customers: email when the account has a notification address and the mail binding
+ *  exists, else Slack when it has a webhook, else neither. Writes nothing. A provider or Slack-host refusal comes
+ *  back in the outcome; only a database failure throws, and the caller writes no row. */
 export async function notifyCriticalCustomers(
   env: Env,
   db: Db,

@@ -1,8 +1,8 @@
-// The operator API: the door Capsid Admin reaches Foxhound through (/api/operator, site-runtime ./operator, one
-// implementation on every site; workers/app.ts mounts it). Checking the backups, backing up now and running a
-// scheduled job now are Capsid Admin's, for every site in one place (Dustin, 2026-11-06 and 2026-11-07), so they are
-// not admin API routes here. run_job runs only RUN_NOW_JOBS (app/lib/cron/registry.ts): no job that moves money,
-// submits a dispute or mails a merchant is runnable now.
+// The operator API: the door Capsid Admin reaches Foxhound through (/api/operator, site-runtime
+// ./operator, one implementation on every site; workers/app.ts mounts it). Checking the backups,
+// backing up now and running a scheduled job now are Capsid Admin's, for every site in one place,
+// so they are not admin API routes here. run_job runs only RUN_NOW_JOBS (app/lib/cron/registry.ts):
+// no job that moves money, submits a dispute or mails a merchant is runnable now.
 import { operatorJobTools } from "@dustinedwards/site-runtime/cron";
 import { operatorResponse } from "@dustinedwards/site-runtime/operator";
 

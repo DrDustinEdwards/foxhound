@@ -1,7 +1,6 @@
-// The home hero's recovery queue (components/recovery-queue-demo.tsx) as data: its frames and the classes
-// each state draws with. Shared with the queue-demo island (islands/queue-demo.ts), which plays the same
-// frames on a page that does not hydrate. The island is bundled on its own, so the one import is Prelum's
-// dependency-free ./text.
+// The home hero's recovery queue (components/recovery-queue-demo.tsx) as data: its frames and the classes each state draws with. Shared
+// with the queue-demo island (islands/queue-demo.ts), which plays the same frames on a page that does not hydrate. The island is
+// bundled on its own, so the one import is Prelum's dependency-free ./text.
 import { formatCount } from "@drdustinedwards/site-helpers/text";
 
 export type Status = "failed" | "running" | "recovered";
@@ -29,7 +28,6 @@ const IDLE_METAS = [
 interface Frame {
   statuses: Status[];
   metas: string[];
-  /** How many of STEPS are complete; the next one is the active chip. */
   done: number;
   activeSequence: number;
   recovered: number;
@@ -38,9 +36,7 @@ interface Frame {
   holdMs: number;
 }
 
-// The whole animation as data. A list of frames beats a chain of awaited
-// setState calls: the reduced-motion path is then just "render the last one",
-// and the loop is a single timer rather than a cancellable async walk.
+// The whole animation as data: reduced-motion is then "render the last frame" and the loop is a single timer, not a cancellable async walk.
 export const FRAMES: Frame[] = [
   {
     statuses: ["failed", "failed", "failed"],
@@ -142,7 +138,6 @@ const STEP_CLASS: Record<StepState, string> = {
   pending: "fh-queue-step-pending",
 };
 
-/** A payment's row, tinted once it is recovered. */
 export function rowClass(status: Status): string {
   return status === "recovered" ? "fh-queue-row fh-queue-row-done" : "fh-queue-row";
 }
@@ -155,12 +150,8 @@ export function amountClass(status: Status): string {
   return `fh-queue-amount fh-mono fh-small fh-medium ${AMOUNT_CLASS[status]}`;
 }
 
-// w-8 and NO shrink-0, both legacy's (components/hero/RecoveryDemo.tsx stepClass). This row previously
-// carried w-7 plus shrink-0, justified as clearing a 320px viewport. The measurement inverted that:
-// legacy already handles narrow viewports, by letting the chips COMPRESS under flex's default shrink of
-// 1. Legacy sets flex-shrink-0 on the status icons and deliberately not here. Foxhound had added
-// shrink-0, which turns a flexible 248px row into a rigid one, and then narrowed the chips to make the
-// rigid row fit. The narrowing compensated for a self-inflicted constraint, not for anything legacy does.
+// w-8 and NO shrink-0: narrow viewports are handled by letting the chips compress under flex's default shrink of 1; shrink-0 would
+// make the row rigid.
 export function stepClass(index: number, done: number): string {
   return `fh-queue-step fh-mono fh-tiny ${STEP_CLASS[stepStateAt(index, done)]}`;
 }

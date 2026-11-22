@@ -22,9 +22,8 @@ import { healthScoreBand } from "./health-band";
 import { narrativeWithCustomerIds } from "./narrative";
 import type { HealthFactor } from "./risk";
 
-// Read models for the Intelligence surfaces (TASK-foxhound-intelligence-ai.md
-// deliverable 6). Every query is account-scoped. Intelligence is free on every
-// account (Dustin), so there is no entitlement gate.
+// Read models for the Intelligence surfaces. Every query is account-scoped. Intelligence is free on every
+// account, so there is no entitlement gate.
 
 const OVERVIEW_CUSTOMER_LIMIT = 25;
 
@@ -41,16 +40,13 @@ export interface IntelligenceOverview {
   scoreDistribution: { healthy: number; watch: number; atRisk: number };
   mrrAtRiskCents: number;
   atRiskCustomerCount: number;
-  /** Worst-scoring customers first, bounded (DESIGN.md: "every customer
-   *  scored, sorted by MRR-at-risk"; a full unbounded list is a later
-   *  pagination pass, mirroring the bounded-scan convention elsewhere). */
+  /** Worst-scoring customers first, bounded (a full list is a later pagination pass). */
   topAtRisk: OverviewCustomerRow[];
   narrative: string | null;
   narrativeGeneratedAt: Date | null;
 }
 
-/** The /intelligence overview: score distribution, MRR-at-risk exposure, and
- *  this month's narrative. Caller must have already checked entitlement. */
+/** The /intelligence overview: score distribution, MRR-at-risk exposure and this month's narrative. */
 export async function getIntelligenceOverview(
   db: Db,
   accountId: string,
@@ -120,7 +116,6 @@ export async function getIntelligenceOverview(
     mrrAtRiskCents,
     atRiskCustomerCount,
     topAtRisk,
-    // An agent reads the narrative with Stripe customer ids in place of names.
     narrative:
       narrative !== null && options.forAgent
         ? narrativeWithCustomerIds(narrative, customers)
@@ -129,8 +124,7 @@ export async function getIntelligenceOverview(
   };
 }
 
-/** Recova's customer page reads the last 30 readings
- *  (fetchHealthScoreHistory(accountId, ctx.id, 30), page.tsx at blob 8d31766d). */
+/** The customer page reads the last 30 readings. */
 const HEALTH_SCORE_HISTORY_LIMIT = 30;
 const PREDICTION_HISTORY_LIMIT = 12;
 
@@ -141,15 +135,12 @@ export interface CustomerHealthDetail {
   customerSince: Date | null;
   currentPlanName: string | null;
   currentPlanTier: string | null;
-  /** Null when the row has none, kept apart from an honest zero (a customer
-   *  with no active subscription), as Recova keeps them apart. */
+  /** Null when the row has none, kept apart from an honest zero (no active subscription). */
   mrrContributionCents: number | null;
-  /** Null until something computes lifetime value; nothing does yet
-   *  (signals.ts buildCustomerContextFields). */
+  /** Null until something computes lifetime value; nothing does yet. */
   ltvCents: number | null;
   currency: string;
-  /** The nightly sync's earliest planned subscription change or cancellation
-   *  ("change" | "cancel") and its date; both null when none is scheduled. */
+  /** The nightly sync's earliest planned change or cancellation ("change" | "cancel") and its date; both null when none. */
   scheduledChangeKind: string | null;
   scheduledChangeAt: Date | null;
   healthScore: number | null;
@@ -166,12 +157,8 @@ export interface CustomerHealthDetail {
   }[];
 }
 
-/** Per-customer health detail, account-scoped by construction (the id +
- *  account_id predicate is one query, never a lookup-by-id followed by a
- *  separate ownership check): TASK-foxhound-intelligence-ai.md flags this
- *  route specifically for the account-scoping audit. Returns null when the
- *  customer does not belong to this account (or does not exist), for a clean
- *  404 at the route. */
+/** Per-customer health detail, account-scoped by construction (the id + account_id predicate is one query, never
+ *  a lookup followed by a separate ownership check). Null when the customer is not on this account, for a clean 404. */
 export async function getCustomerHealthDetail(
   db: Db,
   accountId: string,
@@ -263,25 +250,11 @@ export async function getCustomerHealthDetail(
 const latest = (dates: readonly (Date | null)[]): Date | null =>
   dates.reduce<Date | null>((max, d) => (d && (!max || d > max) ? d : max), null);
 
-/**
- * What Foxhound has on record for one customer of one account: the customer
- * detail page's three signal cards. Read from Foxhound's own
- * tables rather than customer_context's signal JSON, because the nightly sync
- * writes only counts there (signals.ts), with no amounts, dates or 30-day
- * window, and the demo seeds a different shape. Every query carries both the
- * account and the Stripe customer id, so another account's rows under the same
- * Stripe id are never read.
- *
- * Failed payments and recoveries skip soft-deleted rows, as the payments list
- * does. Engagement follows the nightly sync's join (an event on a recovery step
- * of one of the customer's payments).
- *
- * lastActivityAt is the page's "Last seen": the latest dated row above. It is
- * not customer_context.last_seen_at, which the nightly sync sets to its own run
- * time for every customer (sync.server.ts buildCustomerContextUpsert), so on a
- * live account it says when Foxhound last synced, not when the customer was
- * last seen (J68 review, must-fix 1).
- */
+/** What Foxhound has on record for one customer: the detail page's three signal cards. Read from Foxhound's own
+ *  tables (customer_context's JSON holds only counts), every query carrying both the account and the Stripe
+ *  customer id so another account's rows under the same Stripe id are never read. Failed payments and recoveries
+ *  skip soft-deleted rows. lastActivityAt is the latest dated row above, not customer_context.last_seen_at,
+ *  which the nightly sync sets to its own run time for every customer. */
 export async function getCustomerActivity(
   db: Db,
   accountId: string,
@@ -410,7 +383,6 @@ export interface AlertFiringView {
 
 const ALERT_HISTORY_LIMIT = 50;
 
-/** Configured alerts + recent fire history, account-scoped. */
 export async function getAlertsView(
   db: Db,
   accountId: string,
@@ -429,9 +401,7 @@ export async function getAlertsView(
       })
       .from(alerts)
       .where(eq(alerts.accountId, accountId))
-      // Newest first, as Recova's alerts page orders them. Unordered,
-      // SQLite returned insertion order, so a new alert sank to the bottom.
-      // The id breaks a tie on the same millisecond (seeds, batch inserts).
+      // Newest first; the id breaks a tie on the same millisecond (seeds, batch inserts).
       .orderBy(desc(alerts.createdAt), desc(alerts.id)),
     db
       .select({
@@ -461,9 +431,8 @@ export interface ReportArchiveRow {
 
 const REPORTS_ARCHIVE_LIMIT = 24;
 
-/** The narrative archive, most recent report month first. Account-scoped. For an
- *  agent, every narrative reads with Stripe customer ids in place of names (hard
- *  rule 8), as the overview's latest report does. */
+/** The narrative archive, most recent report month first. Account-scoped. For an agent, every narrative reads with
+ *  Stripe customer ids in place of names (hard rule 8). */
 export async function getReportsArchive(
   db: Db,
   accountId: string,

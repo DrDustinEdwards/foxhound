@@ -12,27 +12,22 @@ import {
 } from "~/lib/constants";
 import { recoveryFeeCents, unrefundedCents } from "~/lib/billing/fees";
 
-// The /billing fee preview: what the next monthly run will invoice,
-// shown to the merchant before the invoice exists. Strictly read-only.
+// The /billing fee preview: what the next monthly run will invoice, shown to
+// the merchant before the invoice exists. Strictly read-only.
 //
 // This module computes NO money of its own. The billable sets come from
 // app/db/billable.ts and the fee amounts from app/lib/billing/fees.ts, the same
 // two modules app/lib/billing/run.ts reads, so the card and the invoice cannot
-// disagree about who is billable or what a fee is. The one piece of run.ts this
-// mirrors rather than imports is the per-dispute fee: the stored snapshot, with
-// an unpriced win left out, as runAccountBilling does; test/billing-preview.test.ts
-// pins the two against each other, so a drift fails a test rather than reaching
-// a merchant.
-//
-// Everything here is evaluated at the NEXT RUN INSTANT, not at now. See
-// nextBillingRunAtMs.
+// disagree about who is billable or what a fee is.
 
 export interface AccountBillingState {
   billingExempt: boolean;
   processingPaused: boolean;
-  /** Operator cancel/disconnect. A PROCESSING gate only, never a billing gate:
-   *  accountBillingEligibleCondition deliberately ignores it, so a canceled
-   *  account still owes its already-matured fees. */
+  /**
+   * Operator cancel/disconnect. A PROCESSING gate only, never a billing gate:
+   * accountBillingEligibleCondition deliberately ignores it, so a canceled
+   * account still owes its already-matured fees.
+   */
   cancelledAt: Date | null;
 }
 
@@ -46,22 +41,18 @@ export interface PendingDisputeFee {
 }
 
 export interface BillingPreview {
-  /** Recovered revenue for the current UTC calendar month, every attribution
-   *  kind including the free baseline. What the merchant got back, not what
-   *  they will be billed on. */
+  /**
+   * Recovered revenue for the current UTC calendar month, every attribution
+   * kind including the free baseline. What the merchant got back, not what they
+   * will be billed on.
+   */
   recoveredThisMonth: CurrencyAmount[];
-  /** The same month's recoveries Foxhound is credited with
-   *  (BILLABLE_ATTRIBUTION_KINDS): Recova's "Recovered this month" on /billing,
-   *  which sums only its billable recovery methods. Refunded and disputed
-   *  recoveries still count, as in Recova; they were recovered. */
   attributedThisMonth: CurrencyAmount[];
   /** The instant the next monthly run fires. */
   nextRunAtMs: number;
   /** Per-currency fee totals the next run is on course to invoice. */
   estimatedInvoice: CurrencyAmount[];
-  /** estimatedInvoice's recovery-fee part (Recova's Recovery section). */
   estimatedRecoveryFees: CurrencyAmount[];
-  /** estimatedInvoice's dispute-fee part (Recova's Dispute Fees section). */
   estimatedDisputeFees: CurrencyAmount[];
   /** The disputes behind estimatedDisputeFees, one per dispute. */
   pendingDisputeFees: PendingDisputeFee[];
@@ -73,12 +64,7 @@ export interface BillingPreview {
  *
  * Derived from the cron fields rather than written down as a date, so it cannot
  * go stale. Note the strictness: at exactly 04:00 on the 1st, THAT run is the
- * one already going, so the next one is a month out. And on the 1st at 02:00
- * the next run is two hours away, not a month away, which is the case a
- * "first of next month" shortcut gets wrong by a whole billing period.
- *
- * Pure and exported so the derivation is pinned by tests across month and year
- * boundaries instead of being trusted.
+ * one already going, so the next one is a month out.
  */
 export function nextBillingRunAtMs(nowMs: number): number {
   const now = new Date(nowMs);
@@ -99,8 +85,10 @@ export function nextBillingRunAtMs(nowMs: number): number {
   );
 }
 
-/** First instant of the UTC calendar month containing `nowMs`. The admin
- *  Overview's "Recovered this month" starts from the same instant. */
+/**
+ * First instant of the UTC calendar month containing `nowMs`. The admin
+ * Overview's "Recovered this month" starts from the same instant.
+ */
 export function startOfUtcMonthMs(nowMs: number): number {
   const now = new Date(nowMs);
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
@@ -109,12 +97,9 @@ export function startOfUtcMonthMs(nowMs: number): number {
 /**
  * The forward-looking half of /billing for one account.
  *
- * `nowMs` is when the merchant is looking. The estimate is deliberately NOT
- * evaluated at that instant: the billable predicate matures a recovery 30 days
- * after it was recovered, so a recovery aged 20 days today is not billable now
- * and IS billable by the time the run fires. Anchoring at `nowMs` would show
- * the merchant a number smaller than the invoice they are about to receive,
- * which is the one direction an estimate must never be wrong in.
+ * Anchoring at `nowMs` would show the merchant a number smaller than the
+ * invoice they are about to receive, which is the one direction an estimate
+ * must never be wrong in.
  */
 export async function getBillingPreview(
   db: Db,

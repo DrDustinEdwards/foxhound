@@ -3,22 +3,7 @@ import { DAY_MS } from "~/lib/constants";
 
 // Shared demo customer base: pure, deterministic 200-customer rosters for the
 // two demo businesses, Teamflow (Starter/Growth/Scale) and Bolt Analytics
-// (Pro/Hobby). Ported near-verbatim from legacy lib/demo-customer-base.ts
-// (blob `80fd99bb`).
-//
-// Pure: no DB access, no env reads, no I/O. Reproducible: every customer's
-// attributes derive from a stable seed string (FNV-1a), so the same `now`
-// produces the same roster every time.
-//
-// Scripted customers carry their narrative inline (slug + scripted
-// failed_payment events + health_trajectory). Anonymous customers fill the
-// per-tier slot count after scripted entries are allocated to their tiers, so
-// the totals stay at 200 / 200.
-//
-// Day-walk eligibility: scripted customers and Hobby-tier customers are
-// excluded (see isDayWalkEligible). Scripted customers' failed payments are
-// placed by their failed_payment_events schedule alone, no random failures
-// layered on top, so the Acme / Bluewave / Hilltop narratives stay clean.
+// (Pro/Hobby).
 
 type DemoTier = "starter" | "growth" | "scale" | "pro" | "hobby";
 type DemoLifecycleStatus = "active" | "at_risk" | "churned" | "paused";
@@ -41,10 +26,11 @@ interface DemoHealthPoint {
   reason: string;
 }
 
-// Optional override for the Intelligence layer's customerContext.engagementSignals
-// write. When present on a scripted customer, the intelligence seed uses these
-// values instead of computing from the default formula, for narratives that need
-// an opens/recency profile the formula would not otherwise produce.
+// Optional override for the Intelligence layer's
+// customerContext.engagementSignals write. When present on a scripted customer,
+// the intelligence seed uses these values instead of computing from the default
+// formula, for narratives that need an opens/recency profile the formula would
+// not otherwise produce.
 export interface DemoEngagementOverride {
   emailOpened30d?: number;
   emailClicked30d?: number;
@@ -102,8 +88,10 @@ const SCALE_PER_SEAT_CENTS = 4900;
 const GROWTH_PER_SEAT_CENTS = 2500;
 const ANNUAL_DISCOUNT = 0.9; // 10% off annual prepay
 
-/** The customer's total recurring monthly rate before any annual discount:
- *  base covers the first seat, per-seat applies only to additional seats. */
+/**
+ * The customer's total recurring monthly rate before any annual discount: base
+ * covers the first seat, per-seat applies only to additional seats.
+ */
 export function monthlyTotalCents(c: DemoCustomer): number {
   if (c.tier === "hobby") return 0;
   return c.planBaseCents + Math.max(0, c.seats - 1) * c.perSeatCents + c.addonCents;
@@ -114,9 +102,11 @@ function couponFactor(c: DemoCustomer): number {
   return 1 - (c.couponPercentOff ?? 0) / 100;
 }
 
-/** Per-invoice amount given the customer's billing cadence. Annual prepay is
- *  monthly_total * 12 * 0.9 (10% discount). Any coupon comes off after.
- *  Hobby is always 0. */
+/**
+ * Per-invoice amount given the customer's billing cadence. Annual prepay is
+ * monthly_total * 12 * 0.9 (10% discount). Any coupon comes off after. Hobby is
+ * always 0.
+ */
 export function invoiceAmountCents(c: DemoCustomer): number {
   const monthly = monthlyTotalCents(c) * couponFactor(c);
   if (c.billingCadence === "annual") {
@@ -125,9 +115,11 @@ export function invoiceAmountCents(c: DemoCustomer): number {
   return Math.round(monthly);
 }
 
-/** Monthly recurring contribution toward MRR: what the customer pays after
- *  any coupon. Annual subscriptions normalize to (annual_amount / 12).
- *  Churned and Hobby customers contribute 0. */
+/**
+ * Monthly recurring contribution toward MRR: what the customer pays after any
+ * coupon. Annual subscriptions normalize to (annual_amount / 12). Churned and
+ * Hobby customers contribute 0.
+ */
 export function monthlyMrrCents(c: DemoCustomer): number {
   if (c.status === "churned") return 0;
   const monthly = monthlyTotalCents(c) * couponFactor(c);
@@ -137,8 +129,10 @@ export function monthlyMrrCents(c: DemoCustomer): number {
   return Math.round(monthly);
 }
 
-/** Day-walk eligibility: scripted customers have hand-placed failure events
- *  only, no random failures layered on top. Hobby tier has no invoices. */
+/**
+ * Day-walk eligibility: scripted customers have hand-placed failure events
+ * only, no random failures layered on top. Hobby tier has no invoices.
+ */
 export function isDayWalkEligible(c: DemoCustomer): boolean {
   return c.scripted === null && c.tier !== "hobby";
 }
@@ -151,9 +145,11 @@ const TIER_LABEL: Record<DemoTier, string> = {
   hobby: "Hobby",
 };
 
-/** The failed_payments.plan_name label: tier + a variance suffix (seats,
- *  add-on, annual), so a reader can tell a multi-seat/annual customer apart
- *  from the base tier without opening the customer record. */
+/**
+ * The failed_payments.plan_name label: tier + a variance suffix (seats, add-on,
+ * annual), so a reader can tell a multi-seat/annual customer apart from the
+ * base tier without opening the customer record.
+ */
 export function planNameFor(c: DemoCustomer): string {
   const parts: string[] = [];
   if (c.seats > 1) parts.push(`${c.seats} seats`);
@@ -361,10 +357,12 @@ function generateName(
   return `${first} ${last}`;
 }
 
-/** Reroll the anonymous-customer name if it collides with a scripted customer
- *  name. `reserved` is built from the scripted customers in the base. Rerolls
- *  up to 5 times with sub-seed variations; final fallback appends " II" so the
- *  function always returns a non-colliding string. */
+/**
+ * Reroll the anonymous-customer name if it collides with a scripted customer
+ * name. `reserved` is built from the scripted customers in the base. Rerolls up
+ * to 5 times with sub-seed variations; final fallback appends " II" so the
+ * function always returns a non-colliding string.
+ */
 function generateNameNoCollision(
   seed: string,
   companyBiasPct: number,
@@ -392,8 +390,10 @@ export function daysAgo(now: Date, n: number): Date {
   return new Date(now.getTime() - n * DAY_MS);
 }
 
-/** Customer signup date with growth-curve weighting: 40% in last 6 months,
- *  35% in months 6-12, 25% in months 12-18. */
+/**
+ * Customer signup date with growth-curve weighting: 40% in last 6 months, 35%
+ * in months 6-12, 25% in months 12-18.
+ */
 function sampleCustomerSince(seed: string, now: Date): Date {
   const bucket = seededInt(`${seed}:agebucket`, 100);
   let days: number;
@@ -412,8 +412,10 @@ function sampleBillingCadence(seed: string): DemoBillingCadence {
   return seededInt(`${seed}:cadence`, 100) < 80 ? "monthly" : "annual";
 }
 
-/** Billing anchor day-of-month, weighted toward 1 and 15: 30% on day 1, 25%
- *  on day 15, 45% spread across 1-28. */
+/**
+ * Billing anchor day-of-month, weighted toward 1 and 15: 30% on day 1, 25% on
+ * day 15, 45% spread across 1-28.
+ */
 function sampleBillingAnchorDay(seed: string): number {
   const bias = seededInt(`${seed}:anchorbias`, 100);
   if (bias < 30) return 1;
@@ -430,8 +432,10 @@ function sampleLifecycleStatus(seed: string): DemoLifecycleStatus {
   return "paused";
 }
 
-/** churnedAt: 40% in last 14 days (active win-back candidates), 35% in 14-60
- *  days, 25% in 60-180 days (long-gone). */
+/**
+ * churnedAt: 40% in last 14 days (active win-back candidates), 35% in 14-60
+ * days, 25% in 60-180 days (long-gone).
+ */
 function sampleChurnedAt(seed: string, now: Date): Date {
   const bucket = seededInt(`${seed}:churnedbucket`, 100);
   let days: number;
@@ -550,9 +554,9 @@ function teamflowScripted(now: Date): DemoCustomer[] {
         failedPaymentEvents: [
           // Headline: $299 recovered 18 days ago, soft decline.
           { detectedDaysAgo: 18, declineCategory: "soft", outcome: "recovered", daysToRecover: 3 },
-          // Supporting: smaller blip 8 days ago, recovered after 2 days. Together
-          // with the 18d and 25d events this keeps emails_sent_30d >= 3 so the
-          // engagement band resolves above unknown.
+          // Supporting: smaller blip 8 days ago, recovered after 2 days.
+          // Together with the 18d and 25d events this keeps emails_sent_30d >=
+          // 3 so the engagement band resolves above unknown.
           { detectedDaysAgo: 8, declineCategory: "soft", outcome: "recovered", daysToRecover: 2 },
           // Supporting: third event 25 days ago, recovered after 2 days.
           { detectedDaysAgo: 25, declineCategory: "soft", outcome: "recovered", daysToRecover: 2 },
@@ -613,8 +617,8 @@ function teamflowScripted(now: Date): DemoCustomer[] {
         ],
       },
     },
-    // Harborline Group - Growth, no FPs (dispute story instead). The
-    // disputes seed attaches the won-dispute row to this customer id.
+    // Harborline Group - Growth, no FPs (dispute story instead). The disputes
+    // seed attaches the won-dispute row to this customer id.
     {
       stripeCustomerId: "cus_teamflow_harborline_group",
       customerEmail: "billing@harborline-group.demo",
@@ -771,7 +775,8 @@ function teamflowScripted(now: Date): DemoCustomer[] {
 
 function boltScripted(now: Date): DemoCustomer[] {
   return [
-    // Hilltop Metrics - Pro, recovered $99 about 10 days ago. Bolt's "your save".
+    // Hilltop Metrics - Pro, recovered $99 about 10 days ago. Bolt's "your
+    // save".
     {
       stripeCustomerId: "cus_bolt_hilltop_metrics",
       customerEmail: "billing@hilltop-metrics.demo",

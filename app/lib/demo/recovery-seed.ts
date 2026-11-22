@@ -38,22 +38,18 @@ import {
 } from "./customer-base";
 
 // Recovery seed (TASK-foxhound-demo-data-engine.md Phase 2): the day-walk
-// failed-payment simulator + win-back + expiring-card alerts. Ported from
-// legacy lib/demo-seeding/seed-failed-payments.ts, adapted to reuse Foxhound's
-// REAL recovery engine (planRecoverySteps/RECOVERY_SCHEDULES, classifyDecline,
-// findAttributionSignals/resolveAttribution) rather than re-deriving a parallel
-// step schedule or attribution model. Pure: returns plain insert-row arrays,
-// no DB access, no I/O; app/lib/demo/seed.ts turns these into db.insert(...)
-// batches. Every row's shape is exactly what the REAL webhook/executor flow
-// would have written, so /recovery's loaders (and attribution.ts's own
-// findAttributionSignals) can't tell a seeded row from a live one.
+// failed-payment simulator + win-back + expiring-card alerts. Pure: returns
+// plain insert-row arrays, no DB access, no I/O; app/lib/demo/seed.ts turns
+// these into db.insert(...) batches.
 
 const WALK_DAYS = 90;
 
-/** The business a seed is for: its account, the merchant name its emails sign
- *  with, the prefix that keeps its row ids apart from the other business's,
- *  and a salt for the day-walk's rolls so the two businesses do not fail on
- *  the same days. Teamflow's salt is empty, so its data is what it always was. */
+/**
+ * The business a seed is for: its account, the merchant name its emails sign
+ * with, the prefix that keeps its row ids apart from the other business's, and
+ * a salt for the day-walk's rolls so the two businesses do not fail on the same
+ * days. Teamflow's salt is empty, so its data is what it always was.
+ */
 interface SeedBusiness {
   accountId: string;
   merchantName: string;
@@ -87,12 +83,12 @@ export interface RecoverySeedResult {
 }
 
 // Decline-code sampling (weighted, real Stripe codes -> classifyDecline so the
-// seeded code/category pair can never drift out of sync with decline.ts).
-// Every code list here is a subset of decline.ts's own set for that category,
-// so classifyDecline(code) always lands back on the category it was sampled
-// for - both here (the weighted day-walk roll) and via sampleDeclineCodeFor-
-// Category (the scripted narrative's category is already fixed by the event,
-// so the code must be sampled FROM that category, never independently).
+// seeded code/category pair can never drift out of sync with decline.ts). Every
+// code list here is a subset of decline.ts's own set for that category, so
+// classifyDecline(code) always lands back on the category it was sampled for -
+// both here (the weighted day-walk roll) and via sampleDeclineCodeFor- Category
+// (the scripted narrative's category is already fixed by the event, so the code
+// must be sampled FROM that category, never independently).
 
 const SOFT_CODES = ["insufficient_funds", "do_not_honor", "generic_decline"] as const;
 const EXPIRED_CODES = ["expired_card"] as const;
@@ -117,19 +113,12 @@ function sampleDeclineCodeForCategory(seed: string, category: DeclineCategory): 
   return pick(`${seed}:code`, CODES_BY_CATEGORY[category]);
 }
 
-// The category mix for a day-walk failure. Legacy rolled only four categories
-// (50 soft / 20 expired / 20 network / 10 fraud) because those were the only
-// four it had. Foxhound's engine classifies six, and RECOVERY_SCHEDULES,
-// DECLINE_CATEGORY_LABELS, and /recovery/sequence all ship a section for each,
-// so leaving revoked and unknown at zero left two panels reading "No data yet"
-// on every demo visit: the fail-closed classifier and the revoked hard-stop, two
-// deliberate engine behaviors, had no visible evidence anywhere.
-//
-// Both stay rare, because they are rare in reality: a withdrawn authorization
-// and a decline code Stripe does not document are each a few percent of
-// failures, not a fifth. At the day-walk's volume that is a handful of rows,
-// which is enough to populate the section honestly without distorting the
-// headline category mix.
+// The category mix for a day-walk failure. Foxhound's engine classifies six,
+// and RECOVERY_SCHEDULES, DECLINE_CATEGORY_LABELS, and /recovery/sequence all
+// ship a section for each, so leaving revoked and unknown at zero left two
+// panels reading "No data yet" on every demo visit: the fail-closed classifier
+// and the revoked hard-stop, two deliberate engine behaviors, had no visible
+// evidence anywhere.
 const CATEGORY_WEIGHTS: { category: DeclineCategory; upTo: number }[] = [
   { category: "soft", upTo: 46 },
   { category: "expired", upTo: 64 },
@@ -155,9 +144,6 @@ function classifyDayIntensity(d: Date): "high" | "medium" | "low" {
   return "medium";
 }
 
-// Scaled down from legacy (8/4/2) to keep the cold-seed path inside its
-// latency budget at Teamflow's 200-customer scale (TASK-foxhound-demo-data-
-// engine.md locked constraint #5).
 function failuresForDay(intensity: "high" | "medium" | "low", seed: string): number {
   if (intensity === "high") return seededInt(`${seed}:n`, 4);
   if (intensity === "medium") return seededInt(`${seed}:n`, 2);
@@ -240,8 +226,10 @@ function sampleRecoveryDelayDays(category: DeclineCategory, seed: string): numbe
   return 14 + seededInt(`${seed}:delay`, 17);
 }
 
-/** The last scheduled step's offset for a category, so a failure old enough
- *  to have exhausted its whole schedule (with no recovery) is terminal. */
+/**
+ * The last scheduled step's offset for a category, so a failure old enough to
+ * have exhausted its whole schedule (with no recovery) is terminal.
+ */
 function scheduleSpanHours(schedule: { offsetHours: number }[]): number {
   return schedule[schedule.length - 1]?.offsetHours ?? 0;
 }
@@ -343,8 +331,8 @@ function buildFailure(
     stepNumber: planned.stepNumber,
     scheduledAt: planned.scheduledAt,
   });
-  // A step that ran on schedule and did not recover the payment: a failed retry, or
-  // an email the customer may have opened or clicked.
+  // A step that ran on schedule and did not recover the payment: a failed
+  // retry, or an email the customer may have opened or clicked.
   const ranWithoutRecovery = (planned: Planned): RecoveryStepInsert => {
     const ran = { ...stepFor(planned), executedAt: planned.scheduledAt, attemptCount: 1 };
     if (isRetryStep(planned.stepType)) return { ...ran, result: "retry_failed" };
@@ -403,10 +391,10 @@ function buildFailure(
   }
 
   // Attach the pre-written subject/body to every email step in one pass rather
-  // than at each push site above, so a new branch cannot silently
-  // ship a body-less email step. Unexecuted future steps get copy too: the real
-  // intake writes the whole schedule up front, and a merchant previewing a
-  // pending step should still see what is queued to go out.
+  // than at each push site above, so a new branch cannot silently ship a
+  // body-less email step. Unexecuted future steps get copy too: the real intake
+  // writes the whole schedule up front, and a merchant previewing a pending
+  // step should still see what is queued to go out.
   const emailContext = {
     customerName: customer.customerName,
     amountCents,
@@ -474,11 +462,12 @@ function buildFailure(
       daysToRecover,
       attributionKind: attribution.kind,
       attributionRef: attribution.ref,
-      // attribution.ref IS the credited recovery_steps.id for every non-baseline
-      // kind (attribution.ts: "all three refs point at recovery_steps.id") - the
-      // real webhook path (record-recovery.ts) copies the same value here, so the
-      // seed must too, or every step-performance read (recovered_by_step_id) sees
-      // an attributed recovery with no step credited.
+      // attribution.ref IS the credited recovery_steps.id for every
+      // non-baseline kind (attribution.ts: "all three refs point at
+      // recovery_steps.id") - the real webhook path (record-recovery.ts) copies
+      // the same value here, so the seed must too, or every step-performance
+      // read (recovered_by_step_id) sees an attributed recovery with no step
+      // credited.
       recoveredByStepId: attribution.kind === "stripe_baseline" ? null : attribution.ref,
       attributedAt: attribution.kind === "stripe_baseline" ? null : outcome.recoveredAt,
       // Stripe's standard US card fee, 2.9% + 30 cents, as the webhook would
@@ -523,9 +512,9 @@ function buildWinback(
     const planned = planWinbackSteps({ winBackSequenceId: seqId, accountId, canceledAt });
     const seed = `${c.stripeCustomerId}:wb`;
     // Reactivation only rolls for a candidate whose full schedule COULD have
-    // already run its course; a customer who churned within the schedule's
-    // own span always reads as a genuinely in-flight "active" sequence, never
-    // a coin-flip win. Without this gate, the demo could show zero active
+    // already run its course; a customer who churned within the schedule's own
+    // span always reads as a genuinely in-flight "active" sequence, never a
+    // coin-flip win. Without this gate, the demo could show zero active
     // win-backs on a given day purely by chance, even with a currently-
     // churning customer in the pool (the surface Recovery's overview card
     // points to would then look empty despite the feature working).
@@ -744,16 +733,7 @@ export function buildRecoverySeed(
 
   // Coverage top-up. The weighted roll leaves a rare category (revoked and
   // unknown sit at 4% each) with zero rows on a meaningful fraction of dates: a
-  // 30-day sweep found `revoked` absent on 11 of 30. A category with zero rows
-  // renders its whole /recovery/sequence section as "No data yet", so on those
-  // days the fail-closed classifier and the revoked hard-stop have no visible
-  // evidence anywhere in the demo. Demo coverage of a shipped panel should not
-  // be left to a dice roll, so place one failure for any category the walk
-  // missed. Same reasoning as the guaranteed currently-active win-back.
-  //
-  // Deliberately AFTER the walk and additive: it does not perturb the walk's own
-  // distribution, and on a date where the roll already covered everything this
-  // loop places nothing at all.
+  // 30-day sweep found `revoked` absent on 11 of 30.
   const placedCategories = new Set(failedPayments.map((f) => f.declineCategory));
   let topUpIndex = 0;
   for (const category of DECLINE_CATEGORIES) {

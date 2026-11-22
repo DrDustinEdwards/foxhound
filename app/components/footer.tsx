@@ -4,8 +4,7 @@ import { Link } from "capsomer/react/link";
 
 import { Wordmark } from "./wordmark";
 
-// The footer's link set is Recova's exactly (parity audit 2026-11-10); /compare, /decline-codes and
-// /about are not here. The three social icons wait for Foxhound handles to exist.
+// /compare, /decline-codes and /about are not in the footer. The three social icons wait for Foxhound handles to exist.
 export const COLUMNS: { heading: string; links: { to: string; label: string }[] }[] = [
   {
     heading: "Product",
@@ -43,8 +42,7 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
   },
 ];
 
-// A footer link highlights only on its own page, never on a child route (Recova compared the
-// pathname to the href with strict equality).
+// A footer link highlights only on its own page, never on a child route (strict equality of pathname and href).
 function LinkColumn({
   heading,
   links,

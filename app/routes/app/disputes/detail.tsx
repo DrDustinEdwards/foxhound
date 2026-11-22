@@ -6,8 +6,7 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// the disputes list and the payment pages load them.
+// Capsomer's tokens and the amber family, which the components above read, as the disputes list and the payment pages load them.
 import "~/site-header.css";
 import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
 import { useDraftDirty } from "capsomer/react/form-hooks";
@@ -74,50 +73,13 @@ import {
 } from "../../../components/dispute-detail-parts";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /disputes/:id: Recova's dispute page on Foxhound's engine.
-// Recova is the spec, read whole at HEAD: app/(app)/disputes/[id]/page.tsx
-// (a9452f59), DisputeDetailClient.tsx (3d56b55d), and components/disputes/
-// DisputeActionBar (c73b381a), DisputeEvidenceSummary (96ba82d4),
-// DisputeFileUploads (1286eb21), DisputeSyncForm (f0f1ee7d), formatters
-// (81bf7f8b), timeline (04fbe976) and types (9ffb7b8e). In Recova's order: the
-// back link, the header, the timeline, what Foxhound found, the staged
-// evidence, the additional evidence, the sync form, and the approve card where
-// Recova's action bar sits. Look is Capsomer's, amber.
-//
-// Built with the recommendations port:
-// - Recova's IntegrityLayerBanner after the triage banner, worked out when the
-//   page loads (recommendOneCustomer), as Recova's score-ssr did.
-// Built with the dispute context port (app/lib/disputes/triage.ts):
-// - Recova's triage banner under the header, and in What Foxhound found the
-//   billing address, AVS, CVV, Stripe Radar, 3D Secure, Smart Disputes, prior
-//   charge history and subscription, all read from Stripe at intake.
-// Built by J07:
-// - Evidence files: Recova's DisputeFileUploads section between Staged evidence
-//   and Additional evidence, over the EVIDENCE R2 bucket
-//   (app/lib/disputes/evidence-files.server.ts) and the account-scoped view at
-//   /disputes/:id/files/:fileId. Until Dustin binds the bucket the section says
-//   uploads are not available yet, in the upload control's place.
-// Built by J06:
-// - Shipping fields: Recova shows them in Additional evidence when the account
-//   ships physical goods, which /settings/disputes (S32) now writes. They save
-//   with the draft as Stripe's shipping evidence fields.
-// - Accept dispute: Recova's two-step "Accept dispute", "Yes, accept", "Cancel"
-//   beside the submit control, closing the dispute at Stripe and resolving it
-//   lost with no fee (app/lib/disputes/accept.server.ts), then back to the list
-//   as Recova's router.push('/disputes/dashboard').
-// - Auto-submit: not on this page. It is the disputes cron's job for accounts
-//   that turned it on (app/lib/cron/dispute-auto-submit.ts), through the same
-//   approveAndSubmitDispute this page's Approve and submit uses.
-// - Recova's sticky action bar: Foxhound's approve-and-submit card stands in
-//   its place ("The dispute page has an approve-and-submit card", approved
-//   2026-08-28).
+// /disputes/:id: the back link, the header, the timeline, what Foxhound found, the staged evidence, the additional evidence, the sync form, and the approve card. A recommendation banner after the triage banner is worked out when the page loads (recommendOneCustomer). The triage banner and What Foxhound found (billing address, AVS, CVV, Stripe Radar, 3D Secure, Smart Disputes, prior charge history and subscription) are read from Stripe at intake (app/lib/disputes/triage.ts). Evidence files sit between Staged and Additional evidence, over the EVIDENCE R2 bucket (app/lib/disputes/evidence-files.server.ts) and the account-scoped view at /disputes/:id/files/:fileId; until the bucket is bound the upload control's place says so. Shipping fields show in Additional evidence when the account ships physical goods (/settings/disputes) and save with the draft as Stripe's shipping evidence fields. Accept dispute is a two-step "Accept dispute", "Yes, accept", "Cancel", closing the dispute at Stripe and resolving it lost with no fee (app/lib/disputes/accept.server.ts), then back to the list. Auto-submit is not on this page: it is the disputes cron's job (app/lib/cron/dispute-auto-submit.ts), through the same approveAndSubmitDispute as Approve and submit. The approve-and-submit card stands in place of a sticky action bar.
 
 export function meta() {
   return [{ title: "Dispute detail - Foxhound" }, NOINDEX];
 }
 
-// The page bar's name (app-shell.tsx). Recova had no page bar, so it is the
-// route's own title, not the Disputes row's "Disputes overview".
+// The page bar's name (app-shell.tsx): the route's own title, not the Disputes row's "Disputes overview".
 export const handle = { page: "Dispute detail" };
 
 export async function loader({ context, params }: Route.LoaderArgs) {
@@ -141,8 +103,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     // Approve and accept are the owner's (detail.action.server.ts).
     isOwner: auth.membership.role === MEMBER_ROLE.OWNER,
     nowMs,
-    // Recova's IntegrityLayerBanner reads the customer's recommendation. A
-    // read failure leaves the banner out rather than failing the page.
+    // A read failure leaves the recommendation banner out rather than failing the page.
     prediction: await recommendOneCustomer(
       db,
       accountId,
@@ -176,9 +137,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   const pressedIntent = navigation.formData?.get("intent") ?? null;
   const approving = navigation.state !== "idle" && pressedIntent === "approve";
   const accepting = navigation.state !== "idle" && pressedIntent === "accept";
-  // Recova's acceptState: hidden until "Accept dispute", then the confirmation,
-  // which stays open over a failed accept so its error sits beside it. Without
-  // script the first step is a link to ?confirm=accept.
+  // Hidden until "Accept dispute", then the confirmation, which stays open over a failed accept so its error sits beside it. Without script the first step is a link to ?confirm=accept.
   const acceptOpen =
     searchParams.get("confirm") === "accept" ||
     (actionData !== undefined && "intent" in actionData && actionData.intent === "accept");
@@ -200,8 +159,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   const syncResult = actionData && "sync" in actionData ? actionData.sync : undefined;
 
   const state = dispute.state as DisputeState;
-  // Recova's gate: editable while the dispute awaits a response and nobody has
-  // submitted, and never in the demo.
+  // Editable while the dispute awaits a response and nobody has submitted, and never in the demo.
   const editable = !isDemo && canApprove(state);
   // The draft locks once an approval row exists: the approval's
   // hash attests the saved evidence, so it is not edited after.
@@ -537,9 +495,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           <Panel title="Staged evidence">
             <div className="fh-small">
               {drafted.length === 0 ? (
-                // Recova said "Evidence is being prepared". Foxhound drafts at
-                // intake and drafts nothing when no record grounds it
-                // (draftDisputeEvidence), so nothing is on the way.
+                // Foxhound drafts at intake and drafts nothing when no record grounds it (draftDisputeEvidence), so no evidence is "being prepared".
                 <p className="fh-faint">
                   Foxhound found no records for this charge to draft evidence from.
                 </p>
@@ -712,9 +668,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   {approval ? (
                     <p className="fh-soft">{ACCEPT_UNAVAILABLE_APPROVED_LINE}</p>
                   ) : (
-                    // Recova's Accept (DisputeActionBar.tsx): "Accept dispute", then in
-                    // its place the line, "Yes, accept" and "Cancel". Opening lands on
-                    // Cancel, so a second Enter cannot concede the dispute.
+                    // "Accept dispute", then in its place the line, "Yes, accept" and "Cancel". Opening lands on Cancel, so a second Enter cannot concede the dispute.
                     <InlineConfirm
                       form={Form}
                       size="default"

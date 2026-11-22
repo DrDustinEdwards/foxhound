@@ -1,26 +1,19 @@
-// Pure subscription-terms math for the Intelligence sync (sync.server.ts):
-// what a subscription item actually bills per period once its coupons are
-// applied, and what a subscription schedule or cancel_at says will happen
-// next. Takes normalized shapes, never raw Stripe objects, so it is testable
-// without a connected account.
+// Pure subscription-terms math for the Intelligence sync (sync.server.ts): what an item bills per period once
+// coupons apply, and what a schedule or cancel_at says happens next. Takes normalized shapes, never raw Stripe
+// objects, so it is testable without a connected account.
 
 type CouponDuration = "once" | "repeating" | "forever";
 
-/** A coupon's terms in the subscription's currency. */
 export interface CouponTerms {
   percentOff: number | null;
-  /** amount_off in the subscription's currency (the coupon's own currency or
-   *  its currency_options entry); null when the coupon has no amount there. */
+  /** amount_off in the subscription's currency (the coupon's own or its currency_options entry); null when none there. */
   amountOffCents: number | null;
   duration: CouponDuration;
-  /** applies_to.products; null means every product. */
   appliesToProducts: string[] | null;
 }
 
-/** One discount attached to a subscription or a subscription item. */
 export interface DiscountTerms {
   coupon: CouponTerms;
-  /** discount.end in ms: when a repeating discount stops; null otherwise. */
   endMs: number | null;
 }
 
@@ -28,15 +21,11 @@ export interface ItemTerms {
   productId: string | null;
   unitAmountCents: number;
   quantity: number;
-  /** Discounts set on this item. */
   discounts: DiscountTerms[];
 }
 
-/**
- * Whether a discount still lowers the recurring charge. A `once` coupon takes
- * one invoice down and never recurs, so it is not part of monthly recurring
- * revenue; a `repeating` one counts until its end; `forever` always counts.
- */
+/** Whether a discount still lowers the recurring charge. `once` never recurs (not MRR); `repeating` counts until
+ *  its end; `forever` always counts. */
 function recurs(discount: DiscountTerms, nowMs: number): boolean {
   if (discount.coupon.duration === "once") return false;
   if (discount.coupon.duration === "repeating")
@@ -49,13 +38,9 @@ function appliesTo(coupon: CouponTerms, productId: string | null): boolean {
   return productId !== null && coupon.appliesToProducts.includes(productId);
 }
 
-/**
- * Each item's charge per billing period after its recurring discounts, in the
- * order given. Item discounts apply to their item first; then each
- * subscription discount applies across the items its coupon covers: a percent
- * off each, an amount off the covered items' total, shared in proportion and
- * never below zero, as Stripe applies them on the invoice.
- */
+/** Each item's charge per billing period after recurring discounts, in order. Item discounts apply first; then each
+ *  subscription discount applies across the items its coupon covers: a percent off each, an amount off the covered
+ *  total shared in proportion and never below zero, as Stripe applies them on the invoice. */
 export function discountedItemCents(
   items: readonly ItemTerms[],
   subscriptionDiscounts: readonly DiscountTerms[],
@@ -96,12 +81,10 @@ export interface ScheduledChange {
   atMs: number;
 }
 
-/** One schedule phase as the comparison reads it. */
 interface SchedulePhaseTerms {
   startMs: number;
   endMs: number;
-  /** A stable key of what the phase bills: its items' prices and quantities
-   *  and its discounts. Two phases with the same key bill the same. */
+  /** A stable key of what the phase bills (items' prices, quantities, discounts); equal keys bill the same. */
   billingKey: string;
 }
 
@@ -111,13 +94,9 @@ export interface ScheduleTerms {
   phases: SchedulePhaseTerms[];
 }
 
-/**
- * What a schedule will next do to the subscription after `nowMs`: the first
- * upcoming phase that bills differently from the phase before it is a
- * change on its start date; failing that, a schedule that ends by canceling
- * cancels on its last phase's end. A phase that only renews the same terms
- * is not a change. Null when nothing is scheduled.
- */
+/** What a schedule will next do after `nowMs`: the first upcoming phase that bills differently from the one before
+ *  is a change on its start date; failing that, a schedule ending by canceling cancels on its last phase's end.
+ *  A phase that only renews the same terms is not a change. Null when nothing is scheduled. */
 export function nextScheduledChange(
   schedule: ScheduleTerms,
   nowMs: number,
@@ -137,7 +116,6 @@ export function nextScheduledChange(
   return null;
 }
 
-/** The earliest of several scheduled events; null when there are none. */
 export function earliestScheduledChange(
   changes: readonly (ScheduledChange | null)[],
 ): ScheduledChange | null {

@@ -15,16 +15,14 @@ import {
 
 // The sign-in link and its code, the security notice, and the two mails of an
 // email change: the family sign-in (site-runtime ./sign-in) has no passwords,
-// so there is no reset mail. The code is for the tab that asked, when the link opens
-// in another browser (the mail app's, a phone). Sent
-// through the ONE email send module on the Cloudflare EMAIL binding
-// (ARCHITECTURE.md #3). It is platform mail to our own users, so it carries no
-// CAN-SPAM unsubscribe footer (transactional, not commercial). The link and
-// the code each sign in, so they are NEVER logged; they go only into the body.
+// so there is no reset mail. The code is for the tab that asked, when the link
+// opens in another browser (the mail app's, a phone).
 
-/** The sign-in link as sendSignInLinkEmail sends it, on Capsomer's magic-link
- *  template in its own words, with the family sign-in's expiry. Pure; throws
- *  on a link Capsomer refuses. The admin preview reads it. */
+/**
+ * The sign-in link as sendSignInLinkEmail sends it, on Capsomer's magic-link
+ * template in its own words, with the family sign-in's expiry. Pure; throws on
+ * a link Capsomer refuses. The admin preview reads it.
+ */
 export function renderSignInLinkEmail(to: string, url: string, code: string): Rendered {
   return renderFoxhoundSignInLinkEmail({ to, url, code, expiresIn: SIGN_IN_EXPIRES_IN_WORDS });
 }
@@ -71,7 +69,8 @@ const SIGN_IN_SETTINGS_PATH = "/settings/account";
  * Mail a security notice (a passkey added, a session ended, ...) to `to`, the
  * way the sign-in link goes. site-runtime calls this after the change is made
  * and logs a throw as `security_notice_failed` without undoing the change, so a
- * refusal is thrown by name, with the recipient cut out of the provider's words.
+ * refusal is thrown by name, with the recipient cut out of the provider's
+ * words.
  */
 export async function sendSecurityNoticeEmail(
   env: Env,
@@ -92,12 +91,11 @@ export async function sendSecurityNoticeEmail(
 }
 
 /**
- * Mail the CURRENT address to confirm a change to `newEmail` (E1). Better
- * Auth calls this from /change-email; `url` is its own link, which acts on a
- * GET, so it is never sent or logged: the mail carries site-runtime's
- * emailConfirmURL of it (app/routes/auth/email-confirm.tsx), the same token on
- * a page that acts only on its button's POST.
- * A refused send is thrown by name, as the sign-in link's is.
+ * Mail the CURRENT address to confirm a change to `newEmail`. Better Auth
+ * calls this from /change-email; `url` is its own link, which acts on a GET, so
+ * it is never sent or logged: the mail carries site-runtime's emailConfirmURL
+ * of it (app/routes/auth/email-confirm.tsx), the same token on a page that acts
+ * only on its button's POST.
  */
 export async function sendEmailChangeConfirmation(
   env: Env,
@@ -122,9 +120,11 @@ export async function sendEmailChangeConfirmation(
   await sendOrThrow(env, change.to, rendered, [change.url, change.token, link, change.newEmail]);
 }
 
-/** Mail the NEW address the link that makes the change, once the current one
- *  has confirmed it. Better Auth's sendVerificationEmail; /send-verification-
- *  email is off (auth.server.ts), so an email change is the only caller. */
+/**
+ * Mail the NEW address the link that makes the change, once the current one has
+ * confirmed it. Better Auth's sendVerificationEmail; /send-verification- email
+ * is off (auth.server.ts), so an email change is the only caller.
+ */
 export async function sendNewEmailVerification(
   env: Env,
   change: { to: string; url: string; token: string },

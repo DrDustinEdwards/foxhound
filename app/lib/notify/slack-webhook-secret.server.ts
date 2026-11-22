@@ -1,13 +1,5 @@
-// A merchant's Slack incoming-webhook URL is a bearer credential: anyone who
-// holds it can post into their workspace. So accounts.slack_webhook_url holds it
-// sealed with the same AES-256-GCM keyring as the Stripe tokens
-// (app/lib/stripe/encryption.ts, `v1:keyId:iv:cipher`), never the URL itself,
-// and a D1 export or backup carries no usable webhook. Every write seals here
-// and every read opens here; nothing else touches the column's value.
-//
-// No plaintext fallback: on 2026-11-11, before this landed, production held zero
-// accounts with a webhook set, so no stored value needs a migration. A value
-// that is not in the v1 format makes decryptToken throw, loudly.
+// A merchant's Slack incoming-webhook URL is a bearer credential: anyone who holds it can post into
+// their workspace.
 
 import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 

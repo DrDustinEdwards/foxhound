@@ -1,35 +1,19 @@
 // Pre-written dunning copy for the seeded demo sequences.
 //
-// Why this file exists: the demo seeds executed email steps with open and click
-// rates, but left recovery_steps.ai_subject / ai_body_html null. The
-// /recovery/sequence "Preview latest email" disclosure only renders when a
+// The /recovery/sequence "Preview latest email" disclosure only renders when a
 // body exists, so it never appeared anywhere in the demo: a visitor saw
 // engagement percentages for an email product and could not read a single
-// email. Legacy avoided that by baking copy into its step templates and then
-// regenerating 13 slots per account with live model calls on every nightly
-// reset.
-//
-// Foxhound does neither. app/lib/demo/ must contain no Stripe or model call
-// (see seed.ts's firewall note and test/demo-firewall.test.ts), and a nightly
-// cron burning model spend to write throwaway demo strings is not worth it.
-// These are fixed strings composed with the customer's own details, so the seed
-// stays a pure function of `now` and stays byte-identical across runs.
-//
-// Voice rules (DESIGN.md "Email design"): a dunning email reads as the
-// MERCHANT's voice, not Foxhound's, so nothing here names Foxhound. No em
-// dashes, no AI tells, no exclamation marks.
-//
-// Markup must survive sanitizeEmailPreviewHtml (app/lib/recovery/
-// email-preview.server.ts), whose allowlist is p / br / strong / em / a / ul /
-// ol / li with href, target and rel on anchors. Nothing else here.
+// email.
 
 import type { DeclineCategory } from "~/lib/constants";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
-/** Where the demo's card-update links point. An unknown token renders the
- *  hosted page's clean "Link not found" state, so a visitor who clicks one in
- *  the demo lands somewhere coherent rather than on an error. */
+/**
+ * Where the demo's card-update links point. An unknown token renders the hosted
+ * page's clean "Link not found" state, so a visitor who clicks one in the demo
+ * lands somewhere coherent rather than on an error.
+ */
 const DEMO_CARD_UPDATE_URL = `${SITE_ORIGIN}/p/demo`;
 
 export interface DemoEmailContext {
@@ -45,8 +29,10 @@ export interface DemoEmailCopy {
   bodyHtml: string;
 }
 
-/** First name where there is one, else a neutral greeting. Matches how a real
- *  merchant would open: personal when the data supports it, never "Hi null". */
+/**
+ * First name where there is one, else a neutral greeting. Matches how a real
+ * merchant would open: personal when the data supports it, never "Hi null".
+ */
 function greeting(customerName: string | null): string {
   if (!customerName) return "Hello";
   const first = customerName.trim().split(/\s+/)[0];
@@ -67,12 +53,6 @@ function updateLink(label: string): string {
  * so the copy escalates the way the cadence does: an early note that assumes a
  * bank hiccup, a middle reminder that asks for an action, and a last send that
  * states the consequence plainly.
- *
- * The categories differ because the CAUSE differs, and saying the wrong cause
- * is what makes dunning mail read as spam. An expired card is the customer's to
- * fix; a soft decline usually is not. A fraud block should never sound like an
- * accusation. A revoked authorization is a decision to respect, not a failure
- * to push on.
  */
 type StepCopyBuilder = (ctx: DemoEmailContext) => DemoEmailCopy;
 
@@ -224,9 +204,11 @@ export function demoEmailCopyFor(
   return build ? build(ctx) : null;
 }
 
-/** The win-back arc, for a customer who has already canceled. Three sends,
- *  warmer than dunning: there is no unpaid balance to collect, only an offer to
- *  come back. */
+/**
+ * The win-back arc, for a customer who has already canceled. Three sends,
+ * warmer than dunning: there is no unpaid balance to collect, only an offer to
+ * come back.
+ */
 const WIN_BACK: Record<number, StepCopyBuilder> = {
   1: (c) => ({
     subject: `Sorry to see you go`,

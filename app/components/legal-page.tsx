@@ -11,11 +11,7 @@ import "~/site-header.css";
 // The legal pages' frame and the one paragraph two of them share. The page itself (title, date,
 // contents, numbered sections) is Capsomer's LegalDoc.
 
-/**
- * The frame the legal pages' Capsomer LegalDoc sits in: Recova's 720px column in Capsomer's amber
- * family with Foxhound's own neutrals (.fh-cap, the pairing the site header uses). One main landmark
- * stays the layout's. The sizes Recova sets on the text are the .fh-legal rules in marketing.css.
- */
+/** The frame the legal pages' Capsomer LegalDoc sits in: a 720px column in Capsomer's amber family with Foxhound's own neutrals (.fh-legal rules in marketing.css set the text sizes; .fh-cap is the pairing the site header uses). One main landmark stays the layout's. */
 export function LegalBody({ children }: { children: ReactNode }) {
   return (
     <div className="fh-mk-article fh-legal fh-cap" data-cap-site="foxhound" data-family="amber">
@@ -24,13 +20,7 @@ export function LegalBody({ children }: { children: ReactNode }) {
   );
 }
 
-/**
- * Recova's one-paragraph description of the product, which both legal pages
- * carry, rewritten to what Foxhound does: silent retry first, the email
- * sequence's real length, and dispute responses that go to Stripe only on a
- * person's approval or the merchant's own opt-in auto-submit. The numbers are
- * the engine's constants (foxhound CLAUDE.md, hard rule 1).
- */
+/** The one-paragraph description of the product that both legal pages carry: silent retry first, the email sequence's real length, and dispute responses that go to Stripe only on a person's approval or the merchant's own opt-in auto-submit. The numbers are the engine's constants (foxhound CLAUDE.md, hard rule 1). */
 export function LegalServiceDescription() {
   return (
     <>

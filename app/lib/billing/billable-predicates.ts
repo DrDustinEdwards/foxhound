@@ -5,12 +5,7 @@ import { BILLABLE_ATTRIBUTION_KINDS, RECOVERY_MATURITY_MS } from "~/lib/constant
 // diverge on what counts as billable. Both sources draw the attribution
 // allow-list from the SAME constant (BILLABLE_ATTRIBUTION_KINDS), so a new
 // attribution kind added to the schema cannot silently become billable in one
-// place and not the other. This module intentionally does NOT touch
-// app/db/billable.ts's query shape, joins, or account-eligibility gate: the
-// demo account is excluded from those queries by design (billing_exempt +
-// processing_paused + the demo_ id prefix), so the seeder cannot call
-// getBillableRecoveries/getBillableDisputes directly. It calls these
-// equivalent pure predicates on its own in-memory rows instead.
+// place and not the other.
 
 export interface BillableRecoveryRow {
   // `undefined` (a Drizzle insert row that never set the column) is treated the

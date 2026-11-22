@@ -1,31 +1,14 @@
 import { callAdminApi, segment, type ApiResult } from "./api-client";
 import type { AdminMcpEnv } from "./env";
 
-// THE FOXHOUND ADMIN TOOLS: the nine of capsid/research/design-mcp-servers.md
-// section 5 (MCP ruling 2026-10-10, DECIDE answer 4), and the owner's test mail,
-// preview and send, which Dustin approved on 2026-10-15
-// (cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ, "ok" to "one owner-only
-// 'send or preview any email' tool behind your admin key"). It is two tools so
-// each carries honest hints (rule 6) and a read-only grant can still preview
-// (rule 12.3).
-//
-// Nine read and three write. Test mail goes only to the signed-in admin's own
-// inbox or one on the API's allow list, and moves no money. Pause is the one direct write, because pausing stops
-// money moving. Everything that starts or changes money (resuming a merchant,
-// releasing the brake, enabling a cron, billing exemption) can
-// only be STAGED: the API records it, and an admin confirms it, signed in, in
-// /admin/staged on foxhoundapp.com. There is no tool for refunds, adjustments,
-// cancel or Stripe disconnect, and the API offers no route for one either.
-//
-// Every tool is one call to the admin API. The rules are the API's; a tool
-// chooses the route and passes the arguments, and the API's own sentence is
-// what the agent reads when it refuses.
+// THE FOXHOUND ADMIN TOOLS: nine read tools and three write tools, plus the owner's test mail, preview and send. It is two tools so each carries honest hints and a read-only grant can still preview. Test mail goes only to the signed-in admin's own inbox or one on the API's allow list, and moves no money. Pause is the one direct write, because pausing stops money moving. Everything that starts or changes money (resuming a merchant, releasing the brake, enabling a cron, billing exemption) can only be STAGED: the API records it, and an admin confirms it, signed in, in /admin/staged on foxhoundapp.com. There is no tool for refunds, adjustments, cancel or Stripe disconnect, and the API offers no route for one either.
+// Every tool is one call to the admin API. The rules are the API's; a tool chooses the route and passes the arguments, and the API's own sentence is what the agent reads when it refuses.
 
 interface AdminToolSession {
   env: AdminMcpEnv;
   /** The signed-in admin, re-checked by the API on every call. */
   actor: string;
-  /** The call's abort signal (P11): a client that leaves cancels the request to the admin API. */
+  /** The call's abort signal: a client that leaves cancels the request to the admin API. */
   signal?: AbortSignal;
 }
 
@@ -33,7 +16,7 @@ export interface AdminTool {
   name: string;
   title: string;
   description: string;
-  /** additionalProperties false: an unknown argument is refused, never dropped (checklist T4). */
+  /** additionalProperties false: an unknown argument is refused, never dropped. */
   inputSchema: {
     type: "object";
     additionalProperties: false;
@@ -48,13 +31,9 @@ export interface AdminTool {
     idempotentHint: boolean;
     openWorldHint: boolean;
   };
-  /** The scope a call needs (rule 12.3), declared here and never read from readOnlyHint. */
+  /** The scope a call needs, declared here and never read from readOnlyHint. */
   scope: "read" | "write";
-  /**
-   * Set when the answer can carry text someone outside Foxhound's admins wrote (merchant names and notes, customer
-   * and webhook error text, request paths): the result then goes through site-runtime's outsideResult under this
-   * label (checklist S2).
-   */
+  /** Set when the answer can carry text someone outside Foxhound's admins wrote (merchant names and notes, customer and webhook error text, request paths): the result then goes through site-runtime's outsideResult under this label. */
   outside?: string;
   run: (session: AdminToolSession, args: Record<string, unknown>) => Promise<ApiResult>;
 }
@@ -69,7 +48,7 @@ const READ = {
 const OBJECT = { type: "object" } as const;
 const LIST = { type: "array" } as const;
 
-/** A tool's arguments: these and no others (an unknown one is refused, checklist T4), `required` among them. */
+/** A tool's arguments: these and no others (an unknown one is refused), `required` among them. */
 const input = (properties: Record<string, unknown>, required: string[] = []) => ({
   type: "object" as const,
   additionalProperties: false as const,
@@ -105,9 +84,7 @@ const refuse = (error: string): ApiResult => ({ ok: false, status: 400, error })
 const get = (session: AdminToolSession, path: string, query?: Record<string, string | undefined>) =>
   callAdminApi(session.env, session.actor, { signal: session.signal, method: "GET", path, query });
 
-/** The merchant MCP's read tools, which View as a merchant may run.
- *  test/admin-mcp-worker-mcp7.test.ts holds this list equal to the merchant
- *  registry's reads, so it cannot drift. */
+/** The merchant MCP's read tools, which View as a merchant may run. test/admin-mcp-worker.test.ts holds this list equal to the merchant registry's reads, so it cannot drift. */
 export const MERCHANT_READ_TOOLS = [
   "foxhound_get_overview",
   "foxhound_list_payments",

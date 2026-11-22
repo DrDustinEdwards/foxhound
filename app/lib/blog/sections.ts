@@ -1,12 +1,3 @@
-// Curated home-page topic sections (ported from legacy
-// app/(marketing)/blog/page.tsx SECTIONS, Phase 6 Pass 2). Order controls
-// render order; slugs inside control card order within a section. These are
-// the REAL slugs the manual STOP A import will land (verbatim, do not
-// invent new ones here). Missing slugs are silently skipped by the loader,
-// so an unpublished pick degrades cleanly. The loader shows a section only
-// when at least one curated post resolves AND a published post carries the
-// section's tag, so "See all" never leads to an empty or missing tag page
-// (see blog/index.tsx). Identical to Recova's SECTIONS (diffed at J19).
 export interface BlogSectionConfig {
   id: string;
   label: string;

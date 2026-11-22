@@ -6,15 +6,7 @@ import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 /**
  * What a surface renders, from EITHER source.
  *
- * TWO PRODUCERS, ONE SHAPE, ADDED IN PHASE (f). `toStoredAuditRun` maps a stored
- * row; `toAuditRunView` maps an in-memory result the engine just produced for
- * the live anonymous page. Legacy shares its four section components between its
- * stored-run page and its live results page the same way, and the alternative
- * here was a second copy of every section rendering a second shape, which is how
- * the `?? 0` defect ends up fixed in one of them and not the other.
- *
- * NO `id`. A live run has none: it may never be stored at all. The id lives on
- * StoredAuditRun below, where it is real, and no section component reads it.
+ * A live run has none: it may never be stored at all.
  */
 export interface AuditRunView {
   runAt: Date;
@@ -56,21 +48,15 @@ export interface StoredAuditRun extends AuditRunView {
   id: string;
 }
 
-/** A scope's data, or null when the scope could not be read. The in-memory twin
- *  of the NULL column, so both producers say "unknown" the same way. */
+/**
+ * A scope's data, or null when the scope could not be read. The in-memory twin
+ * of the NULL column, so both producers say "unknown" the same way.
+ */
 function live<T>(scope: ScopeOutcome<T>): T | null {
   return scope.ok ? scope.data : null;
 }
 
-/**
- * Map an in-memory result to the render shape, for the live page.
- *
- * THE DISCRIMINATED OUTCOME COLLAPSES TO null HERE AND NOWHERE EARLIER. Between
- * the engine and this line the reason a scope failed is still carried; the
- * surfaces do not print it, because "the disputes call failed with a 401" is our
- * problem and "could not be read" is the merchant's. The reason stays available
- * to a caller that wants to log it.
- */
+/** Map an in-memory result to the render shape, for the live page. */
 export function toAuditRunView(result: AuditResult, summary: string | null): AuditRunView {
   const cardUpdater = live(result.cardUpdater);
   const failed = live(result.failedInvoices);
@@ -148,8 +134,10 @@ function totalsFrom(raw: unknown): MoneyTotals | null {
   );
 }
 
-/** A stored figure per currency: the money_by_currency entry when the run has
- *  one, else the run's one total in its one currency, as it was stored. */
+/**
+ * A stored figure per currency: the money_by_currency entry when the run has
+ * one, else the run's one total in its one currency, as it was stored.
+ */
 function storedTotals(perCurrency: unknown, cents: number | null, currency: string): MoneyTotals {
   return totalsFrom(perCurrency) ?? (cents ? [{ currency, cents }] : []);
 }
@@ -157,11 +145,8 @@ function storedTotals(perCurrency: unknown, cents: number | null, currency: stri
 /**
  * Map a stored row to the render shape.
  *
- * A SCOPE IS PRESENT ONLY IF ITS ANCHOR COLUMN IS. Each scope picks one column
- * that is NULL exactly when the scope failed and never otherwise, and the whole
- * scope stands or falls on it. The Card Updater's anchor is its EVENT COUNT
- * rather than its advisory, because the advisory is legitimately null when no
- * advisory fires.
+ * Each scope picks one column that is NULL exactly when the scope failed and
+ * never otherwise, and the whole scope stands or falls on it.
  */
 export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
   const currency = row.currency ?? "usd";
@@ -250,9 +235,9 @@ export function toStoredAuditRun(row: AuditRunRow): StoredAuditRun {
 export const SCOPE_UNREAD = "Could not be read on this run.";
 
 /**
- * A figure's display lines, one per currency in its totals' order. No money
- * at all reads as a zero in the run's currency, which is what a
- * single-currency run always showed.
+ * A figure's display lines, one per currency in its totals' order. No money at
+ * all reads as a zero in the run's currency, which is what a single-currency
+ * run always showed.
  */
 export function formatTotals(
   totals: readonly { currency: string; cents: number }[],

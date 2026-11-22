@@ -38,11 +38,8 @@ export function buildSubscriptionChangeBatch(
 }
 
 /**
- * customer.subscription.updated with a change Intelligence tracks: record it,
- * then re-score the customer so the alerts on the next recovery tick see it
- * (rescoreCustomer). The re-score is not part of the claim: a failure there is
- * logged and the nightly batch scores the customer from the same rows, so the
- * event still claims and Stripe does not redeliver it.
+ * customer.subscription.updated with a change Intelligence tracks: record it, then re-score the
+ * customer so the alerts on the next recovery tick see it (rescoreCustomer).
  */
 export async function handleRecordSubscriptionChange(
   ctx: WebhookContext,

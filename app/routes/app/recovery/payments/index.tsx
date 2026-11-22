@@ -40,8 +40,7 @@ import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read, as
-// /intelligence/customers and /disputes load them.
+// Capsomer's tokens and the amber family, which the components above read, as /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
 import { getDb } from "~/db";
@@ -109,36 +108,8 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { percent } from "capsomer/behavior/meter";
 
-// /recovery/payments. Recova is the spec: its page,
-// app/(app)/recovery/payments/page.tsx at blob bab8d48d, PaymentsClient.tsx
-// 94043896, components/PaymentsHeader.tsx 27cd8e4a, PaymentsStats.tsx
-// b386c660, PaymentsFilters.tsx b6612faf, PaymentsTable.tsx 95a10450,
-// BulkActionBar.tsx 7f40166f, components/recovery/PaymentRow.tsx 0d2e1f52,
-// components/AmountRangeSlider.tsx d6bb58e8 and lib/payments-data.ts
-// 14e0a6a3, each read whole. In Recova's order and width (1280px): the head
-// with Export CSV, the five count cards, the bulk result, the filter panel
-// (search and status, then date, decline, sort, amount, the result count and
-// Clear filters), the rows-per-page links, the table, the pager, and the bulk
-// bar while something is selected.
-//
-// Built from Capsomer 0.9.0's parts, amber throughout. No Foxhound
-// class sits on a Capsomer element: Recova's mono figures, its sizes and its
-// spacing go on elements of the page's own inside or around them. Recova's
-// per-status colors on the status filter and the row pills, its filled (now
-// amber) Next button in the pager, and its 12px radius wait for Capsomer's
-// per-site layer, listed in the J75 pull request.
-//
-// Approved differences kept (APPROVED-DIFFERENCES): status pills say the tab
-// word (2026-08-14); "Stop recovery" (2026-08-10); bulk actions submit exactly
-// what the button counts and only rows on screen can be selected
-// (2026-08-13); they report per payment and keep the failures selected, and
-// ask above 25 and refuse above 100 (2026-09-19); "Payments - Foxhound"
-// (2026-08-28). Recova's personal-outreach mark after a name reads the action
-// the nightly scoring stores.
-//
-// Every filter is in the URL and runs in the loader. Script applies a filter
-// on change, as Recova's controls do; without script the form still submits
-// on Enter.
+// /recovery/payments, in a 1280px column: the head with Export CSV, the five count cards, the bulk result, the filter panel (search and status, then date, decline, sort, amount, the result count and Clear filters), the rows-per-page links, the table, the pager, and the bulk bar while something is selected. No Foxhound class sits on a Capsomer element: mono figures, sizes and spacing go on elements of the page's own inside or around them. Status pills say the tab word; bulk actions submit exactly what the button counts and only rows on screen can be selected; they report per payment and keep the failures selected, and ask above 25 and refuse above 100. The personal-outreach mark after a name reads the action the nightly scoring stores.
+// Every filter is in the URL and runs in the loader. Script applies a filter on change; without script the form still submits on Enter.
 
 export function meta() {
   return [{ title: "Payments - Foxhound" }, NOINDEX];
@@ -168,15 +139,12 @@ export async function loader({ context, request }: Route.LoaderArgs) {
       accountId,
       result.payments.map((p) => p.id),
     ),
-    // Recova's UI-GAP-04: the visible customers Intelligence flagged for
-    // personal outreach. A read failure leaves the marks off, not the page.
+    // The visible customers Intelligence flagged for personal outreach. A read failure leaves the marks off, not the page.
     personalOutreachCustomerIds(db, accountId, customerIds).catch(() => [] as string[]),
   ]);
   const outreach = new Set(outreachIds);
 
-  // Only what the page shows reaches the browser: no Stripe ids, and a note
-  // as whether there is one, since the row shows Recova's "note" chip and not
-  // the note.
+  // Only what the page shows reaches the browser: no Stripe ids, and a note as whether there is one, since the row shows a "note" chip and not the note.
   const payments = result.payments.map((p) => ({
     id: p.id,
     customerName: p.customerName,
@@ -197,9 +165,9 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     ),
   }));
 
-  // Recova's status counts respect every filter but status itself.
+  // The status counts respect every filter but status itself.
   const pillCounts = tallyStatusCounts(summaryRows.map((r) => r.status));
-  // Legacy's exact computation: an account with no failed payments reads 0.
+  // An account with no failed payments reads 0.
   const globalRecoveryRatePct = percent(globalCounts.recovered, globalCounts.all);
 
   return {
@@ -228,15 +196,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   };
 }
 
-/**
- * The bulk POST target (274 decisions one, four and five).
- *
- * Nothing the browser sends is trusted: every id is re-derived through
- * dispatchManualAction's own account-scoped read and per-intent preconditions,
- * one payment and one key at a time, so an unowned id answers
- * not_found exactly as it would singly. A submission over the ceiling is
- * refused whole.
- */
+/** The bulk POST target. Nothing the browser sends is trusted: every id is re-derived through dispatchManualAction's own account-scoped read and per-intent preconditions, one payment and one key at a time, so an unowned id answers not_found exactly as it would singly. A submission over the ceiling is refused whole. */
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -286,9 +246,7 @@ function pageHref(filters: Filters, bounds: AmountBounds, page: number): string 
   return hrefWith(filters, bounds, { page: page > 1 ? String(page) : "" });
 }
 
-/** Recova's Export CSV writes the rows on screen (PaymentsClient.tsx
- *  handleExport, exportToCSV(filtered)), so the link carries this page and
- *  this page size as well as the filters. */
+/** Export CSV writes the rows on screen, so the link carries this page and this page size as well as the filters. */
 function exportHref(filters: Filters, bounds: AmountBounds, page: number): string {
   return withParams(
     `${BASE}/export.csv`,
@@ -304,13 +262,12 @@ function paramsFor(filters: Filters, bounds: AmountBounds) {
   return buildPaymentParams(filters, { bounds, defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE });
 }
 
-/** Recova's Clear filters keeps the sort and the page size and drops the rest. The currency is
- *  which amounts the range shows, not a filter, so it stays too. */
+/** Clear filters keeps the sort and the page size and drops the rest. The currency is which amounts the range shows, not a filter, so it stays too. */
 function clearHref(filters: Filters, bounds: AmountBounds): string {
   return clearedHref(BASE, paramsFor(filters, bounds), ["sort", "perPage", "currency"]);
 }
 
-// Recova's STATUS_TABS, in order (PaymentsFilters.tsx).
+// The status tabs, in order.
 const STATUS_PILLS = [
   { value: "", label: "All" },
   { value: "active", label: "Active" },
@@ -335,7 +292,7 @@ function countFor(pillCounts: PillCounts, value: string): number {
   return pillCounts.failedUnrecovered;
 }
 
-// Recova's DATE_RANGES and its sort options, in its words.
+// The date ranges and sort options, in the page's words.
 const DATE_RANGES: { value: PaymentTimeRange; label: string }[] = [
   { value: "all", label: "All time" },
   { value: "today", label: "Today" },
@@ -425,9 +382,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   const navigate = useNavigate();
   const submit = useSubmit();
 
-  // Selection is client-only and per page, Recova's own model. Every read goes
-  // through the pure helpers, so the effective selection is the stored set
-  // intersected with what is on screen (approved 2026-08-13).
+  // Selection is client-only and per page. Every read goes through the pure helpers, so the effective selection is the stored set intersected with what is on screen.
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   const isDemo = Boolean(shell?.isDemo);
   const [sel, setSel] = useState<{ ids: ReadonlySet<string>; from: unknown }>(() => ({
@@ -435,15 +390,11 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     from: undefined,
   }));
   const rows = result.payments;
-  // Recova's pager line ("Showing 1 to 25 of 60 payments"), with All as one
-  // page of the whole list.
+  // The pager line ("Showing 1 to 25 of 60 payments"), with All as one page of the whole list.
   const shown = pageEnvelope(result.page, result.pageSize, result.totalCount);
   const showing = statusText(shown.page, shown.perPage, shown.total, "payments");
 
-  // Failures stay selected (approved 2026-09-19): when a response lands the
-  // selection becomes exactly the ids that failed, until it is edited again.
-  // The dismissal and the confirmation are tagged with the response they
-  // belong to, so each new response starts fresh with no effect.
+  // Failures stay selected: when a response lands the selection becomes exactly the ids that failed, until it is edited again. The dismissal and the confirmation are tagged with the response they belong to, so each new response starts fresh with no effect.
   const navigation = useNavigation();
   const submitting = navigation.formMethod === "POST";
   const submittingIntent = submitting ? String(navigation.formData?.get("intent") ?? "") : "";
@@ -453,9 +404,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     sel.from !== bulk && applied ? new Set(failedIds(applied.results)) : sel.ids;
   const setSelected = (ids: ReadonlySet<string>) => setSel({ ids, from: bulk });
 
-  // Recova clears the result after 3 seconds. Here only an all-succeeded
-  // result does; one with a failure or a refusal waits to be dismissed
-  // (WCAG 2.2.1), pending Dustin's ruling. The failures stay selected.
+  // Only an all-succeeded result clears itself (after 3 seconds); one with a failure or a refusal waits to be dismissed (WCAG 2.2.1). The failures stay selected.
   const [shownBulk, dismissBulk] = useShownFor(
     bulk,
     BULK_RESULT_DISMISS_MS,
@@ -471,8 +420,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   const actionable = actionableSelection(selected, rows);
   const headerChecked = allVisibleSelected(selected, rows);
 
-  // The client half of the approved limits; the server refuses over the
-  // ceiling too, because a hand-made POST never sees this line.
+  // The client half of the limits; the server refuses over the ceiling too, because a hand-made POST never sees this line.
   const overCeiling = actionable.length > BULK_ACTION_MAX_PER_SUBMISSION;
   const needsConfirm = actionable.length > BULK_ACTION_CONFIRM_THRESHOLD;
   const rowLabel = (id: string) => {
@@ -486,10 +434,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       : id;
   };
 
-  // Recova applies a filter on change: the filter bar submits the form as you
-  // type (after a pause, never mid-composition) and on each change of a
-  // control. The box follows the address when the address changes under it
-  // (Clear, Back), but not while a search it has already sent comes back.
+  // The filter bar submits the form as you type (after a pause, never mid-composition) and on each change of a control. The box follows the address when the address changes under it (Clear, Back), but not while a search it has already sent comes back.
   const [search, setSearch] = useState(filters.search);
   const sentSearch = useRef(filters.search);
   useEffect(() => {
@@ -548,8 +493,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   ];
 
   return (
-    // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
-    // the page's one <main>, so this is a plain wrapper.
+    // max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns the page's one <main>, so this is a plain wrapper.
     <div className="fh-payments cap-admin-page" data-width="page">
       <div className="fh-payments-head">
         <PageHead
@@ -635,8 +579,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                   data-variant="quiet"
                   data-cap-part="dismiss"
                   onClick={(e) => {
-                    // Capsomer's Dismiss: focus goes to the page's main region
-                    // when it was inside, never to <body>.
+                    // Capsomer's Dismiss: focus goes to the page's main region when it was inside, never to <body>.
                     const banner = e.currentTarget.closest<HTMLElement>("[data-cap='banner']");
                     if (banner) dismissBanner(banner);
                     dismissBulk();

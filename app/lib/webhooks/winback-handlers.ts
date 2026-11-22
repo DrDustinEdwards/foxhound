@@ -26,14 +26,7 @@ export async function handleWinbackReactivate(
   intent: IntentOf<"winback_reactivate">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, claim, idempotencyKey } = ctx;
-  // THE REACTIVATION, PRIMARY PATH. The session carries the sequence id
-  // Foxhound put on it at the resubscribe click, so the match is exact and
-  // needs no Stripe read.
-  //
-  // THE FLIP RUNS FIRST AND THROUGH THE PLAIN BATCH PATH,
-  // and its own status condition is the idempotency claim: a redelivery
-  // flips zero rows and records no second outcome, whether it arrives
-  // before or after the webhook claim below lands.
+  // THE REACTIVATION, PRIMARY PATH.
   const outcome = await reactivateWinbackSequence(env, {
     accountId,
     sequenceId: intent.sequenceId,
@@ -55,27 +48,11 @@ export async function handleWinbackStart(
   intent: IntentOf<"winback_start">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
-  // WIN-BACK CREATION, ported from legacy's handleSubscriptionDeleted.
-  // Legacy's eligibility conditions in legacy's order; each returns without
-  // a sequence, and each still CLAIMS the event so redelivery short-circuits.
-  //
-  // 1. INVOLUNTARY CHURN. Legacy: `.eq('status','active')` over this
-  //    customer's failed_payments, `const isInvoluntary = ... length > 0`,
-  //    and when true it cancels those payments and returns WITHOUT a
-  //    win-back. A customer whose card failed did not choose to leave, so
-  //    chasing them with a win-back is the wrong sequence.
-  //    SCOPE, stated rather than silently dropped: the GUARD is ported here.
-  //    Legacy's accompanying SIDE EFFECT, flipping those failed_payments to
-  //    'cancelled' and resolving their steps, is NOT ported in this fold and
-  //    is RAISED: that exact transition is 265's ratified Stop-recovery
-  //    shape, which claims on `status = 'active'` and conditions the steps
-  //    on the claim landing, and legacy's unconditional per-row update would
-  //    either duplicate or contradict it. Re-deciding a ratified money
-  //    transition is a ruling, not a build session's default.
+  // INVOLUNTARY CHURN. A customer whose card failed did not choose to leave, so chasing them with a
+  // win-back is the wrong sequence.
   const involuntaryIds = await listActiveFailedPaymentIds(env, accountId, intent.customerId);
   if (involuntaryIds.length > 0) {
-    // THE FLIP LANDS HERE, through 265's ratified transition rather
-    // than legacy's unconditional per-row update. Still no win-back.
+    // Still no win-back.
     const { applied } = await executeMoneyWrite(env, {
       accountId,
       idempotencyKey,
@@ -90,9 +67,8 @@ export async function handleWinbackStart(
     return applied ? { status: "ignored", reason: "involuntary_churn" } : { status: "duplicate" };
   }
 
-  // 2. RECENTLY CHASED. Legacy: statuses ['cancelled','recovered'] with
-  //    `resolved_at >= sevenDaysAgo`, WINBACK_RECENT_RESOLVED_DAYS = 7,
-  //    "keeps Recova from chasing customers we already chased".
+  // 2. RECENTLY CHASED: a canceled or recovered payment resolved within
+  //    WINBACK_RECENT_RESOLVED_DAYS keeps us from chasing a customer we already chased.
   const recentlyResolved = await hasRecentlyResolvedFailedPayment(
     env,
     accountId,
@@ -103,8 +79,7 @@ export async function handleWinbackStart(
     return claimOnly(ctx, "recently_resolved");
   }
 
-  // 3. REPLAY GUARD. Legacy keys its own on stripe_subscription_id: "one
-  //    win-back sequence per canceled subscription, ever". This SELECT is
+  // 3. REPLAY GUARD: one win-back sequence per canceled subscription, ever. This SELECT is
   //    the cheap pre-check; the real guarantee is the unique index, which
   //    makes a concurrent redelivery roll the whole batch back.
   const existing = await findWinbackSequence(env, accountId, intent.subscriptionId);
@@ -112,37 +87,15 @@ export async function handleWinbackStart(
     return claimOnly(ctx, "winback_exists");
   }
 
-  // 4. THE EMAIL GATE. Legacy fetches the customer and returns on a missing
-  //    address: a sequence with nobody to mail is three dead rows. The read
-  //    is best-effort, so a Stripe failure ignores rather than 500s, which
-  //    matches legacy catching its own retrieve and falling through to the
-  //    same empty-email return.
+  // 4. THE EMAIL GATE: a sequence with nobody to mail is three dead rows. The read is
+  //    best-effort, so a Stripe failure ignores rather than 500s.
   const customer = await resolveConnectedCustomer(env, connectionId, intent.customerId);
   if (!customer?.email) {
     return claimOnly(ctx, "no_customer_email");
   }
 
-  // 5. THE INTELLIGENCE GATE, SEMANTICALLY ported from legacy.
-  //    Legacy's provenance, quoted:
-  //
-  //      const { data: intelligenceProduct } = await supabase
-  //        .from('account_products').select('status')
-  //        .eq('account_id', accountId).eq('product', 'intelligence')
-  //        .eq('status', 'active').maybeSingle()
-  //      if (intelligenceProduct) {
-  //        ... if (recommendation !== 'winback_priority') { step1OffsetHours = 4 }
-  //      }
-  //
-  // INTELLIGENCE IS FREE (Dustin), so legacy's condition is true
-  // on every account and the gate itself is gone; only its body remains.
-  //
-  // Value and direction stay legacy's: a customer NOT flagged
-  // winback_priority is DELAYED from the 1h default to 4h, and a flagged
-  // customer keeps the default. Legacy falls open to the default on any
-  // lookup error and so does this.
-  //
-  // The flagged branch needs `winback_priority` in recommended_action; a
-  // customer without it takes the unflagged 4h branch.
+  // 5. The flagged branch needs `winback_priority` in recommended_action; a customer without it
+  // takes the unflagged 4h branch.
   const step1OffsetHours = await resolveWinbackStep1Offset(env, accountId, intent.customerId);
 
   const { applied } = await executeMoneyWrite(env, {
@@ -165,18 +118,7 @@ export async function handleWinbackStart(
         step1OffsetHours,
       }),
   });
-  // THE STARTED OUTCOME, the pre-existing divergence this
-  // session fixes. Legacy records `winback_sequence_started` at creation;
-  // buildWinbackStartBatch wrote the sequence and its steps and recorded
-  // nothing, so a Foxhound merchant's moat was missing a row legacy has.
-  //
-  // It hooks AFTER the money write and only when it applied, which is 339
-  // binding 1's pattern: `applied` is this delivery's claim, false on a
-  // replay because the webhook claim collides and the whole batch rolls
-  // back. The outcome's own idempotency key is keyed on the SUBSCRIPTION,
-  // which is what legacy keys its one-sequence-ever guard on and what
-  // win_back_sequences_subscription_uq enforces here, so the two layers
-  // agree on granularity.
+  // THE STARTED OUTCOME, the pre-existing divergence this session fixes.
   if (applied) {
     await recordOutcome(env, {
       accountId,

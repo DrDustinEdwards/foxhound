@@ -34,19 +34,12 @@ export async function action({ request, context, params }: Route.ActionArgs) {
     return redirect("/login");
   }
 
-  // Where to land afterwards. Recova's login set a
-  // pending_redirect cookie and its callback validated it and burned it even
-  // when refused. Better Auth carries callbackURL inside its own one-time OAuth
-  // state, which is spent on the callback, so the validated path goes there
-  // and there is no cookie to burn. It is made absolute on Foxhound's own
-  // origin because Better Auth's relative-path pattern refuses a query that
-  // carries an encoded URL, which an OAuth authorize URL always does.
+  // Where to land afterwards: Better Auth carries callbackURL inside its own one-time OAuth state, which is spent on the callback, so the validated path goes there and there is no cookie to burn. It is made absolute on Foxhound's own origin because Better Auth's relative-path pattern refuses a query that carries an encoded URL, which an OAuth authorize URL always does.
   const form = await readForm(request, BODY_MAX_BYTES).catch(() => null);
   const next = safeNextPath(form ? String(form.get("next") ?? "") : null, {
     fallback: DEFAULT_NEXT_PATH,
   });
-  // By way of the passkey offer (A3), which goes straight on to `next` for
-  // someone it does not ask.
+  // By way of the passkey offer, which goes straight on to `next` for someone it does not ask.
   const callbackURL = passkeyOfferURL(env, next);
   // A refused sign-in (account_not_linked and the like) comes back to /login,
   // which says what happened, instead of Better Auth's own error page.

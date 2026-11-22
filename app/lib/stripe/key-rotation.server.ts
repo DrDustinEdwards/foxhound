@@ -4,24 +4,12 @@ import type { Db } from "~/db/client";
 import { accounts, stripeConnections } from "~/db/schema";
 import { keyIdOf, loadKeyring, reencryptToken } from "~/lib/stripe/encryption";
 
-/** Step 4 of the rotation runbook in app/lib/stripe/encryption.ts: move every
- *  stored connection token onto the ACTIVE key, so ENCRYPTION_KEYS_OLD can be
- *  dropped.
- *
- *  WHY THIS EXISTS BEFORE IT HAS ANYTHING TO DO. Ruling 311 measured
- *  `stripe_connections` at exactly ONE row, demo_teamflow, with a NULL token, so
- *  this writer processes ZERO rows today. 312 ordered it built anyway, because
- *  the alternative is writing it under pressure during the first real rotation,
- *  against live merchant tokens, with no test. Building and testing it against
- *  zero rows is cheaper and safer than needing it and not having it.
- *
- *  NEVER LOGS A TOKEN, plaintext or ciphertext (ARCHITECTURE.md non-negotiable
- *  #5). The report carries counts, connection ids and error messages only.
- *
- *  NOT TRANSACTIONAL ACROSS ROWS, deliberately. Each connection is rewritten on
- *  its own, so a failure part way leaves earlier rows correctly re-encrypted
- *  rather than rolling back work that succeeded. Re-running is safe: a row
- *  already on the active key is skipped, which is what makes this idempotent. */
+/**
+ * Step 4 of the rotation runbook in app/lib/stripe/encryption.ts: move every stored connection
+ * token onto the ACTIVE key, so ENCRYPTION_KEYS_OLD can be dropped. NEVER LOGS A TOKEN, plaintext
+ * or ciphertext (ARCHITECTURE.md non-negotiable #5). The report carries counts, connection ids and
+ * error messages only.
+ */
 export interface RotationReport {
   /** Connections holding a non-null token. */
   scanned: number;

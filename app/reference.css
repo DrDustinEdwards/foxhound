@@ -1,5 +1,4 @@
-/* The parts only the compare and decline-code pages use, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the compare and decline-code pages use. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-rival-wrap {
     margin-inline: auto;

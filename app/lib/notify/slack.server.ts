@@ -5,32 +5,7 @@ import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { normalizeSlackWebhookUrl } from "~/lib/settings/slack-webhook";
 import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 
-// THE SLACK SENDER. Ported from legacy's `sendSlackNotification` in
-// lib/recovery-execution.ts (blob 3a8f8768, 27,136 bytes, lines 121 to 146).
-//
-// LEGACY POSTS ON EXACTLY TWO EVENTS, and neither is the one a reader might
-// assume:
-//
-//   `email_sent`        executeEmailStep, after the outcome record
-//   `payment_recovered` executeRetryStep, after the outcome record, and ONLY
-//                       when retryResult === 'retry_succeeded'
-//
-// It does NOT post on the merchant recovery notification, the sequence-complete
-// notice, a win-back send, an expiring-card alert, or the weekly digest. A
-// third Slack path exists in lib/alert-evaluation.ts for Intelligence alerts,
-// with a different payload and a per-alert `channel` column; that is S28 and
-// S35, not this module.
-//
-// NULL IS OFF. Legacy's gate is `merchant.slack_notifications_enabled &&
-// merchant.slack_webhook_url`, a TRUTHY check on both, so an account that never
-// opted in posts nothing. That makes Slack the SECOND NULL-is-OFF toggle
-// alongside the digest, where 337 binding 3 records only one.
-//
-// IT NEVER THROWS INTO THE CALLER, and it never blocks the email. Legacy wraps
-// the whole thing in try/catch and logs. Foxhound returns a DISCRIMINATED
-// outcome instead of legacy's silence, so a deliberate refusal
-// and a swallowed failure are distinguishable, but the caller still cannot be
-// broken by Slack being down.
+// THE SLACK SENDER. NULL IS OFF. IT NEVER THROWS INTO THE CALLER, and it never blocks the email.
 
 type SlackEventType = "email_sent" | "payment_recovered";
 
@@ -39,7 +14,6 @@ export interface SlackEvent {
   stepType: string;
   customerEmail: string;
   customerName: string;
-  /** Already formatted for display, as legacy passes it. */
   amount: string;
 }
 
@@ -51,12 +25,7 @@ export type SlackOutcome =
   | { status: "no_account" }
   | { status: "failed"; reason: string };
 
-/**
- * Legacy's payload, byte for byte.
- *
- * Pure and exported so a plant reads the real assembly rather than a hand-built
- * copy. The emoji are legacy's own literals.
- */
+/** Pure and exported so a plant reads the real assembly rather than a hand-built copy. */
 export function buildSlackPayload(event: SlackEvent): { text: string } {
   const emoji = event.type === "payment_recovered" ? "✅" : "📧";
   const title =
@@ -68,14 +37,7 @@ export function buildSlackPayload(event: SlackEvent): { text: string } {
   };
 }
 
-/**
- * THE GATE, SEPARATE FROM THE POST.
- *
- * Split so a caller can refuse BEFORE loading anything the payload needs: the
- * retry site has to read the failed payment for the customer name and email,
- * and doing that on every recovered retry when Slack is off would be a query
- * for nothing. Splitting also makes each layer reachable on its own.
- */
+/** THE GATE, SEPARATE FROM THE POST. Splitting also makes each layer reachable on its own. */
 export async function resolveSlackTarget(
   env: Env,
   accountId: string,
@@ -93,7 +55,6 @@ export async function resolveSlackTarget(
       .where(eq(accounts.id, accountId))
       .limit(1);
     if (!row) return { status: "no_account" };
-    // Legacy's truthy gate: NULL and false are one case.
     if (!row.enabled) return { status: "disabled" };
     if (!row.webhookUrl) return { status: "no_webhook" };
     return { status: "ready", webhookUrl: (await openSlackWebhook(env, row.webhookUrl))! };
@@ -102,16 +63,7 @@ export async function resolveSlackTarget(
   }
 }
 
-/**
- * Post one event to a resolved webhook.
- *
- * ON A NON-2xx, FOXHOUND RECORDS A REFUSAL WHERE LEGACY RECORDS NOTHING.
- * Legacy `await fetch(...)` and DISCARDS the Response, so a 404 from a revoked
- * webhook is invisible to it forever. Reading `res.ok` is class (c): the
- * merchant's own page says Slack is on, and a silently dead webhook makes that
- * a false promise. Nothing is disabled and nothing is retried, which IS
- * legacy's behavior.
- */
+/** Post one event to a resolved webhook. */
 export async function postToSlack(webhookUrl: string, event: SlackEvent): Promise<SlackOutcome> {
   return postSlackBody(webhookUrl, buildSlackPayload(event));
 }
@@ -153,11 +105,6 @@ export async function postSlackNotification(
   return postToSlack(target.webhookUrl, event);
 }
 
-/**
- * Gate then post one Foxhound-worded line, for a notice legacy never sent (the
- * Stripe account health notice, app/lib/stripe/account-health.server.ts). The
- * same gate as the two legacy posts, so NULL is OFF here too.
- */
 export async function postSlackText(
   env: Env,
   accountId: string,
@@ -169,15 +116,8 @@ export async function postSlackText(
 }
 
 /**
- * The customer fields the payload needs, read from the failed payment.
- *
- * Neither executor's context carries them, and widening two context types plus
- * their loaders for a notification is the wrong shape. Called only AFTER the
- * gate passes, so an account with Slack off pays for no query.
- *
- * The fallbacks are legacy's own, and they DIFFER by site: the email path uses
- * `customer_name || 'there'` and the retry path `customer_name || 'Customer'`.
- * Ported as found rather than unified.
+ * The customer fields the payload needs, read from the failed payment. Called only AFTER the gate
+ * passes, so an account with Slack off pays for no query.
  */
 export async function loadSlackCustomer(
   env: Env,

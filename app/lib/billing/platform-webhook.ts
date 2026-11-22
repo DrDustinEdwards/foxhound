@@ -9,18 +9,11 @@ import { buildWebhookClaim, type WebhookClaimInput } from "~/lib/webhooks/batche
 import type { WebhookOutcome } from "~/lib/webhooks/process";
 
 // Reconciliation for Foxhound's OWN Stripe invoices (the ones we raise against
-// merchants for fees). The platform webhook (/webhooks/stripe-platform) resolves
-// the billing_invoices row an event applies to, then commits the exactly-once
-// CLAIM and the status update as ONE atomic per-account money-write batch, the
-// same folded-claim pattern the connected endpoint uses (app/lib/webhooks/batches.ts).
-//
-// It did NOT used to. The claim was a separate plain insert that committed
-// BEFORE dispatch, and a dispatch failure was swallowed into a 200. So a lost
-// invoice.paid was permanently lost: the event was marked processed, Stripe was
-// told everything was fine and never redelivered, and our billing_invoices row
-// stayed stuck on its previous status with no reconciler. Folding the claim in
-// means a failure rolls back the claim too, and the route can 5xx for a real
-// Stripe redelivery.
+// merchants for fees). The platform webhook (/webhooks/stripe-platform)
+// resolves the billing_invoices row an event applies to, then commits the
+// exactly-once CLAIM and the status update as ONE atomic per-account
+// money-write batch, the same folded-claim pattern the connected endpoint uses
+// (app/lib/webhooks/batches.ts).
 
 const PLATFORM_STATUS: Record<string, string> = {
   "invoice.finalized": "finalized",
@@ -30,7 +23,10 @@ const PLATFORM_STATUS: Record<string, string> = {
   "invoice.voided": "void",
 };
 
-/** Maps a platform Stripe event type to our billing_invoices status (null = ignore). Pure. */
+/**
+ * Maps a platform Stripe event type to our billing_invoices status (null =
+ * ignore). Pure.
+ */
 function platformBillingStatus(eventType: string): string | null {
   return PLATFORM_STATUS[eventType] ?? null;
 }
@@ -50,7 +46,10 @@ const STATUS_RANK: Record<string, number> = {
   void: 4,
 };
 
-/** The known statuses an event moving to `status` must not overwrite: its own rank and above. Pure. */
+/**
+ * The known statuses an event moving to `status` must not overwrite: its own
+ * rank and above. Pure.
+ */
 function statusesAtOrAbove(status: string): string[] {
   const rank = STATUS_RANK[status] ?? 0;
   return Object.keys(STATUS_RANK).filter((s) => (STATUS_RANK[s] ?? 0) >= rank);
@@ -60,7 +59,10 @@ function statusesAtOrAbove(status: string): string[] {
 interface PlatformBillingTarget {
   accountId: string;
   billingInvoiceId: string;
-  /** The row's status when resolved, so a stale event is claimed without applying. */
+  /**
+   * The row's status when resolved, so a stale event is claimed without
+   * applying.
+   */
   currentStatus: string;
   status: string;
   stripeInvoiceId: string;
@@ -69,16 +71,12 @@ interface PlatformBillingTarget {
 
 /**
  * Resolve which billing_invoices row an event applies to. Reads only, so it is
- * safe to run before the claim. Returns null when the event is not one we act on
- * (unmapped type, no billing_invoice_id metadata, an id we have no row for, or
- * an invoice that is not that row's); a D1 failure THROWS, which is the point:
- * an unresolvable event must not be claimed.
+ * safe to run before the claim.
  *
- * The metadata is only a pointer. Anyone can write billing_invoice_id on an
- * invoice in their own Stripe account, and a merchant can read their own row
- * id at /billing/invoices/:id, so the invoice must also be OURS for that row:
- * billed to the account's platform customer, and the same Stripe invoice the
- * row already names (Mythos billing review, finding 2).
+ * Anyone can write billing_invoice_id on an invoice in their own Stripe
+ * account, and a merchant can read their own row id at /billing/invoices/:id,
+ * so the invoice must also be OURS for that row: billed to the account's
+ * platform customer, and the same Stripe invoice the row already names.
  */
 async function resolvePlatformBillingTarget(
   env: Env,
@@ -122,9 +120,9 @@ async function resolvePlatformBillingTarget(
 
 /**
  * claim + billing_invoices status update, as ONE atomic batch through the
- * per-account money-write DO. The webhook_events unique index on stripe_event_id
- * is the exactly-once key: a replay fails the claim insert and rolls the whole
- * batch back, so the status is never applied twice.
+ * per-account money-write DO. The webhook_events unique index on
+ * stripe_event_id is the exactly-once key: a replay fails the claim insert and
+ * rolls the whole batch back, so the status is never applied twice.
  *
  * The rank guard is in the UPDATE's own WHERE, so a status that moved on
  * between the resolve read and this commit is left alone, not moved back.
@@ -159,12 +157,7 @@ function buildPlatformBillingBatch(
   ];
 }
 
-/**
- * Process one verified platform event. Mirrors processConnectedWebhook: a thrown
- * error becomes an "error" outcome so the route 5xxs and Stripe redelivers with
- * NOTHING claimed, rather than the old behavior of claiming first and then
- * swallowing the failure into a 200.
- */
+/** Process one verified platform event. */
 export async function processPlatformWebhook(
   env: Env,
   event: Stripe.Event,
@@ -191,15 +184,16 @@ export async function processPlatformWebhook(
     const claim: WebhookClaimInput = {
       stripeEventId: event.id,
       eventType: event.type,
-      // The merchant this fee invoice belongs to. The old separate claim
-      // wrote null here because it ran before the row was resolved.
+      // The merchant this fee invoice belongs to. The old separate claim wrote
+      // null here because it ran before the row was resolved.
       accountId: target.accountId,
       receivedAt,
       payload: event,
     };
     const idempotencyKey = `platform-webhook:${event.id}`;
     if (statusesAtOrAbove(target.status).includes(target.currentStatus)) {
-      // Late or out of order: claim it so a replay short-circuits, apply nothing.
+      // Late or out of order: claim it so a replay short-circuits, apply
+      // nothing.
       const { applied } = await executeMoneyWrite(env, {
         accountId: target.accountId,
         idempotencyKey,
@@ -224,8 +218,10 @@ export async function processPlatformWebhook(
   }
 }
 
-/** Claim an event we resolved to no billing_invoices row. Idempotent on the
- *  unique index; returns false when it was already claimed. */
+/**
+ * Claim an event we resolved to no billing_invoices row. Idempotent on the
+ * unique index; returns false when it was already claimed.
+ */
 async function claimUnroutableEvent(
   env: Env,
   event: Stripe.Event,
@@ -246,8 +242,8 @@ async function claimUnroutableEvent(
     });
     return true;
   } catch (err) {
-    // Only the unique index means "already claimed"; anything else throws so the
-    // route 500s and Stripe retries, instead of a 200 that drops the event.
+    // Only the unique index means "already claimed"; anything else throws so
+    // the route 500s and Stripe retries, instead of a 200 that drops the event.
     if (!isUniqueConstraintError(err)) throw err;
     return false;
   }

@@ -40,51 +40,22 @@ export function meta() {
   return [{ title: "Team - Foxhound" }, NOINDEX];
 }
 
-// This page is scoped to ONE account, the active one: invites add a member to
-// the account the caller is currently looking at. That is unchanged by
-// multi-account; what changed is that the caller can now switch which account
-// that is (ruling 326 phases (a) to (e)). This comment previously cited
-// `account_members_one_active_per_user_uq` and said "creating or switching
-// accounts is not built", both true when written and both false now: 324 struck
-// that index and phase (e) shipped the switcher.
-//
-// S26: MEMBER REMOVAL IS NOW BUILT, and the sentence that used to sit here
-// saying it was not, "because account_members has no status beyond
-// active/pending to represent it", reasoned from the wrong mechanism. Legacy
-// does not represent removal as a status at all: `api/team/remove` (blob
-// 3fd92550) DELETES the row. No schema decision was owed.
-//
-// Legacy's confirm is inline and two-step, the settings section's house pattern
-// (S37, S33). The confirming id rides the URL rather than useState so the form
-// post carries it, exactly as S37's disconnect does.
-//
-// ROLE CHANGE is still not built, and legacy has no role-change control either.
+// This page is scoped to ONE account, the active one: invites add a member to the account the caller is currently looking at. Member removal DELETES the row (there is no removal status). The confirm is inline and two-step, the settings section's house pattern; the confirming id rides the URL rather than useState so the form post carries it, as the Stripe disconnect does. Role change is not built.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const { membership } = context.get(authContext);
   const auth = context.get(authContext);
   const members = await listMembers(getDb(env), membership.accountId);
   const isOwner = membership.role === MEMBER_ROLE.OWNER;
-  // No account name: Recova's heading is "Team" alone, and the header's
-  // business tile already names the account this page is scoped to.
+  // No account name: the heading is "Team" alone, and the header's business tile already names the account this page is scoped to.
   return {
     isOwner,
-    // LEGACY'S THREE REFUSALS, RESOLVED HERE rather than in the render: owners
-    // only, never yourself, never another owner. It is a plain boolean on
-    // purpose. Deciding it in the component would mean importing MEMBER_ROLE,
-    // and `~/lib/auth` is a server module: the build refuses it as
-    // "Server-only module referenced by client", which is how this was caught.
-    // The server enforces all three again inside removeMember; this only
-    // decides what to draw.
-    //
-    // OWNER FIRST, as Recova's TeamSection sorts its list; everyone else keeps
-    // the order they were added (listMembers' order). Array sort is stable.
+    // THE THREE REFUSALS, RESOLVED HERE rather than in the render: owners only, never yourself, never another owner. It is a plain boolean on purpose: deciding it in the component would mean importing MEMBER_ROLE, and `~/lib/auth` is a server module the build refuses in client code. The server enforces all three again inside removeMember; this only decides what to draw.
+    // OWNER FIRST; everyone else keeps the order they were added (listMembers' order). Array sort is stable.
     members: members
       .map((m) => ({
         ...m,
-        // Your own row names you from the session when your user row has no
-        // name or email: the demo's member has no user row (guards.ts names
-        // the demo session from its business), so its row was blank.
+        // Your own row names you from the session when your user row has no name or email: the demo's member has no user row (guards.ts names the demo session from its business), so its row would be blank.
         ...(m.userId === auth.userId
           ? { userName: m.userName || auth.userName, userEmail: m.userEmail || auth.email }
           : {}),
@@ -104,8 +75,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // No `_action` is an invite, so a plain post keeps working.
   const intent = String(form.get("_action") ?? "invite") === "remove" ? "remove" : "invite";
 
-  // Every result says which form it answers (`action`), and a remove result
-  // names its row (`memberId`), so each form reads only its own result.
+  // Every result says which form it answers (`action`), and a remove result names its row (`memberId`), so each form reads only its own result.
   if (intent === "remove") {
     const memberId = String(form.get("memberId") ?? "").trim() || null;
     const refuse = (error: string, status: number) =>
@@ -149,13 +119,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     return refuse("Only the account owner can invite teammates.", 403);
   }
 
-  // E2: RECOVA'S REFUSALS, in Recova's order and before anything is written
-  // (app/api/invite/route.ts, blob 960aefc6): the IP rate limit (429), a
-  // malformed address (400), and a pending or active membership (409).
-  //
-  // The limit is 311's limiter, used unchanged, at Recova's RATE_LIMIT_SIGNUP
-  // numbers on `invite:{ip}`, and fails open like every other caller (Recova's
-  // limiter does too). It is spent on every invite attempt, as Recova's is.
+  // REFUSALS, in order and before anything is written: the IP rate limit (429), a malformed address (400), and a pending or active membership (409). The limit is the shared limiter at the RATE_LIMIT_SIGNUP numbers on `invite:{ip}`, failing open like every other caller, and is spent on every invite attempt.
   if (!(await isIpWithinRateLimit(env, request, "invite", RATE_LIMIT_INVITE))) {
     return refuse("Too many requests. Try again later.", 429);
   }
@@ -173,10 +137,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   const { token, memberId } = await createInvite(db, membership.accountId, email);
   const url = new URL(request.url);
   const inviteUrl = `${url.origin}/invite/${token}`;
-  // E2: Recova emails the invitee here, after the pending row is written
-  // (app/api/invite/route.ts, blob 960aefc6). The link stays on the page as
-  // well, and when the email did not go the page says so rather than
-  // reporting success as Recova does.
+  // The invitee is emailed here, after the pending row is written. The link stays on the page as well, and when the email did not go the page says so rather than reporting success.
   const sent = await sendTeamInviteEmail(env, {
     accountId: membership.accountId,
     to: email,
@@ -184,7 +145,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     inviteUrl,
     memberId,
     token,
-    // Recova's footer names the primary connection's sender (E2).
     senderName: (await getPrimarySenderConnection(db, membership.accountId))?.senderName,
     year: new Date().getUTCFullYear(),
   });
@@ -199,8 +159,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   });
 }
 
-/** The row's name, Recova's order: full name, else email, else the invited
- *  address. `||` as Recova has it, so an empty name falls through. */
+/** The row's name: full name, else email, else the invited address. `||` so an empty name falls through. */
 function displayName(m: {
   userId: string | null;
   userName: string | null;
@@ -210,36 +169,14 @@ function displayName(m: {
   return (m.userId ? m.userName || m.userEmail : null) || m.invitedEmail || "";
 }
 
-// J31, row S26: Recova's page (app/(app)/settings/team/page.tsx,
-// blob 09983bed; TeamSection.tsx, blob ab19f9de) on Capsomer's parts, amber.
-//
-// Recova, top to bottom: the phone-only Settings link, the page head "Team"
-// with its line, then ONE card: the member rows, owner first, a rule between
-// them, and for an owner the invite form under a rule, its input and button on
-// one row and the result line under them. No column of its own: the settings
-// layout gives Recova's 800px column and padding (app/layouts/settings.tsx).
-//
-// The heading is composed on the five sizes (Capsomer's page head computes
-// 22px, off them). The row buttons are Capsomer's sm size (13px, text-label),
-// because xs computes 12px, also off them; Capsomer's pills compute 12px with
-// no size to choose, which is for Capsomer's per-site layer to map.
-//
-// The card is Capsomer's panel through its HTML contract, body only, because
-// the React Panel always draws a header band and Recova's card has none (the
-// gap J53 and J62 named). The member list is composed inside it: Capsomer's
-// row list is for rows that open a detail, and these open nothing. Pills,
-// buttons, the field and the notices are Capsomer's; the amber comes from the
-// app shell's family wrapper (app/layouts/app-shell.tsx).
-//
-// Two words differ from Recova on purpose. The role pill says "Owner" or
-// "Member", never the raw database value. The success line keeps
-// Foxhound's share link beside the invite email (E2), and when the email did
-// not go an alert says so, where Recova would still say "Invite sent to".
+// The team page, top to bottom: the phone-only Settings link, the page head "Team" with its line, then ONE card: the member rows, owner first, a rule between them, and for an owner the invite form under a rule, its input and button on one row and the result line under them. No column of its own: the settings layout gives the 800px column and padding (app/layouts/settings.tsx).
+// The heading is composed on the five sizes (Capsomer's page head computes 22px, off them). The row buttons are Capsomer's sm size (13px, text-label), because xs computes 12px, also off them.
+// The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws a header band. The member list is composed inside it: Capsomer's row list is for rows that open a detail, and these open nothing. The amber comes from the app shell's family wrapper.
+// The role pill says "Owner" or "Member", never the raw database value. The success line keeps Foxhound's share link beside the invite email, and when the email did not go an alert says so.
 export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   const confirmForm = useDemoConfirmForm();
   const navigation = useNavigation();
-  // Pending belongs to the form that was sent: a remove marks its row, an
-  // invite the invite button.
+  // Pending belongs to the form that was sent: a remove marks its row, an invite the invite button.
   const pending = pendingState(navigation.state === "idle" ? undefined : navigation.formData);
   const confirmingId = useSearchParams()[0].get("confirm");
 
@@ -247,8 +184,7 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
   const removeResult = actionData?.action === "remove" ? actionData : null;
   const inviteResult = actionData?.action === "invite" ? actionData : null;
 
-  // Clear the field only after an invite that worked; a remove result or a
-  // refused invite leaves a half-typed address alone.
+  // Clear the field only after an invite that worked; a remove result or a refused invite leaves a half-typed address alone.
   const inviteForm = useRef<HTMLFormElement>(null);
   useEffect(() => {
     if (shouldClearInvite(actionData)) inviteForm.current?.reset();

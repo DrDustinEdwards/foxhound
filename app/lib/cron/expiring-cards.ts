@@ -23,32 +23,14 @@ import {
 } from "~/lib/recovery/expiring-card-email";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// THE EXPIRING-CARD ALERT CRON. Ported from legacy's
-// app/api/cron/expiring-cards/route.ts (blob `717f6bbe`, 15,163 bytes), which
-// runs two passes in one daily job (09:00 UTC, legacy's vercel.json "0 9 * * *")
-// and this reproduces both.
-//
-// PASS 1, the scan: per connected account, list ACTIVE SUBSCRIPTIONS with the
-// customer and default payment method expanded, and record a candidate for every
-// card expiring inside the lead window. Legacy's candidate source is
-// subscriptions, not customers and not payment methods.
-//
-// PASS 2, the send: every unsent candidate becomes one customer-facing email,
-// claimed on `alert_sent_at` so a second tick sends nothing more.
+// THE EXPIRING-CARD ALERT CRON.
 //
 // THE OTHER WRITER is the Stripe webhook's customer.updated handler, which
-// records candidates and never sends. Both write through the same upsert onto
-// the unique tuple migration 0019 added (341 bindings 3 and 4).
+// records candidates and never sends.
 
-/** Legacy caps its scan at ONE page of 100 subscriptions per account with no
- *  pagination at all, so an account past its first page is silently skipped
- *  every night. 341 binding 5 rules that a defect, not a cap: this paginates
- *  fully and logs the count. The soft ceiling below only exists so one
- *  invocation stays inside a subrequest budget, and crossing it is reported
- *  rather than hidden. */
 export const EXPIRING_CARD_SCAN_SOFT_LIMIT = 1000;
 
-/** How many unsent candidates one tick will send. Legacy's is 100. */
+/** How many unsent candidates one tick will send. */
 const EXPIRING_CARD_SEND_LIMIT = 100;
 
 interface ScanAccount {
@@ -60,12 +42,6 @@ interface ScanAccount {
 /**
  * The accounts this tick scans: processing-eligible (which excludes demo,
  * paused and canceled) with a live Stripe connection.
- *
- * The per-account toggle is deliberately NOT applied here. Legacy scans every
- * eligible account and applies `expiring_card_notifications_enabled` in the SEND
- * pass, stamping a disabled account's candidate so it is never retried. Ported
- * as found: the record of an expiring card is worth having even when the
- * merchant does not want the customer emailed.
  */
 async function queryScanAccounts(env: Env): Promise<ScanAccount[]> {
   const db = getDb(env);
@@ -92,20 +68,6 @@ async function queryScanAccounts(env: Env): Promise<ScanAccount[]> {
   );
 }
 
-/**
- * Legacy's band guard, ported as found.
- *
- * `cardExpiry > now + lead` skips a card too far out; `cardExpiry < now` skips
- * one that has ALREADY EXPIRED. The window is a band, not a deadline, so a
- * lapsed card is never alerted on: legacy takes the view that the failure has
- * already happened and dunning owns it from there.
- *
- * The expiry instant is the FIRST of the expiry month, as legacy constructs it,
- * but in UTC rather than local time. Legacy's `new Date(year, month - 1, 1)` is
- * a LOCAL midnight; both platforms run UTC in production so the two agree
- * there, and `Date.UTC` makes the guard deterministic off it as well. A card
- * expiry month is a calendar fact, not a local-time instant.
- */
 export function isInsideLeadWindow(
   expMonth: number,
   expYear: number,
@@ -118,14 +80,10 @@ export function isInsideLeadWindow(
 }
 
 /**
- * The renewal check's guard (invoice.upcoming and trial_will_end): true when
- * the card will no longer be valid at `chargeAt`, so that charge will fail.
- *
  * A card is valid through the END of its expiry month, so it fails a charge
- * made on or after the first of the following month. The lower bound is the
- * lead window's, unchanged: a card already lapsed by its own measure is left
- * to dunning, as both other writers leave it. Only the lead window's horizon
- * is dropped, because the charge date, not a fixed lead, is what matters here.
+ * made on or after the first of the following month. Only the lead window's
+ * horizon is dropped, because the charge date, not a fixed lead, is what
+ * matters here.
  */
 export function expiresBeforeCharge(
   expMonth: number,
@@ -155,10 +113,7 @@ export interface CandidateInput {
 /**
  * Record one candidate, or do nothing if this card-month is already recorded.
  *
- * THE UPSERT IS THE DEDUPE and it is enforced by the database, not by a
- * preceding SELECT. Legacy's cron reads-then-inserts, which races its own
- * webhook writer; migration 0019's unique index makes the conflict a no-op
- * instead. Shared by BOTH writers so they cannot disagree.
+ * Shared by BOTH writers so they cannot disagree.
  */
 export function buildCandidateUpsert(db: Db, input: CandidateInput, now: Date) {
   return db
@@ -190,13 +145,14 @@ export function buildCandidateUpsert(db: Db, input: CandidateInput, now: Date) {
 export interface ScanResult {
   scanned: number;
   recorded: number;
-  /** Accounts whose subscription list crossed the soft ceiling, so the seat can
-   *  see it rather than infer it. */
+  /**
+   * Accounts whose subscription list crossed the soft ceiling, so the seat can
+   * see it rather than infer it.
+   */
   overLimit: string[];
 }
 
-/** PASS 1. Fully paginated: `for await` walks every page, unlike legacy's single
- *  `limit: 100` call. */
+/** PASS 1. */
 export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult> {
   const db = getDb(env);
   const result: ScanResult = { scanned: 0, recorded: 0, overLimit: [] };
@@ -229,9 +185,7 @@ export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult
         if (!pm || typeof pm === "string" || !pm.card) continue;
         const card = pm.card;
         if (!isInsideLeadWindow(card.exp_month, card.exp_year, now)) continue;
-        // No address, no email to send. Legacy inserts the row anyway and its
-        // send pass would fail; refusing here keeps an unsendable candidate out
-        // of the table entirely.
+        // No address, no email to send.
         if (!customer.email) continue;
 
         await db.batch([
@@ -269,16 +223,7 @@ export interface SendResult {
   skipped: number;
 }
 
-/**
- * PASS 2. Every unsent candidate, one email each.
- *
- * THE TOGGLE IS READ AS `!== false`, so NULL is ON, and a disabled account's
- * candidate is STAMPED rather than skipped, which is legacy's behavior: an
- * unstamped candidate would be reconsidered every night forever.
- *
- * The send is claimed on `alert_sent_at` conditionally, so a second tick over
- * the same candidate sends nothing.
- */
+/** PASS 2. Every unsent candidate, one email each. */
 export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendResult> {
   const db = getDb(env);
   const result: SendResult = { sent: 0, skipped: 0 };
@@ -313,11 +258,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         isNull(expiringCardAlerts.alertSentAt),
         isNull(expiringCardAlerts.deletedAt),
         accountProcessingEligibleCondition(),
-        // Recova skips an alert whose account has no primary live Stripe
-        // connection and leaves it unstamped, so the customer is still warned
-        // if the merchant reconnects inside the window (E12). Filtered here,
-        // not in the loop, so unsendable rows never fill the 100-row page and
-        // starve other merchants' alerts.
         sql`exists (select 1 from ${stripeConnections} where ${activePrimaryConnectionWhere(expiringCardAlerts.accountId)})`,
       ),
     )
@@ -328,8 +268,7 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       result.skipped += 1;
       continue;
     }
-    // NULL is ON. A disabled account's candidate is stamped so it is never
-    // reconsidered, which is legacy's behavior and not a Foxhound choice.
+    // NULL is ON.
     if (alert.notificationsEnabled === false) {
       await stampSent(db, alert.id, now);
       result.skipped += 1;
@@ -360,14 +299,11 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
             senderName: alert.senderName,
             updateUrl: `${appOrigin(env)}/p/${token}`,
           }),
-          // Recova's footer sentence (lib/email.ts wrapEmailHtml), with the
-          // sender name as its From has it, before the unsubscribe link and
-          // the postal address (E12).
           footerNote: recoveryFooterNote(alert.senderName, now.getUTCFullYear()),
           template: EXPIRING_CARD_TEMPLATE,
           // CUSTOMER audience: the CAN-SPAM footer, the unsubscribe headers and
-          // the suppression gate all apply, because this is commercial mail sent
-          // on the merchant's behalf.
+          // the suppression gate all apply, because this is commercial mail
+          // sent on the merchant's behalf.
           unsubscribeToken: await signUnsubscribeToken(env, {
             email: alert.customerEmail,
             accountId: alert.accountId,
@@ -380,16 +316,11 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       );
 
       if (outcome.status === "suppressed" || outcome.status === "blocked") {
-        // Legacy stamps a suppressed address so it stops burning a Stripe call
-        // every night. A blocked account (demo, or live sends off) is stamped
-        // for the same reason.
         await stampSent(db, alert.id, now);
         result.skipped += 1;
         continue;
       }
       if (outcome.status !== "sent") {
-        // Transient: leave alert_sent_at NULL so tomorrow retries, exactly as
-        // legacy does. The email_sends row already records the failure.
         result.skipped += 1;
         continue;
       }
@@ -400,13 +331,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         continue;
       }
 
-      // THE OUTCOME, at legacy's fields, recorded only by the
-      // tick that took the claim, exactly as legacy records only after its own
-      // conditional claim returns rows.
-      //
-      // It is a MOAT row, not a billing row: billable.ts keys on
-      // recovered_payments and findAttributionSignals reads recovery_steps,
-      // neither of which an alert touches. recordOutcome is used unchanged.
       await recordOutcome(env, {
         accountId: alert.accountId,
         product: "recovery",
@@ -430,8 +354,10 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
   return result;
 }
 
-/** Stamp without claiming: used for refusals, where nothing was sent and there
- *  is no outcome to record. */
+/**
+ * Stamp without claiming: used for refusals, where nothing was sent and there
+ * is no outcome to record.
+ */
 async function stampSent(db: Db, alertId: string, now: Date): Promise<void> {
   await db
     .update(expiringCardAlerts)
@@ -439,11 +365,7 @@ async function stampSent(db: Db, alertId: string, now: Date): Promise<void> {
     .where(and(eq(expiringCardAlerts.id, alertId), isNull(expiringCardAlerts.alertSentAt)));
 }
 
-/**
- * THE SEND CLAIM. Conditional on `alert_sent_at IS NULL`, so only the tick that
- * flips it counts the send, exactly as legacy claims before recording its
- * outcome. Returns whether this call took the claim.
- */
+/** THE SEND CLAIM. Returns whether this call took the claim. */
 export async function claimSent(db: Db, alertId: string, now: Date): Promise<boolean> {
   await stampSent(db, alertId, now);
   const rows = await db

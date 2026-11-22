@@ -7,34 +7,8 @@ import { deadlineClassName } from "~/lib/disputes/labels";
 import type { DisputesPreview, PreviewDisputeRow } from "~/lib/marketing/disputes-preview";
 import "capsomer/table.css";
 
-// The previews on /product/disputes, Recova's three feature-block UIs:
-// the disputes dashboard (DisputesDashboardPreview.tsx, blob dcde195e, which
-// renders the real DisputesDashboardView, blob 3c1b7a98: five stat cards and
-// the disputes table), the stat cards on their own (page.tsx's
-// DisputesStatCardsPreview, blob c412d54f) and the dispute table
-// (components/docs/DisputesTablePreview.tsx, blob ed33fa95).
-//
-// Content and layout are Recova's; the parts are Capsomer's. Every
-// figure and row is the demo seed read through Foxhound's own dispute code
-// (app/lib/marketing/disputes-preview.server.ts), never a merchant's rows.
-// Recova draws no chart in any of the three, so neither does this page.
-//
-// The dashboard preview has the merchant /disputes dashboard's columns, not
-// Recova's Mode and Fee: Mode is out for good (Dustin, 2026-10-15,
-// cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6), and a Fee cell saying
-// "fee owed" would be untrue beside a Fees owed card that reads $0.00 (the
-// demo's fees are paid), as well as a column the dashboard does not have.
-//
-// Left out, a QUESTION FOR THE SEAT in the J57 notes: the dashboard's per-row
-// View link (Recova's points at /audit/<id>, a page Recova does not have).
-// The dispute table's Triage column is Recova's TriagePill (blob 1485726d):
-// fight in green, accept as a plain label, each with its confidence.
-//
-// The cards are the merchant /disputes dashboard's five, the set Dustin
-// approved on PR #75 ("yes ro all", 2026-10-15,
-// cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): Open disputes, At
-// stake, Submitted by Foxhound, Fees owed and Win rate. Recova's Saved vs
-// Smart Disputes is not built, so neither page draws it.
+// The previews on /product/disputes: the disputes dashboard (five stat cards and the table), the stat cards on their own and the dispute table. Every figure and row is the demo seed read through Foxhound's own dispute code (app/lib/marketing/disputes-preview.server.ts), never a merchant's rows. No chart in any of the three.
+// The dashboard preview has the merchant /disputes dashboard's columns, without Mode (out for good) or Fee: a "fee owed" cell would be untrue beside a Fees owed card that reads $0.00. The Triage column: fight in green, accept as a plain label, each with its confidence. The cards are the merchant dashboard's five: Open disputes, At stake, Submitted by Foxhound, Fees owed and Win rate.
 
 /** A dispute's status as Capsomer's badge: the dashboard's word
  *  (disputeListStatus), its tone's glyph and color. A status mid-review is
@@ -45,7 +19,6 @@ function StatePill({ row }: { row: PreviewDisputeRow }) {
   return <Pill variant="secondary">{row.stateLabel}</Pill>;
 }
 
-/** Recova's TriagePill: "Fight 82%" in green, "Accept 68%" plain. */
 function TriagePill({ row }: { row: PreviewDisputeRow }) {
   if (!row.triage) return <span className="fh-small fh-quiet">-</span>;
   const label = row.triage.recommendation === "fight" ? "Fight" : "Accept";
@@ -64,8 +37,7 @@ function TriagePill({ row }: { row: PreviewDisputeRow }) {
   );
 }
 
-/** The dashboard's five cards. `columns` is Recova's grid: five across on the
- *  dashboard, three across in the numbers block. */
+/** The dashboard's five cards. `columns`: five across on the dashboard, three across in the numbers block. */
 function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; columns: 3 | 5 }) {
   const { stats } = preview;
   const grid = columns === 5 ? "fh-dispprev-tiles-5" : "fh-dispprev-tiles-3";
@@ -82,7 +54,7 @@ function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; colu
   );
 }
 
-/** Block 2: the stat cards on their own, as Recova's numbers block draws them. */
+/** Block 2: the stat cards on their own. */
 export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="fh-dispprev-block-2">
@@ -92,7 +64,7 @@ export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
 }
 
 function DeadlineDays({ row }: { row: PreviewDisputeRow }) {
-  // Recova leaves the cell empty once a dispute has closed.
+  // The cell is empty once a dispute has closed.
   if (row.resolved || row.deadlineDays === null) return null;
   // A passed deadline reads 0d in the overdue color, never a negative count.
   return (
@@ -102,7 +74,7 @@ function DeadlineDays({ row }: { row: PreviewDisputeRow }) {
   );
 }
 
-/** Block 1: Recova's disputes dashboard, the five cards over the table. */
+/** Block 1: the disputes dashboard, the five cards over the table. */
 export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="fh-dispprev-block-2">
@@ -154,7 +126,7 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
   );
 }
 
-/** Block 3: Recova's dispute table, with the deadline as a date. */
+/** Block 3: the dispute table, with the deadline as a date. */
 export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
   return (
     <div className="fh-dispprev-block-2">

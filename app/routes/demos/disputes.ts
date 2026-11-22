@@ -3,9 +3,7 @@ import { enterDemo } from "~/lib/marketing/demo-entry.server";
 
 import type { Route } from "./+types/disputes";
 
-// Real GET link into the demo (TASK-foxhound-demo-entry-parity.md item 1):
-// a crawler, a bookmark, or a plain <a> all reach this the same way the old
-// POST-only card never could.
+// A real GET link into the demo: a crawler, a bookmark, or a plain <a> all reach it.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   return enterDemo(env, "disputes");

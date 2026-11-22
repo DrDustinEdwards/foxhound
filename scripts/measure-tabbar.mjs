@@ -1,15 +1,4 @@
-// Ruling 133's five treatment items, measured. Four of them landed; the icon
-// item is held pending the axis ruling (Dustin).
-//
-// CONDITIONS OF MEASUREMENT, stated because ruling 129 says an absence claim
-// without them is not a finding:
-//   - LOCAL dev server, not production. These changes are not deployed, and
-//     ruling 87 bars comparing a local build against a deployed one.
-//   - /demos/dashboard, because the harness has no session cookie. That route
-//     enters the REAL app shell, so the chrome under test is the same element,
-//     but every claim here is DEMO-SESSION evidence (ruling 133's caveat).
-//   - every width is asserted from inside the page by withViewport, and every
-//     media-query-dependent claim is asserted by computedAt.
+// Measures the phone tab bar's treatment items. CONDITIONS: a LOCAL dev server, not production (a local build must not be compared to a deployed one); /demos/dashboard, because the harness has no session cookie (that route enters the REAL app shell, but every claim is demo-session evidence); every width is asserted from inside the page by withViewport, and every media-query-dependent claim by computedAt.
 
 import { withViewport } from "./viewport-harness.mjs";
 
@@ -28,11 +17,7 @@ async function barAt(width, mq) {
   return withViewport(
     String(width),
     async (page) => {
-      // FAIL LOUD on the landing path. /demos/dashboard is a 302 that sets the
-      // demo cookie and redirects to /dashboard; without the cookie it bounces to
-      // /login, which has no app shell at all. Measuring there would report "no
-      // bar" at EVERY width with total confidence, which is ruling 129's exact
-      // failure. Assert the condition actually applied (ruling 132).
+      // FAIL LOUD on the landing path. /demos/dashboard is a 302 that sets the demo cookie and redirects to /dashboard; without the cookie it bounces to /login, which has no app shell at all, so measuring there would report "no bar" at EVERY width. Assert the condition actually applied.
       const landed = await page.evaluate(() => location.pathname);
       if (landed !== "/console") {
         throw new Error(
@@ -67,8 +52,7 @@ async function barAt(width, mq) {
   );
 }
 
-// ITEM 1: sm:hidden. Legacy hides the bar at >=640px; Foxhound hid at >=768px,
-// so 640 and 767 are the widths that separate the two answers.
+// sm:hidden: the bar hides at >=640px, so 640 and 767 are the widths that separate that from a 768px cutoff.
 for (const w of [320, 375, 414, 639]) {
   const b = await barAt(w, "(max-width: 639px)");
   record(
@@ -85,12 +69,7 @@ for (const w of [640, 767, 768, 1280]) {
   record(w, "bar HIDDEN (legacy shows none)", hidden, true, hidden);
 }
 
-// ITEM 2: min-h-[56px] against the measured 34px.
-// ITEM 4: z-50 against z-10.
-// ITEM 5: env(safe-area-inset-bottom). On a desktop Chrome the env() resolves
-// to its 0px fallback, so what is verifiable here is that the declaration is
-// PRESENT and resolves, not that it produces inset on hardware. Stated rather
-// than overclaimed.
+// min-h-[56px] against the measured 34px; z-50 against z-10; env(safe-area-inset-bottom). On a desktop Chrome env() resolves to its 0px fallback, so what is verifiable here is that the declaration is PRESENT and resolves, not that it produces inset on hardware.
 {
   const b = await barAt(375, "(max-width: 639px)");
   record(375, "tab min-height", b.tabHeight, ">= 56", b.tabHeight >= 56);
@@ -106,19 +85,12 @@ for (const w of [640, 767, 768, 1280]) {
   record(375, "icons (HELD pending axis ruling)", b.svgCount, "0", b.svgCount === 0);
 }
 
-// FOOTER ADJACENCY re-verified at 375, because min-h-56 changes the bar height
-// the pb-16 reserve was originally measured against (34px).
+// FOOTER ADJACENCY re-verified at 375, because min-h-56 changes the bar height the pb-16 reserve was measured against (34px).
 {
   const geo = await withViewport(
     "375",
     async (page) => {
-      // SCROLL TO THE DOCUMENT BOTTOM FIRST. The first draft of this check compared
-      // viewport-relative rects at scroll top, so on any page taller than the
-      // viewport the footer sat off-screen below, fr.bottom exceeded the fixed
-      // bar's top, and it reported occlusion that is not there. That is ruling
-      // 129's class inside the instrument again: the measurement has to be taken
-      // at the condition the claim is about, and the claim is about what a reader
-      // sees when scrolled to the end.
+      // SCROLL TO THE DOCUMENT BOTTOM FIRST: comparing viewport-relative rects at scroll top reports footer occlusion that is not there on any page taller than the viewport. The measurement has to be taken at the condition the claim is about: what a reader sees when scrolled to the end.
       await page.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
       await page.waitForTimeout(150);
       return page.evaluate((sel) => {

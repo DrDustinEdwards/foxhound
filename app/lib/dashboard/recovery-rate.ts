@@ -1,6 +1,6 @@
-// Recovery-rate color thresholds (DESIGN.md): 0-20 red, 21-35 caution, 36+ green.
-// Pure so later slices (5b payment status taxonomy) can reuse the same bands
-// instead of re-deriving them.
+// Recovery-rate color thresholds (DESIGN.md): 0-20 red, 21-35 caution, 36+
+// green. Pure so later slices (5b payment status taxonomy) can reuse the same
+// bands instead of re-deriving them.
 
 export type RecoveryRateTone = "red" | "caution" | "green";
 
@@ -30,10 +30,6 @@ export function recoveryRateClassName(pct: number): string {
 /**
  * The band as a word, for the subtext under a recovery-rate stat. The number
  * alone does not tell a merchant whether 28% is good or bad; this does.
- *
- * Accepts null (an account with no failures yet) because that case is genuinely
- * different from 0%: nothing has failed, so there is no rate to judge, and
- * "Below target" would be a false accusation.
  */
 export function recoveryRateBand(pct: number | null): string {
   if (pct === null) return "No failures yet";
@@ -43,8 +39,10 @@ export function recoveryRateBand(pct: number | null): string {
   return "Below target";
 }
 
-/** Class name for a possibly-absent rate. Mirrors recoveryRateBand's null
- *  handling so a no-history account renders subtle rather than alarming red. */
+/**
+ * Class name for a possibly-absent rate. Mirrors recoveryRateBand's null
+ * handling so a no-history account renders subtle rather than alarming red.
+ */
 export function recoveryRateClassNameOrNull(pct: number | null): string {
   return pct === null ? "fh-faint" : recoveryRateClassName(pct);
 }

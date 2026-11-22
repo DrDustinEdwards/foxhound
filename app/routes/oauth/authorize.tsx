@@ -9,9 +9,7 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/consent.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// buttons, the alert and the focus ring read. The site header loads the same
-// file; this page has no header, so it imports it itself, as auth-card.tsx does.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the buttons, the alert and the focus ring read. The site header loads the same file; this page has no header, so it imports it itself, as auth-card.tsx does.
 import "~/site-header.css";
 
 import { Wordmark } from "~/components/wordmark";
@@ -36,38 +34,11 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import "~/auth.css";
 
-// /oauth/authorize: the page where a signed-in merchant
-// lets an external agent connect to one Foxhound account.
-//
-// Recova is the spec for the content and layout: app/oauth/authorize/page.tsx
-// (63884241) and ConsentButtons.tsx (eb31e8e9), read whole. One 460px card
-// centered on the page, with no site navigation (Recova's root layout has
-// none): the wordmark, the h1 naming the client, the line under it, the
-// account box, what the client can do, the error, Allow access and Deny side
-// by side, and the closing line. A refused request is the same card holding
-// Recova's title and message. The parts are Capsomer's, amber, on
-// the five text sizes.
-//
-// The engine is Foxhound's (app/lib/oauth/provider.server.ts). Ruling 8's
-// inherited artifacts, each where it lands:
-//   - The signed-out round trip keeps EVERY query parameter, iterated rather
-//     than picked, because a hand-picked list once dropped RFC 8707's resource.
-//     /login honors it through safeNextPath, whose checks are anchored.
-//   - Recova's force-dynamic fix and its hard-navigation login fix existed
-//     because Next.js served a cached signed-out render. A React Router loader
-//     runs on every request, this page is private, no-store (its `headers`
-//     below), and the login action answers with a
-//     server redirect that carries the session cookie, so neither has anything
-//     to fix here.
-//   - The scope a URL asks for can never raise what is granted. Every grant
-//     holds merchant.read; merchant.write only when the owner ticks "Allow
-//     changes", which starts ticked when the client asked for it (MCP ruling
-//     2026-10-10, rule 12.1, least scope first). Recova's admin-only selector is
-//     not built (see the PR).
-//
-// The account is the session's active one, resolved again in the action from
-// the session. The form posts back the id the card showed only
-// so that a switch in another tab is refused rather than silently approved.
+// /oauth/authorize: the page where a signed-in merchant lets an external agent connect to one Foxhound account. One 460px card centered on the page, with no site navigation: the wordmark, the h1 naming the client, the line under it, the account box, what the client can do, the error, Allow access and Deny side by side, and the closing line. A refused request is the same card holding the title and message. The engine is app/lib/oauth/provider.server.ts.
+// - The signed-out round trip keeps EVERY query parameter, iterated rather than picked, because a hand-picked list once dropped RFC 8707's resource. /login honors it through safeNextPath, whose checks are anchored.
+// - A React Router loader runs on every request, this page is private, no-store (its `headers` below), and the login action answers with a server redirect that carries the session cookie, so no cached signed-out render can be served.
+// - The scope a URL asks for can never raise what is granted. Every grant holds merchant.read; merchant.write only when the owner ticks "Allow changes", which starts ticked when the client asked for it (least scope first).
+// The account is the session's active one, resolved again in the action from the session. The form posts back the id the card showed only so that a switch in another tab is refused rather than silently approved.
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -117,9 +88,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const params = new URL(request.url).searchParams;
   const db = getDb(env);
 
-  // The request is checked before the session, as Recova did: a malformed or
-  // unknown-client request is refused without a sign-in detour, with a 400
-  // (area 11, A8): the card is the same, and the status says it is a refusal.
+  // The request is checked before the session: a malformed or unknown-client request is refused without a sign-in detour, with a 400: the card is the same, and the status says it is a refusal.
   const check = await checkAuthorizeRequest(db, params, new URL(request.url).origin);
   if (!check.ok)
     return data<Refusal>(
@@ -136,8 +105,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     session.session.activeAccountId ?? null,
   );
   if (!membership) throw redirect("/connect");
-  // The grant carries write tools, so only the account owner approves one, as
-  // only an owner creates an API key (/settings/api-keys).
+  // The grant carries write tools, so only the account owner approves one, as only an owner creates an API key (/settings/api-keys).
   if (membership.role !== MEMBER_ROLE.OWNER) {
     return data<Refusal>(
       { ok: false, title: "Owner approval needed", message: OWNER_ONLY },
@@ -164,8 +132,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return consent;
 }
 
-/** The words for a refusal on the card. Recova showed its raw error codes
- *  (authorize_failed, unknown_client); a raw code is a Recova bug not copied. */
+/** The words for a refusal on the card; never a raw error code (authorize_failed, unknown_client). */
 const EXPIRED_REQUEST =
   "This request is no longer valid. Start again from the app you are connecting.";
 const TOO_MANY = "Too many attempts. Wait a minute and try again.";
@@ -206,7 +173,6 @@ export async function action({ request, context }: Route.ActionArgs) {
     return redirect(denyRedirect(check.redirectUri, check.state, self));
   }
 
-  // Recova's per-user cap on minting codes.
   const within = await isWithinRateLimit(
     env,
     "oauth-approve",
@@ -224,11 +190,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!membership) throw redirect("/connect");
   if (membership.role !== MEMBER_ROLE.OWNER) return data({ error: OWNER_ONLY }, { status: 403 });
 
-  // THE ACCOUNT THE CARD SHOWED MUST BE THE ONE APPROVED. The session's active
-  // account is still the only authority; the posted id can only
-  // refuse, never choose. A merchant who switched account in another tab after
-  // the card rendered is stopped here, and the revalidated card shows the
-  // account they would now be approving for.
+  // THE ACCOUNT THE CARD SHOWED MUST BE THE ONE APPROVED. The session's active account is still the only authority; the posted id can only refuse, never choose. A merchant who switched account in another tab after the card rendered is stopped here, and the revalidated card shows the account they would now be approving for.
   if (params.get("account_id") !== membership.accountId) {
     return data({ error: ACCOUNT_CHANGED }, { status: 409 });
   }
@@ -252,12 +214,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   return redirect(target);
 }
 
-// Recova's frame (one 460px card centered on a full-height page, the
-// wordmark on top) is Capsomer's consent screen, in its amber family with
-// Foxhound's neutrals (.fh-cap), so the buttons and the focus ring are amber.
-// Its words are site-runtime's MCP consent page's (mcp-login.mjs): a
-// metadata-document client's name is vouched for by the host that publishes
-// it, a registered client's is only its own claim.
+// One 460px card centered on a full-height page, the wordmark on top, is Capsomer's consent screen, in its amber family with Foxhound's neutrals (.fh-cap), so the buttons and the focus ring are amber. Its words are site-runtime's MCP consent page's (mcp-login.mjs): a metadata-document client's name is vouched for by the host that publishes it, a registered client's is only its own claim.
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="fh-auth-screen-left fh-cap" data-cap-site="foxhound" data-family="amber">

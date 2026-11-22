@@ -1,20 +1,4 @@
-// Build the icon set from Foxhound's one mark (app/lib/brand/hound-mark.ts).
-//
-//   npm install --no-save @resvg/resvg-js@2.6.2 && node scripts/build-icons.mjs
-//
-// Run by hand when the mark changes; the output is committed, so a fresh clone
-// needs no rasteriser. Node reads the .ts module directly (type stripping, Node
-// 22.18 and later), so the path data has one home and this script never copies it.
-//
-// It writes public/favicon.svg (the mark in the header band's amber on the dark
-// rounded square, so it reads in a light and a dark browser tab alike), then
-// Prelum's prelum-icons draws the shared icon set from it on the brand amber:
-// favicon.ico, icon.svg, apple-touch-icon.png, icon-192.png, icon-512.png and
-// icon-maskable-512.png. Look at each PNG before committing.
-//
-// The mark is a PLACEHOLDER hound head until Dustin picks the real logo
-// (capsomer #65 item 15). The real logo replaces hound-mark.ts and this script
-// rebuilds every file.
+// Build the icon set from Foxhound's one mark (app/lib/brand/hound-mark.ts): `npm install --no-save @resvg/resvg-js@2.6.2 && node scripts/build-icons.mjs`. Run by hand when the mark changes; the output is committed, so a fresh clone needs no rasteriser. Node reads the .ts module directly (type stripping, Node 22.18 and later), so the path data has one home. It writes public/favicon.svg (the mark in the header band's amber on the dark rounded square, so it reads in a light and a dark browser tab alike), then Prelum's prelum-icons draws the shared icon set from it on the brand amber: favicon.ico, icon.svg, apple-touch-icon.png, icon-192.png, icon-512.png and icon-maskable-512.png. Look at each PNG before committing. The mark is a PLACEHOLDER hound head until the real logo is picked.
 import { execFileSync } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";

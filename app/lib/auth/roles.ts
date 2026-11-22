@@ -20,17 +20,10 @@ export const MEMBER_STATUS = {
 // NOTE: the partial unique index is account_members_user_account_active_uq
 // (migration 0018), over (user_id, account_id) WHERE status = 'active', so a
 // user holds at most one ACTIVE membership PER ACCOUNT and may hold many
-// accounts. It replaced account_members_one_active_per_user_uq, which was over
-// (user_id) alone and is what ruling 324 struck.
-//
-// The warning that came with the old index still applies, narrowed: a "leave
-// account" or member-removal feature MUST move the row off status='active'
-// (delete it, or add and set a non-active status here), or a user who leaves an
-// account can never be re-invited to THAT account. It no longer pins them to
-// their first account, which is what the old shape did.
+// accounts.
 
 /** Team invites expire after 7 days. */
 export const INVITE_TTL_MS = 7 * DAY_MS;
 
-// isAdminEmail (site-runtime/access): true when the email is ADMIN_EMAIL (the main admin) or on
-// CO_OWNER_EMAILS, as site-runtime's admin roster reads them.
+// isAdminEmail (site-runtime/access): true when the email is ADMIN_EMAIL (the
+// main admin) or on CO_OWNER_EMAILS, as site-runtime's admin roster reads them.

@@ -19,25 +19,15 @@ import {
   type RecommendedAction,
 } from "./recommend";
 
-// Recova's three recommendation inputs, read from Foxhound's own tables,
-// and the list /intelligence/recommendations shows.
-//
-// Engagement is Recova's: recovery emails sent in the last 30 days (Recova
-// counted recovery_steps whose result starts "email_sent", bands.ts
-// fetchEmailsSent30d), tracked opens in the same 30 days, and the last tracked
-// open. Opens come from engagement_events, Foxhound's first-party tracking,
-// which already drops bots, prefetch and HEAD requests. Recova's rules ignore
-// clicks, so this does too. Recovery history is customer_context's
-// recovery_signals, written by the Intelligence sync. Value is the customer's
-// MRR against every customer on the account.
-//
-// One query per input for the whole account, grouped in memory, as the sync
-// does, rather than Recova's two reads per customer.
+// The three recommendation inputs, read from Foxhound's own tables, and the list /intelligence/recommendations shows.
+// Engagement: recovery emails sent and tracked opens in the last 30 days, and the last open (engagement_events,
+// first-party tracking, which already drops bots, prefetch and HEAD; clicks are ignored). Recovery history is
+// customer_context's recovery_signals. Value is the customer's MRR against every customer. One query per input
+// for the whole account, grouped in memory.
 
-/** How far back a customer's emails and clicks count as engagement (also the customer view's window). */
 export const ENGAGEMENT_WINDOW_DAYS = 30;
 
-/** Recova's rules_v1, named so a later rule change is told apart in the log. */
+/** Named so a later rule change is told apart in the log. */
 const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";
 
 export interface RecommendationSubject {
@@ -120,9 +110,8 @@ function signalCount(signals: unknown, key: "failedPaymentCount" | "recoveredCou
   return typeof v === "number" ? v : 0;
 }
 
-/** Recova's rules for every given customer of one account. `subjects` must be
- *  every customer on the account, because the value band is a percentile
- *  across all of them. */
+/** The rules for every given customer of one account. `subjects` must be every customer on the account, because
+ *  the value band is a percentile across all of them. */
 export async function recommendForAccount(
   db: Db,
   accountId: string,
@@ -148,14 +137,8 @@ export async function recommendForAccount(
   return out;
 }
 
-/**
- * One customer's recommendation, worked out when a page asks, as Recova's
- * computeIntelligenceScoreSSR did for its banner (lib/intelligence/score-ssr.ts,
- * blob 02ccdc67): the customer's own engagement and history, and their value
- * against every customer on the account. null when the customer has no
- * customer_context row (no Stripe customer, or not synced yet), as Recova's
- * was. Read-only.
- */
+/** One customer's recommendation, worked out when a page asks. Null when the customer has no customer_context
+ *  row (no Stripe customer, or not synced yet). Read-only. */
 export async function recommendOneCustomer(
   db: Db,
   accountId: string,
@@ -196,8 +179,7 @@ export async function recommendOneCustomer(
   return { result, currency: subject.currency ?? "usd" };
 }
 
-/** The customers among `stripeCustomerIds` whose stored action is personal
- *  outreach (Recova's payments page, UI-GAP-04). */
+/** The customers among `stripeCustomerIds` whose stored action is personal outreach. */
 export async function personalOutreachCustomerIds(
   db: Db,
   accountId: string,
@@ -205,7 +187,6 @@ export async function personalOutreachCustomerIds(
 ): Promise<string[]> {
   const ids = [...new Set(stripeCustomerIds.filter(Boolean))];
   if (ids.length === 0) return [];
-  // The page can list every payment, so the list is one bound parameter.
   const rows = await db
     .select({ id: customerContext.stripeCustomerId })
     .from(customerContext)
@@ -219,8 +200,7 @@ export async function personalOutreachCustomerIds(
   return rows.map((r) => r.id);
 }
 
-/** The recommendation_log insert for one customer's run. Operational, not a
- *  money write; the outcome slot is left null for a later grading pass. */
+/** The recommendation_log insert for one customer's run. Operational, not a money write; outcome is left null for a later grading pass. */
 export function buildRecommendationLogInsert(
   db: Db,
   input: {
@@ -265,9 +245,7 @@ export interface RecommendationRow {
   recommendedAction: RecommendedAction;
 }
 
-/** Recova's fetchActionableRecommendations (customer-context-ssr.ts, blob
- *  a499c285): the account's customers whose action asks for attention, highest
- *  MRR first, a page of 50, with the total. */
+/** The account's customers whose action asks for attention, highest MRR first, a page of 50, with the total. */
 export async function listActionableRecommendations(
   db: Db,
   accountId: string,
@@ -293,7 +271,6 @@ export async function listActionableRecommendations(
       .from(customerContext)
       .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
       .where(where)
-      // Recova's order('mrr_contribution_cents', { ascending: false, nullsFirst: false })
       .orderBy(
         isNull(customerContext.mrrContributionCents),
         desc(customerContext.mrrContributionCents),
@@ -306,8 +283,7 @@ export async function listActionableRecommendations(
     rows: rows.map(({ accountCurrency, ...r }) => ({
       ...r,
       mrrContributionCents: r.mrrContributionCents ?? 0,
-      // The sync leaves customer_context.currency null and reports MRR in the
-      // account's currency (signals.ts), so that is the fallback.
+      // The sync leaves customer_context.currency null and reports MRR in the account's currency (signals.ts).
       currency: r.currency ?? accountCurrency ?? "usd",
       recommendedAction: r.recommendedAction as RecommendedAction,
     })),

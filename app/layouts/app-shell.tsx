@@ -85,10 +85,7 @@ import type { loader as rootLoader } from "~/root";
 
 import type { Route } from "./+types/app-shell";
 
-// Server guard for the entire authenticated tree (session + account required).
-// ONLY THIS ORIGIN MAY WRITE, as in admin-shell.tsx: every merchant action
-// under this shell, page or resource route, gets site-runtime's shared check
-// before any session work.
+// Server guard for the entire authenticated tree (session + account required). ONLY THIS ORIGIN MAY WRITE, as in admin-shell.tsx: every merchant action under this shell, page or resource route, gets site-runtime's shared check before any session work.
 const sameOriginWrites: Route.MiddlewareFunction = ({ request }, next) => {
   const refused = refuseCrossSite(request);
   if (refused) throw refused;
@@ -107,14 +104,7 @@ export const middleware: Route.MiddlewareFunction[] = [
   appShellMiddleware,
 ];
 
-// This layout's own route match never changes on a same-shell navigation
-// (no params, no path segment of its own), so React Router's default
-// revalidation heuristic skips re-running its loader when only a child
-// route changes - even though the loader's own result (nav.activeProductKey)
-// depends on the pathname. Without this, the switcher and primary links
-// go stale on every client-side nav between products (caught visually:
-// /console -> /recovery via the switcher left the header reading
-// "Dashboard" until a hard reload).
+// This layout's own route match never changes on a same-shell navigation (no params, no path segment of its own), so React Router's default revalidation skips its loader when only a child route changes, even though the loader's result (nav.activeProductKey) depends on the pathname. Without this, the switcher and primary links go stale on every client-side nav between products.
 export function shouldRevalidate({
   currentUrl,
   nextUrl,
@@ -123,36 +113,14 @@ export function shouldRevalidate({
   return currentUrl.pathname !== nextUrl.pathname || defaultShouldRevalidate;
 }
 
-// RR8's single-fetch protocol requests "<pathname>.data" on a client-side
-// navigation (a real full-document request only on the initial SSR load), so
-// request.url's pathname is literally "/recovery.data", not "/recovery", on
-// every client nav. Caught visually: the switcher and primary links went
-// stale on every in-app navigation until this was stripped (verified against
-// the actual .data response body, not just the rendered page).
+// Single-fetch requests "<pathname>.data" on a client-side navigation, so request.url's pathname is literally "/recovery.data" on every client nav; strip it or the switcher and primary links go stale.
 function requestPathname(request: Request): string {
   const pathname = new URL(request.url).pathname;
   return pathname.endsWith(".data") ? pathname.slice(0, -".data".length) : pathname;
 }
 
-// Nav rebuild (TASK-foxhound-design-system-port.md Part 2): the three-level
-// model (product switcher -> contextual primary links -> utility cluster),
-// layout-rendered once, ZERO extra DB queries in the nav COMPONENTS themselves
-// (resolveNavContext and listSwitcherAccounts run ONCE here; the components
-// below only read the props they produced). And no admin-bypass hack (the real
-// role guard governs /admin visibility, matching PRODUCT_MANIFEST's own gate).
-//
-// THE ACCOUNT SWITCHER IS BUILT AS OF RULING 326 PHASE (e). This comment said
-// "No account switcher, because at HEAD a user holds at most one ACTIVE
-// membership (`account_members_one_active_per_user_uq`)", which was a live
-// invariant when written and is now false twice over: 324 struck that index and
-// phase (a) replaced it with `account_members_user_account_active_uq` on
-// (user_id, account_id). One of 232's carriers, discharged here by the build
-// rather than by another repair to its wording.
-//
-// `auth.memberships` comes off the chokepoint; the
-// stripe_connections lookup that turns it into switcher rows happens HERE, in
-// the nav's own loader, per ruling 328 and per legacy's own structure
-// (components/SiteNav.tsx:73-90, never resolveAccount).
+// The three-level nav model (product switcher, contextual primary links, utility cluster) is rendered once here, with ZERO extra DB queries in the nav components: resolveNavContext and listSwitcherAccounts run ONCE here and the components only read their props. No admin-bypass hack: the real role guard governs /admin visibility.
+// `auth.memberships` comes off the chokepoint; the stripe_connections lookup that turns it into switcher rows happens here, in the nav's own loader, never in resolveAccount.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env, ctx } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -184,19 +152,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   };
 }
 
-// The merchant app on Capsomer's dashboard shell (AdminShell's user variant,
-// capsomer 0.9.0), under the same site header as the public site. Dustin's
-// answers of 2026-10-13 are approved differences from legacy, recorded in
-// parity/APPROVED-DIFFERENCES.md: the business switcher on the left as a
-// square tile, then the product switcher ("Acme Supply Co. / Recovery"); the
-// avatar menu last in place of the gear; amber on the dark band; the product's
-// pages as a 288px menu on the left in place of the links in the header row;
-// a page bar naming the page and how fresh it is; and on a phone one row, a
-// sheet for everything else, and a bottom bar of at most five tabs.
-//
-// Everything under the menu is the page as it was: the shell takes Foxhound's
-// own neutrals (.fh-cap, app.css), so only the accents are amber, and every
-// page keeps its own column.
+// The merchant app on Capsomer's dashboard shell (AdminShell's user variant), under the same site header as the public site: the business switcher on the left as a square tile, then the product switcher ("Acme Supply Co. / Recovery"); the avatar menu last; amber on the dark band; the product's pages as a 288px menu on the left; a page bar naming the page and how fresh it is; and on a phone one row, a sheet for everything else, and a bottom bar of at most five tabs. Everything under the menu is the page: the shell takes Foxhound's own neutrals (.fh-cap, app.css), so only the accents are amber, and every page keeps its own column.
 
 const ICONS: Record<string, string> = {
   "/console": iconOverview,
@@ -243,19 +199,12 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   const navigate = useNavigate();
   const readAt = useReadAt(loaderData.readAt);
   const activeProduct = PRODUCT_MANIFEST[nav.activeProductKey];
-  // Legacy's loading.tsx on RR8's substrate: Capsomer decides when (never during
-  // the revalidation after a post), and the app names the paths.
+  // Capsomer decides when to show the loading state (never during the revalidation after a post), and the app names the paths.
   const splash = shouldShowRouteSplash(useNavigation(), isSplashPath);
 
-  // The menu: the product you are in and its pages. On a settings page it is
-  // the settings list instead, under a row back to the product, so a settings
-  // page has one menu and not two side by side (Dustin). Settings,
-  // Billing and Team are in the avatar menu. On another platform page (billing,
-  // help) the product is the last one you visited, as the switcher already says.
+  // The menu: the product you are in and its pages. On a settings page it is the settings list instead, under a row back to the product, so a settings page has one menu and not two side by side. Settings, Billing and Team are in the avatar menu. On another platform page (billing, help) the product is the last one you visited, as the switcher already says.
   const pages = productPages(nav.activeProductKey);
-  // A one-page product (Disputes) marks its one row on every page under it, as
-  // it did when that row's href was the product's prefix (before J09 moved it
-  // to /disputes/dashboard).
+  // A one-page product (Disputes) marks its one row on every page under it.
   const currentPage = nav.isPlatformPage
     ? undefined
     : (currentRow(pathname, pages) ?? (pages.length === 1 ? pages[0] : undefined));
@@ -311,10 +260,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         ? (platformPage?.label ?? "Foxhound")
         : activeProduct.label);
 
-  // The phone's bottom bar keeps the tabs the app had, every product then
-  // Billing and Settings, up to Capsomer's five (no More: the menu button opens
-  // the full list). With Intelligence that is the four products and Settings;
-  // Billing is in the avatar menu and the sheet.
+  // The phone's bottom bar: every product then Billing and Settings, up to Capsomer's five (the menu button opens the full list). With Intelligence that is the four products and Settings; Billing is in the avatar menu and the sheet.
   const tabLinks: Array<ProductNavLink & { product?: ProductKey }> = [
     ...PRODUCT_ORDER.map((key) => ({
       label: PRODUCT_MANIFEST[key].label,
@@ -323,9 +269,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     })),
     ...["Billing", "Settings"].flatMap((label) => PLATFORM_LINKS.filter((l) => l.label === label)),
   ];
-  // A product's tab goes to its dashboard (/recovery/dashboard, Recova's path,
-  // J09) but stands for every page of the product, so it is matched on the
-  // product the page belongs to, not on its own href.
+  // A product's tab goes to its dashboard (/recovery/dashboard) but stands for every page of the product, so it is matched on the product the page belongs to, not on its own href.
   const currentTab = nav.isPlatformPage
     ? currentRow(
         pathname,
@@ -342,10 +286,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     current: l === currentTab,
   }));
 
-  // The switchers: the business, then the product. In the demo the business
-  // switcher lists the demo businesses (Teamflow, Bolt Analytics) and posts to
-  // the demo's own switch, as legacy's SiteNav.tsx passed
-  // switchAccountUrl="/api/demo/switch-account" when isDemo.
+  // The switchers: the business, then the product. In the demo the business switcher lists the demo businesses (Teamflow, Bolt Analytics) and posts to the demo's own switch (/api/demo/switch-account).
   const business =
     accounts.length > 0
       ? businessSwitcher(
@@ -372,9 +313,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     ],
   };
 
-  // The avatar menu, in place of the gear: who you are; the business's rows
-  // under its name, Admin for an admin at their end (AdminShell's menu takes
-  // one group of the app's rows); Help; Sign out last.
+  // The avatar menu: who you are; the business's rows under its name, Admin for an admin at their end (AdminShell's menu takes one group of the app's rows); Help; Sign out last.
   const accountRows = businessRows(true);
   const currentAccountRow = currentRow(pathname, accountRows);
 
@@ -382,9 +321,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     <div className="fh-cap fh-app" data-cap-site="foxhound" data-family="amber">
       <AdminShell
         variant="user"
-        // The app's name, for the logo and the phone sheet's heading
-        // ("Foxhound menu"). The browser title stays each route's own meta
-        // title ("Dispute detail - Foxhound"), so the shell never writes it.
+        // The app's name, for the logo and the phone sheet's heading ("Foxhound menu"). The browser title stays each route's own meta title, so the shell never writes it.
         title="Foxhound"
         documentTitle={false}
         nav={menu}
@@ -477,23 +414,8 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   );
 }
 
-// This does NOT catch appShellMiddleware's own throws (the demo read-only
-// guard's 405, TASK-foxhound-demo-inline-refusal.md): middleware runs before
-// this layout's loader, so a middleware throw has no rendered layout to
-// attach to yet and is caught by root.tsx's ErrorBoundary instead (confirmed
-// live, TASK-foxhound-header-geometry-unification.md - root's boundary has
-// no header at all). What this DOES catch: an error thrown in a CHILD
-// route's own loader or action, after appShellMiddleware has already
-// succeeded and this layout has already rendered - a case root.tsx's bare
-// boundary would otherwise render for, discarding the account name/nav/
-// context this layout already resolved. Renders a minimal,
-// self-contained header (no loaderData dependency) since a child-route
-// error still leaves this layout's OWN loader's success ambiguous depending
-// on where in the tree the error surfaced. Same message-selection logic as
-// root.tsx, so a thrown data(message, {status}) still reads as its own
-// message rather than a generic HTTP reason phrase.
+// This does NOT catch appShellMiddleware's own throws (the demo read-only guard's 405): middleware runs before this layout's loader, so there is no rendered layout to attach to and root.tsx's ErrorBoundary (no header at all) catches it. It DOES catch an error thrown in a child route's loader or action after the middleware succeeded, which root.tsx's bare boundary would render for, discarding the account name, nav and context this layout resolved. Renders a minimal, self-contained header with no loaderData dependency, since the layout's own loader may or may not have succeeded. Same message selection as root.tsx, so a thrown data(message, {status}) still reads as its own message.
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
-  // The header's theme button still saves where the layout's did.
   const rootTheme = useRouteLoaderData<typeof rootLoader>("root")?.theme ?? DEFAULT_THEME;
 
   // Capsomer's error page (its failed Empty), as the root boundary draws it (app/root.tsx), under the shell's header.

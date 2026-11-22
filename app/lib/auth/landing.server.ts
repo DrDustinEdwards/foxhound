@@ -10,12 +10,9 @@ type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 
 /**
  * Where a signed-in person lands when nothing named a destination: /connect
- * while their active account has no live Stripe connection (or no account
- * yet, which /connect names first), else /console. Recova sent a new signup
- * to /connect "so they wire Stripe next" (app/(auth)/signup/page.tsx, blob
- * 08400b4d); an emailed link signs in and signs up alike, so the account's
- * state decides. An explicit next= (an invite, the OAuth authorize page) is
- * kept as given.
+ * while their active account has no live Stripe connection (or no account yet,
+ * which /connect names first), else /console. An explicit next= (an invite, the
+ * OAuth authorize page) is kept as given.
  */
 export async function signedInLanding(env: Env, session: Session, next: string): Promise<string> {
   if (next !== DEFAULT_NEXT_PATH) return next;

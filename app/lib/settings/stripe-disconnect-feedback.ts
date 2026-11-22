@@ -1,13 +1,5 @@
-// What /settings/stripe says after a disconnect posts.
-//
-// Recova's StripeSection (blob 4068961e) has two outcomes: on success it sends
-// the browser to /settings, and on anything else it raises one browser alert,
-// "Could not disconnect Stripe. Try again or contact support.", and resets the
-// confirm. The success half is the action's redirect; this decides the rest.
-//
-// The warning is Foxhound's own and has no Recova twin: the disconnect stood
-// but revoking the grant at Stripe did not, and saying nothing would leave the
-// merchant believing Stripe access was revoked. So it stays on the page.
+// What /settings/stripe says after a disconnect posts. Try again or contact support.", and resets
+// the confirm. So it stays on the page.
 
 const DISCONNECT_FAILED = "Could not disconnect Stripe. Try again or contact support.";
 

@@ -1,18 +1,6 @@
-// The renewal card check: invoice.upcoming (a subscription is about to renew)
-// and customer.subscription.trial_will_end (a trial converts in three days).
-// Both ask one question before the charge happens: will the payment method
-// Stripe is about to charge work on that date? Dispatched from process.ts.
-//
-// IT IS A THIRD WRITER OF THE EXPIRING-CARD TABLE, not a parallel system. It
-// records through buildCandidateUpsert, the same upsert the nightly scan and
-// customer.updated use, so the unique card-month tuple dedupes across all
-// three, a soft-deleted row still blocks, and the nightly send pass owns every
-// email, applying the account's expiring-card setting, suppression and the
-// live-send gate exactly as it does for the other two. This file never sends.
-//
-// What differs from the other writers is only the window. They record a card
-// expiring inside the fixed lead window; this records a card that expires
-// before the actual charge date, however far out that is.
+// The renewal card check: invoice.upcoming (a subscription is about to renew) and
+// customer.subscription.trial_will_end (a trial converts in three days). This file never sends.
+// What differs from the other writers is only the window.
 
 import { eq } from "drizzle-orm";
 
@@ -53,13 +41,8 @@ type RenewalCharge =
   | { kind: "skip"; reason: string };
 
 /**
- * Read the customer and the payment method the charge will use, in
- * card-change.ts's resolution order. The customer is read once and handed to
- * that resolver, since its email and its default are both needed.
- *
- * "No payment method" also requires no legacy default source on the customer:
- * Stripe falls back to one when nothing else is set, and calling such a
- * customer cardless would put an untrue sentence in their inbox.
+ * Read the customer and the payment method the charge will use, in card-change.ts's resolution
+ * order.
  */
 async function resolveRenewalCharge(
   env: Env,

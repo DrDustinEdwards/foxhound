@@ -78,15 +78,7 @@ function levelOf(level: string): { tone: StatusTone; word: string } {
   );
 }
 
-// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
-// and his review of 2026-10-11: one page name (the shell's "Errors"), tables in
-// Capsomer's parts with plain sentence-case words, relative times with the
-// exact time on hover, a pending state and an empty state on every list.
-// Recova's errors page (app/admin/platform/errors/page.tsx, blob 9cca8956) is
-// the inventory: the last 50 audit entries naming an error or a failure, with
-// Time, Action, Actor, Target and Detail in that order, and Sentry wired in once it exists.
-// Sentry is listed only when Foxhound sends to it and can read it back;
-// until then the page says so plainly. Read only.
+// Tables in Capsomer's parts with plain sentence-case words, relative times with the exact time on hover, a pending state and an empty state on every list: the last 50 audit entries naming an error or a failure, with Time, Action, Actor, Target and Detail, and Sentry once Foxhound sends to it and can read it back; until then the page says so plainly. Read only.
 export default function AdminErrors({ loaderData }: Route.ComponentProps) {
   const { sentry, failed } = loaderData;
   const pending = usePagePending(ERRORS_PATH);

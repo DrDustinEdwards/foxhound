@@ -1,46 +1,20 @@
 import { ipKey, limit, mustStop } from "@dustinedwards/site-runtime/rate-limit";
 import { data } from "react-router";
 
-// The sign-in and signup limiter, from site-runtime (Q5, Dustin "yes",
-// 2026-10-14, message cmsg_01Nd8kh3hkgYNYpWXrNkvBQLC6A6GvHRyQ6YQF4rboRtgK;
-// RULES.md 4.10). It replaces Foxhound's own auth bucket in
-// app/lib/http/rate-limit.ts, which matched paths in workers/app.ts.
+// The sign-in and signup limiter, from site-runtime. It replaces Foxhound's own
+// auth bucket in app/lib/http/rate-limit.ts, which matched paths in
+// workers/app.ts.
 //
-// WHY IN THE ACTIONS, NOT IN FRONT OF THE ROUTER. The old guard matched the
-// path a request named. A hydrated browser submits a form to "/login.data"
-// (react-router's single fetch adds the suffix), which that matcher never
-// matched, so every sign-in from the page's own form went through unthrottled.
-// A route's action runs whatever URL reached it, so the check cannot be spelt
-// around, and a refusal can be shown in the page's own alert in Recova's words
-// instead of a bare 429.
-//
-// THE LIMITS, unchanged ("limits as the ledger set them"):
-// - every signed-out POST that can test a passkey or send mail shares one
-//   bucket of 10 a minute per IP, as Foxhound's auth bucket did. Recova's
-//   RATE_LIMIT_LOGIN is the same 10 a minute (lib/constants.ts line 109).
-// - a signup also spends ruling 24's bucket of 5 an hour per IP, Recova's
-//   RATE_LIMIT_SIGNUP (lib/constants.ts line 108), checked after the shared one
-//   so a request the shared bucket refuses does not spend an hourly signup.
-//   With no passwords, /signup's sign-in link is the one signup that spends
-//   it; Better Auth's own limiter (storage "database") is behind both.
-//
-// A failing counter lets the request through (onUnavailable "allow"): RULES.md
-// 4.10, "fails open by design", because a Durable Object hiccup must never lock
-// a merchant out of signing in. site-runtime logs that case as one line naming
-// the bucket only, never the address or the email.
-//
-// The per-address limits (5 sign-in links an hour, 10 typed codes a day) are
-// site-runtime ./sign-in's own since 0.36.0 (emailLimiter, auth.server.ts),
-// with Foxhound's keys, so the counts carry over.
+// A hydrated browser submits a form to "/login.data" (react-router's single
+// fetch adds the suffix), which that matcher never matched, so every sign-in
+// from the page's own form went through unthrottled.
 
 /** 10 a minute per IP, every credential or mail POST. */
 const AUTH_RULES = [{ limit: 10, windowSeconds: 60 }];
 /** Ruling 24: 5 signups an hour per IP. */
 const SIGNUP_RULES = [{ limit: 5, windowSeconds: 60 * 60 }];
 
-/** Recova's words for a refused sign-in (app/api/auth/login/route.ts line 11). */
 export const SIGN_IN_LIMITED = "Too many attempts. Please try again in a minute.";
-/** Recova's words for a refused signup (app/api/auth/signup/route.ts line 14). */
 export const SIGN_UP_LIMITED = "Too many requests. Please try again later.";
 
 const ON_UNAVAILABLE = "allow" as const;
@@ -73,13 +47,12 @@ export async function checkAuthLimit(
   return null;
 }
 
-/** Where a refused Google start sends the browser: back to the login page,
- *  which shows SIGN_IN_LIMITED for this code (Recova's ?error= mechanism,
- *  app/(auth)/login/page.tsx). */
 export const RATE_LIMITED_ERROR = "rate_limited";
 
-/** The action's answer to a refusal: 429 with Retry-After, and the words the
- *  page shows in its alert. */
+/**
+ * The action's answer to a refusal: 429 with Retry-After, and the words the
+ * page shows in its alert.
+ */
 export function limitedData<T extends { error: string }>(body: T, refusal: AuthLimitRefusal) {
   return data(body, {
     status: 429,

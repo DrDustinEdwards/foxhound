@@ -29,29 +29,19 @@ export const blogPosts = sqliteTable(
     showUpdatedAt: bool("show_updated_at").notNull().default(true),
     showPublishedAt: bool("show_published_at").notNull().default(true),
     featured: bool("featured").notNull().default(false),
-    // Precomputed at write time (createPost/updatePostWithVersion) from body's
-    // word count, so a list/tag-archive read never needs the full body just to
-    // show a card's reading time (perf-audit fix, foxhound-audit-perf.md M-2).
+    // Precomputed at write time (createPost/updatePostWithVersion) from body's word count, so a list or tag-archive read never needs the full body just to show a reading time.
     readingMinutes: integer("reading_minutes").notNull().default(1),
-    // Carrel's content trash (site-api v0.17.0): set when the post goes to the
-    // trash, which takes it off the blog; null otherwise. site-api's
-    // runSchedules deletes a post 30 days after it was trashed.
+    // Carrel's content trash: set when the post goes to the trash, which takes it off the blog; null otherwise. site-api's runSchedules deletes a post 30 days after it was trashed.
     trashedAt: ts("trashed_at"),
   },
   (t) => [
     uniqueIndex("blog_posts_slug_uq").on(t.slug),
-    // Every public list query filters WHERE published = true ORDER BY
-    // published_at DESC (listPublishedPosts, getAllPublishedPosts, the tag
-    // archive, sitemap/feed/llms generators); no supporting index existed
-    // (perf-audit L-2), invisible at 45 rows but a real gap as content scales.
+    // Every public list query filters WHERE published = true ORDER BY published_at DESC (listPublishedPosts, getAllPublishedPosts, the tag archive, sitemap/feed/llms generators); this index backs them.
     index("blog_posts_published_published_at_idx").on(t.published, t.publishedAt),
   ],
 );
 
-// The old addresses of renamed posts (site-api v0.17.0 rename): /blog/<from_slug>
-// answers a 301 to /blog/<to_slug>. A second rename points every row at the
-// newest slug, so no redirect chains; the post route reads it only when no live
-// post holds the slug.
+// The old addresses of renamed posts: /blog/<from_slug> answers a 301 to /blog/<to_slug>. A second rename points every row at the newest slug, so no redirect chains; the post route reads it only when no live post holds the slug.
 export const blogSlugRedirects = sqliteTable("blog_slug_redirects", {
   fromSlug: text("from_slug").primaryKey(),
   toSlug: text("to_slug").notNull(),

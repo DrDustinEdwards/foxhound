@@ -6,11 +6,7 @@
    header. */
 @import "capsomer/reading-progress.css";
 
-/* Blog post body: Capsomer's prose blocks (capsomer/prose-blocks.css, imported at the top) on
-   <div class="blog-prose" data-context="prose">, in legacy's look (globals.css) by Capsomer's tokens.
-   The sizes are legacy's own raw CSS declarations, not the marketing --text-* roles, which rulings
-   65 and 68 keep apart from post prose. The theme's colors are Foxhound's own variables, so the
-   prose follows light and dark as the rest of the page does. */
+/* Blog post body: Capsomer's prose blocks (capsomer/prose-blocks.css, imported at the top) on <div class="blog-prose" data-context="prose">, sized by raw CSS declarations rather than the marketing --text-* roles, which stay apart from post prose. Theme colors are Foxhound's own variables, so the prose follows light and dark. */
 .blog-prose {
   --prose: var(--ui);
   --fs-prose: 0.9375rem;
@@ -24,7 +20,7 @@
   --prose-h2-size: var(--fs-h2);
   --prose-h3-size: var(--fs-h3);
   --prose-flow: 1.25rem;
-  /* Bare lists, as Foxhound's posts have always been. */
+  /* Bare lists. */
   --prose-bullets: none;
   --prose-numbers: none;
   --prose-item-space: var(--space-2-5);
@@ -69,8 +65,7 @@
   --diagram-info-ink: var(--blue);
 }
 
-/* Foxhound's heading and nested-list spacing, as its posts have always had it: Capsomer's prose
-   blocks leave these to the site. */
+/* Foxhound's heading and nested-list spacing: Capsomer's prose blocks leave these to the site. */
 .blog-prose :where(h2, h3) {
   line-height: var(--leading-normal);
 }
@@ -150,7 +145,7 @@
   margin-block-end: var(--space-5-5);
 }
 
-/* The post page's own parts (its grid, cover and meta rows), as Recova laid them out. */
+/* The post page's own parts (its grid, cover and meta rows). */
 @layer site {
   @media (width >= 64rem) {
     .fh-post-grid {
