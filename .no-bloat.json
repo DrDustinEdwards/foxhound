@@ -3,10 +3,8 @@
     "jscpd": "jscpd@5.4.1"
   },
   "baseline": {
-    "measured_at": "712e49d",
-    "knip": {
-      "unresolved": 125
-    },
+    "measured_at": "fbdb87b",
+    "knip": {},
     "jscpd": {
       "clones": 86,
       "lines": 909,
