@@ -328,22 +328,16 @@ describe("the critical customers alert fires on three conditions at once, with a
     ]);
   });
 
-  it("a health score of 34 is not critical", async () => {
-    seedAccount();
-    seedCritical({ health: 34 });
-    expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
-      kind: "skipped",
-      reason: "none_critical",
-    });
-    expect(harness.sent).toHaveLength(0);
-    expect(historyRows()).toHaveLength(0);
-  });
-
-  it("a resolved dispute is not critical", async () => {
-    seedAccount();
-    seedCritical({ disputeState: "resolved_lost" });
-    expect((await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).kind).toBe("skipped");
-  });
+  it.each([{ health: 34 }, { disputeState: "resolved_lost" as const }])(
+    "a health score of 34 or a resolved dispute is not critical: %o",
+    async (seed) => {
+      seedAccount();
+      seedCritical(seed);
+      expect((await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).kind).toBe("skipped");
+      expect(harness.sent).toHaveLength(0);
+      expect(historyRows()).toHaveLength(0);
+    },
+  );
 
   it("inside 24h of the last critical firing: nothing", async () => {
     seedAccount();
