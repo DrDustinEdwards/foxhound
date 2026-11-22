@@ -67,7 +67,7 @@ export async function handleWinbackStart(
     return applied ? { status: "ignored", reason: "involuntary_churn" } : { status: "duplicate" };
   }
 
-  // 2. RECENTLY CHASED: a cancelled or recovered payment resolved within
+  // 2. RECENTLY CHASED: a canceled or recovered payment resolved within
   //    WINBACK_RECENT_RESOLVED_DAYS keeps us from chasing a customer we already chased.
   const recentlyResolved = await hasRecentlyResolvedFailedPayment(
     env,

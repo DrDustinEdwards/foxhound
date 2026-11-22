@@ -53,7 +53,7 @@ const NEW_PATHS: Array<[string, string]> = [
   ["/admin/platform/crons", "./routes/admin/crons.tsx"],
   ["/admin/platform/webhooks", "./routes/admin/webhooks.tsx"],
   ["/admin/platform/audit-log", "./routes/admin/audit-log.tsx"],
-  // Neighbours that must keep resolving beside the moved paths.
+  // Neighbors that must keep resolving beside the moved paths.
   ["/pricing", "./routes/pricing.tsx"],
   ["/products", "./routes/products/index.tsx"],
   ["/disputes/dp_123", "./routes/app/disputes/detail.tsx"],

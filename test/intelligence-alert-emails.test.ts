@@ -328,7 +328,7 @@ describe("the critical customers alert fires on three conditions at once, with a
     ]);
   });
 
-  it("a health score of 34 and a resolved dispute are not critical", async () => {
+  it("a health score of 34 is not critical", async () => {
     seedAccount();
     seedCritical({ health: 34 });
     expect(await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).toEqual({
@@ -337,10 +337,10 @@ describe("the critical customers alert fires on three conditions at once, with a
     });
     expect(harness.sent).toHaveLength(0);
     expect(historyRows()).toHaveLength(0);
+  });
 
-    sqlite.prepare("DELETE FROM disputes").run();
-    sqlite.prepare("DELETE FROM customer_context").run();
-    sqlite.prepare("DELETE FROM failed_payments").run();
+  it("a resolved dispute is not critical", async () => {
+    seedAccount();
     seedCritical({ disputeState: "resolved_lost" });
     expect((await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW)).kind).toBe("skipped");
   });

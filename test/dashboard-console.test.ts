@@ -435,7 +435,7 @@ describe("getConsoleView Intelligence tile", () => {
 });
 
 describe("getConsoleView mrrSync", () => {
-  it("says eligible when connected, paused or cancelled for such an account, unconnected without a connection", async () => {
+  it("says eligible when connected, paused or canceled for such an account, unconnected without a connection", async () => {
     const db = await seedConsole();
     expect((await getConsoleView(db, ACCOUNT_ID, NOW, null)).mrrSync).toBe("eligible");
     await db.update(accounts).set({ processingPaused: true });
