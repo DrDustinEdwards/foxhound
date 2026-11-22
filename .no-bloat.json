@@ -3,8 +3,10 @@
     "jscpd": "jscpd@5.4.1"
   },
   "baseline": {
-    "measured_at": "1b8eef2",
-    "knip": {},
+    "measured_at": "712e49d",
+    "knip": {
+      "unresolved": 125
+    },
     "jscpd": {
       "clones": 86,
       "lines": 909,
@@ -16,13 +18,67 @@
       "lines": 0
     },
     "legacy": {},
+    "size": {
+      "app/app-pages.css": 1721,
+      "app/app.css": 935,
+      "app/components/audit/sections.tsx": 572,
+      "app/components/recovery-dashboard-panels.tsx": 558,
+      "app/layouts/app-shell.tsx": 522,
+      "app/lib/admin-api/handler.server.ts": 702,
+      "app/lib/admin/brake.server.ts": 544,
+      "app/lib/admin/email-send.server.ts": 902,
+      "app/lib/admin/merchants.server.ts": 618,
+      "app/lib/audit/engine.ts": 591,
+      "app/lib/audit/monthly.server.ts": 575,
+      "app/lib/billing/charge-retry.ts": 710,
+      "app/lib/billing/credit-note.ts": 540,
+      "app/lib/billing/run.ts": 624,
+      "app/lib/carrel/adapter.server.ts": 706,
+      "app/lib/constants.ts": 931,
+      "app/lib/cron/recovery-tick.ts": 613,
+      "app/lib/cron/registry.ts": 506,
+      "app/lib/decline-codes/content.ts": 1254,
+      "app/lib/demo/customer-base.ts": 1034,
+      "app/lib/demo/disputes-seed.ts": 549,
+      "app/lib/demo/intelligence-seed.ts": 610,
+      "app/lib/demo/recovery-seed.ts": 797,
+      "app/lib/disputes/queries.server.ts": 517,
+      "app/lib/engine/execute-step.ts": 601,
+      "app/lib/intelligence/sync.server.ts": 739,
+      "app/lib/marketing/docs-content.ts": 1031,
+      "app/lib/marketing/features-content.ts": 869,
+      "app/lib/mcp/tools.server.ts": 1412,
+      "app/lib/oauth/provider.server.ts": 654,
+      "app/lib/recovery/dashboard-queries.server.ts": 538,
+      "app/lib/recovery/email-generation.ts": 594,
+      "app/lib/recovery/manual-actions.server.ts": 558,
+      "app/lib/recovery/queries.server.ts": 649,
+      "app/lib/settings/apply.server.ts": 798,
+      "app/lib/webhooks/batches.ts": 713,
+      "app/lib/webhooks/events.ts": 566,
+      "app/lib/webhooks/lookups.ts": 744,
+      "app/marketing.css": 526,
+      "app/routes/admin/merchants/detail.tsx": 520,
+      "app/routes/app/audit/dashboard.tsx": 525,
+      "app/routes/app/disputes/detail.tsx": 766,
+      "app/routes/app/recovery/payments/detail.tsx": 929,
+      "app/routes/app/recovery/payments/index.tsx": 1094,
+      "app/routes/app/settings/account.tsx": 896,
+      "app/routes/home.tsx": 547,
+      "app/routes/privacy.tsx": 977,
+      "app/routes/terms.tsx": 804,
+      "app/routes/utility/card-update.tsx": 592,
+      "test/account-deletion-s40.test.ts": 825,
+      "test/admin-merchants-j70.test.ts": 806,
+      "test/oauth-provider-j79.test.ts": 1177
+    },
     "tests": {
       "files": 331,
       "cases": 1933
     },
     "comments": {
-      "lines": 31973,
-      "code": 137465,
+      "lines": 31995,
+      "code": 137603,
       "percentage": 18.87
     }
   }
