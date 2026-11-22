@@ -4,11 +4,7 @@ import { isEmailStep, isRetryStep, RECOVERY_SCHEDULES } from "./schedule";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { percent } from "capsomer/behavior/meter";
 
-// Pure account-wide step-performance aggregation for /recovery/sequence
-// (Foxhound's equivalent of legacy's sequence-utils.ts + SequenceView.tsx),
-// rebuilt against Foxhound's REAL 6-category schedule (schedule.ts), not
-// legacy's 4-category hardcoded step list. No DB access; takes whatever rows
-// the caller already fetched (listExecutedRecoverySteps).
+// No DB access; takes whatever rows the caller already fetched (listExecutedRecoverySteps).
 
 export interface StepPerformanceInput {
   stepType: string;
@@ -40,17 +36,10 @@ export interface StepPerformanceSummary {
   chart: StepPerformancePoint[];
 }
 
-/** A step type must have been sent at least this many times before its click
- *  rate is considered for "best-performing step" - direct port of legacy's
- *  threshold, so 1-2 lucky sends can't win the headline. */
 const MIN_SENT_FOR_BEST_STEP = 3;
 
-// Where a step type sits in the pooled chart's order: its EARLIEST offset in
-// any schedule. Ordering only, never shown as a timing. A step type alone does
-// not name one offset, because categories schedule the same step at different
-// hours (day 1 at 1 hour for expired, 2 for fraud, 24 for soft; network's
-// retry_day2 and day 3 earlier than soft's), so every timing the page SHOWS is
-// read from the section's own schedule (buildCategorySections).
+// Where a step type sits in the pooled chart's order: its EARLIEST offset in any schedule. Ordering
+// only, never shown as a timing.
 const STEP_ORDER_HOURS: Record<string, number> = {};
 for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
   for (const step of schedule) {
@@ -60,20 +49,14 @@ for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
   }
 }
 
-/** "1" -> "1 hour after failure"; "72" -> "72 hours after failure". Hours at
- *  every offset, as Recova's chips say them (SequenceView.tsx 5507b89f:
- *  "72 hours after failure", "168 hours after failure"). */
+/** "1" -> "1 hour after failure"; "72" -> "72 hours after failure". */
 export function formatStepTiming(hours: number): string {
   return `${plural(hours, "hour")} after failure`;
 }
 
 /**
- * A step's name on this page, in Recova's words (SequenceView.tsx STEP_META and
- * lib/sequence-utils.ts stepLabelFor): "Day 3 email", "4hr retry", "48hr
- * retry", "Day 21 retry". An email is named by its step type. A retry is named
- * by its offset in the schedule it sits in, because Recova's "48hr retry" is a
- * statement of time and network's retry_day2 runs at 24 hours. A step with no
- * offset falls back to the shared label (formatStepType); none is invented.
+ * An email is named by its step type. A step with no offset falls back to the shared label
+ * (formatStepType); none is invented.
  */
 export function sequenceStepLabel(stepType: string, offsetHours: number | null): string {
   if (stepType === "email_revoked") return "Revocation email";
@@ -87,13 +70,6 @@ export function sequenceStepLabel(stepType: string, offsetHours: number | null):
   return formatStepType(stepType);
 }
 
-/**
- * Account-wide email step performance, pooled across every decline category:
- * "Day 3 email" is one number regardless of which category triggered it, same
- * pooling legacy used. Retry steps are excluded, same reasoning as legacy -
- * click tracking only exists for an actual email; a retry's own success rate
- * is a different question, answered per-category by buildStepCard below.
- */
 export function summarizeStepPerformance(steps: StepPerformanceInput[]): StepPerformanceSummary {
   const emailSteps = steps.filter((s) => isEmailStep(s.stepType));
   const totalSent = emailSteps.length;
@@ -178,12 +154,10 @@ export interface StepCardRow {
 }
 
 /**
- * One per-step card for a category section: a silent-retry card (no email
- * stats, a recovered-of-attempted ratio) when the step is a retry, otherwise
- * an email card (sent/opened/clicked, latest subject, sanitized body for the
- * preview expander). `rows` must already be filtered to this exact stepType.
- * `offsetHours` is this step's offset in THIS category's schedule, or null for
- * a step no schedule defines (no timing is invented).
+ * One per-step card for a category section: a silent-retry card (no email stats, a
+ * recovered-of-attempted ratio) when the step is a retry, otherwise an email card
+ * (sent/opened/clicked, latest subject, sanitized body for the preview expander). `rows` must
+ * already be filtered to this exact stepType.
  */
 export function buildStepCard(
   stepType: string,
@@ -214,8 +188,6 @@ export function buildStepCard(
   const sent = rows.length;
   const opened = rows.filter((r) => r.openedAt).length;
   const clicked = rows.filter((r) => r.clickedAt).length;
-  // Recova's pick: the newest send that has a subject, else the newest send,
-  // with that same send's body (SequenceView.tsx, `recent`).
   const newestFirst = [...rows].sort((a, b) => b.executedAt.getTime() - a.executedAt.getTime());
   const latest = newestFirst.find((r) => r.aiSubject) ?? newestFirst[0] ?? null;
   return {
@@ -236,8 +208,6 @@ export interface CategorySection {
   stepCards: StepCard[];
 }
 
-/** One section per real Foxhound decline category, steps in real schedule
- *  order (schedule.ts), never legacy's 4-category subset. */
 export function buildCategorySections(
   categories: readonly DeclineCategory[],
   steps: (StepCardRow & { declineCategory: DeclineCategory; stepType: string })[],

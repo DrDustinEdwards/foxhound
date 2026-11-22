@@ -2,47 +2,19 @@ import { createSiteBackup, type SiteBackupStatus } from "@dustinedwards/d1-dump"
 
 import type { CronJobResult } from "~/lib/cron/run";
 
-// Nightly D1 backup (job_f7f35d4b7ac7, Dustin's answers to design-centralize
-// DECIDE 1 to 8): a per-table JSON dump into Foxhound's own R2 bucket through
-// the shared d1-dump package, on the existing daily cron (no new Cron Trigger).
-// D1 Time Travel stays the in-place restore; this is the copy outside it.
-//
-// ADDS A BACKUP ONLY. It reads D1 and writes R2 and touches no payment or
-// recovery path.
+// Nightly D1 backup: a per-table JSON dump into Foxhound's own R2 bucket
+// through the shared d1-dump package, on the existing daily cron (no new Cron
+// Trigger). D1 Time Travel stays the in-place restore; this is the copy outside
+// it.
 
 /**
  * Tables left OUT of the dump, because they hold live credentials or one-time
  * tokens and a backup copy is one more place a session could leak from (a
  * restore would also revive old sessions):
  *
- *  - session       Better Auth session tokens (live credentials).
- *  - verification  Better Auth one-time tokens: email verification, password reset.
- *  - account       Better Auth credential rows: the password hash AND the Google
- *                  OAuth access, refresh and id tokens. Those provider tokens are
- *                  stored in PLAIN TEXT (no encryptOAuthTokens in
- *                  app/lib/auth/options.ts). FINDING for the seat, not fixed here.
- *                  After a restore, password users reset their password and
- *                  Google users sign in again; user rows are kept.
- *  - preview_links Carrel's preview links (site-api's store): the hash of each
- *                  link's token. A restore would bring back a link revoked
- *                  since; a lost link is made again in Carrel.
- *  - oauth_authorization_codes  single-use MCP authorization codes (code_hash),
- *                  minutes long; none is worth restoring.
- *  - oauth_grants  each MCP connection's refresh token hash. A restore would
- *                  revive a grant revoked since; after one, a client connects
- *                  again.
- *
  * d1-dump's credential-column check is on, so a new column named for a token,
  * secret, password or key hash fails the night until it is excluded or listed
  * in BACKUP_CREDENTIAL_ALLOW with the reason it is safe.
- *
- * KEPT ON PURPOSE (each in BACKUP_CREDENTIAL_ALLOW): stripe_connections. Its stripe_access_token is AES-256-GCM
- * encrypted by app code (ENCRYPTION_KEY / ENCRYPTION_KEYS_OLD are Worker secrets,
- * never in D1 or the backup bucket), so the dump alone cannot use it, and a
- * restore without it would break recovery for every merchant. api_keys keeps
- * only SHA-256 hashes. account_members.invite_token (pending invites, expiring)
- * and email_suppressions.token (the unsubscribe token) stay because the tables
- * are business data.
  *
  * NOT BACKED UP, and why (B6, B7):
  *  - EVIDENCE (foxhound-dispute-evidence): merchants' dispute files, out of this
@@ -62,7 +34,10 @@ const BACKUP_EXCLUDED_TABLES = [
   "oauth_grants",
 ] as const;
 
-/** Columns whose names read as credentials but are safe in a dump, each with the reason. */
+/**
+ * Columns whose names read as credentials but are safe in a dump, each with the
+ * reason.
+ */
 const BACKUP_CREDENTIAL_ALLOW: Record<string, string> = {
   "stripe_connections.stripe_access_token": "AES-256-GCM ciphertext; the keys are Worker secrets",
   "account_members.invite_token": "a pending invite, expiring; the table is membership data",
@@ -79,7 +54,9 @@ const BACKUP_CREDENTIAL_ALLOW: Record<string, string> = {
   "admin_api_calls.api_key_id": "a row id, not a key",
 };
 
-/** Tables that must be in every dump; their absence means the dump is not real. */
+/**
+ * Tables that must be in every dump; their absence means the dump is not real.
+ */
 const BACKUP_REQUIRED_TABLES = ["accounts", "stripe_connections", "failed_payments"] as const;
 
 /** The backups bucket, or a clear error when the binding is missing. */
@@ -92,10 +69,12 @@ function requireBucket(env: Env) {
   return env.BACKUPS;
 }
 
-/** The bucket copies beside the dumps, each under files/<name>/ by d1-dump's backupFiles; each run goes on where the
- *  last stopped, and Capsid's nightly off-account copy takes all of files/ to Amazon. MEDIA is the blog's media
- *  library. EVIDENCE is the merchants' dispute evidence files, which exist nowhere else once uploaded. Each has its
- *  own job, so a failed copy never marks the D1 dump or the other copy failed. */
+/**
+ * The bucket copies beside the dumps, each under files/<name>/ by d1-dump's
+ * backupFiles; each run goes on where the last stopped, and Capsid's nightly
+ * off-account copy takes all of files/ to Amazon. MEDIA is the blog's media
+ * library.
+ */
 const backup = createSiteBackup<Env>({
   bucket: requireBucket,
   dump: {
@@ -110,10 +89,10 @@ const backup = createSiteBackup<Env>({
 });
 
 /**
- * The cron handler body, by d1-dump's runCheckedBackup: dump without the marker, refuse a dump
- * with no tables or no rows, a credential table in it or a required table missing (BackupIncomplete,
- * leaving it without the marker, so a bad run is never the "latest" dump), then mark complete and
- * prune.
+ * The cron handler body, by d1-dump's runCheckedBackup: dump without the
+ * marker, refuse a dump with no tables or no rows, a credential table in it or
+ * a required table missing (BackupIncomplete, leaving it without the marker, so
+ * a bad run is never the "latest" dump), then mark complete and prune.
  */
 export async function runD1Backup(env: Env, now: Date): Promise<CronJobResult> {
   const { dump, pruned } = await backup.runBackup(env, now);
@@ -135,7 +114,10 @@ async function runFilesBackup(env: Env, name: string): Promise<CronJobResult> {
 export const runMediaBackup = (env: Env) => runFilesBackup(env, "media");
 export const runEvidenceBackup = (env: Env) => runFilesBackup(env, "evidence");
 
-/** The unauthenticated health fields: age of the newest complete dump, with each files copy's under `files`; any one's warning warns. */
+/**
+ * The unauthenticated health fields: age of the newest complete dump, with each
+ * files copy's under `files`; any one's warning warns.
+ */
 export async function backupStatus(env: Env, now = new Date()): Promise<SiteBackupStatus> {
   if (!env.BACKUPS) {
     return {

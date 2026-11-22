@@ -5,6 +5,7 @@ import * as schema from "~/db/schema";
 import {
   ATTRIBUTION_KINDS,
   BILLABLE_ATTRIBUTION_KINDS,
+  EMAIL_ENGAGEMENT_WINDOW_MS,
   MANUAL_ATTRIBUTION_KIND,
 } from "~/lib/constants";
 import {
@@ -82,6 +83,26 @@ describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)"
       kind: "stripe_baseline",
       ref: null,
     });
+  });
+
+  it("the latest click wins whatever the row order, so the ledger cites the click that preceded the payment", () => {
+    const early = step({ id: "step_early", clickedAt: new Date("2026-07-01T00:00:00.000Z") });
+    const late = step({ id: "step_late", clickedAt: new Date("2026-07-04T00:00:00.000Z") });
+    expect(findAttributionSignals([early, late], RECOVERED_AT).clickedEngagementId).toBe(
+      "step_late",
+    );
+    expect(findAttributionSignals([late, early], RECOVERED_AT).clickedEngagementId).toBe(
+      "step_late",
+    );
+  });
+
+  it("a click after the payment, or older than the engagement window, is not a signal", () => {
+    const after = step({ id: "after", clickedAt: new Date(RECOVERED_AT.getTime() + 60_000) });
+    const stale = step({
+      id: "stale",
+      clickedAt: new Date(RECOVERED_AT.getTime() - EMAIL_ENGAGEMENT_WINDOW_MS - 60_000),
+    });
+    expect(findAttributionSignals([after, stale], RECOVERED_AT).clickedEngagementId).toBeNull();
   });
 
   it("an incomplete card_update step (no result yet) is not a signal", () => {

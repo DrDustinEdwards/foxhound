@@ -10,8 +10,7 @@ import { mrrMovementAlt, mrrMovementBars, type MovementTotals } from "./console"
 // hand-built SVG of app/components/charts.tsx. The MRR trend reuses the
 // Intelligence dashboard's drawMrrTrend; these two are the console's own
 // figures: the latest month's five movements, and the share of each customer
-// cohort still paying. Each returns Enarratio's figure as HTML at a width, with
-// a text equivalent (capsid/conventions-web.md rule 8) and its data table.
+// cohort still paying.
 
 /** The movement colors the Intelligence dashboard uses for the same series. */
 const MOVEMENT_COLORS: Record<string, string> = {

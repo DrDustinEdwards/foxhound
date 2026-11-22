@@ -33,55 +33,10 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { isSlug, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
 import { readingMinutes, wordCount } from "@drdustinedwards/site-helpers/text";
 
-// The Carrel site adapter over Foxhound's blog. Posts live in
-// D1 (blog_posts, blog_post_versions) and are edited in Carrel, which replaced
-// Foxhound's own /admin/blog editor; the adapter writes through
-// admin-queries, the one write path.
-//
-// Version = the post's updated_at in epoch milliseconds, as a string, with a
-// hash of its schedule's time and change id added while one waits, so a
-// schedule, a reschedule and a cancel each move it. A historical revision is
-// "rev-<blog_post_versions.id>"; the table keeps the PRE-edit state of title,
-// excerpt and body only, so a revision's source takes its other fields from the
-// current post.
-//
-// SCHEDULED PUBLISHING (site-api v0.10.0). One row per post in site-api's
-// scheduled_updates table (migration 0056, read and written only through the
-// package's d1ScheduledUpdates). On a draft the row makes it "scheduled": it
-// goes live at publish_at. On a live post the row is a pending update: the live
-// version stays served until publish_at, then the row's source replaces it.
-// Which of the two a row is follows from the post, because every write that
-// changes a post's state drops its row: a publish, an unpublish, and a save of
-// a draft (a scheduled draft that is edited goes back to draft, as in
-// site-api's reference adapter). A save of a live post keeps its update
-// waiting. The cron calls the package's runSchedules, which
-// lists due rows here and applies each one (app/lib/cron/registry.ts).
-//
-// SITE-API v0.17.0. A trash (trashed_at): trashing takes a live post off the
-// blog, a restore answers a draft, and only a trashed post is deleted for good
-// (by Carrel, or by runSchedules 30 days on). A rename moves the post's id and
-// its address together (its slug becomes the new id), and a post that was ever
-// published leaves a 301 at its old address (blog_slug_redirects). The list
-// filters by kind, tag, author and publish date, searches title and body, sorts
-// and counts. A publish may carry the date it goes out under. Blog posts render
-// through Prelum on every read (markdown.server.ts), so the render version meta
-// names is the installed one.
-//
-// LIVE SAVES AND DELETES. A save of a live post edits it live (there is no separate draft row), as on Foxing and
-// Germomics; Carrel counts that write as a publish and asks for the publish role. A delete is only from the trash,
-// where site-api leaves the address answering 410 (workers/app.ts, tombstoned), and Carrel warns first with the posts
-// `backlinks` names, since a delete drops the post's further-reading links. Each write's revision is credited to the
-// actor Carrel sends.
-//
-// PREVIEW. The draft renders through /blog/<slug> itself, in-process (workers/app.ts, kit.render, with the draft on
-// draftPostContext), so it has the site's header, footer and everything the page shows, as on Germomics.
-//
-// The media group is media-adapter.server.ts (the blog's media library), joined
-// to this adapter in handler.server.ts. Cover addresses stay as they are:
-// Carrel's post source does not carry them. The search fields it does carry
-// (site-api v0.17.0) are the og_title, og_description, og_image_url,
-// og_image_alt, canonical_url and noindex columns under site-api's shared
-// names (./source.ts).
+// The Carrel site adapter over Foxhound's blog. Posts live in D1 (blog_posts,
+// blog_post_versions) and are edited in Carrel, which replaced Foxhound's own
+// /admin/blog editor; the adapter writes through admin-queries, the one write
+// path.
 
 const CARREL_SITE = {
   id: "foxhound",
@@ -94,8 +49,10 @@ const KIND = "post";
 type Actor = { name: string };
 const DEFAULT_AUTHOR = "Foxhound";
 const REVISION_PREFIX = "rev-";
-/** Every schedule is due by then, so `due` at this time lists every row. A
- *  four-digit year, since the store compares times as ISO text. */
+/**
+ * Every schedule is due by then, so `due` at this time lists every row. A
+ * four-digit year, since the store compares times as ISO text.
+ */
 const END_OF_TIME = new Date("9999-12-31T23:59:59.999Z");
 const ALL_ROWS = 10_000;
 
@@ -113,8 +70,8 @@ interface Post {
 const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
 
 async function versionOf(row: PostRow, pending: Pending | null): Promise<string> {
-  // A post with search fields set carries their hash, so a source read before Carrel saw them is a conflict, not a
-  // save that clears them.
+  // A post with search fields set carries their hash, so a source read before
+  // Carrel saw them is a conflict, not a save that clears them.
   const search = [
     row.ogTitle,
     row.ogDescription,
@@ -151,14 +108,20 @@ function summary({ row, pending, version }: Post): ContentSummary {
   };
 }
 
-/** The list's orderings: the dates newest first and titles A to Z unless `dir` says otherwise. */
+/**
+ * The list's orderings: the dates newest first and titles A to Z unless `dir`
+ * says otherwise.
+ */
 const ORDER = {
   updated: (r: PostRow) => r.updatedAt.getTime(),
   published: (r: PostRow) => r.publishedAt?.getTime() ?? 0,
   title: (r: PostRow) => r.title.toLowerCase(),
 };
 
-/** A row the list's filters keep. Trashed posts appear only when the trash is asked for, and then alone. */
+/**
+ * A row the list's filters keep. Trashed posts appear only when the trash is
+ * asked for, and then alone.
+ */
 function listed(row: PostRow, query: ListQuery): boolean {
   const needle = query.q?.toLowerCase();
   const at = row.publishedAt?.getTime() ?? null;
@@ -202,7 +165,10 @@ function parse(source: string, options?: { preview?: boolean }): PostSource {
   }
 }
 
-/** A slug moves its public URL, so only a rename changes it (it leaves the redirect). */
+/**
+ * A slug moves its public URL, so only a rename changes it (it leaves the
+ * redirect).
+ */
 function keepSlug(post: PostSource, current: PostRow) {
   if (post.slug !== null && post.slug !== current.slug) {
     throw new RefusedError("A post's slug is its address: rename the post to move it.");
@@ -213,7 +179,10 @@ function notTrashed(row: PostRow) {
   if (row.trashedAt) throw new RefusedError("This post is in the trash. Restore it first.");
 }
 
-/** A post's source as the columns a save writes; the cover and the date toggles are the post's own, which a source does not carry. */
+/**
+ * A post's source as the columns a save writes; the cover and the date toggles
+ * are the post's own, which a source does not carry.
+ */
 function fieldsOf(
   post: PostSource,
   kept: Pick<PostRow, "coverImageUrl" | "coverImageAlt" | "showUpdatedAt" | "showPublishedAt">,
@@ -238,10 +207,16 @@ function fieldsOf(
   };
 }
 
-/** The site's own render of a route (workers/app.ts), with the draft on its context; nothing stored or cached. */
+/**
+ * The site's own render of a route (workers/app.ts), with the draft on its
+ * context; nothing stored or cached.
+ */
 export type RenderDocument = (request: Request, draft: BlogPost) => Promise<Response>;
 
-/** `renderDocument` draws the preview through the post's own route; the cron has none. */
+/**
+ * `renderDocument` draws the preview through the post's own route; the cron has
+ * none.
+ */
 export function carrelAdapter(
   db: Db,
   schedules: D1ScheduledUpdates,
@@ -263,7 +238,10 @@ export function carrelAdapter(
     return post;
   }
 
-  /** The post, if `expectedVersion` is its version; NotFoundError for no post at all. */
+  /**
+   * The post, if `expectedVersion` is its version; NotFoundError for no post at
+   * all.
+   */
   async function held(id: string, expectedVersion: string): Promise<Post> {
     const post = await load(id);
     if (!post) throw new NotFoundError();
@@ -287,8 +265,8 @@ export function carrelAdapter(
     actor?: Actor,
   ) {
     // Version checks come BEFORE parsing, so a stale or mismatched write is a
-    // 409 whatever its body holds (the conformance suite sends one with a
-    // body that is not a valid post).
+    // 409 whatever its body holds (the conformance suite sends one with a body
+    // that is not a valid post).
     if (expectedVersion === null) {
       const existing = await load(id);
       if (existing) throw new VersionConflictError(existing.version);
@@ -341,8 +319,10 @@ export function carrelAdapter(
     if (!saved) throw new VersionConflictError((await load(current.id))?.version ?? null);
   }
 
-  /** Stores the schedule. The parse comes first, so a source that could never
-   *  go live is refused now rather than failing on the cron. */
+  /**
+   * Stores the schedule. The parse comes first, so a source that could never go
+   * live is refused now rather than failing on the cron.
+   */
   async function putSchedule(
     current: PostRow,
     source: string,
@@ -360,7 +340,8 @@ export function carrelAdapter(
       filters: ["kind", "tag", "author", "published"],
       postFields: ["excerpt"],
       publishedAtSettable: true,
-      // The blog post head renders all of them. With no share image the card is the cover, else the generated card.
+      // The blog post head renders all of them. With no share image the card is
+      // the cover, else the generated card.
       searchFields: SEARCH_FIELDS,
 
       async list(query) {
@@ -381,7 +362,8 @@ export function carrelAdapter(
             { publishAt: d.publishAt, changeId: d.changeId },
           ]),
         );
-        // The status is the row's and its schedule's, so it filters before the page is cut.
+        // The status is the row's and its schedule's, so it filters before the
+        // page is cut.
         const matching = rows
           .map((row) => ({ row, pending: waiting.get(row.id) ?? null }))
           .filter(
@@ -463,7 +445,8 @@ export function carrelAdapter(
         return writeResult(id, input.changeId);
       },
 
-      // The tags field of the post's source, written alone. A live post's page changes with it.
+      // The tags field of the post's source, written alone. A live post's page
+      // changes with it.
       async setTags(id, input) {
         const { row } = await held(id, input.expectedVersion);
         await writeSource(row, { ...sourceOf(row), tags: input.tags }, input.changeId, input.actor);
@@ -521,8 +504,7 @@ export function carrelAdapter(
           throw new RefusedError(`${newId} is already taken.`);
         const previousPath = row.publishedAt && row.slug !== newId ? `/blog/${row.slug}` : null;
         await renamePost(db, row, newId, { redirect: previousPath !== null });
-        // The waiting schedule moves with it. A preview link names the old id,
-        // so it stops working, as the address it showed has.
+        // The waiting schedule moves with it.
         const waiting = pending ? await schedules.get(id) : null;
         if (waiting) {
           await schedules
@@ -537,8 +519,9 @@ export function carrelAdapter(
         return { ...(await writeResult(newId, input.changeId)), previousPath };
       },
 
-      // The posts that link to this one, by a further-reading link or by its address in their text, so a trash or a
-      // delete warns first (a delete drops the further-reading links).
+      // The posts that link to this one, by a further-reading link or by its
+      // address in their text, so a trash or a delete warns first (a delete
+      // drops the further-reading links).
       async backlinks(id) {
         const post = await load(id);
         if (!post) return [];
@@ -688,8 +671,9 @@ export function carrelAdapter(
 
     renderVersion: RENDER_VERSION,
 
-    // The draft through the post's own route and layout, in-process (workers/app.ts), so it has the site's header and
-    // footer and everything the page shows.
+    // The draft through the post's own route and layout, in-process
+    // (workers/app.ts), so it has the site's header and footer and everything
+    // the page shows.
     preview: {
       async render({ id, source }) {
         const { renderDocument } = options;
@@ -721,7 +705,8 @@ export function carrelAdapter(
           throw new RefusedError(
             `The preview did not render: /blog/${slug} answered ${response.status}.`,
           );
-        // The page's own robots tag indexes it; the strictest wins, so this keeps a preview out of every index.
+        // The page's own robots tag indexes it; the strictest wins, so this
+        // keeps a preview out of every index.
         return (await response.text()).replace(
           /<head\b[^>]*>/i,
           (head) => `${head}<meta name="robots" content="noindex, nofollow">`,

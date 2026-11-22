@@ -2,18 +2,10 @@ import { capitalize, plural } from "@drdustinedwards/site-helpers/text";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, INTELLIGENCE_NARRATIVE_TOP_N } from "~/lib/constants";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
-// The Intelligence narrative and per-customer assessments, written from a
-// template (Dustin 2026-10-29: "so AI use isnt free for me. so why is this
-// product free or why does it use AI, like i cant do both"). Intelligence is
-// free, so it makes no model call: the narrative was a Sonnet call that only
-// phrased numbers the engine had already computed, every night for every
-// account, and the free analytics it competes with (ProfitWell Metrics,
-// ChartMogul, Baremetrics, Kirn) are rules-based too. AI stays on the paths
-// that earn a fee: recovery emails and dispute evidence.
-//
-// Every number and customer here is a real value narrativeFactsFor takes from
-// what the engine computed from customer_context / mrr_snapshots / risk.ts,
-// so the text cannot say anything the facts do not.
+// The Intelligence narrative and per-customer assessments, written from a template: Intelligence is free, so it
+// makes no model call (AI stays on the paths that earn a fee: recovery emails and dispute evidence). Every
+// number and customer is a real value narrativeFactsFor takes from what the engine computed, so the text cannot
+// say anything the facts do not.
 
 interface AtRiskCustomerFact {
   stripeCustomerId: string;
@@ -34,13 +26,10 @@ export interface NarrativeFacts {
   reactivationMrrCents: number;
   mrrAtRiskCents: number;
   atRiskCustomerCount: number;
-  /** Already capped to the top-N by the caller (INTELLIGENCE_NARRATIVE_TOP_N). */
   topAtRiskCustomers: AtRiskCustomerFact[];
 }
 
-/** True when there is anything real to narrate. A brand-new account with no
- *  MRR and no at-risk customers has nothing to say yet: an honest empty state
- *  (DESIGN.md), not a reason to fabricate a narrative. */
+/** True when there is anything real to narrate; a brand-new account has nothing to say, an honest empty state. */
 export function hasNarrativeFacts(facts: NarrativeFacts): boolean {
   return facts.totalMrrCents > 0 || facts.topAtRiskCustomers.length > 0;
 }
@@ -58,14 +47,12 @@ export interface NarrativeResult {
   customerAssessments: NarrativeCustomerAssessment[];
 }
 
-/** Factor details as one sentence: "a; b; c." */
 function factorSentence(details: string[]): string {
   const text = details.map((d) => d.replace(/\.$/, "")).join("; ");
   return `${capitalize(text)}.`;
 }
 
-/** The latest snapshot's movements. Snapshots are daily (intelligence-sync),
- *  so they are the change since the day before, and the sentence says so. */
+/** The latest snapshot's movements; snapshots are daily, so they are the change since the day before. */
 function movementSentence(facts: NarrativeFacts): string {
   const money = (cents: number) => formatMoney(cents, facts.currency);
   const parts = [
@@ -105,9 +92,8 @@ function assessmentFor(c: AtRiskCustomerFact): string {
   return c.factorDetails.length > 0 ? `${head} ${factorSentence(c.factorDetails)}` : head;
 }
 
-/** A scored customer as the narrative needs it: from tonight's scoring run,
- *  or from the scores customer_context holds when a merchant asks for a
- *  report during the day (report-generate.server.ts). */
+/** A scored customer as the narrative needs it: from tonight's run, or from the scores customer_context holds
+ *  when a merchant asks for a report during the day (report-generate.server.ts). */
 export interface NarrativeCustomer {
   customerContextId: string;
   stripeCustomerId: string;
@@ -117,9 +103,8 @@ export interface NarrativeCustomer {
   factors: readonly { detail: string }[];
 }
 
-/** The narrative's facts: the latest MRR snapshot's movements and the at-risk
- *  customers, lowest score first, capped at INTELLIGENCE_NARRATIVE_TOP_N. One
- *  computation for both the nightly run and the dashboard's button. */
+/** The narrative's facts: the latest MRR snapshot's movements and the at-risk customers, lowest score first,
+ *  capped at INTELLIGENCE_NARRATIVE_TOP_N. One computation for the nightly run and the dashboard's button. */
 export function narrativeFactsFor(input: {
   currency: string;
   mrrLatest: {
@@ -160,11 +145,8 @@ export function narrativeFactsFor(input: {
   };
 }
 
-/**
- * The Intelligence narrative + per-customer assessments, nightly or on the
- * dashboard's button. Pure: with no facts it returns the honest
- * not-enough-data message and no assessments.
- */
+/** The narrative and per-customer assessments, nightly or on the dashboard's button. Pure: with no facts it
+ *  returns the not-enough-data message and no assessments. */
 export function writeIntelligenceNarrative(facts: NarrativeFacts): NarrativeResult {
   if (!hasNarrativeFacts(facts)) {
     return { narrative: NOT_ENOUGH_DATA_NARRATIVE, customerAssessments: [] };
@@ -183,15 +165,10 @@ export function writeIntelligenceNarrative(facts: NarrativeFacts): NarrativeResu
   };
 }
 
-/**
- * A stored narrative with every customer's name replaced by their Stripe
- * customer id, for an agent (hard rule 8: agent tools carry no customer name).
- * The narrative is text, which the field redactor cannot see into, and a stored
- * one may be an older model-written report naming customers anywhere, so every
- * name the account holds is replaced, longest first so a name inside a longer
- * one is not half-replaced. A one-character name is skipped: it identifies
- * nobody and would mangle the sentence.
- */
+/** A stored narrative with every customer's name replaced by their Stripe customer id, for an agent (hard rule 8:
+ *  agent tools carry no customer name). The field redactor cannot see into text, and an older stored report may
+ *  name customers anywhere, so every name the account holds is replaced, longest first so a name inside a longer
+ *  one is not half-replaced. A one-character name is skipped: it identifies nobody and would mangle the sentence. */
 export function narrativeWithCustomerIds(
   narrative: string,
   customers: readonly { stripeCustomerId: string; customerName: string | null }[],

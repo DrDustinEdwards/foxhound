@@ -16,9 +16,7 @@ import "capsomer/pagination.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /disputes does.
+// Capsomer's tokens and the amber family, which the components above read. The shell loads the same file through its header; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { getDb } from "~/db";
@@ -46,25 +44,7 @@ import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 import type { Route } from "./+types/customers";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /intelligence/customers. Recova is the spec: its real
-// page, app/(app)/intelligence/customers/page.tsx at blob 0413f035, with
-// lib/intelligence-display.ts at blob 379635a7, both read whole. In Recova's
-// order and width: the head (the account's name, the count line, the lead),
-// then the table or Recova's "No customer data yet" card, then the pager, in a
-// 1280px column.
-//
-// Built from Capsomer 0.9.0's parts, amber throughout.
-// No Foxhound class sits on a Capsomer element: where the page needs Recova's
-// mono figures, its label size or its spacing, the class goes on an element of
-// the page's own inside or around the Capsomer part. Recova's mono uppercase
-// column heads, its plan colors on the pill's edge and its 12px radius wait
-// for Capsomer's per-site layer, listed in the J30
-// notes.
-//
-// One Foxhound addition, approved: the filter bar ("The customers page has a
-// filter bar. "confirm", 2026-08-28", APPROVED-DIFFERENCES). The
-// recommended-action chip after the name is Recova's chipLabelFor over the
-// action the nightly scoring stores.
+// /intelligence/customers: the head (the account's name, the count line, the lead), then the table or a "No customer data yet" card, then the pager, in a 1280px column. No Foxhound class sits on a Capsomer element: where the page needs mono figures, a label size or spacing, the class goes on an element of the page's own inside or around the Capsomer part. The filter bar is an approved addition; the recommended-action chip after the name reads the action the nightly scoring stores.
 
 export function meta() {
   return [{ title: "Customers - Foxhound" }, NOINDEX];
@@ -132,8 +112,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     // Already resolved on every authenticated request, so the H1 costs no
     // extra query (app/lib/auth/account.ts Membership).
     accountName: auth.membership.accountName,
-    // In the demo, the other demo business, for Recova's footer pointing at
-    // the switcher (app/intelligence/demo/customers/page.tsx, blob `d0784bc8`).
+    // In the demo, the other demo business, for the footer pointing at the switcher.
     otherDemoName: auth.isDemo
       ? (DEMO_BUSINESSES.find((b) => b.accountId !== accountId)?.name ?? null)
       : null,
@@ -167,19 +146,13 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
   const { result, tiers, filters, accountName, otherDemoName, nowMs } = loaderData;
   const now = new Date(nowMs);
   const filtered = isFiltered(filters);
-  // Recova's empty card stands in for the table only when the account has no
-  // customers at all. Under a filter the bar stays, so the filter can be
-  // changed, and the table's place says nothing matched.
+  // The empty card stands in for the table only when the account has no customers at all. Under a filter the bar stays, so the filter can be changed, and the table's place says nothing matched.
   const noData = result.totalCount === 0 && !filtered;
 
-  // Recova's H1 is `{accountName} customers` (page.tsx:71). Recova computes
-  // `membership.account.name ?? 'Customers'` first, so an account with no name
-  // gets "Customers customers", a defect not copied: with no name
-  // the heading is "Customers".
+  // The H1 is `{accountName} customers`; with no name the heading is "Customers" (not "Customers customers").
   const heading = accountName ? `${accountName} customers` : "Customers";
 
-  // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The shell
-  // owns the page's one <main>, so this is a plain wrapper.
+  // max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-intel-page-tall cap-admin-page" data-width="page">
       <div className="fh-intel-head">
@@ -197,8 +170,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       </div>
 
       {noData ? (
-        // Capsomer's Empty puts its title in a <p>, which would demote
-        // Recova's h2, so this is its markup with the h2.
+        // Capsomer's Empty puts its title in a <p>, which would demote the h2, so this is its markup with the h2.
         <div className="cap-empty" data-kind="nothing-yet">
           <div className="cap-empty-header">
             <h2 className="cap-empty-title">No customer data yet</h2>
@@ -358,9 +330,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
   );
 }
 
-/** The approved filter bar (APPROVED-DIFFERENCES, 2026-08-28): Capsomer's
- *  filter bar on its field labels, input and native selects, in a body-only
- *  panel. A GET form, so it works with no script. */
+/** The filter bar: Capsomer's filter bar on its field labels, input and native selects, in a body-only panel. A GET form, so it works with no script. */
 function CustomerFilters({ filters, tiers }: { filters: Filters; tiers: string[] }) {
   return (
     <div className="cap-panel">

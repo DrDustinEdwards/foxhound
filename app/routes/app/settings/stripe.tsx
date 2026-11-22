@@ -30,35 +30,14 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// S37, /settings/stripe, legacy's hub entry 1, "Stripe connections".
-//
-// LEGACY IS THE SPEC, read whole at HEAD:
-//   app/(app)/settings/stripe/page.tsx              blob 338541e6   738 bytes
-//   app/(app)/settings/components/StripeSection.tsx blob 4068961e 4,410 bytes
-//   app/api/stripe/disconnect/route.ts              blob 01252285 2,656 bytes
-//
-// RECOVA'S ORDER, top to bottom: the phone-only back link; "Stripe connections"
-// and its line; ONE card holding either the empty state (the line and Connect
-// Stripe) or a bordered row per connection (its name or Stripe id, the date
-// line, Disconnect Stripe with its two-step confirm and Keep connected) and
-// Add Stripe account under them.
-//
-// J41 rebuilt it from Capsomer 0.9.0's parts under Dustin's Q10 and Q11 answers
-// of 2026-10-14: PageHead, panels, Button and Alert, amber throughout.
-//
-// THE ENGINE IS FOXHOUND'S. Recova's client POSTs /api/stripe/disconnect with
-// no id at a route exporting only DELETE, which picks the account's primary
-// itself, so its per-connection buttons are decorative. That request is
-// not ported: each row's form names its connection, the action refuses one the
-// ACTIVE account does not hold, and the write is cancelMerchant's plain batch
-// path (disconnectConnection), never an agent tool (3.6).
+// /settings/stripe, "Stripe connections": the phone-only back link; the title and its line; ONE card holding either the empty state (the line and Connect Stripe) or a bordered row per connection (its name or Stripe id, the date line, Disconnect Stripe with its two-step confirm and Keep connected) and Add Stripe account under them.
+// Each row's form names its connection (an id-less disconnect would silently pick the account's primary), the action refuses one the ACTIVE account does not hold, and the write is cancelMerchant's plain batch path (disconnectConnection), never an agent tool.
 
 export function meta() {
   return [{ title: "Stripe connections - Foxhound" }, NOINDEX];
 }
 
-// OWNERS ONLY disconnect: it revokes Foxhound's Stripe access for the whole
-// account, as only an owner revokes an API key (/settings/api-keys).
+// OWNERS ONLY disconnect: it revokes Foxhound's Stripe access for the whole account, as only an owner revokes an API key (/settings/api-keys).
 const OWNER_ONLY = "Only the account owner can do this.";
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -69,10 +48,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     listAccountConnections(db, auth.membership.accountId),
     listConnectionHealth(db, auth.membership.accountId),
   ]);
-  // The Stripe account health warning: the sentences the notice email sends,
-  // for every problem the stored account.updated state shows now. Empty when
-  // Stripe reported none, or has not reported at all; a deadline with no
-  // problem is not one.
+  // The Stripe account health warning: the sentences the notice email sends, for every problem the stored account.updated state shows now. Empty when Stripe reported none, or has not reported at all; a deadline with no problem is not one.
   const warnings = new Map(
     health.map((h) => {
       const problems = currentHealthProblems(h);
@@ -80,10 +56,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     }),
   );
   return {
-    // Live connections drive the list; a disconnected one is history, and no
-    // longer counts as the primary (APPROVED-DIFFERENCES, "yes", 2026-09-19).
-    // Recova has one empty state, so nothing needs to know whether the
-    // account was ever connected.
+    // Live connections drive the list; a disconnected one is history, and no longer counts as the primary.
     connections: connections
       .filter((c) => !c.disconnectedAt)
       .map((c) => ({ ...c, healthWarning: warnings.get(c.id) ?? [] })),
@@ -112,7 +85,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  // The id is required and real: Recova's id-less request is the defect.
+  // The id is required and real.
   const connectionId = String(form.get("connectionId") ?? "").trim();
   if (!connectionId) {
     return data<DisconnectResult>(
@@ -123,9 +96,7 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   let warning: string | undefined;
   try {
-    // Scoped to the ACTIVE account from the session marker (auth.membership),
-    // never the earliest membership. A connection under another account the
-    // caller holds is refused exactly like one they do not hold at all.
+    // Scoped to the ACTIVE account from the session marker (auth.membership), never the earliest membership. A connection under another account the caller holds is refused exactly like one they do not hold at all.
     const db = getDb(env);
     const live = await findLiveConnection(db, accountId, connectionId);
     if (!live) {
@@ -138,11 +109,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         { status: 403 },
       );
     }
-    // The revoke runs AFTER the batch has committed. The default revoke can
-    // THROW (it builds its Stripe client outside its own try), and a throw
-    // there must not read as "could not disconnect": the connection IS
-    // disconnected. So the revoke handed in turns a throw into the failed
-    // revoke it is. Same writer, same batch, same order; only the reporting.
+    // The revoke runs AFTER the batch has committed. The default revoke can THROW (it builds its Stripe client outside its own try), and a throw there must not read as "could not disconnect": the connection IS disconnected. So the revoke handed in turns a throw into the failed revoke it is. Same writer, same batch, same order; only the reporting.
     const result = await disconnectConnection(env, live, {
       deauthorize: async (e, stripeUserId) => {
         try {
@@ -170,14 +137,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (warning) return data<DisconnectResult>({ action: intent, ok: true, warning });
-  // Recova's success: `window.location.href = '/settings'`.
   return redirect("/settings");
 }
 
-/** Legacy's date line on a connection row: "Connected Aug 21, 2026", from
- *  toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
- *  (StripeSection.tsx, blob 4068961e). Omitted entirely when the timestamp is
- *  null, as legacy omits it. */
+/** The date line on a connection row: "Connected Aug 21, 2026" (month short, day numeric, year numeric, en-US). Omitted entirely when the timestamp is null. */
 function connectedLabel(at: Date | null): string | null {
   if (!at) return null;
   return (
@@ -186,8 +149,7 @@ function connectedLabel(at: Date | null): string | null {
       month: "short",
       day: "numeric",
       year: "numeric",
-      // Pinned, as every formatter in ~/lib/date-format.ts: unpinned, the server
-      // renders UTC and the browser its own zone, and hydration disagrees.
+      // Pinned, as every formatter in ~/lib/date-format.ts: unpinned, the server renders UTC and the browser its own zone, and hydration disagrees.
       timeZone: "UTC",
     })
   );
@@ -202,16 +164,7 @@ type Connection = {
   healthWarning?: string[];
 };
 
-/**
- * Recova's StripeSection (blob 4068961e) on Capsomer's parts.
- *
- * THE CONFIRM IS RECOVA'S: one button per row. The first press only asks (it
- * turns into "Yes, disconnect Stripe" and Keep connected appears beside it);
- * the second press submits that row's form, which names its connection. The
- * button stays the same element throughout, so keyboard focus stays on it.
- * Keep connected withdraws the question and hands focus back to the button.
- * While the disconnect runs, the button says so and Keep is withdrawn.
- */
+/** The connection rows on Capsomer's parts. THE CONFIRM: one button per row. The first press only asks (it turns into "Yes, disconnect Stripe" and Keep connected appears beside it); the second press submits that row's form, which names its connection. The button stays the same element throughout, so keyboard focus stays on it. Keep connected withdraws the question and hands focus back to the button. While the disconnect runs, the button says so and Keep is withdrawn. */
 function StripeSection({
   connections,
   result,
@@ -226,9 +179,7 @@ function StripeSection({
     navigation.state !== "idle" && navigation.formData?.get("_action") === "disconnect-stripe"
       ? String(navigation.formData.get("connectionId") ?? "")
       : null;
-  // The question belongs to the result it was asked under. A new result (a
-  // failed or refused disconnect) withdraws it, as Recova resets its confirm
-  // after the alert, without setting state from an effect.
+  // The question belongs to the result it was asked under. A new result (a failed or refused disconnect) withdraws it, without setting state from an effect.
   const [asked, setAsked] = useState<{
     id: string;
     under: DisconnectResult | undefined;
@@ -238,8 +189,7 @@ function StripeSection({
   const buttonId = (id: string) => `${ids}-disconnect-${id}`;
   const feedback = disconnectFeedback(result);
 
-  // Recova's failure: one browser alert with its line. `result` is a new
-  // object per submission, so a repeated failure alerts again.
+  // One browser alert with its line. `result` is a new object per submission, so a repeated failure alerts again.
   const alertMessage = feedback?.kind === "alert" ? feedback.message : null;
   useEffect(() => {
     if (alertMessage) window.alert(alertMessage);

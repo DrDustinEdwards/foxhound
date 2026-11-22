@@ -14,14 +14,15 @@ import {
 import { DAY_MS } from "~/lib/constants";
 import { monthKey } from "@dustinedwards/site-runtime/time";
 
-// Intelligence seed (TASK-foxhound-demo-data-engine.md Phase 3): customer_context
-// + health_score_history + mrr_snapshots + the demo alert rules, built from the
-// same customer roster, recovery rows, and dispute rows the other seed modules
-// produced (never a second, independent narrative). mrr_snapshots reuses the
-// REAL movement math (app/lib/intelligence/mrr.ts computeMrrMovements /
-// buildMrrSnapshotFields) walked across a year of points (daily for the last 90 days), driven by each
-// customer's actual signup/churn date, so movements are derived, not invented.
-// Pure: returns plain insert rows, no DB access.
+// Intelligence seed (TASK-foxhound-demo-data-engine.md Phase 3):
+// customer_context + health_score_history + mrr_snapshots + the demo alert
+// rules, built from the same customer roster, recovery rows, and dispute rows
+// the other seed modules produced (never a second, independent narrative).
+// mrr_snapshots reuses the REAL movement math (app/lib/intelligence/mrr.ts
+// computeMrrMovements / buildMrrSnapshotFields) walked across a year of points
+// (daily for the last 90 days), driven by each customer's actual signup/churn
+// date, so movements are derived, not invented. Pure: returns plain insert
+// rows, no DB access.
 
 const MONTH_COUNT = 12;
 /** Days of daily snapshots, the dashboard's window. */
@@ -189,8 +190,10 @@ function heuristicTrajectory(recovery: RecoveryAggregate, seed: string): Traject
 // in the base, Teamflow's Harborline Group, just gets its dispute_signals
 // merged in.)
 
-/** The plan a net-new dispute-only customer is on, read off the disputed
- *  charge. Teamflow's rule by default; Bolt Analytics sells Pro only. */
+/**
+ * The plan a net-new dispute-only customer is on, read off the disputed charge.
+ * Teamflow's rule by default; Bolt Analytics sells Pro only.
+ */
 export interface DisputeOnlyPlan {
   tier: string;
   planName: string;
@@ -296,10 +299,11 @@ function buildMrrRoster(
   return [...fromBase, ...fromDisputes];
 }
 
-/** The demo's snapshot dates, oldest first: one a month for the year before
- *  the last DAILY_SNAPSHOT_DAYS, then one a day, as intelligence-sync writes
- *  them, so the dashboard's 90 days and the console's twelve months both
- *  have rows. */
+/**
+ * The demo's snapshot dates, oldest first: one a month for the year before the
+ * last DAILY_SNAPSHOT_DAYS, then one a day, as intelligence-sync writes them,
+ * so the dashboard's 90 days and the console's twelve months both have rows.
+ */
 function snapshotDates(now: Date): Date[] {
   const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
   const dailyFrom = today - (DAILY_SNAPSHOT_DAYS - 1) * DAY_MS;
@@ -373,9 +377,6 @@ function buildSnapshots(
   return rows;
 }
 
-// Alerts (ported from legacy lib/demo-seeding/seed-alerts.ts: 3 rules + 1 fired
-// history row, for each demo business, as legacy seeded them per account)
-
 function buildAlerts(
   accountId: string,
   p: string,
@@ -444,8 +445,10 @@ export interface IntelligenceSeedInputs {
   failedPayments: FailedPaymentInsert[];
   recoveredPayments: RecoveredPaymentInsert[];
   disputes: DisputeInsert[];
-  /** Starts the ids of the rows not keyed by a customer (snapshots, alerts),
-   *  so two demo businesses never share one. Teamflow's "d" by default. */
+  /**
+   * Starts the ids of the rows not keyed by a customer (snapshots, alerts), so
+   * two demo businesses never share one. Teamflow's "d" by default.
+   */
   idPrefix?: string;
   disputeOnlyPlan?: (amountCents: number) => DisputeOnlyPlan;
 }

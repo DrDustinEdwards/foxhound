@@ -32,27 +32,13 @@ import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-/** Map a connected Stripe account id to our account id AND the specific
- *  stripe_connections row it resolved through (Phase 5 review MEDIUM fix
- *  companion, 2026-07-19): an account can have more than one active
- *  connection, so failed_payments intake records which one a payment
- *  actually belongs to, not just which account.
- *
- *  LIVE ROWS ONLY (ruling 356 binding 3, DEFECT 4). This is the ONE reader that
- *  routes money: whichever row it returns decides whose ledger every failed
- *  payment, recovered payment, outcome and billing line item for this Stripe
- *  account lands on. It used to match on `stripe_user_id` alone, so a
- *  DISCONNECTED history row could answer for a Stripe account that had since
- *  been connected somewhere else, and S37's disconnect leaves exactly such rows
- *  behind. 333's rule that a disconnected connection cannot be the primary of
- *  anything, applied to the reader where getting it wrong costs money.
- *
- *  NO ORDERING IS NEEDED, and that is a fact about the schema rather than an
- *  omission: `stripe_connections_live_stripe_account_uq` makes at most one live
- *  row possible per `stripe_user_id`, so `.limit(1)` has nothing to choose
- *  between. The filter and the index are INDEPENDENT layers, deliberately, and
- *  each is proven alone: the index stops the second live row
- *  being written, this stops a disconnected row answering. */
+/**
+ * Map a connected Stripe account id to our account id AND the specific stripe_connections row it
+ * resolved through: an account can have more than one active connection, so failed_payments intake
+ * records which one a payment actually belongs to, not just which account. LIVE ROWS ONLY. This is
+ * the ONE reader that routes money: whichever row it returns decides whose ledger every failed
+ * payment, recovered payment, outcome and billing line item for this Stripe account lands on.
+ */
 export async function resolveConnection(
   env: Env,
   connectedAccountId: string,
@@ -71,11 +57,10 @@ export async function resolveConnection(
   return rows[0] ?? null;
 }
 
-/** True when this Stripe account has a DISCONNECTED connection here (and, as
- *  the caller already found, no live one): a merchant who disconnected, or
- *  whose revoke at Stripe failed or lagged. Its events are not claimed, so the
- *  missed-event sweep can replay them after a reconnect (Mythos billing
- *  review, finding 6). */
+/**
+ * True when this Stripe account has a DISCONNECTED connection here (and, as the caller already
+ * found, no live one): a merchant who disconnected, or whose revoke at Stripe failed or lagged.
+ */
 export async function hasDisconnectedConnection(
   env: Env,
   connectedAccountId: string,
@@ -88,12 +73,13 @@ export async function hasDisconnectedConnection(
   return rows.length > 0;
 }
 
-/** Find the current ACTIVE failed_payment for an invoice, if any: the per-invoice
- *  intake dedupe (Stripe emits one payment_failed per collection attempt, and
- *  only the first spawns a sequence). Deliberately narrower than
- *  findRecoverableFailedPayment: a new failure on an invoice whose earlier
- *  sequence exhausted must start a FRESH sequence, not be swallowed as a
- *  duplicate of the finished one. */
+/**
+ * Find the current ACTIVE failed_payment for an invoice, if any: the per-invoice intake dedupe
+ * (Stripe emits one payment_failed per collection attempt, and only the first spawns a sequence).
+ * Deliberately narrower than findRecoverableFailedPayment: a new failure on an invoice whose
+ * earlier sequence exhausted must start a FRESH sequence, not be swallowed as a duplicate of the
+ * finished one.
+ */
 export async function findActiveFailedPayment(
   env: Env,
   accountId: string,
@@ -113,10 +99,10 @@ export async function findActiveFailedPayment(
       networkAdviceCode: failedPayments.networkAdviceCode,
     })
     .from(failedPayments)
-    // LIVE, not just active. A second payment_failed on the same
-    // invoice has to FIND the stripe_retrying row so it can promote it; a
-    // status-active-only read would miss it and create a second row for the
-    // same invoice, which is the per-invoice dedupe this function exists to be.
+    // LIVE, not just active. A second payment_failed on the same invoice has to FIND the
+    // stripe_retrying row so it can promote it; a status-active-only read would miss it and create
+    // a second row for the same invoice, which is the per-invoice dedupe this function exists to
+    // be.
     .where(
       and(
         eq(failedPayments.accountId, accountId),
@@ -129,12 +115,12 @@ export async function findActiveFailedPayment(
   return rows[0] ?? null;
 }
 
-/** The failed_payment a successful invoice payment should be recorded against:
- *  still active, OR already flipped to failed_unrecovered by the exhausted-
- *  sequence sweep. The second case is a customer paying after the dunning
- *  cadence ran out, which is a real recovery and must not be dropped. Newest
- *  first, so when an invoice has both a finished sequence and a newer active
- *  one, the active one wins. */
+/**
+ * The failed_payment a successful invoice payment should be recorded against: still active, OR
+ * already flipped to failed_unrecovered by the exhausted- sequence sweep. The second case is a
+ * customer paying after the dunning cadence ran out, which is a real recovery and must not be
+ * dropped.
+ */
 export async function findRecoverableFailedPayment(
   env: Env,
   accountId: string,
@@ -156,9 +142,6 @@ export async function findRecoverableFailedPayment(
   return rows[0]?.id ?? null;
 }
 
-/** Legacy's involuntary-churn test, and since 291 also the SET to stop: every
- *  failed payment still ACTIVE for this customer. Legacy keys on 'active' alone
- *  and so does this. Unlimited by design now: legacy iterates all of them. */
 export async function listActiveFailedPaymentIds(
   env: Env,
   accountId: string,
@@ -171,12 +154,7 @@ export async function listActiveFailedPaymentIds(
       and(
         eq(failedPayments.accountId, accountId),
         eq(failedPayments.stripeCustomerId, stripeCustomerId),
-        // LIVE, not just active. THIS IS HALT 1 OF SESSION 82: the
-        // whole reason the row is created during Stripe's retry window instead
-        // of being deferred. A subscription canceled while the payment sits in
-        // stripe_retrying is involuntary churn, and if this read cannot see the
-        // row the cancellation looks voluntary and spawns a win-back campaign
-        // at customers whose card just failed.
+        // LIVE, not just active.
         inArray(failedPayments.status, LIVE_FAILED_PAYMENT_STATUSES),
       ),
     );
@@ -184,11 +162,7 @@ export async function listActiveFailedPaymentIds(
 }
 
 /**
- * Legacy's Intelligence win-back gate, resolved to a step-1 offset in hours.
- * Returns undefined when the gate does not apply, which leaves the schedule's
- * own default in place. Fails OPEN on any error, exactly as legacy does with its
- * try/catch around the same lookup (customer context; legacy's entitlement check
- * went with Intelligence's price, Dustin 2026-10-29).
+ * Returns undefined when the gate does not apply, which leaves the schedule's own default in place.
  */
 export async function resolveWinbackStep1Offset(
   env: Env,
@@ -216,8 +190,6 @@ export async function resolveWinbackStep1Offset(
   }
 }
 
-/** Legacy's already-chased test: a failed payment RESOLVED (canceled or
- *  recovered) since the cutoff. Legacy's status pair exactly. */
 export async function hasRecentlyResolvedFailedPayment(
   env: Env,
   accountId: string,
@@ -239,7 +211,6 @@ export async function hasRecentlyResolvedFailedPayment(
   return rows.length > 0;
 }
 
-/** Legacy's replay pre-check: an existing sequence for this subscription. */
 export async function findWinbackSequence(
   env: Env,
   accountId: string,
@@ -258,15 +229,7 @@ export async function findWinbackSequence(
   return rows[0]?.id ?? null;
 }
 
-/**
- * The connected-account customer, for the email a win-back sequence needs.
- * BEST EFFORT BY DESIGN, and deliberately unlike resolveInvoiceIdForPaymentIntent
- * above: legacy wraps its own customers.retrieve in a try/catch and then falls
- * through to `if (!customerEmail) return`, so a Stripe failure and a customer
- * with no email reach the same place. Returning null here reproduces that. The
- * asymmetry is safe because nothing is overcharged by NOT starting a win-back,
- * which is the opposite of the refund path's exposure.
- */
+/** The connected-account customer, for the email a win-back sequence needs. */
 export async function resolveConnectedCustomer(
   env: Env,
   connectionId: string,
@@ -284,21 +247,11 @@ export async function resolveConnectedCustomer(
 }
 
 /**
- * Resolve the connected-account invoice a payment_intent belongs to. Invoice
- * <-> PaymentIntent linkage is not a direct field on either object in the pinned
- * API version; the InvoicePayments list, filtered by payment intent, is the seam.
- * NOT invoices.search: Stripe documents search as eventually consistent (new or
- * changed data can take a minute, longer during an outage, to appear), so an
- * empty search could not tell "not ours" from "not indexed yet", and the refund
- * path would claim a refund on our own recovery and go on to bill it. A list
- * read is not indexed, so an empty page is a real answer.
- *
- * THROWS on a transient failure (no stored access token, a decrypt failure, any
- * Stripe error). Returns null ONLY for a clean miss: Stripe answered and no
- * invoice matches that payment intent. The distinction is the whole point. A
- * caller that must not lose the event lets the throw reach
- * processConnectedWebhook's catch, which 500s so Stripe redelivers with nothing
- * claimed; a best-effort caller catches it itself.
+ * Resolve the connected-account invoice a payment_intent belongs to. NOT invoices.search: Stripe
+ * documents search as eventually consistent (new or changed data can take a minute, longer during
+ * an outage, to appear), so an empty search could not tell "not ours" from "not indexed yet", and
+ * the refund path would claim a refund on our own recovery and go on to bill it. THROWS on a
+ * transient failure (no stored access token, a decrypt failure, any Stripe error).
  */
 async function resolveInvoiceIdForPaymentIntent(
   env: Env,
@@ -317,12 +270,10 @@ async function resolveInvoiceIdForPaymentIntent(
 }
 
 /**
- * The failed_payments row a refunded charge belongs to, or null when the refund
- * is on a payment Foxhound never took in (a normal refund on an invoice that
- * never failed). Deliberately NOT filtered by status: by the time a refund
- * arrives the row is 'recovered', which is exactly the case that must be
- * stamped. Any transient failure throws, per
- * resolveInvoiceIdForPaymentIntent's contract.
+ * The failed_payments row a refunded charge belongs to, or null when the refund is on a payment
+ * Foxhound never took in (a normal refund on an invoice that never failed). Deliberately NOT
+ * filtered by status: by the time a refund arrives the row is 'recovered', which is exactly the
+ * case that must be stamped.
  */
 export async function resolveRefundedFailedPayment(
   env: Env,
@@ -363,28 +314,10 @@ export interface DisputedRecoveryLink {
 }
 
 /**
- * Resolve the recovery a disputed charge belongs to, if any: the dispute-intake
- * evidence context (TASK-foxhound-dispute-intake.md). This is the Stripe-read
- * enrichment seam (Phase 8 live): mapping a dispute's payment_intent to our
- * invoice-keyed failed_payments row needs a live connected-account read (the
- * charge/paymentIntent -> invoice resolution deferred elsewhere in this module,
- * see the stamp_refund/stamp_dispute-resolution comment below).
- *
- * Returns null ONLY for a clean miss: no payment_intent, or Stripe and D1
- * answered and no recovery matches. A transient failure (no stored token, a
- * decrypt failure, any Stripe or D1 error) THROWS, per
- * resolveInvoiceIdForPaymentIntent's contract. It used to return null, which
- * saved the dispute unlinked: the disputed recovery was never stamped, so it
- * stayed billable, and Stripe's redelivery came back a duplicate and could not
- * repair it. Now the webhook 500s with nothing claimed and Stripe redelivers,
- * exactly as the refund path does.
- *
- * EXPORTED under ruling 400 for the manual dispute import
- * (app/lib/disputes/manual-import.server.ts), which enriches a hand-imported
- * dispute through this same seam. Two enrichment paths would be two answers to
- * "which recovery does this disputed charge belong to", and a manually imported
- * dispute that skipped the recovery link would silently stay billable on a
- * recovery it should have excluded.
+ * Resolve the recovery a disputed charge belongs to, if any: the dispute-intake evidence context
+ * (TASK-foxhound-dispute-intake.md). Two enrichment paths would be two answers to "which recovery
+ * does this disputed charge belong to", and a manually imported dispute that skipped the recovery
+ * link would silently stay billable on a recovery it should have excluded.
  */
 export async function resolveDisputedRecovery(
   env: Env,
@@ -459,12 +392,10 @@ export async function findDisputeByStripeId(
 }
 
 /**
- * Resolve recovery attribution from the executed steps of a failed payment,
- * in precedence order (app/lib/recovery/attribution.ts): a landed silent
- * retry (foxhound_retry), else a completed card update through the hosted
- * /p/:token page (card_update, M1 / Phase 4 review), else a clicked dunning
- * email (email_engaged), else the free stripe_baseline. Mirrors the legacy
- * recovery_trigger logic on the SCHEMA.md attribution spine.
+ * Resolve recovery attribution from the executed steps of a failed payment, in precedence order
+ * (app/lib/recovery/attribution.ts): a landed silent retry (foxhound_retry), else a completed card
+ * update through the hosted /p/:token page, else a clicked dunning email (email_engaged), else the
+ * free stripe_baseline.
  */
 export async function resolveRecoveryAttribution(
   env: Env,
@@ -472,10 +403,8 @@ export async function resolveRecoveryAttribution(
   recoveredAt: Date,
 ) {
   const db = getDb(env);
-  // Deliberately unordered. Which click attributes the recovery is decided by
-  // findAttributionSignals, which sorts by clickedAt desc, so
-  // this query's row order cannot reach the ledger. Ordering here as well would
-  // give two guards for one rule and neither could be shown to fail alone.
+  // Deliberately unordered. Ordering here as well would give two guards for one rule and neither
+  // could be shown to fail alone.
   const steps = await db
     .select({
       id: recoverySteps.id,
@@ -504,12 +433,10 @@ export async function resolveRecoveryAttribution(
 }
 
 /**
- * The card behind a customer.updated, retrieving the payment method only when
- * the event did not already carry one (legacy's second half).
- *
- * Returns null when there is no card to read, which the caller treats as a
- * claim-only ignore rather than an error: a customer update that touches no
- * card is an ordinary event, not a failure.
+ * The card behind a customer.updated, retrieving the payment method only when the event did not
+ * already carry one. Returns null when there is no card to read, which the caller treats as a
+ * claim-only ignore rather than an error: a customer update that touches no card is an ordinary
+ * event, not a failure.
  */
 export async function resolveExpiringCard(
   env: Env,
@@ -579,19 +506,10 @@ export interface FailureFacts {
 }
 
 /**
- * The decline facts of an invoice's latest charge, and the invoice's current
- * status, for intake. The invoice event cannot give the decline: on the pinned
- * API version it has no `charge`, and last_finalization_error covers
- * finalization only, so a real payment failure used to arrive with no decline
- * code and be classified "unknown".
- *
- * The decline code is the payment intent's last_payment_error.decline_code,
- * then the issuer's reason on the charge outcome, then the charge's
- * failure_code, the generic "card_declined" yielding to any specific code.
- *
- * BEST EFFORT. Each half is null on any failure (no token, a decrypt failure,
- * any Stripe error) and logs it: intake must never be blocked by a read, and
- * the caller falls back to what the event carried.
+ * The decline facts of an invoice's latest charge, and the invoice's current status, for intake.
+ * BEST EFFORT. Each half is null on any failure (no token, a decrypt failure, any Stripe error) and
+ * logs it: intake must never be blocked by a read, and the caller falls back to what the event
+ * carried.
  */
 export async function resolveFailureFacts(
   env: Env,
@@ -650,15 +568,10 @@ async function readDeclineFacts(stripe: Stripe, invoiceId: string): Promise<Decl
 }
 
 /**
- * The fee and net of a paid invoice's charge, for the recovery record. One
- * invoice payments list and one payment intent read, the charge's balance
- * transaction expanded in the same call.
- *
- * BEST EFFORT, like resolveFailureFacts. Null on any failure, and on a charge
- * whose balance transaction Stripe has not created yet: the recovery and its
- * billing never wait on this read, and the columns stay null for a later
- * backfill. The payout is not read: a balance transaction does not name its
- * payout, and finding it would mean listing payouts.
+ * The fee and net of a paid invoice's charge, for the recovery record. BEST EFFORT, like
+ * resolveFailureFacts. Null on any failure, and on a charge whose balance transaction Stripe has
+ * not created yet: the recovery and its billing never wait on this read, and the columns stay null
+ * for a later backfill.
  */
 export async function resolveRecoveredChargeFee(
   env: Env,
@@ -688,16 +601,8 @@ export async function resolveRecoveredChargeFee(
 
 /** Process one verified connected-account event. */
 /**
- * The invoice-side reactivation attempt.
- *
- * Legacy matches on the CUSTOMER and nothing else. This uses the customer only
- * to decide whether a Stripe read is worth making, and matches on the sequence
- * id carried in the subscription's metadata. A win-back sequence that exists
- * for the customer but whose id is not the one on the paid subscription is NOT
- * reactivated, which is the whole point.
- *
- * Best effort throughout: a Stripe failure here must not fail the webhook, on
- * which a real recovery and its fee may depend.
+ * The invoice-side reactivation attempt. Best effort throughout: a Stripe failure here must not
+ * fail the webhook, on which a real recovery and its fee may depend.
  */
 export async function tryWinbackReactivationFromInvoice(
   env: Env,

@@ -9,10 +9,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/contact";
 
-// Recova had /contact; Foxhound's support address was only on /about, /help and
-// the legal pages (parity audit, 2026-11-10). One page that says where to write
-// and what to put in the message, so a merchant gets an answer without a second
-// round of email. The address is SUPPORT_EMAIL, never retyped.
+// One page that says where to write and what to put in the message, so a merchant gets an answer without a second round of email. The address is SUPPORT_EMAIL, never retyped.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [

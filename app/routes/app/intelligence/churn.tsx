@@ -28,19 +28,7 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { Route } from "./+types/churn";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /intelligence/churn. Recova is the spec: its real page,
-// app/(app)/intelligence/churn/page.tsx at blob 718cd7f5, and its chart,
-// app/(app)/intelligence/churn/components/ChurnRateChart.tsx at blob f4b9d3e5,
-// both read whole. In Recova's order and width: the head, the churn-rate chart,
-// the three band cards, then the high-risk customers table; or, when nobody is
-// scored yet, Recova's "being calculated" card in place of the bands and table.
-//
-// Built from Capsomer 0.9.0's parts with the chart drawn by Enarratio,
-// amber throughout. No Foxhound CSS sits over a Capsomer component:
-// Recova's band tints, its pill colors per plan and its 12px radius wait for
-// Capsomer's per-site layer, listed in the J29
-// notes. Band cutoffs are Foxhound's engine (40/70, rulings 78/79), derived
-// from the constants below, never Recova's 33/66.
+// /intelligence/churn: the head, the churn-rate chart (Enarratio), the three band cards, then the high-risk customers table; or, when nobody is scored yet, a "being calculated" card in place of the bands and table. Band cutoffs are Foxhound's engine (40/70), derived from the constants below.
 
 export function meta() {
   return [{ title: "Churn Risk - Foxhound" }, NOINDEX];
@@ -77,13 +65,12 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   const currency = "usd";
 
   const byBand = new Map(view.bands.map((b) => [b.band, b]));
-  // Recova's ChurnRateChart returns null unless some rate is above zero.
+  // The chart returns null unless some rate is above zero.
   const hasRateData = view.ratePoints.some(
     (p) => (p.voluntaryPct ?? 0) > 0 || (p.involuntaryPct ?? 0) > 0,
   );
 
-  // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns
-  // the page's one <main>, so this is a plain wrapper.
+  // max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-intel-page cap-admin-page" data-width="page">
       <div className="fh-intel-head">
@@ -107,8 +94,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
       ) : null}
 
       {view.scoredCustomerCount === 0 ? (
-        // Capsomer's Empty puts its title in a <p>, which would demote
-        // Recova's h2, so this is its markup with the h2.
+        // Capsomer's Empty puts its title in a <p>, which would demote the h2, so this is its markup with the h2.
         <div className="cap-empty" data-kind="nothing-yet">
           <div className="cap-empty-header">
             <h2 className="cap-empty-title">Health scores are being calculated.</h2>

@@ -1,7 +1,5 @@
-// The alerts part of /settings/notifications: its read and its writes. The
-// alerts list used to be its own page, /settings/alerts (S28); Dustin had it
-// combined with Notifications on 2026-10-29, since both decide what you are
-// told and where. The UI is app/components/alerts-section.tsx.
+// The alerts part of /settings/notifications: its read and its writes. The UI is
+// app/components/alerts-section.tsx.
 import { data, redirect } from "react-router";
 
 import type { Db } from "~/db";
@@ -15,7 +13,6 @@ const ALERTS_PAGE = "/settings/notifications";
 /** The form intents the alerts part answers. */
 export const ALERT_INTENTS = ["create", "toggle", "delete"] as const;
 
-/** Recova's page reads the twenty most recent firings. */
 const RECENT_TRIGGERS = 20;
 
 export async function loadAlertsSection(env: Env, db: Db, accountId: string) {
@@ -43,11 +40,8 @@ export async function answerAlertsAction(
   form: FormData,
   intent: string,
 ) {
-  // TWO BRANCHES, TWO APPLY FUNCTIONS, and the split below is the one this
-  // action always had: creating takes four fields and no id, changing takes an
-  // id and one verb. Every refusal string moved with the check that produces
-  // it, so the sentences a merchant reads are unchanged and are now the same
-  // sentences an agent reads.
+  // TWO BRANCHES, TWO APPLY FUNCTIONS, and the split below is the one this action always had:
+  // creating takes four fields and no id, changing takes an id and one verb.
   if (intent === "create") {
     const result = await applyAlertCreate(
       db,
@@ -67,10 +61,8 @@ export async function answerAlertsAction(
         { status: 400 },
       );
     }
-    // Recova's dismissPanel: a created alert closes the form, clears its
-    // fields and re-enables Create alert. Redirecting drops ?new=1, so the
-    // form cannot be sent twice with the same values. A refusal above keeps
-    // the form open with its message.
+    // Redirecting drops ?new=1, so the form cannot be sent twice with the same values. A refusal
+    // above keeps the form open with its message.
     return redirect(ALERTS_PAGE);
   }
 

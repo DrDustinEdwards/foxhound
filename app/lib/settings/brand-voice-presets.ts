@@ -1,10 +1,6 @@
-// S31's vocabulary, in a CLIENT-SAFE module because the form renders it.
-// Nothing here touches the database.
-//
-// Ported from legacy's BrandVoiceForm.tsx (blob `8dd126bf`) and
-// BrandVoiceSection.tsx (blob `9f4de70c`), verbatim strings.
+// S31's vocabulary, in a CLIENT-SAFE module because the form renders it. Nothing here touches the
+// database.
 
-/** The seven preset voices, exactly legacy's list and order. */
 export const BRAND_VOICE_PRESETS = [
   "friendly and conversational",
   "reassuring and low-pressure",
@@ -15,8 +11,7 @@ export const BRAND_VOICE_PRESETS = [
   "helpful and educational",
 ] as const;
 
-/** Legacy's sentinel for the "Custom..." option. Never stored: the form submits
- *  the textarea's contents instead. */
+/** Never stored: the form submits the textarea's contents instead. */
 export const CUSTOM_PRESET = "custom";
 
 export interface CategoryVoiceRow {
@@ -24,20 +19,10 @@ export interface CategoryVoiceRow {
   key: "soft" | "expired" | "network" | "fraud";
   label: string;
   description: string;
-  /** Legacy's colored dot per category: a palette color name. */
   dot: "blue" | "brand" | "orange" | "red";
 }
 
-/**
- * THE FOUR CATEGORIES LEGACY HAS A COLUMN FOR, with its labels and
- * descriptions verbatim.
- *
- * Foxhound's `DECLINE_CATEGORIES` has SIX keys. `revoked` and `unknown` are
- * deliberately absent here: legacy has no column for them and its resolver's
- * `default:` arm sends them to the general voice. Rendering a field for them
- * would be inventing a column, which is the addition; leaving them out is the
- * port.
- */
+/** Foxhound's `DECLINE_CATEGORIES` has SIX keys. */
 export const CATEGORY_VOICE_ROWS: readonly CategoryVoiceRow[] = [
   {
     key: "soft",
@@ -73,11 +58,7 @@ export function voiceFieldName(key: CategoryVoiceKey): string {
   return `voice_${key}`;
 }
 
-/**
- * Which select option a stored value maps back to. Legacy's `initCategoryVoice`:
- * empty means "Same as main voice", a known preset selects itself, and anything
- * else is a custom string.
- */
+/** Which select option a stored value maps back to. */
 export function presetForStoredVoice(stored: string | null): { preset: string; custom: string } {
   if (!stored) return { preset: "", custom: "" };
   return (BRAND_VOICE_PRESETS as readonly string[]).includes(stored)
@@ -85,8 +66,9 @@ export function presetForStoredVoice(stored: string | null): { preset: string; c
     : { preset: CUSTOM_PRESET, custom: stored };
 }
 
-/** What the form submits for one category: the textarea when Custom is chosen,
- *  the preset otherwise. Legacy's `resolvedVoice`. */
+/**
+ * What the form submits for one category: the textarea when Custom is chosen, the preset otherwise.
+ */
 export function submittedVoice(preset: string, custom: string): string {
   return preset === CUSTOM_PRESET ? custom : preset;
 }

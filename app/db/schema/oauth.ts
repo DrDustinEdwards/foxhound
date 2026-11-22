@@ -3,12 +3,7 @@ import { index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import { id, ts, json } from "./columns";
 import { apiKeys, accountRef } from "./tenancy";
 
-//
-// Recova kept oauth_clients, oauth_authorization_codes and oauth_tokens in
-// Supabase. Those rows do not migrate (SCHEMA.md); these three tables are
-// Foxhound's own. Every secret is stored as its SHA-256 hash only: the code,
-// the refresh token, and the access token, which is an ordinary fox_mcp_ key in
-// api_keys so the /mcp door verifies it the way it verifies every key.
+// OAuth provider tables. Every secret is stored as its SHA-256 hash only: the code, the refresh token, and the access token, which is an ordinary fox_mcp_ key in api_keys so the /mcp door verifies it the way it verifies every key.
 
 /** A client registered through RFC 7591 dynamic registration. The id is always
  *  minted here, never taken from the request. */

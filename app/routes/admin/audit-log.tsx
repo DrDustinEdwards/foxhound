@@ -47,14 +47,7 @@ const HEADING_ID = "admin-audit-log-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
 const LINK = "fh-row-link";
 
-// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
-// and his review of 2026-10-11: one page name (the shell's "Audit log"), one
-// table in Capsomer's parts with plain sentence-case words, relative times with
-// the exact time on hover, a pending state and an empty state. Recova's audit
-// log (app/admin/platform/audit-log/page.tsx, blob 5003157c) is the inventory:
-// the Time, Actor, Action, Target and Detail columns, readable action labels
-// and the count of entries shown. Foxhound's targets stay links to their pages.
-// Read only: nothing here changes an entry.
+// One table in Capsomer's parts with plain sentence-case words, relative times with the exact time on hover, a pending state and an empty state. Columns: Time, Actor, Action, Target and Detail, readable action labels and the count of entries shown. Targets stay links to their pages. Read only.
 export default function AdminAuditLog({ loaderData }: Route.ComponentProps) {
   const { entries } = loaderData;
   const pending = usePagePending(AUDIT_LOG_PATH);

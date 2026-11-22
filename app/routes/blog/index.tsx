@@ -25,39 +25,13 @@ import { siteUrl } from "~/lib/seo/jsonld";
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// button, the pill and the accent text read. The site header loads the same
-// file; importing it here keeps the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the button, the pill and the accent text read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
 import "~/blog-index.css";
 
-// Ported from legacy app/(marketing)/blog/page.tsx: a featured-post hero, four
-// curated topic sections, and a "latest" strip of non-featured posts.
-//
-// Both of the departures previously recorded here are gone (M11 walk, ruling
-// 72 session). The first was already false when written: it said /blog/archive
-// was "dropped, not ported", while this file links to it and app/routes/blog/
-// archive.tsx exists. The second was an 8-post SECTION_MIN_CLUSTER_SIZE gate on
-// each topic section, justified here as a deliberate departure "per the task
-// spec" with no ratification; legacy renders a section whenever any of its
-// curated slugs resolve. Reverted to legacy's condition, keeping only the
-// posts.length > 0 floor so a zero-card section still cannot render.
-//
-// J19. Recova's spec, read whole: page.tsx (blob
-// d2d4dbfd), BlogHeaderIntro.tsx (a8ba9e72), BlogPostCard.tsx (48ba6d39),
-// lib/blog.ts (55a92d1a). Recova stays the spec for content, layout and
-// features: the header row, the featured hero, the four SECTIONS in order with
-// label, description and See all, the Latest strip, at Recova's widths (1080px
-// header, 1280px bands). The parts are Capsomer's: post cards are the
-// panel, the tag is the outline pill, Read the guide the primary button. Accents
-// are amber, text at Recova's sizes, and every text link a 24px target.
-//
-// One Recova defect is not copied (parity/M11-M13-BLOG-CLUSTER.md, F3): a
-// section shows only when a published post carries its tag, from
-// getPublishedTagSet, the one derivation llms.txt and the archive read, so See
-// all never leads to an empty or missing tag page.
+// A featured-post hero, four curated topic sections in order with label, description and See all, and a "latest" strip of non-featured posts (1080px header, 1280px bands). Post cards are the panel, the tag is the outline pill, Read the guide the primary button; every text link is a 24px target. A section renders whenever any of its curated slugs resolve and shows only when a published post carries its tag, from getPublishedTagSet (the one derivation llms.txt and the archive read), so See all never leads to an empty or missing tag page; the posts.length > 0 floor keeps a zero-card section from rendering.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
@@ -101,7 +75,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   return { siteUrl: siteUrl(env), featured, cover, sections, latest };
 }
 
-/** The tag a section's See all opens: the last segment of Recova's tagHref. */
+/** The tag a section's See all opens. */
 function sectionTag(section: BlogSectionConfig): string {
   return section.tagHref.slice(section.tagHref.lastIndexOf("/") + 1);
 }

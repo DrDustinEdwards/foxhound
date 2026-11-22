@@ -11,9 +11,7 @@ import "capsomer/pagination.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /help does.
+// Capsomer's tokens and the amber family, which the components above read. The shell loads the same file through its header; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { EarlyFraudWarnings } from "~/components/early-fraud-warnings";
@@ -58,26 +56,8 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// /disputes: Recova's disputes dashboard on Foxhound's engine.
-// Recova is the spec: app/(app)/disputes/dashboard/page.tsx (blob c97c3e93),
-// DisputesDashboardView.tsx (3c1b7a98) and SyncDisputeLink.tsx (d2c2a744). In
-// Recova's order: the "Dashboard" head, the stat cards (shown on the empty
-// state too), then the empty card or the table, then the sync control, in a
-// 1280px column. Look is Capsomer's, amber.
-//
-// Dustin answered PR #75's five questions "yes ro all" (2026-10-15,
-// cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6): the status column uses
-// Recova's words where one is true (disputeListStatus); the cards are Recova's
-// with "Submitted by Foxhound" and without "Saved vs Smart Disputes"; Mode
-// stays out for good; Win rate stays; "Fees owed" counts only fees still owed.
-// The Fee column is not built. The Recovery cross-sell card is approved as not
-// built (APPROVED-DIFFERENCES, 2026-09-19).
-//
-// The loader is read-only, billing records included. The writes are the
-// existing manual import action and the early fraud warning section's Refund
-// and Dismiss (app/lib/disputes/fraud-warnings.server.ts). That section is not
-// Recova's: Dustin approved building it on 2026-10-29. It shows only for an
-// account that has had a warning, below the disputes table.
+// /disputes: the "Dashboard" head, the stat cards (shown on the empty state too), then the empty card or the table, then the sync control, in a 1280px column. The status column uses plain words where one is true (disputeListStatus); the cards include "Submitted by Foxhound" and Win rate; "Fees owed" counts only fees still owed.
+// The loader is read-only, billing records included. The writes are the manual import action and the early fraud warning section's Refund and Dismiss (app/lib/disputes/fraud-warnings.server.ts). That section shows only for an account that has had a warning, below the disputes table.
 
 export function meta() {
   return [{ title: "Disputes - Foxhound" }, NOINDEX];
@@ -92,8 +72,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const db = getDb(env);
 
-  // The cards count every dispute in SQL; the table reads one page, newest
-  // first, as Recova orders the list (created_at descending).
+  // The cards count every dispute in SQL; the table reads one page, newest first (created_at descending).
   const nowMs = Date.now();
   const asked = Number(new URL(request.url).searchParams.get("page") ?? "1");
   const requestedPage = Number.isInteger(asked) && asked > 0 ? asked : 1;
@@ -118,8 +97,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     winRatePct: parts.winRatePct,
   };
 
-  // Recova shows each customer's Intelligence health score beside the name
-  // when Intelligence is on, which it now always is (free, Dustin 2026-10-29).
+  // Each customer's Intelligence health score shows beside the name (Intelligence is free).
   const health = await getCustomerHealthScores(
     db,
     accountId,
@@ -138,10 +116,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     )),
   ];
 
-  // Withheld from the demo exactly as legacy withholds it: legacy's demo twin
-  // renders DisputesDashboardView alone, and importing a real Stripe dispute
-  // into the shared demo account is meaningless. The middleware's method gate
-  // is still the boundary for a hand-crafted POST.
+  // Withheld from the demo: importing a real Stripe dispute into the shared demo account is meaningless. The middleware's method gate is still the boundary for a hand-crafted POST.
   return {
     disputes,
     pagination: { page, pageCount, total, perPage: DISPUTES_PAGE_SIZE },
@@ -155,19 +130,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   };
 }
 
-// Manual dispute import (ruling 400 halt ruling 1). The endpoint is this
-// route's own action rather than legacy's /api/disputes/sync, which is class
-// (a) internals and the pattern rulings 315 and 355 already set for this repo.
-//
-// IT IS DEMO-BLOCKED WITHOUT A LINE OF ITS OWN. This route nests under the app
-// shell, so appShellMiddleware runs first and demoBlocksMethod refuses every
-// non-GET with the read-only 405 before the action is reached. Putting the
-// endpoint at /api/* would have moved it OUTSIDE that firewall and required a
-// second copy of the rule.
-//
-// Account scoping is likewise not re-derived here: authContext is the one
-// chokepoint that turns a session into an account for the whole shell, and the
-// import acts on that account's own Stripe connection.
+// Manual import: this route's own action, not an /api/* endpoint. IT IS DEMO-BLOCKED WITHOUT A LINE OF ITS OWN: this route nests under the app shell, so appShellMiddleware runs first and demoBlocksMethod refuses every non-GET with the read-only 405 before the action is reached; an /api/* endpoint would sit OUTSIDE that firewall. Account scoping is likewise not re-derived: authContext is the one chokepoint that turns a session into an account, and the import acts on that account's own Stripe connection.
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return Response.json({ error: "method_not_allowed" }, { status: 405 });
@@ -213,9 +176,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 }
 
-/** The status tones on Capsomer's pill: won is ok, lost is critical, every
- *  other status has no tone (Capsomer has no blue for Recova's in-progress
- *  states, and the brand accent is amber). */
+/** The status tones on Capsomer's pill: won is ok, lost is critical, every other status has no tone (Capsomer has no blue for in-progress states, and the brand accent is amber). */
 const PILL_TONE: Record<Tone, PillTone | undefined> = {
   success: "ok",
   failure: "crit",

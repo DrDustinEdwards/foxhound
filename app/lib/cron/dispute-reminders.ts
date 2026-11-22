@@ -21,68 +21,15 @@ import { recordOutcome } from "~/lib/engine/outcomes";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { HOUR_MS } from "~/lib/constants";
 
-// THE DISPUTE DEADLINE REMINDER. Recova's spec is
-// app/api/cron/process-disputes/route.ts (blob 1cbd5bd0, 21,298 bytes), "Thing
-// 1", read whole. Its "Thing 2" (the opt-in auto-submit) is
-// app/lib/cron/dispute-auto-submit.ts, on the same tick, and its "Thing 3" (a
-// fee-row safety net) has no Foxhound
-// counterpart to back up, because the resolution batch snapshots the fee in
-// the same write that resolves the dispute.
+// THE DISPUTE DEADLINE REMINDER.
 //
-// WHO IS REMINDED, Recova's selection in Foxhound's vocabulary:
-// - an open dispute nobody has submitted: Recova's `submitted_by IS NULL` and
-//   `status = 'needs_response'` are Foxhound's submitted_at null and a state
-//   before submission;
-// - with an evidence deadline inside one of the two bands (72 to 96 hours, the
-//   "3 days" reminder; 24 to 48 hours, the "1 day" one);
-// - on an account that is not paused, as Recova's `processing_paused` skip.
-//   accountProcessingEligibleCondition also excludes canceled and demo
-//   accounts, which Recova reached through its active-product and non-demo
-//   gates;
-// - with a notification address, as Recova's `!account.notification_email`
-//   skip.
-//
-// ONE MORE FILTER THAN RECOVA, and why: an account with live sends off is not
-// selected. This job rides the five-minute tick (see the registry), so a
-// switched-off account would log a `blocked` email_sends row for each dispute
-// on every tick for a day. The account gets no mail either way; selecting it
-// would only fill the log. When the merchant is switched on, a dispute still
-// inside its band is reminded on the next tick.
-//
-// ONCE PER BAND, IN THE SELECTION. The reminder's
-// idempotency key is `<band>:<dispute id>`, and the send claim stores it on
-// its email_sends row before the provider is called. The query excludes a
-// dispute whose claim for this band already stands with no error (sent, or in
-// flight), so a reminded dispute is never selected again: no notice load, no
-// suppression check, no claim attempt and no log row on the ticks after. A
-// claim the provider refused carries its error and stays selectable, and the
-// send layer retakes it, so a failed send is tried again once its back-off
-// has passed (below).
-// Recova kept the same exclusion in memory (its sentReminders set).
-//
-// NO DISPUTE STARVES. Each band is its own query, its window in SQL (so the
-// 48 to 72 hour gap is never selected), ordered by deadline, soonest first,
-// under the batch limit. With reminded disputes excluded, a band holding more
-// than the limit drains over consecutive ticks instead of returning the same
-// rows forever.
-//
-// A REFUSED SEND BACKS OFF. The send layer keeps a refused
-// claim's row with its error, and its created_at is the time of the last
-// attempt (the claim and every retake write it). The selection skips a dispute
-// whose band claim was refused less than REFUSED_REMINDER_BACKOFF_MS ago, so a
-// provider that keeps refusing is asked about once an hour, at most 24 times in
-// a band, instead of on every five-minute tick (about 288).
-//
-// A SUPPRESSED ADDRESS IS NOT SELECTED. The send layer would log a
-// `suppressed` row for it and keep no key, so the query reads the same
-// suppression list SendGates reads (an exact match on the address) and
-// skips it. Recova's outcome rows (dispute_reminder_3d and _1d) are still
-// recorded after a real send, through recordOutcome (the money-write Durable
-// Object).
+// The query excludes a dispute whose claim for this band already stands with no
+// error (sent, or in flight), so a reminded dispute is never selected again: no
+// notice load, no suppression check, no claim attempt and no log row on the
+// ticks after.
 
 export const DISPUTE_REMINDERS_CRON_NAME = "dispute-reminders";
 
-/** Recova's CRON_BATCH_LIMIT for this query. */
 const DISPUTE_REMINDER_BATCH_LIMIT = 100;
 
 /** How long a refused reminder send waits before it is tried again. */
@@ -104,8 +51,6 @@ async function dueInBand(env: Env, now: Date, band: (typeof REMINDER_BANDS)[numb
       accountId: disputes.accountId,
       stripeDisputeId: disputes.stripeDisputeId,
       evidenceDeadline: disputes.evidenceDeadline,
-      // The reminder's own words say whether auto-submit is on; the outcome
-      // records the setting, as Recova's event_data.auto_submit did.
       autoSubmit: accounts.disputeAutoSubmit,
     })
     .from(disputes)
@@ -204,7 +149,6 @@ async function remindOne(
     return;
   }
   result.sent++;
-  // Recova's outcome, after the send and keyed so it is written once.
   await recordOutcome(env, {
     accountId: dispute.accountId,
     product: "disputes",

@@ -19,23 +19,8 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/security";
 
-// /security.
-//
-// WHAT THIS PAGE IS, and the constraint is the whole design: it states what
-// Foxhound actually does and nothing else. 377 item 11 is explicit that no
-// attestation claim of any kind appears until an auditor has signed one, so
-// there is no SOC 2, no penetration test, no "bank-grade", no compliance badge
-// and no security theatre on this page. A buyer's security questionnaire is
-// answered by facts about the system or it is not answered.
-//
-// EVERY FACTUAL CLAIM IS DERIVED FROM THE THING THAT MAKES IT TRUE. The OAuth
-// scopes come from the constants the OAuth calls send, and the retention windows
-// from the constants the sweepers delete on, so this page cannot drift away from
-// the code the way marketing copy did. The subprocessor list is
-// pinned to /privacy's, because two pages naming different subprocessors is a
-// worse failure than either naming none.
-//
-// The shell is /privacy's and /terms': Capsomer's LegalDoc in legal-page's column.
+// /security states what Foxhound actually does and nothing else: no attestation claim of any kind appears until an auditor has signed one, so there is no SOC 2, no penetration test, no "bank-grade", no compliance badge and no security theatre. A buyer's security questionnaire is answered by facts about the system or it is not answered.
+// EVERY FACTUAL CLAIM IS DERIVED FROM THE THING THAT MAKES IT TRUE: the OAuth scopes come from the constants the OAuth calls send, and the retention windows from the constants the sweepers delete on, so this page cannot drift away from the code. The subprocessor list is pinned to /privacy's, because two pages naming different subprocessors is a worse failure than either naming none. The shell is /privacy's and /terms': Capsomer's LegalDoc in legal-page's column.
 
 export const loader = siteUrlLoader;
 

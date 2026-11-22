@@ -67,11 +67,11 @@ import {
   sweepWebhookEvents,
 } from "./retention";
 
-// The scheduled-job registry: the single list mapping cron schedules to handlers.
-// The scheduled() handler in workers/app.ts dispatches by controller.cron to every
-// job on that schedule; each goes through runScheduledJobs (config gate + interval
-// gate + per-cron DO lock, cron_runs and cron_run_log). Every schedule here MUST appear in
-// wrangler.jsonc triggers.crons, or the job never fires (guarded by a test).
+// The scheduled-job registry: the single list mapping cron schedules to
+// handlers. The scheduled() handler in workers/app.ts dispatches by
+// controller.cron to every job on that schedule; each goes through
+// runScheduledJobs (config gate + interval gate + per-cron DO lock, cron_runs
+// and cron_run_log).
 
 export interface CronJob {
   name: string;
@@ -79,20 +79,18 @@ export interface CronJob {
   handler: CronHandler;
 }
 
-/** The monthly billing run, wrapped as a cron handler (reports invoices created
- *  AND what the charge-retry sweep did).
+/**
+ * The monthly billing run, wrapped as a cron handler (reports invoices created
+ * AND what the charge-retry sweep did).
  *
- *  The sweep clause is not decoration. The sweep aborts rather than continuing
- *  when it cannot read the billing gate, and until this line carried its status
- *  that abort was a console.error and nothing else: the cron row said "success"
- *  with a count, and an operator could not tell a sweep that found nothing from
- *  a sweep that never looked. The run itself is still a success, because the
- *  new-period billing below the sweep really did complete. */
+ * The sweep aborts rather than continuing when it cannot read the billing gate,
+ * and until this line carried its status that abort was a console.error and
+ * nothing else: the cron row said "success" with a count, and an operator could
+ * not tell a sweep that found nothing from a sweep that never looked.
+ */
 const billingMonthly: CronHandler = async (env, ctx) => {
   const nowMs = Date.now();
   const { accounts, sweep } = await runMonthlyBilling(env, nowMs);
-  // A human hears about per-account failures (E26), as Recova's
-  // process-recovery-billing does; the run itself still succeeds.
   const failure = billingFailureError(
     accounts.filter((r) => r.error !== undefined).map((r) => r.accountId),
     computeBillingPeriod(nowMs).periodStart,
@@ -112,13 +110,10 @@ const billingMonthly: CronHandler = async (env, ctx) => {
   };
 };
 
-/** The Intelligence deterministic sync (customer_context signals +
- *  mrr_snapshots, the free MRR tier), wrapped as a cron handler. Runs daily,
- *  as Recova's compute-intelligence-mrr did: each row's movements are measured
- *  against the PRIOR run's customer_context state, so one row is one day's
- *  movement, and the dashboard reads 90 days of them (trends.server.ts) while
- *  the console rolls them up by month (getMrrAnalytics). It runs before
- *  intelligence-ai in CRON_JOBS so the narrative reads today's row. */
+/**
+ * The Intelligence deterministic sync (customer_context signals +
+ * mrr_snapshots, the free MRR tier), wrapped as a cron handler.
+ */
 const intelligenceSync: CronHandler = async (env) => {
   const results = await runIntelligenceSyncForAllAccounts(env, Date.now());
   const customersProcessed = results.reduce((sum, r) => sum + r.customersProcessed, 0);
@@ -134,26 +129,24 @@ const intelligenceSync: CronHandler = async (env) => {
   };
 };
 
-/** The recovery tick: sweeps due recovery_steps and runs each through
- *  its executor. High cadence (every 5 minutes) because it drives real-time
- *  retries + dunning sends; see app/lib/cron/recovery-tick.ts. */
+/**
+ * The recovery tick: sweeps due recovery_steps and runs each through its
+ * executor. High cadence (every 5 minutes) because it drives real-time retries
+ * + dunning sends; see app/lib/cron/recovery-tick.ts.
+ */
 const recoveryTick: CronHandler = (env, ctx) => runRecoveryTick(env, {}, ctx?.runId ?? null);
 
-/** Recova's evaluateAlerts, which ran at the tail of its recovery cron: every
- *  account's alerts against its eleven metrics, then the critical customers
- *  check. On the recovery tick's schedule and listed after it and the dispute
- *  reminders, so it reads what they just did; the 24 hour cooldown keeps each alert to one
- *  message a day (app/lib/intelligence/alert-run.server.ts). */
 const alertsEvaluate: CronHandler = async (env) => {
   const { accounts, fired } = await runAlertsForAllAccounts(env, Date.now());
   return { rowsProcessed: fired, message: `${accounts} accounts, ${fired} alerts fired` };
 };
 
-/** Intelligence's nightly run (health scoring -> predictions -> the month's
- *  narrative), wrapped as a cron handler on the daily schedule, reusing
- *  CRON_SCHEDULE_DAILY rather than a new wrangler.jsonc trigger. No model call:
- *  the narrative is a template (narrative.ts). One account's failure is
- *  visible in the message, never a failed run. */
+/**
+ * Intelligence's nightly run (health scoring -> predictions -> the month's
+ * narrative), wrapped as a cron handler on the daily schedule, reusing
+ * CRON_SCHEDULE_DAILY rather than a new wrangler.jsonc trigger. No model call:
+ * the narrative is a template (narrative.ts).
+ */
 const intelligenceAi: CronHandler = async (env) => {
   const results = await runIntelligenceAiForAllAccounts(env, Date.now());
   const customersScored = results.reduce((sum, r) => sum + r.customersScored, 0);
@@ -165,12 +158,13 @@ const intelligenceAi: CronHandler = async (env) => {
   };
 };
 
-/** Scheduled blog publishing (site-api's runSchedules): puts live every post
- *  and every update to a live post whose scheduled time has come, with the
- *  hooks a Carrel publish runs, retries the hooks that failed before, and
- *  deletes the posts 30 days in the trash. A schedule that fails is logged by
- *  site-api and listed again on the next pass, so the run stays a success and
- *  says so. */
+/**
+ * Scheduled blog publishing (site-api's runSchedules): puts live every post and
+ * every update to a live post whose scheduled time has come, with the hooks a
+ * Carrel publish runs, retries the hooks that failed before, and deletes the
+ * posts 30 days in the trash. A schedule that fails is logged by site-api and
+ * listed again on the next pass, so the run stays a success and says so.
+ */
 const blogSchedules: CronHandler = async (env) => {
   const run = await runBlogSchedules(env);
   const failed = run.failed > 0 ? `, ${run.failed} failed (retried next pass)` : "";
@@ -183,11 +177,13 @@ const blogSchedules: CronHandler = async (env) => {
   };
 };
 
-/** The demo-account reset: wipes and rebuilds both seeded demo businesses
- *  (Teamflow, Bolt Analytics) daily, so a prospect clicking around cannot leave
- *  them broken for the next visitor. The seeder is deterministic + idempotent
- *  and makes no Stripe/AI call; the demo accounts are firewalled out of every
- *  other cron by their DEMO_ACCOUNT_ID_PREFIX. */
+/**
+ * The demo-account reset: wipes and rebuilds both seeded demo businesses
+ * (Teamflow, Bolt Analytics) daily, so a prospect clicking around cannot leave
+ * them broken for the next visitor. The seeder is deterministic + idempotent
+ * and makes no Stripe/AI call; the demo accounts are firewalled out of every
+ * other cron by their DEMO_ACCOUNT_ID_PREFIX.
+ */
 const demoReset: CronHandler = async (env) => {
   await seedDemoAccount(getDb(env), new Date());
   return {
@@ -196,38 +192,23 @@ const demoReset: CronHandler = async (env) => {
   };
 };
 
-/** The never-executed and overdue detector. Ruling 311 measured that a cron
- *  which fails, or never runs at all, notifies nobody: billing-monthly has never
- *  executed once in any environment and nothing would have said so.
- *
- *  It reads CRON_JOBS at CALL time rather than module-init time, which is what
- *  makes the self-reference below safe: the array is fully constructed long
- *  before any cron fires. Expectations are therefore DERIVED from the registry,
- *  so a job added tomorrow is watched automatically instead of being forgotten. */
-/** The daily expiring-card alert. Two passes in one job, like legacy:
- *  scan every connected account's active subscriptions for cards inside the
- *  30-day lead window and record a candidate, then send one customer-facing
- *  warning per unsent candidate. CRON_SCHEDULE_EXPIRING_CARDS is legacy's
- *  "0 9 * * *" (vercel.json, /api/cron/expiring-cards): it rode the 03:00
- *  daily sweep until parity gap 11, which landed the email in the middle of
- *  the US night. The CronLockDurableObject lease in run.ts is what stops two
- *  ticks scanning at once. */
-/** The win-back send pass. Legacy's own header says it "Runs hourly
- *  via Vercel Cron (piggybacking on process-recovery schedule)", so its cadence
- *  IS the recovery cron's cadence, and CRON_SCHEDULE_RECOVERY_TICK is that
- *  cadence here. Reusing it needs no new wrangler.jsonc trigger, which is the
- *  same reasoning intelligence-sync and intelligence-ai already record.
- *
- *  It fires more often than legacy's hour, never less, and that is a fidelity
- *  gain rather than a divergence: legacy's own constant asks for step 1 "1 hour
- *  after cancellation" and hourly polling delivers it up to two hours late. The
- *  CronLockDurableObject lease in run.ts is what stops two ticks sending at
- *  once, and the per-step claim is what stops a double send if one ever did. */
-/** The weekly merchant digest. Legacy runs it
- *  Monday 08:00 UTC and this matches, which needed the FIRST new wrangler cron
- *  expression this repo has added: every other job reuses the five-minute
- *  tick, daily or monthly. NULL is OFF on digest_enabled, the one toggle with
- *  that semantic. */
+/**
+ * The never-executed and overdue detector. Ruling 311 measured that a cron
+ * which fails, or never runs at all, notifies nobody: billing-monthly has never
+ * executed once in any environment and nothing would have said so.
+ */
+/**
+ * The daily expiring-card alert. The CronLockDurableObject lease in run.ts is
+ * what stops two ticks scanning at once.
+ */
+/**
+ * The win-back send pass. Reusing it needs no new wrangler.jsonc trigger, which
+ * is the same reasoning intelligence-sync and intelligence-ai already record.
+ */
+/**
+ * The weekly merchant digest. NULL is OFF on digest_enabled, the one toggle
+ * with that semantic.
+ */
 const weeklyDigest: CronHandler = async (env) => {
   const result = await runWeeklyDigest(env, new Date());
   return { rowsProcessed: result.sent, message: describeWeeklyDigestRun(result) };
@@ -238,13 +219,10 @@ const winbackSend: CronHandler = async (env) => {
   return { rowsProcessed: result.sent, message: describeWinbackRun(result) };
 };
 
-/** The dispute deadline reminder. Recova's process-disputes ran hourly
- *  ("0 * * * *"); this rides the five-minute tick instead, as winback-send does,
- *  because a new cron expression needs cron-health's period table too and the
- *  bands are a day wide, so a finer tick only reminds sooner within the band.
- *  The per-band send claim is what stops a second reminder. Recova's
- *  "Thing 2", the opt-in auto-submit 24 hours before the deadline, runs on the
- *  same tick after the reminders, as it ran after them in process-disputes. */
+/**
+ * The dispute deadline reminder. The per-band send claim is what stops a second
+ * reminder.
+ */
 const disputeReminders: CronHandler = async (env, ctx) => {
   const now = new Date();
   const result = await runDisputeReminders(env, now, ctx?.runId ?? null);
@@ -260,31 +238,34 @@ const expiringCards: CronHandler = async (env) => {
   return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
 };
 
-/** The nightly D1 dump into R2. Reuses the daily schedule, so no
- *  new wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts. */
+/**
+ * The nightly D1 dump into R2. Reuses the daily schedule, so no new
+ * wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts.
+ */
 const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
 const mediaBackup: CronHandler = (env) => runMediaBackup(env);
 const evidenceBackup: CronHandler = (env) => runEvidenceBackup(env);
 
-/** The 404 count's retention, by site-runtime's pruneNotFound at Foxhound's own window. It does not count what it
- *  deletes. */
+/**
+ * The 404 count's retention, by site-runtime's pruneNotFound at Foxhound's own
+ * window. It does not count what it deletes.
+ */
 const retentionPage404: CronHandler = async (env) => {
   await pruneNotFound(env.DB, { days: RETENTION_PAGE_404_DAILY_DAYS });
   return { rowsProcessed: 0, message: `kept the last ${RETENTION_PAGE_404_DAILY_DAYS} days` };
 };
 
-/** The credit-note retry (Grok audit FH-2). A refund or lost dispute credits
- *  its charged fee from the webhook, and that call never throws, so a Stripe
- *  failure there used to be a console line and a fee kept for good: the
- *  redelivery is a duplicate and skips the clawback. This sweep credits every
- *  fee the ledger says is owed, daily, until it is. A fee still owed after the
- *  sweep alerts, as billing-monthly's per-account failures do.
+/**
+ * The credit-note retry. A fee still owed after the sweep alerts, as
+ * billing-monthly's per-account failures do.
  *
- *  It also runs the retry-attribution sweep first (upgradeMissedRetryAttributions):
- *  a recovery the webhook recorded as stripe_baseline after the retry's short
- *  reconcile window had closed is upgraded to foxhound_retry, daily and before
- *  the 04:00 billing run on the 1st, so the ledger's attribution is right
- *  before anything reads it for billing. */
+ * It also runs the retry-attribution sweep first
+ * (upgradeMissedRetryAttributions): a recovery the webhook recorded as
+ * stripe_baseline after the retry's short reconcile window had closed is
+ * upgraded to foxhound_retry, daily and before the 04:00 billing run on the
+ * 1st, so the ledger's attribution is right before anything reads it for
+ * billing.
+ */
 const creditNoteRetry: CronHandler = async (env, ctx) => {
   const now = new Date();
   const attribution = await upgradeMissedRetryAttributions(env, now);
@@ -309,11 +290,12 @@ const creditNoteRetry: CronHandler = async (env, ctx) => {
   };
 };
 
-/** The dispute fee pricing retry ("Skip until priced", Dustin 2026-10-25). A
- *  won dispute whose cap could not be converted at resolution is skipped by
- *  billing until its fee is stored; this prices it daily, tells the merchant,
- *  and alerts while any stays unpriced. 03:00 daily runs before the 04:00
- *  billing run on the 1st. */
+/**
+ * The dispute fee pricing retry. A won dispute whose cap could not be converted
+ * at resolution is skipped by billing until its fee is stored; this prices it
+ * daily, tells the merchant, and alerts while any stays unpriced. 03:00 daily
+ * runs before the 04:00 billing run on the 1st.
+ */
 const disputeFeePricing: CronHandler = async (env, ctx) => {
   const now = new Date();
   const result = await priceUnpricedDisputeFees(env, now, ctx?.runId ?? null);
@@ -329,10 +311,12 @@ const disputeFeePricing: CronHandler = async (env, ctx) => {
   return { rowsProcessed: result.priced, message: describeDisputeFeePricing(result) };
 };
 
-/** The Stripe grant revoke retry (Grok audit FH-7). Cancel, disconnect and
- *  account deletion revoke the grant after the local disconnect, and a failed
- *  revoke is queued on the connection row. This retries each daily until
- *  Stripe accepts, and alerts while any grant is still in place. */
+/**
+ * The Stripe grant revoke retry. Cancel, disconnect and account deletion revoke
+ * the grant after the local disconnect, and a failed revoke is queued on the
+ * connection row. This retries each daily until Stripe accepts, and alerts
+ * while any grant is still in place.
+ */
 const stripeDeauthorizeRetry: CronHandler = async (env, ctx) => {
   const now = new Date();
   const db = getDb(env);
@@ -352,21 +336,22 @@ const stripeDeauthorizeRetry: CronHandler = async (env, ctx) => {
   };
 };
 
-/** The missed-event sweep (Stripe's process-undelivered-events advice): the
- *  last four days of each live connection's events that webhook_events never
- *  claimed, replayed through the webhook route's own processor. Reuses the
- *  daily schedule, so no new wrangler.jsonc trigger. See
- *  app/lib/webhooks/missed-events.server.ts. */
+/**
+ * The missed-event sweep (Stripe's process-undelivered-events advice): the last
+ * four days of each live connection's events that webhook_events never claimed,
+ * replayed through the webhook route's own processor. Reuses the daily
+ * schedule, so no new wrangler.jsonc trigger.
+ */
 const stripeMissedEvents: CronHandler = async (env) => {
   const result = await sweepMissedStripeEvents(env, new Date());
   return { rowsProcessed: result.replayed, message: describeMissedEventSweep(result) };
 };
 
-/** site-runtime's auth_events (migration 0068): rows with no user go after 30
- *  days, the rest after a year. The package owns the table and its rule, so
- *  this is its pruneAuthEvents, not a sweep in retention.ts. Then
- *  pruneExpiredAuth: Better Auth never deletes an expired session, and a
- *  verification row only when it is used. */
+/**
+ * site-runtime's auth_events (migration 0068): rows with no user go after 30
+ * days, the rest after a year. The package owns the table and its rule, so this
+ * is its pruneAuthEvents, not a sweep in retention.ts.
+ */
 const retentionAuthEvents: CronHandler = async (env) => {
   await pruneAuthEvents(env.DB);
   await pruneExpiredAuth(env.DB);
@@ -376,9 +361,12 @@ const retentionAuthEvents: CronHandler = async (env) => {
   };
 };
 
-/** The merchant MCP's tool-call log (TOOL_CALL_LOG): new rows copied to AUDIT_BUCKET, copied rows older than 90 days
- *  pruned (area 11, L6-L7). A failed write throws, so the run is recorded failed and alerts; /health's tool-call-log
- *  check warns once rows go uncopied for two days (L8). */
+/**
+ * The merchant MCP's tool-call log (TOOL_CALL_LOG): new rows copied to
+ * AUDIT_BUCKET, copied rows older than 90 days pruned (area 11, L6-L7). A
+ * failed write throws, so the run is recorded failed and alerts; /health's
+ * tool-call-log check warns once rows go uncopied for two days (L8).
+ */
 const toolCallLogExport: CronHandler = async (env) => {
   if (!env.AUDIT_BUCKET)
     throw new Error("AUDIT_BUCKET is not bound; the tool-call log is not copied");
@@ -392,30 +380,15 @@ const toolCallLogExport: CronHandler = async (env) => {
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
-/** THE MERGED MONTHLY AUDIT. It runs the real audit
- *  against each opted-in merchant's live Stripe account, records the run, and
- *  sends the ONE monthly email.
+/**
+ * THE MERGED MONTHLY AUDIT. It runs the real audit against each opted-in
+ * merchant's live Stripe account, records the run, and sends the ONE monthly
+ * email.
  *
- *  IT REPLACES `audit-digest`, WHICH IS GONE FROM THIS LIST. 316 registered a
- *  second monthly send here, gated on the same toggle and addressed to the same
- *  recipient; session 67's walk found the two on a collision course and 362
- *  ruled one email. The digest's number is now a line item in this one.
- *
- *  CRON_SCHEDULE_MONTHLY_AUDIT IS "0 9 1 * *", LEGACY'S HOUR, not the 04:00 the
- *  digest rode. 316 argued the hour was invisible to a merchant whose promise is
- *  the DAY, which was true of a job that only read Foxhound's own rows. This one
- *  walks live Stripe and calls the model per account, so putting it on the hour
- *  that already carries billing-monthly and intelligence-sync would be a
- *  self-inflicted collision. See the constant for the three sites a new
- *  expression has to land in.
- *
- *  IT ONLY ENQUEUES: one AUDIT_QUEUE message per opted-in
- *  account, audited one per invocation by the queue consumer, so one large
- *  account's Stripe pages cannot exhaust the subrequests every other account
- *  needs. rowsProcessed is the number queued; each account's own result is its
- *  audit_digest_runs row.
- *
- *  It passes the run id so a claim row can name the run that produced it. */
+ * This one walks live Stripe and calls the model per account, so putting it on
+ * the hour that already carries billing-monthly and intelligence-sync would be
+ * a self-inflicted collision.
+ */
 const monthlyAudit: CronHandler = async (env, ctx) => {
   const result = await enqueueMonthlyAudits(env, new Date(), ctx?.runId ?? null);
   return { rowsProcessed: result.enqueued, message: describeMonthlyAuditRun(result) };
@@ -467,7 +440,8 @@ export const CRON_JOBS: CronJob[] = [
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
   { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
   { name: "tool-call-log-export", schedule: CRON_SCHEDULE_DAILY, handler: toolCallLogExport },
-  // The day each code-written sitemap page last changed, for /sitemap.xml's lastmod.
+  // The day each code-written sitemap page last changed, for /sitemap.xml's
+  // lastmod.
   { name: "page-dates", schedule: CRON_SCHEDULE_DAILY, handler: runPageDates },
 ];
 
@@ -477,11 +451,11 @@ export function jobsForSchedule(cron: string): CronJob[] {
 }
 
 /**
- * The jobs Capsid Admin may run now (the operator API's run_job, app/lib/operator.server.ts). An allowlist, so a job
- * added later is not runnable now until someone decides it is safe: none of these moves money, submits a dispute,
- * sends a merchant or customer email or spends AI budget (CLAUDE.md hard rule 4). The backups are marked backup, for
- * run_job { backup: true }. Everything else (the recovery tick, billing, dunning, digests, reminders, Stripe retries,
- * Intelligence, the demo reset) runs only on its schedule.
+ * The jobs Capsid Admin may run now (the operator API's run_job,
+ * app/lib/operator.server.ts). An allowlist, so a job added later is not
+ * runnable now until someone decides it is safe: none of these moves money,
+ * submits a dispute, sends a merchant or customer email or spends AI budget
+ * (CLAUDE.md hard rule 4).
  */
 const RUN_NOW: Record<string, { backup?: boolean }> = {
   "d1-backup": { backup: true },

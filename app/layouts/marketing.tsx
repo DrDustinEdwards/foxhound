@@ -16,16 +16,10 @@ import type { Route } from "./+types/marketing";
 import "capsomer/link.css";
 import "~/marketing.css";
 
-// Anonymous visitors stay zero-DB (task: "Anonymous visitors stay zero-DB
-// exactly as now"). An authenticated visitor additionally resolves their
-// memberships (for the account switcher), without pulling in
-// resolveNavContext's last-visited-product logic, which marketing pages have no use for
-// (TASK-foxhound-marketing-header-v2.md).
+// Anonymous visitors stay zero-DB. An authenticated visitor additionally resolves their memberships (for the account switcher), without resolveNavContext's last-visited-product logic, which marketing pages have no use for.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  // Same resolver the root loader uses, so the toggle's icon and
-  // <html data-theme> cannot disagree for a merchant whose stored theme
-  // differs from this device's cookie.
+  // Same resolver the root loader uses, so the toggle's icon and <html data-theme> cannot disagree for a merchant whose stored theme differs from this device's cookie.
   const theme = await resolveThemeForRequest(env, request);
   const session = await getSession(env, request);
 
@@ -36,8 +30,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       isAdmin: false,
       accountLabel: "",
       hasAccount: false,
-      // Anonymous visitors stay ZERO-DB: an empty list is a
-      // constant, not a query, and the header renders no switcher for them.
+      // Anonymous visitors stay ZERO-DB: an empty list is a constant, not a query, and the header renders no switcher for them.
       accounts: [],
       activeAccountId: null,
       userName: null,
@@ -46,17 +39,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 
   const db = getDb(env);
-  // MOVED OFF THE NULL-MARKER SHIM. This called
-  // `resolveMembership`, which always resolves the EARLIEST membership, so a
-  // merchant who switched accounts and then opened /pricing saw the header
-  // reporting the account they had switched away from. Legacy has no such split:
-  // components/SiteNav.tsx calls the same `resolveAccount` on marketing pages as
-  // in-app, and `section === 'marketing'` is in its own list of sections that
-  // resolve an account.
-  //
-  // This layout is NOT under appShellMiddleware, so there is no authContext to
-  // read the way the app shell does. It resolves the same way the chokepoint
-  // does instead, off the same session marker.
+  // Resolved with `resolveAccount`, as the app shell does, not `resolveMembership`, which always picks the EARLIEST membership: a merchant who switched accounts and then opened /pricing would see the header reporting the account they switched away from. This layout is NOT under appShellMiddleware, so there is no authContext to read; it resolves the same way the chokepoint does, off the same session marker.
   const memberships = await listMemberships(db, session.user.id);
   const membership = await resolveActiveMembershipFrom(
     db,
@@ -66,17 +49,13 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return {
     isAuthenticated: true as const,
     theme,
-    // The switcher's rows. Legacy assembles these in the nav's own loader with
-    // a separate stripe_connections query, never in the account resolver.
+    // The switcher's rows, assembled in the nav's own loader with a separate stripe_connections query, never in the account resolver.
     accounts: await listSwitcherAccounts(db, memberships),
     activeAccountId: membership?.accountId ?? null,
-    // Both are free here: isAdminEmail is an env lookup, and the membership
-    // resolved above carries the account name, so the gear dropdown costs the
-    // marketing loader no extra query.
+    // Both are free here: isAdminEmail is an env lookup, and the membership resolved above carries the account name, so the avatar menu costs the marketing loader no extra query.
     isAdmin: isAdminEmail(env, session.user.email),
     accountLabel: membership?.accountName ?? session.user.email,
-    // Legacy's hasAccount, gating the gear's Billing row. The membership is
-    // already resolved above, so this costs the loader nothing extra.
+    // Gates the avatar menu's Billing row; the membership is already resolved, so it costs nothing extra.
     hasAccount: membership !== null,
     // Who you are, the first line of the avatar menu: off the session already
     // in hand, no query.

@@ -7,14 +7,11 @@ import { isPaymentTimeRange, type PaymentTimeRange } from "~/lib/recovery/time-r
 // The route component imports these, so nothing here may import a .server
 // module.
 
-/** Recova's rows-per-page choices and its default, lib/payments-data.ts
- *  (VALID_PER_PAGE, DEFAULT_PER_PAGE = 25). */
 export const PAYMENTS_PAGE_SIZE_OPTIONS = [10, 25, 50, 100, "all"] as const;
 export type PaymentsPageSize = (typeof PAYMENTS_PAGE_SIZE_OPTIONS)[number];
 export const PAYMENTS_DEFAULT_PAGE_SIZE: PaymentsPageSize = 25;
 
-/** The page size in the URL ("perPage"), or Recova's default when it is not
- *  one of Recova's choices. Shared by the list and its CSV export. */
+/** Shared by the list and its CSV export. */
 export function parsePaymentsPageSize(value: string | null): PaymentsPageSize {
   if (value === "all") return "all";
   const n = Number(value);
@@ -46,14 +43,11 @@ export function parsePaymentsAmount(
   return Math.min(Math.max(n, floorCents), ceilingCents);
 }
 
-/** Recova's amount slider moves in 10-unit steps (AmountRangeSlider.tsx STEP): 10 major units of the range's currency. */
 export function amountSliderStep(currency: string): number {
   return 10 * 10 ** currencyExponent(currency);
 }
 
-/** Recova's decline words: its filter options and its row pill, which renders
- *  the category under CSS capitalize. Foxhound's two extra categories take
- *  the same treatment. */
+/** Foxhound's two extra categories take the same treatment. */
 export const DECLINE_CATEGORY_WORDS: Record<string, string> = {
   soft: "Soft",
   network: "Network",
@@ -67,8 +61,6 @@ export function declineWord(category: string): string {
   return DECLINE_CATEGORY_WORDS[category] ?? category;
 }
 
-/** Recova's slider figures: whole units, and the top end as "$N+"
- *  (AmountRangeSlider.tsx formatDollars), in the range's currency. */
 export function sliderAmount(
   minor: number,
   currency: string,
@@ -79,15 +71,13 @@ export function sliderAmount(
   return formatMoneyShort(minor, currency);
 }
 
-/** Recova clears the bulk result 3 seconds after it lands (PaymentsClient.tsx
- *  doBulkAction: setTimeout(..., 3000)). */
 export const BULK_RESULT_DISMISS_MS = 3000;
 
-/** Whether the bulk result clears itself after BULK_RESULT_DISMISS_MS. Only
- *  when every payment took the action: a report with a failure, or a refused
- *  submission, stays until the merchant dismisses it, since a failure list
- *  that vanishes on a timer fails WCAG 2.2.1 (Timing Adjustable). Pending
- *  Dustin's ruling. */
+/**
+ * Whether the bulk result clears itself after BULK_RESULT_DISMISS_MS. Only when every payment took
+ * the action: a report with a failure, or a refused submission, stays until the merchant dismisses
+ * it, since a failure list that vanishes on a timer fails WCAG 2.2.1 (Timing Adjustable).
+ */
 export function bulkResultClearsItself(
   bulk: { results?: readonly { ok: boolean }[]; refused?: unknown } | null | undefined,
 ): boolean {
@@ -95,8 +85,6 @@ export function bulkResultClearsItself(
   return bulk.results.every((r) => r.ok);
 }
 
-/** Recova's bulk result line, PaymentsClient.tsx doBulkAction: the action's
- *  past tense, how many succeeded, and how many failed when any did. */
 const BULK_RESULT_LABELS: Record<string, string> = {
   trigger: "Triggered",
   mark_recovered: "Marked recovered",

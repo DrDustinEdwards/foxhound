@@ -1,10 +1,8 @@
 import type { DeclineCategory } from "~/lib/constants";
 
-// Single source of truth for Stripe decline-code classification (ported from
-// legacy lib/decline.ts). Decline category is first-class: it drives which
-// recovery schedule runs (schedule.ts) and the tone of the dunning copy.
-// Money-path fails CLOSED: an unrecognized / null code is "unknown", a
-// dedicated no-auto-retry bucket, never folded into "soft".
+// Single source of truth for Stripe decline-code classification. Money-path fails CLOSED: an
+// unrecognized / null code is "unknown", a dedicated no-auto-retry bucket, never folded into
+// "soft".
 
 const SOFT_CODES = new Set([
   "insufficient_funds",
@@ -22,10 +20,9 @@ const NETWORK_CODES = new Set([
   "service_unavailable",
   "reenter_transaction",
 ]);
-// card_not_supported is not here. Stripe's decline-code table says the card does
-// not support this type of purchase and the customer should use another card,
-// so a retry on the same card cannot work: it falls through to "unknown", the
-// email-only cadence.
+// card_not_supported is not here. Stripe's decline-code table says the card does not support this
+// type of purchase and the customer should use another card, so a retry on the same card cannot
+// work: it falls through to "unknown", the email-only cadence.
 
 const EXPIRED_CODES = new Set(["expired_card", "invalid_expiry_month", "invalid_expiry_year"]);
 
@@ -39,19 +36,15 @@ const FRAUD_CODES = new Set([
   // The network told us to stop for this charge with no path back: never retry,
   // route to the fraud dunning cadence (email-only, gentle).
   "do_not_try_again",
-  // On Stripe's own hard decline list: Stripe does not retry it until a new
-  // payment method is detected. Recova filed it as soft and retried it; Dustin
-  // moved it to the hard declines on 2026-10-25 (decision card, "Yes, all
-  // three"), so it is never silently retried.
+  // On Stripe's own hard decline list: Stripe does not retry it until a new payment method is
+  // detected.
   "transaction_not_allowed",
 ]);
 
-// The cardholder has explicitly revoked their standing authorization (called
-// their bank to block recurring charges from this merchant). This is neither a
-// retryable soft decline nor a fraud flag: it is a deliberate stop. It gets its
-// own single-email "cancel or update payment method?" hold, never a retry and
-// never a multi-step dunning sequence (schedule.ts RECOVERY_SCHEDULES.revoked).
-// Both the singular Stripe decline_code and the plural form map here.
+// The cardholder has explicitly revoked their standing authorization (called their bank to block
+// recurring charges from this merchant). It gets its own single-email "cancel or update payment
+// method?" hold, never a retry and never a multi-step dunning sequence (schedule.ts
+// RECOVERY_SCHEDULES.revoked).
 const REVOKED_CODES = new Set(["revocation_of_authorization", "revocation_of_all_authorizations"]);
 
 export function classifyDecline(code: string | null | undefined): DeclineCategory {
@@ -70,23 +63,19 @@ export function isRetryable(category: DeclineCategory): boolean {
 }
 
 /**
- * True for a decline Stripe will not retry on the same card: Stripe keeps a
- * next_payment_attempt on the invoice but runs it only once a new payment
- * method is attached (docs.stripe.com/billing/revenue-recovery/smart-retries).
- * Waiting for Stripe to give up would hold the customer's first email for the
- * whole retry window, so these start their email-led sequence on the first
- * failure (webhooks/recovery-handlers.ts handleIntake).
+ * True for a decline Stripe will not retry on the same card: Stripe keeps a next_payment_attempt on
+ * the invoice but runs it only once a new payment method is attached
+ * (docs.stripe.com/billing/revenue-recovery/smart-retries).
  */
 export function isHardDecline(category: DeclineCategory): boolean {
   return category === "expired" || category === "revoked" || category === "fraud";
 }
 
 /**
- * The most specific decline code among several readings of one failure, in the
- * caller's order of trust. Stripe's charge carries the generic "card_declined"
- * as its failure_code while the issuer's real reason sits in decline_code, so a
- * generic code yields to any specific one and is kept only when nothing else
- * was read. Pure.
+ * The most specific decline code among several readings of one failure, in the caller's order of
+ * trust. Stripe's charge carries the generic "card_declined" as its failure_code while the issuer's
+ * real reason sits in decline_code, so a generic code yields to any specific one and is kept only
+ * when nothing else was read.
  */
 export function pickDeclineCode(candidates: (string | null | undefined)[]): string | null {
   const present = candidates.filter((c): c is string => !!c);
@@ -94,15 +83,11 @@ export function pickDeclineCode(candidates: (string | null | undefined)[]): stri
 }
 
 /**
- * Let the card network's advice code override the category where it says more
- * than the decline code does. Only a decline the classifier would treat as
- * retryable or unreadable (soft, network, unknown) is moved: an expired, fraud
- * or revoked decline is already at least as strict.
- *
- * "do_not_try_again" takes the category the classifier gives the decline code
- * of the same name, so it is never silently retried. "confirm_card_data" means
- * the card details are wrong, which is the card-update path an expired card
- * takes. "try_again_later", and anything else, changes nothing. Pure.
+ * Let the card network's advice code override the category where it says more than the decline code
+ * does. Only a decline the classifier would treat as retryable or unreadable (soft, network,
+ * unknown) is moved: an expired, fraud or revoked decline is already at least as strict.
+ * "do_not_try_again" takes the category the classifier gives the decline code of the same name, so
+ * it is never silently retried.
  */
 export function applyNetworkAdvice(
   category: DeclineCategory,

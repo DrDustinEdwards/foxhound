@@ -6,19 +6,7 @@ import { apiKeys, mcpCalls, oauthGrants } from "~/db";
 import { MCP_CALLS_SHOWN, maskSecretsInText } from "~/lib/admin/mcps";
 import { MCP_TOKEN_SCOPE, issueMcpToken, type IssuedMcpToken } from "~/lib/auth/mcp-tokens";
 
-// S29's read model and its ACCOUNT-SCOPED writers.
-//
-// THE HARDENING ROWS-S SAYS IS OWED IS RIGHT HERE, and it is why this module
-// exists rather than the route calling mcp-tokens directly:
-// `revokeMcpToken(db, keyId)` takes NO account, so it revokes any key in the
-// platform by id. That was safe while nothing but a Phase 7 admin path called
-// it; the moment a merchant-facing form posts a key id, an unscoped revoke lets
-// one merchant kill another merchant's integration. `revokeAccountApiKey` pins
-// `account_id` in the WHERE, so a foreign id matches zero rows, as legacy's
-// DELETE handler refuses one (app/api/settings/api-keys/[id]/route.ts, blob
-// d0d306ba, 403 when the row's account_id is not the caller's).
-//
-// Plain account-state writes, not money writes.
+// S29's read model and its ACCOUNT-SCOPED writers. Plain account-state writes, not money writes.
 
 export interface ApiKeyRow {
   id: string;
@@ -28,13 +16,8 @@ export interface ApiKeyRow {
 }
 
 /**
- * The account's LIVE merchant keys, newest first, as legacy's GET orders them
- * (`order('created_at', { ascending: false })`, blob 81e694f5).
- *
- * Revoked keys are excluded, matching legacy, whose client drops a key from the
- * list the moment the revoke succeeds and never fetches it again. Admin-scoped
- * keys carry `account_id = null` by construction in `issueMcpToken`, so they
- * cannot appear in an account-scoped list on either side.
+ * Admin-scoped keys carry `account_id = null` by construction in `issueMcpToken`, so they cannot
+ * appear in an account-scoped list on either side.
  */
 export async function listAccountApiKeys(
   db: Db,
@@ -54,10 +37,8 @@ export async function listAccountApiKeys(
         eq(apiKeys.accountId, accountId),
         eq(apiKeys.scope, MCP_TOKEN_SCOPE.MERCHANT),
         isNull(apiKeys.revokedAt),
-        // An OAuth connection's key expires every hour and is renewed by a
-        // refresh, so a lapsed hour alone does not end it. It is listed while
-        // its access hour or its grant is live, and not once both are gone. A
-        // Settings key has no expiry and is always listed.
+        // An OAuth connection's key expires every hour and is renewed by a refresh, so a lapsed
+        // hour alone does not end it.
         or(
           isNull(apiKeys.expiresAt),
           gt(apiKeys.expiresAt, now),
@@ -80,10 +61,8 @@ export async function listAccountApiKeys(
 }
 
 /**
- * Issue one merchant key for this account. Settings never issues an Admin API
- * key, whoever is signed in: that is the admin area's, behind Cloudflare
- * Access (issueAdminApiKey; Mythos billing review, finding 4). A form's
- * `scope` is not read at all.
+ * Issue one merchant key for this account. Settings never issues an Admin API key, whoever is
+ * signed in: that is the admin area's, behind Cloudflare Access (issueAdminApiKey).
  */
 export async function createAccountApiKey(
   db: Db,
@@ -126,9 +105,8 @@ export interface AccountMcpCallRow {
 }
 
 /**
- * The account's own MCP calls, newest first, MCP_CALLS_SHOWN a page (area 11, A15 and L9: the owner sees what their
- * agents did, beside the keys they can revoke). Only this account's rows (rule 8: accountId first), the error masked as
- * /admin/operations masks it. `before` is the last row (time and id) of the page before; `more` says an older page exists.
+ * The account's own MCP calls, newest first, MCP_CALLS_SHOWN a page. Only this account's rows (rule
+ * 8: accountId first), the error masked as /admin/operations masks it.
  */
 export async function listAccountMcpCalls(
   db: Db,

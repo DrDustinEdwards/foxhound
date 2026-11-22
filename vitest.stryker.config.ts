@@ -11,15 +11,15 @@ import base from "./vitest.config";
 
 const SOURCE_TEXT_TEST_FILES = [
   "test/ai-gateway-client.test.ts",
-  "test/d1-backup-job-f7f35d4b7ac7.test.ts",
+  "test/d1-backup.test.ts",
   "test/expiring-card-cron.test.ts",
   "test/live-send-flag.test.ts",
   "test/merchant-recovery-notification.test.ts",
-  "test/multi-account-phase-b-327.test.ts",
+  "test/multi-account.test.ts",
   "test/sequence-complete-notification.test.ts",
   "test/settings-digest-email-removed.test.ts",
-  "test/settings-email-s33.test.ts",
-  "test/settings-stripe-s37.test.ts",
+  "test/settings-email.test.ts",
+  "test/settings-stripe.test.ts",
   "test/winback-creation.test.ts",
   "test/winback-gate-and-stop.test.ts",
 ];

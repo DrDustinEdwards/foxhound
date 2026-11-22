@@ -23,23 +23,9 @@ import { generateAuditSummary, type AuditSummaryOutcome } from "./summary.server
 
 // The five live reads, the pure engine and the one AI call, joined. Phase (f).
 //
-// THIS IS THE SEAM PHASES (a) TO (c) WERE BUILT AROUND, and it is deliberately
-// the only impure thing in the audit's compute path: `engine.ts` and
-// `summary.ts` contain no `await` at all and are pinned as such. Everything that
-// touches the network is here or in `reads.ts`.
-//
-// NOTHING IN HERE WRITES. No `getDb`, no `executeMoneyWrite`, no
-// `recordOutcome`. Persistence is the CALLER's decision because it depends on
-// who is asking: legacy stores a run only when a signed-in account resolves, and
-// an anonymous audit stores nothing at all. Keeping the write out of this module
-// is what lets the anonymous path use it unchanged.
-//
-// THE FIVE READS RUN CONCURRENTLY AND DEGRADE INDEPENDENTLY. `Promise.all` is
-// safe here only because `read()` never rejects: every reader returns a
-// ScopeOutcome, so one Stripe failure yields `{ok:false, reason}` for that read
-// and the engine turns it into a per-scope status. Legacy's
-// `allSettled` reached the same shape and then threw the information away by
-// zeroing the scope.
+// `Promise.all` is safe here only because `read()` never rejects: every reader
+// returns a ScopeOutcome, so one Stripe failure yields `{ok:false, reason}` for
+// that read and the engine turns it into a per-scope status.
 
 export interface AuditRunOutcome {
   result: AuditResult;
@@ -52,8 +38,8 @@ export async function collectAuditInputs(
   lookbackDays: number,
   ranAt: Date,
 ): Promise<AuditInputs> {
-  // The card updater's window is the shorter of the two (auditWindows), the same
-  // one runAudit computes its denominator over.
+  // The card updater's window is the shorter of the two (auditWindows), the
+  // same one runAudit computes its denominator over.
   const { lookbackStartSeconds, cauWindowStartSeconds } = auditWindows(ranAt, lookbackDays);
 
   const [uncollectibleInvoices, openInvoices, subscriptions, disputes, cardUpdaterEvents] =
@@ -74,17 +60,17 @@ export async function collectAuditInputs(
   };
 }
 
-/** Invoices read for their decline code, at most this many per list: each
- *  costs two Stripe calls, and the category breakdown is a sample beyond it. */
+/**
+ * Invoices read for their decline code, at most this many per list: each costs
+ * two Stripe calls, and the category breakdown is a sample beyond it.
+ */
 const DECLINE_LOOKUP_CAP = 100;
 
 /**
  * Fill in each invoice's real decline code. On the pinned API version an
  * invoice carries no `charge` and no `last_payment_error`, so without this
  * every failed invoice read as "unknown" and the expired-card advice never
- * fired. The code comes off the latest charge, the way webhook intake reads
- * it, and is set where extractDeclineCode looks (`charge.failure_code`). A
- * failed read leaves that invoice as it was.
+ * fired.
  */
 async function withDeclineCodes(
   stripe: Stripe,
@@ -117,8 +103,7 @@ async function withDeclineCodes(
  *
  * THE TOKEN IS A PARAMETER AND NEVER A LOOKUP. The anonymous flow holds its
  * token in a five-minute cookie and has no row to read it from, so a signature
- * that took an account id could not serve it. `getConnectedStripe` is the same
- * factory every connected-account call in this repo already uses.
+ * that took an account id could not serve it.
  */
 export async function runFullAudit(
   env: Env,

@@ -6,11 +6,11 @@ import { disputeApprovals, disputes } from "~/db";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 
 // The db.insert()/db.update() query builders for the approve-and-submit flow
-// (see ~/lib/disputes/approval.ts for the phase-ordering rationale). Split
-// into this .server.ts sibling (perf-audit fix, foxhound-audit-perf.md M-1)
-// specifically so drizzle-orm and the disputes/dispute_approvals table
-// objects never share a module with canApprove, which the disputes detail
-// page component calls directly and so must stay client-reachable.
+// (see ~/lib/disputes/approval.ts for the phase-ordering rationale). Split into
+// this .server.ts sibling specifically so drizzle-orm and the
+// disputes/dispute_approvals table objects never share a module with
+// canApprove, which the disputes detail page component calls directly and so
+// must stay client-reachable.
 
 // Not a MoneyWriteBatch (app/db/money-write.ts): that type name is reserved for
 // batches routed through the per-account money-write DO. This one deliberately
@@ -24,19 +24,19 @@ export interface PendingApprovalInput {
   approvedByEmail: string;
   evidenceVersionHash: string;
   approvedAt: Date;
-  /** When the approver turned auto-submit on, for an approval the auto-submit
-   *  job writes from that standing opt-in; null for the merchant's own click. */
+  /**
+   * When the approver turned auto-submit on, for an approval the auto-submit
+   * job writes from that standing opt-in; null for the merchant's own click.
+   */
   standingOptInAt: Date | null;
 }
 
 /**
  * Phase A (before the Stripe submission): insert the dispute_approvals row, the
- * durable record that the merchant approved and a submission is being attempted.
- * The unique index on dispute_approvals.dispute_id makes a concurrent second
- * attempt fail this insert (caught by the caller, isUniqueConstraintError). The
- * dispute state is deliberately NOT advanced here: it stays approvable until the
- * submission is confirmed (Phase C), so a Stripe failure leaves a retriable
- * dispute rather than a false `submitted` state Stripe never received.
+ * durable record that the merchant approved and a submission is being
+ * attempted. The unique index on dispute_approvals.dispute_id makes a
+ * concurrent second attempt fail this insert (caught by the caller,
+ * isUniqueConstraintError).
  */
 export function buildPendingApprovalBatch(db: Db, input: PendingApprovalInput): OperationalBatch {
   return [
@@ -81,8 +81,8 @@ export function buildSubmissionConfirmationBatch(
       .update(disputes)
       .set({
         // A dispute that already resolved (its closed event can beat this
-        // write) keeps its state; it still gets the submitted marker, which
-        // is the only thing billing reads to know Foxhound filed it.
+        // write) keeps its state; it still gets the submitted marker, which is
+        // the only thing billing reads to know Foxhound filed it.
         state: sql`case when ${disputes.state} in (${settled}) then ${disputes.state} else 'submitted' end`,
         submittedAt: input.submittedAt,
         submittedBy: input.submittedBy,

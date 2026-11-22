@@ -27,26 +27,9 @@ import "capsomer/status.css";
 import "capsomer/stat-tile.css";
 import "capsomer/table.css";
 
-// The docs preview widgets: Recova's components/docs/* illustrations, on
-// Capsomer's parts.
-//
-// STATIC MARKUP, NO LOADER, NO DB. Where a widget shows a set Foxhound already
-// defines (the decline categories, the payment statuses, the dispute states, the
-// recovery schedules, the health bands), it DERIVES that set from the constant
-// rather than transcribing it, so a seventh decline category changes the
-// picture the day it lands.
-//
-// RECOVA'S WIDGETS NOT DRAWN, each for a reason in the PR:
-//   PaymentsTablePreview, DashboardStatCards and ChurnRiskSummary print the
-//     Teamflow demo's customers and money; Foxhound's figures for these come
-//     from its own demo seed through a loader, which a guide page does not have.
-//   DisputesTablePreview and TriagePill: Recova's table printed invented
-//     customers, and a guide page has no loader to read the demo seed through.
+// The docs preview widgets, on Capsomer's parts. Static markup, no loader, no DB. Where a widget shows a set Foxhound already defines (the decline categories, the payment statuses, the dispute states, the recovery schedules, the health bands), it derives that set from the constant rather than transcribing it, so a seventh decline category changes the picture the day it lands. Widgets that would print invented customers and money are not drawn: a guide page has no loader to read the demo seed through.
 
-/** Recova's four audit scope cards, as Capsomer's feature cards (AuditScopeCard, blob `dc1d18dd`), at its
- *  two-column grid, saying what Foxhound's engine computes for each
- *  (app/lib/audit/engine.ts). Recova's text glyphs become drawn icons, as on
- *  the app's step icons (APPROVED-DIFFERENCES, 2026-08-15). */
+/** The four audit scope cards, as Capsomer's feature cards in a two-column grid, saying what Foxhound's engine computes for each (app/lib/audit/engine.ts). */
 function AuditScopes() {
   const scopes: [string, string, string][] = [
     [
@@ -79,9 +62,7 @@ function AuditScopes() {
   );
 }
 
-/** Recova's StatusPillShowcase (blob `37614382`), from
- *  `FAILED_PAYMENT_STATUS_LABELS`, so Foxhound's fifth status (Stripe
- *  retrying, 377) is drawn and the last one reads "Failed", the tab word. */
+/** Status pills from `FAILED_PAYMENT_STATUS_LABELS`, so the fifth status (Stripe retrying) is drawn and the last one reads "Failed", the tab word. */
 const STATUS_PILL: Record<
   string,
   { tone?: Tone; variant?: "outline" | "secondary"; caption: string }
@@ -115,9 +96,7 @@ function PaymentStatuses() {
   );
 }
 
-/** Recova's CategoryPillShowcase (blob `62a8a9e1`): one card per category with
- *  the decline codes that land in it. SIX, not Recova's four. Every code named
- *  here is checked against classifyDecline by test/docs-guides-j73.test.ts. */
+/** One card per category with the decline codes that land in it. Every code named here is checked against classifyDecline by test/docs.test.ts. */
 const CATEGORY_CODES: Record<DeclineCategory, { codes: string[]; note: string }> = {
   soft: {
     codes: ["insufficient_funds", "do_not_honor", "generic_decline"],
@@ -163,10 +142,7 @@ function DeclineCategories() {
   );
 }
 
-/** Recova's four SequenceTimelines (blob `aa6a85fc`), one per category, from
- *  RECOVERY_SCHEDULES through the same part /product/recovery draws, so the
- *  guide and the product page cannot disagree. Six categories, silent retry
- *  first where the category allows a retry at all. */
+/** One SequenceTimeline per category, from RECOVERY_SCHEDULES through the same part /product/recovery draws, so the guide and the product page cannot disagree. Silent retry first where the category allows a retry at all. */
 function SequenceTimelines() {
   return (
     <div className="cap-stack fh-doc-widgets-block-3" data-gap="4">
@@ -177,10 +153,7 @@ function SequenceTimelines() {
   );
 }
 
-/** Recova's PaymentTimelinePreview (blob `be6fb312`): one payment's steps with
- *  their result. Recova's rows name a demo customer and raw step types
- *  ("retry_4hr"); this one is labeled an example, takes its steps from the
- *  soft schedule, and words them as the payment page does (formatStepType). */
+/** One payment's steps with their result, labeled an example, from the soft schedule and worded as the payment page does (formatStepType). */
 function PaymentTimeline() {
   const steps = RECOVERY_SCHEDULES.soft;
   return (
@@ -216,9 +189,7 @@ function PaymentTimeline() {
   );
 }
 
-/** The three health bands at Foxhound's cutoffs, in place of Recova's
- *  ChurnRiskSummary (blob `ba1fbb51`), whose figures are the Teamflow demo's.
- *  Drawn from the constants the scorer uses. */
+/** The three health bands at Foxhound's cutoffs, drawn from the constants the scorer uses. */
 function HealthBands() {
   const last = WATCH_CEILING - 1;
   return (
@@ -247,11 +218,7 @@ function HealthBands() {
   );
 }
 
-/** Recova's IntelligenceCustomerTable (blob `6ae7c73f`) shows five demo
- *  customers with an Action column. Foxhound's customers page has no Action
- *  column (`ai_recommended_actions` has no writer) and carries Last seen and
- *  Signals, so this draws the page's columns in its order, with a badge in each
- *  band in the Health row, rather than invented customers. */
+/** The customers page's columns in its order, with a badge in each band in the Health row, rather than invented customers. */
 function CustomerColumns() {
   const examples = [
     HEALTH_SCORE_AT_RISK_THRESHOLD - 15,
@@ -294,9 +261,7 @@ function CustomerColumns() {
   );
 }
 
-/** The dispute states in order, from `DISPUTE_STATE_LABELS`. Recova's
- *  DisputesTablePreview mocks a list with a Triage column Foxhound does not
- *  have; the states are what Foxhound's approval gate turns on. */
+/** The dispute states in order, from `DISPUTE_STATE_LABELS`; they are what Foxhound's approval gate turns on. */
 function DisputeStates() {
   const meaning: Record<string, string> = {
     draft: "Evidence is being assembled. Nothing has been submitted.",

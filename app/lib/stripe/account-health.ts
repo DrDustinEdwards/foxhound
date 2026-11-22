@@ -4,18 +4,10 @@ import type Stripe from "stripe";
 import type { EmailNotice } from "~/lib/email/templates";
 import { stripeDate } from "~/lib/stripe/time";
 
-// THE CONNECTED STRIPE ACCOUNT'S OWN HEALTH, read from account.updated. Stripe
-// sends that event to the Connect endpoint for the connected account itself
-// (event.account is its id, data.object the Account), whenever its capabilities
-// or verification requirements move. Pure: the webhook handler stores what this
-// reads and the sender in account-health.server.ts mails what it words.
-//
-// WHY IT MATTERS TO FOXHOUND. With charges disabled, every retry Foxhound makes
-// on that account fails at Stripe, so the recovery tick holds retry steps
-// (recovery-tick.ts) and the merchant is told. Payouts disabled and past-due
-// requirements do not stop a retry, but the money a retry recovers or a won
-// dispute returns sits in Stripe until the merchant acts, and past-due
-// requirements are how Stripe warns that charges are next.
+// THE CONNECTED STRIPE ACCOUNT'S OWN HEALTH, read from account.updated. WHY IT MATTERS TO FOXHOUND.
+// Payouts disabled and past-due requirements do not stop a retry, but the money a retry recovers or
+// a won dispute returns sits in Stripe until the merchant acts, and past-due requirements are how
+// Stripe warns that charges are next.
 
 export interface AccountHealth {
   chargesEnabled: boolean | null;
@@ -42,10 +34,8 @@ export function readAccountHealth(account: Stripe.Account): AccountHealth {
 export type HealthProblem = "charges_disabled" | "payouts_disabled" | "past_due";
 
 /**
- * The problems that are NEW in `next` compared with what was stored. A problem
- * already stored is not new, so a merchant is told once when charges turn off,
- * not on every account.updated Stripe sends while they stay off. Null before
- * (never told) counts as healthy. Pure.
+ * The problems that are NEW in `next` compared with what was stored. Null before (never told)
+ * counts as healthy. Pure.
  */
 export function newHealthProblems(prev: AccountHealth, next: AccountHealth): HealthProblem[] {
   const problems: HealthProblem[] = [];

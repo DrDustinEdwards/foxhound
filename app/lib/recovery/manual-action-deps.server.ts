@@ -22,9 +22,8 @@ import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
 import { TEMPLATE_LABEL_RESEND } from "./manual-action-batches.server";
 
 /**
- * The IO the trigger intent needs, injected so the dispatcher never touches
- * `Env` directly and both executor branches are drivable in tests. The defaults
- * are the cron's own loader and executors; nothing here is a parallel engine.
+ * The IO the trigger intent needs, injected so the dispatcher never touches `Env` directly and both
+ * executor branches are drivable in tests.
  */
 export interface TriggerDeps {
   loadStep: (accountId: string, stepId: string) => Promise<DueStepRow | null>;
@@ -49,11 +48,12 @@ export interface ResendDeps {
   send: (input: ResendSendInput) => Promise<EmailJobResult>;
 }
 
-/** The merchant's sender for a resend: `sender_name` for the From name (E9)
- *  and `reply_to_email` for the Reply-To, both raw and nullable, on the
- *  connection the step's payment came through, as the engine's send reads
- *  them. Scoped to the account, so a step id never reads another merchant's
- *  connection. */
+/**
+ * The merchant's sender for a resend: `sender_name` for the From name and `reply_to_email` for the
+ * Reply-To, both raw and nullable, on the connection the step's payment came through, as the
+ * engine's send reads them. Scoped to the account, so a step id never reads another merchant's
+ * connection.
+ */
 async function resendSender(
   env: Env,
   accountId: string,
@@ -69,30 +69,14 @@ async function resendSender(
   return { senderName: rows[0]?.senderName ?? null, replyTo: rows[0]?.replyTo ?? null };
 }
 
-/**
- * Recova's resend footer line (app/api/payments/[id]/resend/route.ts, blob
- * 35132cb6, line 61): `&copy; ${year} ${senderName}`, with the sender name as
- * its From has it (`sender_name || 'Support'`). It is the resend's own line,
- * not the engine's "You're receiving this from" sentence, because Recova's
- * resend wraps the stored body in its route's own shell. Pure.
- */
+/** Pure. */
 export function resendFooterNote(senderName: string | null | undefined, year: number): string {
   return `\u00a9 ${year} ${footerSenderName(senderName)}`;
 }
 
 /**
- * Bind the real send path to `env`: processEmailJob, which is suppression gate,
- * live-send flag, send, and email_sends log, in that order. `queueMessageId` is
- * null because this is the synchronous path, exactly as the engine's defaultSend
- * passes null.
- *
- * THE CAN-SPAM FIELDS ARE ASSEMBLED HERE, and this is where legacy's resend
- * differs most. Legacy's route sends a raw provider call with NO unsubscribe
- * token and NO List-Unsubscribe header, two of the four defects its own sibling
- * trigger route documents as the degraded parallel it removed from itself (scope
- * 1.5). EmailJob makes them non-optional, and buildEmailMessage throws without a
- * physical address, so the pipeline refuses to send a non-compliant message at
- * all. 262 decision three ports the intent, not the defect.
+ * Bind the real send path to `env`: processEmailJob, which is suppression gate, live-send flag,
+ * send, and email_sends log, in that order.
  */
 export function resendDepsFor(env: Env): ResendDeps {
   return {
@@ -106,8 +90,6 @@ export function resendDepsFor(env: Env): ResendDeps {
         accountId: input.accountId,
         recoveryStepId: input.recoveryStepId,
         to: input.to,
-        // E9: Recova's From name, `sender_name || 'Support'` (send.ts applies
-        // the Support fallback to a null name).
         fromName: sender.senderName,
         replyTo: sender.replyTo,
         subject: input.subject,
@@ -115,8 +97,6 @@ export function resendDepsFor(env: Env): ResendDeps {
         template: TEMPLATE_LABEL_RESEND,
         unsubscribeToken,
         physicalAddress: env.PHYSICAL_ADDRESS ?? "",
-        // E9: Recova's resend footer line, first in the footer slot, before
-        // the approved unsubscribe link and postal address.
         footerNote: resendFooterNote(sender.senderName, input.now.getUTCFullYear()),
         idempotencyKey: `resend:${input.recoveryStepId}:${input.now.getTime()}`,
       };

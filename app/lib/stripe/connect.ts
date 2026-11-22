@@ -9,11 +9,7 @@ import {
 import { getStripe } from "./client";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// Stripe Connect OAuth (ported from legacy app/api/auth/stripe/{connect,callback}).
-// Phase 3 stubbed /connect/callback; this is the real token exchange. In the
-// Foxhound model the account already exists (Phase 3 account setup), so the
-// callback attaches the connection to the resolved account rather than creating
-// one (legacy created the account inside the callback).
+// Stripe Connect OAuth.
 
 /** The redirect_uri registered with Stripe and sent on both authorize + token. */
 function connectRedirectUri(env: Env): string {
@@ -21,27 +17,13 @@ function connectRedirectUri(env: Env): string {
   return `${env.BETTER_AUTH_URL}/connect/callback`;
 }
 
-/**
- * The anonymous audit's redirect_uri. A SECOND registered URI, which
- * is legacy's shape too: its audit flow lands on /audit/callback while its
- * merchant flow lands on the auth callback, and Stripe matches redirect_uri
- * exactly. Both have to be registered on the platform's Connect settings before
- * either flow works in production; that is on core.md's credentials list.
- */
+/** The anonymous audit's redirect_uri. */
 function auditRedirectUri(env: Env): string {
   if (!env.BETTER_AUTH_URL) throw new Error("BETTER_AUTH_URL is not set");
   return `${env.BETTER_AUTH_URL}/audit/callback`;
 }
 
-/**
- * Build the Stripe Connect authorize URL with a CSRF state value.
- *
- * THE SCOPE IS A PARAMETER WITH read_write AS ITS DEFAULT, so the onboarding
- * caller is unchanged and the audit caller has to say what it wants. Defaulting
- * to the write scope is deliberate rather than lazy: an audit route that forgets
- * to pass a scope gets the loud parity default that every plant is watching,
- * not a quiet read-only one nobody would notice was missing from the audit.
- */
+/** Build the Stripe Connect authorize URL with a CSRF state value. */
 export function buildConnectAuthorizeUrl(
   env: Env,
   state: string,
@@ -58,16 +40,7 @@ export function buildConnectAuthorizeUrl(
   return `${STRIPE_CONNECT_AUTHORIZE_URL}?${params.toString()}`;
 }
 
-/**
- * The audit flow's authorize URL, and the only caller that names
- * STRIPE_AUDIT_SCOPE.
- *
- * Its own function rather than an options object at the call site, so the
- * audit's scope and redirect are asserted once for every caller that ever
- * starts an audit. The scope is read_write since 2026-10-29 (Stripe refuses
- * read_only to platforms; see STRIPE_AUDIT_SCOPE), and the grant is revoked when
- * the audit's window ends (app/lib/audit/grant-revoke.server.ts).
- */
+/** The audit flow's authorize URL, and the only caller that names STRIPE_AUDIT_SCOPE. */
 export function buildAuditAuthorizeUrl(env: Env, state: string): string {
   return buildConnectAuthorizeUrl(env, state, {
     scope: STRIPE_AUDIT_SCOPE,
@@ -84,13 +57,10 @@ export interface StripeOAuthResult {
 }
 
 /**
- * Exchange an authorization code for connected-account credentials.
- *
- * A TEST-MODE TOKEN IS REFUSED. Foxhound runs on a live key only and claims and
- * ignores every test-mode webhook, so a connection made with a test key (a
- * misconfigured STRIPE_SECRET_KEY) would look connected and never recover a
- * payment. Strictly true: a response without the field is refused too. The
- * message names the cause and carries no token, so the callback can log it.
+ * Exchange an authorization code for connected-account credentials. A TEST-MODE TOKEN IS REFUSED.
+ * Foxhound runs on a live key only and claims and ignores every test-mode webhook, so a connection
+ * made with a test key (a misconfigured STRIPE_SECRET_KEY) would look connected and never recover a
+ * payment. The message names the cause and carries no token, so the callback can log it.
  */
 export async function exchangeConnectCode(env: Env, code: string): Promise<StripeOAuthResult> {
   const token = await getStripe(env).oauth.token({
@@ -139,11 +109,9 @@ export interface DeauthorizeResult {
 }
 
 /**
- * Revoke a Standard Connect OAuth grant against an already-constructed Stripe
- * client. Isolated so a fake client can drive it in tests without a live call
- * (mirrors app/lib/disputes/submission.ts's submitDisputeEvidenceWithClient).
- * Never throws: a Stripe-side failure reports ok:false so the caller can log
- * and retry later rather than propagate.
+ * Revoke a Standard Connect OAuth grant against an already-constructed Stripe client. Never throws:
+ * a Stripe-side failure reports ok:false so the caller can log and retry later rather than
+ * propagate.
  */
 async function deauthorizeConnectedAccountWithClient(
   stripe: Stripe,
@@ -159,13 +127,11 @@ async function deauthorizeConnectedAccountWithClient(
 }
 
 /**
- * Default IO: build the platform client, deauthorize (admin Pass 2: merchant
- * cancel). A wired-but-inert live Stripe seam like every other Phase-8-verified
- * call in this module. Callers MUST commit the local cancel state
- * (accounts.cancelledAt + stripe_connections.disconnectedAt) BEFORE calling
- * this, and must never roll that local state back on a deauthorize failure -
- * the merchant is canceled either way; a failed deauthorize only means the
- * OAuth grant itself needs a retry, not that processing should resume.
+ * Default IO: build the platform client, deauthorize (admin Pass 2: merchant cancel). Callers MUST
+ * commit the local cancel state (accounts.cancelledAt + stripe_connections.disconnectedAt) BEFORE
+ * calling this, and must never roll that local state back on a deauthorize failure - the merchant
+ * is canceled either way; a failed deauthorize only means the OAuth grant itself needs a retry, not
+ * that processing should resume.
  */
 export async function deauthorizeConnectedAccount(
   env: Env,

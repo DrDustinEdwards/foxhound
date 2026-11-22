@@ -69,8 +69,7 @@ export function RangeSelector({ range }: { range: RecoveryRange }) {
   );
 }
 
-/** Recova's OnboardingChecklist steps, for Capsomer's setup checklist: each
- *  one Done or To do, with its one way to do it until it is done. */
+/** Steps for Capsomer's setup checklist: each one Done or To do, with its one way to do it until it is done. */
 export function onboardingSteps({
   connected,
   senderNameSet,
@@ -118,9 +117,7 @@ export const ONBOARDING_READY = {
   detail: "Foxhound will automatically detect and recover failed payments",
 };
 
-/** Recova's PrimaryCard and SecondaryCard: an icon, the label, the figure and
- *  an optional line under it, here as a small Capsomer panel (Capsomer's stat
- *  tile is always a link or a button, and Recova's cards lead nowhere). */
+/** An icon, the label, the figure and an optional line under it, as a small Capsomer panel (Capsomer's stat tile is always a link or a button, and these cards lead nowhere). */
 
 function StatCard({
   icon,
@@ -233,12 +230,7 @@ function RoiLine({ label, value, strong }: { label: string; value: string; stron
   );
 }
 
-/** Recova's ROIWidget, its two columns and six lines, on the figures Foxhound
- *  bills: attributed recoveries that have matured, with the fee from the
- *  pricing constant. Recova's "Recova fee (20%)" over every retry, click and
- *  manual recovery is the unratified claim not copied (ROWS-S S5, 181); the
- *  panel title says which recoveries these are, and "fees paid" became "fees",
- *  because Foxhound cannot know an invoice was paid from this page. */
+/** The ROI widget's two columns and six lines, on the figures Foxhound bills: attributed recoveries that have matured, with the fee from the pricing constant. The panel title says which recoveries these are, and "fees" not "fees paid", because Foxhound cannot know an invoice was paid from this page. */
 export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiColumn } }) {
   const empty = roi.thisMonth.recovered.length === 0 && roi.allTime.recovered.length === 0;
   return (
@@ -375,10 +367,7 @@ function DeliverabilityFigure({
   );
 }
 
-/** Recova's DeliverabilityPanel (blob 87a88d88) on what Foxhound records.
- *  Recova's "delivered" figure and its alert are not shown: Foxhound stores no
- *  delivered event. Its empty state named Recova's old email provider; this
- *  one names Email Service. */
+/** The deliverability panel on what Foxhound records. No "delivered" figure or alert: Foxhound stores no delivered event. */
 export function DeliverabilityPanel({
   counts,
   rangeLabel,

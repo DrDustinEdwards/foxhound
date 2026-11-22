@@ -12,23 +12,7 @@ import { bare, setHostCookie } from "~/lib/http/cookies";
 
 import type { Route } from "./+types/invite";
 
-// Row A7, /invite/:token. Recova's app/invite/page.tsx (blob cd317a14),
-// InviteClient.tsx (blob 0eb98af4) and app/api/invite/accept/route.ts (blob
-// 13708537), read whole. The page is one 400px card, centered: "You've been
-// invited", "Join <account> on Foxhound" and one "Accept invite" button, or,
-// on any refusal, "Invite invalid" and the reason. The path is /invite/:token,
-// not Recova's ?token= (APPROVED-DIFFERENCES, "Sign-in and invites").
-//
-// The button is offered whoever is looking, as Recova offers it:
-// - signed in as the invited address: the invite is accepted and the session
-//   moves to the account;
-// - signed in as somebody else: refused with Recova's words;
-// - signed out: the token goes into a short HttpOnly cookie and the visitor
-//   goes to sign up with next= pointing back here. Recova's /auth/callback
-//   read that cookie and accepted the invite; Foxhound's sign-in ends in
-//   Better Auth, so the loader below does it instead when the visitor comes
-//   back signed in carrying the cookie, and the invite is accepted without a
-//   second click either way.
+// /invite/:token: one 400px card, centered: "You've been invited", "Join <account> on Foxhound" and one "Accept invite" button, or, on any refusal, "Invite invalid" and the reason. The button is offered whoever is looking: signed in as the invited address, the invite is accepted and the session moves to the account; signed in as somebody else, refused; signed out, the token goes into a short HttpOnly cookie and the visitor goes to sign up with next= pointing back here, and the loader accepts the invite when the visitor comes back signed in carrying the cookie, so no second click is needed.
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -46,9 +30,7 @@ const setInviteCookie = (token: string) =>
 const clearInviteCookie = () => setHostCookie(INVITE_COOKIE, "", 0);
 const readInviteCookie = (request: Request) => readCookie(request, bare(INVITE_COOKIE));
 
-// A signed-in caller under another address gets this same sentence. Recova
-// named the invited address there, which told anyone holding the link who it
-// was for; that is a Recova bug not copied.
+// A signed-in caller under another address gets this same sentence, which does not name the invited address (that would tell anyone holding the link who it was for).
 const INVALID = "This invite link is invalid or has expired.";
 
 type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
@@ -57,9 +39,7 @@ type Session = NonNullable<Awaited<ReturnType<typeof getSession>>>;
 async function accept(db: Db, token: string, session: Session, headers?: HeadersInit) {
   const result = await acceptInvite(db, token, session.user.id, session.user.email);
   if (result.ok) {
-    // Point this session at the account they just joined, or at the one they
-    // already held, so they land IN it. Recova answers redirect '/console' on
-    // both paths (route.ts:55-57 and :70).
+    // Point this session at the account they just joined, or at the one they already held, so they land IN it.
     await setSessionActiveAccount(db, session.session.id, result.accountId);
     return redirect("/console", { headers });
   }

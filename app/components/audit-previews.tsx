@@ -4,23 +4,9 @@ import {
   AUDIT_SUMMARY_EXAMPLE,
 } from "~/lib/marketing/audit-copy";
 
-// The previews on /product/audit, Recova's three feature-block UIs: the
-// scope card (components/docs/AuditScopeCard.tsx, blob dc1d18dd) and the two
-// local previews in app/(marketing)/product/audit/page.tsx (blob 210ce79d),
-// AISummaryPreview and AuditHistoryPreview.
-//
-// Content and layout are Recova's; the parts are Capsomer's: each scope
-// is a Capsomer panel, as Recova's is a bordered surface card. Accents are amber
-//, on the glyphs and on "Monthly auto-run on" as on Recova's. Text is
-// at Recova's sizes.
-//
-// Recova's previews are hand-written examples, and so are these: the audit is
-// a one-off diagnostic of a merchant's own Stripe account, and the demo seed
-// carries no audit run to draw from. The copy module says where each example
-// differs from Recova's and why.
+// The previews on /product/audit: the scope card and two hand-written examples (the audit is a one-off diagnostic of the merchant's own Stripe account, and the demo seed carries no audit run to draw from). The copy module says where each example differs and why.
 
-/** Recova's scope card: four bordered cards, two columns from the small
- *  breakpoint, each a glyph beside a title and its line. */
+/** Scope card: four bordered cards, two columns from the small breakpoint, each a glyph beside a title and its line. */
 export function AuditScopeCard() {
   return (
     <div className="fh-auditprev-block">
@@ -48,7 +34,7 @@ export function AuditScopeCard() {
   );
 }
 
-/** Recova's AISummaryPreview: a micro label over the summary, figures in mono. */
+/** AI summary preview: a micro label over the summary, figures in mono. */
 export function AISummaryPreview() {
   return (
     <div className="fh-auditprev-block">
@@ -68,7 +54,7 @@ export function AISummaryPreview() {
   );
 }
 
-/** Recova's AuditHistoryPreview: a header strip, then one row per run. */
+/** Audit history preview: a header strip, then one row per run. */
 export function AuditHistoryPreview() {
   return (
     <div className="fh-auditprev-block-4">

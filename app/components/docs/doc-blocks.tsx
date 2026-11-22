@@ -9,22 +9,7 @@ import { HealthScoreBadge } from "./health-score-badge";
 import "capsomer/step-indicator.css";
 import "capsomer/table.css";
 
-// Recova's docs block vocabulary, on Capsomer's parts.
-//
-// WHERE IT CAME FROM. Recova defines its prose vocabulary INLINE at the bottom
-// of each guide page (`app/(marketing)/docs/platform/page.tsx`, blob `2b69517b`,
-// and the other four): Part, H3, P, Note, Tip, Steps, Step, List, Item, Code,
-// Strong and RelLink, the same in every file. This is one shared module rather
-// than a copy per guide.
-//
-// LOOK IS CAPSOMER'S, CONTENT AND ORDER RECOVA'S. The reference table is
-// Capsomer's table (a labeled scroll region, so a wide table is a keyboard
-// stop). Note and Tip are Recova's callout: a 2px rule at the left (amber for
-// a tip, the border color for a note) beside 13px secondary text, a plain
-// paragraph so nothing is announced as an interruption.
-//
-// TEXT IS AT RECOVA'S SIZES: 0.9375rem for body and H3, 0.8125rem for callouts
-// and tables, through the named type tokens in app.css.
+// The docs block vocabulary (Part, H3, P, Note, Tip, Steps, Step, List, Item, Code, Strong, RelLink), shared by every guide page, on Capsomer's parts. The reference table is Capsomer's table (a labeled scroll region, so a wide table is a keyboard stop). Note and Tip are a 2px rule at the left (amber for a tip, the border color for a note) beside 13px secondary text, a plain paragraph so nothing is announced as an interruption. Text: 0.9375rem for body and H3, 0.8125rem for callouts and tables, through the named type tokens in app.css.
 
 function InlineRun({ inline }: { inline: DocInline }) {
   if (typeof inline === "string") return <>{inline}</>;
@@ -37,8 +22,7 @@ function InlineRun({ inline }: { inline: DocInline }) {
   if ("mono" in inline) {
     return <span className="fh-mono">{inline.mono}</span>;
   }
-  // Recova's HealthScoreBadge inside the thresholds paragraph, banded by the
-  // engine's healthScoreBand.
+  // A health score badge inside the thresholds paragraph, banded by the engine's healthScoreBand.
   if ("badge" in inline) {
     return <HealthScoreBadge score={inline.badge} />;
   }
@@ -67,8 +51,7 @@ function Rich({ content }: { content: DocRich }) {
 
 const P = "fh-doc-para fh-subhead fh-relaxed fh-soft";
 
-/** Recova's note: a 2px rule down the left, amber for the one that matters
- *  (info), the plain border otherwise, read in the flow. */
+/** A note: a 2px rule down the left, amber for the one that matters (info), the plain border otherwise, read in the flow. */
 function Callout({ tone, word, body }: { tone: "neutral" | "info"; word: string; body: DocRich }) {
   return (
     <p

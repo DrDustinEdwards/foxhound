@@ -2,13 +2,7 @@
 // (@drdustinedwards/site-helpers/render), as every site's writing does. The
 // no-math build: posts quote prices, so `$` stays text.
 //
-// Prelum's own blocks carry the `:::faq` list (its pairs feed the FAQPage
-// JSON-LD) and `::postlink[slug|text]`, looked up in D1 (an unknown slug shows
-// as code so it is seen). Heading ids are Prelum's slugger's.
-//
-// A hand-drawn diagram is a `:::figure` that names its light and dark files.
-// The renderer takes that pair out and inlines one SVG (./diagrams). An
-// <img> cannot read the page's colors; the inlined drawing's classes take
+// An <img> cannot read the page's colors; the inlined drawing's classes take
 // their fills from the site's variables, so the same art follows the theme.
 
 import { ContentError, RENDER_VERSION, render } from "@drdustinedwards/site-helpers/render/nomath";
@@ -28,12 +22,9 @@ export interface TocItem {
 }
 
 // A post's pictures are the media library's (/media/<key>, sized by the
-// library's index in app/lib/carrel/media-adapter.server.ts). A library
-// picture is written with site-runtime ./image's srcset and AVIF and WebP
-// sources, at the post column's width, and links to its original. A diagram
-// figure never reaches this: it is inlined first. A markdown image that still
-// names a sized drawing (/diagrams/<name>-<width>x<height>.svg) keeps that
-// size so the page can reserve it.
+// library's index in app/lib/carrel/media-adapter.server.ts). A library picture
+// is written with site-runtime ./image's srcset and AVIF and WebP sources, at
+// the post column's width, and links to its original.
 const DIAGRAM = /^\/diagrams\/[a-z0-9-]+-(\d+)x(\d+)\.svg$/;
 
 type LibraryPicture = Pick<MediaRow, "key" | "width" | "height" | "focus" | "sha256">;
@@ -81,9 +72,9 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
 
 /**
  * A post's cover: site-runtime ./image's attributes for `use` (with the stored
- * placeholder and color it shows while it loads), and, for a media library file,
- * its versioned original at its real size, for the share card. A cover from
- * elsewhere is its own address, unsized. Null for a post with no cover.
+ * placeholder and color it shows while it loads), and, for a media library
+ * file, its versioned original at its real size, for the share card. A cover
+ * from elsewhere is its own address, unsized. Null for a post with no cover.
  */
 export async function coverPicture(
   db: Db,
@@ -117,7 +108,8 @@ export async function coverPicture(
       type: row?.contentType,
       alt,
     },
-    // The Article's image set: Google's 16:9, 4:3 and 1:1 crops at 1200 wide around the focal point (site-relative).
+    // The Article's image set: Google's 16:9, 4:3 and 1:1 crops at 1200 wide
+    // around the focal point (site-relative).
     article: row
       ? images.articleImages({ src, width: row.width, height: row.height, focus: row.focus })
       : [],
@@ -200,8 +192,9 @@ export async function renderMarkdown(
   });
   const html = stitchDiagramFigures(rendered.html, diagrams.slugs);
   const { toc, faq } = rendered;
-  // version goes on the body's wrapper (data-render-version), so prelum-content can see a page rendered by an older
-  // pipeline, such as one the edge cache still holds after a Prelum update.
+  // version goes on the body's wrapper (data-render-version), so prelum-content
+  // can see a page rendered by an older pipeline, such as one the edge cache
+  // still holds after a Prelum update.
   return {
     html,
     toc: toc.map(({ depth, text, id }) => ({ level: depth === 2 ? 2 : 3, text, id })),

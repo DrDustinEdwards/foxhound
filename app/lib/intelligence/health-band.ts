@@ -1,8 +1,5 @@
-// Health-score band thresholds for the Intelligence UI (red at risk, caution
-// watch, green healthy). Mirrors app/lib/dashboard/recovery-rate.ts. The
-// at-risk cutoff is HEALTH_SCORE_AT_RISK_THRESHOLD, the same one that drives
-// MRR-at-risk exposure and the narrative's top-N selection; "watch" is the
-// band between at-risk and clearly healthy.
+// Health-score band thresholds for the Intelligence UI (red at risk, caution watch, green healthy). The at-risk
+// cutoff is HEALTH_SCORE_AT_RISK_THRESHOLD, the one that drives MRR-at-risk and the narrative's top-N selection.
 
 import type { MeterTone } from "capsomer/behavior/meter";
 
@@ -28,7 +25,6 @@ export function healthScoreClassName(score: number): string {
   return CLASS_NAME[healthScoreBand(score)];
 }
 
-/** A band as the tone of Capsomer's meter, badge and pill: red, the warning color, green. */
 export const METER_TONE: Record<HealthScoreBand, MeterTone> = {
   at_risk: "crit",
   watch: "warn",

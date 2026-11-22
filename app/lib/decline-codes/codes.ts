@@ -1,26 +1,11 @@
 import { classifyDecline, isRetryable } from "~/lib/recovery/decline";
 import type { DeclineCategory } from "~/lib/constants";
 
-// The seeded code list for the /decline-codes library. Synced to
-// the full 32-code set researched in recova/phase6-content-decline-codes.md,
-// plus card_error (present in decline.ts's NETWORK_CODES but not covered by
-// that content doc; card_error's copy is hand-written in content.ts,
-// grounded in ordinary payments-industry knowledge, matching the doc's
-// tone). 33 codes total.
-//
-// This module never hand-assigns a category. classifyDecline() is the only
-// source of truth, read live below via getDeclineCodeView, so the marketing
-// copy can never drift from what the recovery engine actually does. As of
-// the fail-closed fix (app/lib/recovery/decline.ts), an unrecognized code
-// resolves to the "unknown" category, not a silent retry: no automatic
-// retry runs, recovery goes straight to the card-update email path instead.
-// revocation_of_authorization and do_not_try_again are explicitly in
-// decline.ts's FRAUD_CODES (never retried); the remaining unclassified codes
-// below (card_velocity_exceeded, incorrect_cvc, invalid_cvc,
-// incorrect_number, invalid_number, no_action_taken, currency_not_supported,
-// call_issuer, duplicate_transaction) ride the "unknown" fail-closed default,
-// stated plainly on their pages. Do NOT edit decline.ts to backfill a bespoke
-// category for these nine just to make this list tidier.
+// The seeded code list for the /decline-codes library. Synced to the full
+// 32-code set researched in recova/phase6-content-decline-codes.md, plus
+// card_error (present in decline.ts's NETWORK_CODES but not covered by that
+// content doc; card_error's copy is hand-written in content.ts, grounded in
+// ordinary payments-industry knowledge, matching the doc's tone).
 export interface DeclineCodeMeta {
   code: string;
   displayName: string;

@@ -25,54 +25,18 @@ import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { percent } from "capsomer/behavior/meter";
 
-// The audit's render sections, shared by BOTH surfaces that show a run: the
-// live /audit/results and a saved run at /audit/results/:id. Recova shares its
-// four components between its two pages the same way
-// (components/audit/AuditAISummary 5ba213df, AuditRecoverySection ab6ec2c5,
-// AuditDisputesSection 6db9c3bc, AuditHealthSection 17828ab5, read whole at
-// HEAD for J63, job_66a3ffa02214, rows U3 and U4).
-//
-// RECOVA IS THE SPEC for what each section says and in what order: every
-// heading, line, row, empty state, chart and call to action below is Recova's,
-// except where a comment names the difference and why. The look is Capsomer
-// 0.9.0's (Q10 to Q12): each section is a Panel with its description, the
-// calls to action sit in the panel's footer as Capsomer buttons, the Card
-// Updater advisory is a Capsomer banner, and the expiring-cards timeline is an
-// Enarratio chart. Amber throughout. Text is on the five sizes.
-// What Recova's look still needs (the summary's accent rail,
-// the mono figures, the stat-row layout) is listed for Capsomer's per-site
-// layer, capsomer job_ec5ec0754626, in the J63 pull request; no Foxhound class
-// sits on a Capsomer element.
-//
-// ONE LINE PER CURRENCY. Each money figure is its totals per currency,
-// stacked one under another as /billing stacks its totals.
-// Recova added the currencies into one number under the first one's label;
-// Dustin approved the lines on 2026-10-25 (parity/APPROVED-DIFFERENCES.md).
-// A single-currency run shows one line, as before.
-//
-// THE NULL. Every figure is `number | null` and says "could not be read"
-// rather than printing a zero. Recova's `?? 0` is where a
-// failed Stripe read becomes a merchant with no disputes.
-//
-// THE RECOVERABLE ESTIMATE is Recova's, a fixed share of the failed invoices
-// with its count-up, restored on Dustin's ruling of 2026-10-29 ("30%, with its
-// basis shown"). Truthfulness fix: Recova called the 30% a "platform average
-// recovery rate", which it never measured, so the line under the figure names
-// it as an assumption. It quotes no outside range: "30 to 70%" had no source
-// with a page and a date (CLAUDE.md hard rule 1), so it came out on 2026-10-30.
-//
-// WHAT IS NOT RENDERED, and why. Recova's two "Platform median" churn figures
-// are statistics with no source and no Foxhound ledger behind them (RULES.md
-// 2.3), so they stay out.
+// The audit's render sections, shared by the live /audit/results and a saved run at /audit/results/:id. Each section is a Panel with its description; calls to action sit in the panel's footer; the expiring-cards timeline is an Enarratio chart.
+// ONE LINE PER CURRENCY: each money figure is its totals per currency, stacked as /billing stacks its totals.
+// THE NULL: every figure is number | null and says "could not be read" rather than a zero, so a failed Stripe read never reads as a merchant with no disputes.
+// THE RECOVERABLE ESTIMATE is a fixed share (30%) of the failed invoices with its count-up; the line under the figure names it as an assumption and quotes no outside range, which would need a sourced page and date (CLAUDE.md hard rule 1).
+// Not rendered: "Platform median" churn figures, which have no source and no Foxhound ledger behind them.
 
-/** The call-to-action state. Recova has a third, "inactive", for an account
- *  without the product; every Foxhound account has Recovery and Disputes
- *  (app/lib/nav/manifest.ts), so a signed-in merchant is always "active". */
+/** The call-to-action state. Every Foxhound account has Recovery and Disputes (app/lib/nav/manifest.ts), so a signed-in merchant is always "active". */
 export type CtaState = "unauthenticated" | "active";
 
 type Disputes = NonNullable<AuditRunView["disputes"]>;
 
-/** Recova's hasDisputeSignal: any open, forfeited, won or lost dispute. */
+/** Any open, forfeited, won or lost dispute. */
 function hasDisputeSignal(data: Disputes): boolean {
   return (
     data.open.count > 0 ||
@@ -82,9 +46,7 @@ function hasDisputeSignal(data: Disputes): boolean {
   );
 }
 
-/** Whether a page renders the disputes section. Recova leaves it off when
- *  every dispute figure is zero. A read that failed is not a zero, so the
- *  section stays and says it could not be read. */
+/** Whether a page renders the disputes section: off when every dispute figure is zero. A read that failed is not a zero, so the section stays and says it could not be read. */
 export function showDisputesSection(run: AuditRunView): boolean {
   return run.disputes === null || hasDisputeSignal(run.disputes);
 }
@@ -104,8 +66,7 @@ function NoneDetected() {
   return <p className="fh-auditsec-text-2 fh-small fh-faint">None detected in this period.</p>;
 }
 
-/** One line per currency, stacked, each an element of its own. A single
- *  line renders as the bare text it always was. */
+/** One line per currency, stacked, each an element of its own. */
 function Lines({ lines }: { lines: readonly string[] }) {
   if (lines.length === 1) return <>{lines[0]}</>;
   return (
@@ -141,8 +102,7 @@ function StatRow({
   );
 }
 
-/** Recova's large figure under a rule: a small uppercase label over a mono
- *  number ("Revenue left on the table"). */
+/** A large figure under a rule: a small uppercase label over a mono number. */
 function Headline({
   label,
   value,
@@ -164,8 +124,7 @@ function Headline({
   );
 }
 
-/** Recova's AuditAISummary (5ba213df): a labeled card holding one paragraph.
- *  Renders nothing when there is no summary. Shared with /audit/dashboard. */
+/** A labeled card holding one paragraph. Renders nothing when there is no summary. Shared with /audit/dashboard. */
 export function AuditSummary({ summary }: { summary: string | null }) {
   if (!summary) return null;
   return (
@@ -177,11 +136,7 @@ export function AuditSummary({ summary }: { summary: string | null }) {
   );
 }
 
-/** Recova's four breakdown rows, in Recova's order and words, then the two
- *  categories Foxhound's classifier adds. Recova folds those two into "Soft
- *  declines"; here each keeps its own row, so the rows sum to the total
- *  (a truthfulness fix). Typed on DeclineCategory, so a seventh category
- *  cannot be left out. */
+/** The four breakdown rows, then the two categories Foxhound's classifier adds, each with its own row so the rows sum to the total. Typed on DeclineCategory, so a seventh category cannot be left out. */
 const BREAKDOWN_ROWS: Record<DeclineCategory, string> = {
   soft: "Soft declines",
   expired: "Expired cards",
@@ -210,8 +165,7 @@ function CardUpdaterRow({ cardUpdater }: { cardUpdater: AuditRunView["cardUpdate
   );
 }
 
-/** Recova's ExpiringCardsTimeline (33537a84): up to four months of cards
- *  expiring, the peak month marked. Drawn by Enarratio. */
+/** Up to four months of cards expiring, the peak month marked. Drawn by Enarratio. */
 function ExpiringCardsTimeline({ expiresByMonth }: { expiresByMonth: Record<string, number> }) {
   const months = expiringCardsMonths(expiresByMonth);
   if (months.length === 0) return null;
@@ -248,8 +202,7 @@ export function AuditRecoverySection({
 }: {
   run: AuditRunView;
   ctaState: CtaState;
-  /** A saved run only: failed payments in an active sequence for this account
-   *  now. Null on the live page, as in Recova. */
+  /** A saved run only: failed payments in an active sequence for this account now. Null on the live page. */
   activeSequences?: number | null;
 }) {
   const cur = run.currency;
@@ -257,8 +210,7 @@ export function AuditRecoverySection({
   const expiring = run.expiringCards;
   const pastDue = run.pastDueSubscriptions;
 
-  // Recova's "any recovery data". A scope that was not read is not "none":
-  // it is shown as unread in its own place.
+  // A scope that was not read is not "none": it is shown as unread in its own place.
   const anyUnread = failed === null || expiring === null || pastDue === null;
   const anyData =
     (failed?.count ?? 0) > 0 || (expiring?.count ?? 0) > 0 || (pastDue?.count ?? 0) > 0;
@@ -341,8 +293,7 @@ export function AuditRecoverySection({
   );
 }
 
-/** Recova's RecoverableCountUp, now Capsomer's count-up: the figure counts up
- *  from zero over 600ms. The server renders the final figure. */
+/** The figure counts up from zero over 600ms (Capsomer's count-up). The server renders the final figure. */
 function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; currency: string }) {
   // Keyed on the figures, not the array, so a parent re-render does not
   // restart the count.

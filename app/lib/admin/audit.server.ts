@@ -1,9 +1,6 @@
-// Operator audit trail (SCHEMA.md admin_audit_log: global, permanent retention).
-// Every admin action that changes runtime behavior writes one row here so
-// /admin/platform/audit-log has something real to show. Not a money write (no DO): this
-// table is operational, mirroring the recovery_steps / cron_run_log
-// precedent (app/lib/cron/run.ts) of plain inserts for non-money operator/system
-// actions.
+// Operator audit trail (SCHEMA.md admin_audit_log: global, permanent
+// retention). Every admin action that changes runtime behavior writes one row
+// here so /admin/platform/audit-log has something real to show.
 
 import type { Db } from "~/db";
 import { adminAuditLog } from "~/db";
@@ -16,10 +13,6 @@ export interface LogAdminActionInput {
   metadata?: Record<string, unknown> | null;
 }
 
-/** The insert statement plus the id it will carry, WITHOUT executing it, so a
- *  caller batching many audit rows can put them in one db.batch instead of one
- *  round trip each (the global brake pauses every account at once). Same row
- *  shape as logAdminAction, which is written in terms of this. */
 export function buildAdminAuditLogInsert(db: Db, input: LogAdminActionInput) {
   const id = crypto.randomUUID();
   return {
@@ -36,9 +29,11 @@ export function buildAdminAuditLogInsert(db: Db, input: LogAdminActionInput) {
   };
 }
 
-/** Inserts the audit row and returns its id (admin Pass 2: an adjustment line
- *  item FKs this id, so a caller that needs the reference reads it off the
- *  return value rather than re-querying). */
+/**
+ * Inserts the audit row and returns its id (admin Pass 2: an adjustment line
+ * item FKs this id, so a caller that needs the reference reads it off the
+ * return value rather than re-querying).
+ */
 export async function logAdminAction(db: Db, input: LogAdminActionInput): Promise<string> {
   const { id, statement } = buildAdminAuditLogInsert(db, input);
   await statement;

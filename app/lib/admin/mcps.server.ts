@@ -2,12 +2,7 @@
 // (mcp_calls) and the merchant tool registry. READ only.
 //
 // KEY MATERIAL NEVER LEAVES THIS MODULE BECAUSE IT IS NEVER READ: every select
-// names its columns, and the hash column is not one of them. A key has no
-// stored prefix, so the label is what identifies it.
-//
-// A CALL'S ARGUMENTS ARE NOT READ EITHER. They are what an agent asked about a
-// merchant's customers; the tool name, the outcome and the masked error say
-// what happened without copying them onto an admin page.
+// names its columns, and the hash column is not one of them.
 
 import { and, count, desc, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
@@ -30,9 +25,7 @@ export interface AdminApiKeyRow {
   revokedAt: Date | null;
 }
 
-/** Every key on the platform, merchant and admin, live and revoked, newest
- *  first (Recova's order). */
-export async function listAdminApiKeys(db: Db): Promise<AdminApiKeyRow[]> {
+async function listAdminApiKeys(db: Db): Promise<AdminApiKeyRow[]> {
   return db
     .select({
       id: apiKeys.id,
@@ -57,15 +50,15 @@ export interface AdminMcpCallRow {
   accountId: string;
   accountName: string | null;
   apiKeyId: string;
-  /** False when the key is no longer in api_keys: the log's api_key_id is a
-   *  soft reference that outlives the key. */
   keyFound: boolean;
   keyLabel: string | null;
   createdAt: Date;
 }
 
-/** The newest merchant MCP calls, every account, with the error text masked
- *  for display (maskSecretsInText) so the raw text never reaches the page. */
+/**
+ * The newest merchant MCP calls, every account, with the error text masked for
+ * display (maskSecretsInText) so the raw text never reaches the page.
+ */
 export async function listRecentMcpCalls(
   db: Db,
   limit = MCP_CALLS_SHOWN,
@@ -99,9 +92,8 @@ export async function listRecentMcpCalls(
 
 /**
  * Issue the Admin API key the admin MCP Worker presents, from the admin area
- * only (behind Cloudflare Access; Mythos billing review, finding 4). The key
- * and its audit row commit in one batch, so neither stands without the other.
- * Only the hash is stored; the plaintext is returned once.
+ * only. The key and its audit row commit in one batch, so neither stands
+ * without the other. Only the hash is stored; the plaintext is returned once.
  */
 export async function issueAdminApiKey(
   db: Db,
@@ -126,8 +118,7 @@ export async function issueAdminApiKey(
  * Revoke one live Admin API key, with its audit row in the same batch. The
  * audit row is selected from the key the revoke just stamped (its id and this
  * revoke's own time), so a revoke that matched nothing logs nothing (hard rule
- * 3). Returns false when the id names no live Admin API key; a merchant's key
- * is the merchant's to revoke, in Settings.
+ * 3).
  */
 export async function revokeAdminApiKey(
   db: Db,
@@ -176,7 +167,7 @@ export interface McpSummary {
   failedLast24h: number;
 }
 
-export async function getMcpSummary(db: Db, now = new Date()): Promise<McpSummary> {
+async function getMcpSummary(db: Db, now = new Date()): Promise<McpSummary> {
   const since = new Date(now.getTime() - DAY_MS);
   const [total, active, calls, failed] = await Promise.all([
     db.select({ n: count() }).from(apiKeys),
@@ -202,9 +193,11 @@ export interface MerchantToolRow {
   writes: boolean;
 }
 
-/** The merchant MCP's tools as the live registry lists them, so the page can
- *  never name a tool that does not exist or miss one that does. */
-export function merchantToolCoverage(): MerchantToolRow[] {
+/**
+ * The merchant MCP's tools as the live registry lists them, so the page can
+ * never name a tool that does not exist or miss one that does.
+ */
+function merchantToolCoverage(): MerchantToolRow[] {
   return MERCHANT_TOOLS.list().map((t) => ({
     name: t.name,
     title: t.title,

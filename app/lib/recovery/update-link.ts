@@ -2,29 +2,10 @@ import { verifyCardUpdateToken } from "~/lib/card-update/token";
 import { CARD_UPDATE_PATH, ENGAGEMENT_CLICK_PATH } from "~/lib/constants";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 
-// THE UPDATE-LINK CHECK. No recovery or win-back email leaves without its link,
-// because a body without it loses the recovery and the billable click, and
-// nothing downstream notices: the send succeeds and the step is claimed.
-//
-// Legacy relies on the prompt alone ("use this exact placeholder URL") and
-// never reads the body back. Foxhound reads it back after generation and before
-// the send, and the caller falls back to the template when the link is missing,
-// because the template always carries it.
-//
-// WHAT COUNTS AS CARRYING THE LINK: the minted URL as the exact value of an
-// anchor's own href, the one place a customer can press it. Not counted: the URL
-// printed as text (a client that does not autolink leaves nothing to press), an
-// href inside an HTML comment, a `data-href`, `href=` text inside another
-// attribute's value, or an href on any tag but `<a>`. Comparison is byte for
-// byte: the URL is the base URL plus base64url tokens, so it has no character
-// HTML would escape.
-//
-// COPY READ BACK FROM STORAGE is the one case where the exact link cannot be
-// expected. A card-update token carries its issue time, so the link a backoff
-// retry mints differs from the one an earlier attempt wrote into the cached
-// body. Stored copy therefore also passes when one of its links verifies as a
-// link minted for THIS send's target and is still live. A link for another
-// step, another payment or another account, or an expired one, does not pass.
+// THE UPDATE-LINK CHECK. No recovery or win-back email leaves without its link, because a body
+// without it loses the recovery and the billable click, and nothing downstream notices: the send
+// succeeds and the step is claimed. A card-update token carries its issue time, so the link a
+// backoff retry mints differs from the one an earlier attempt wrote into the cached body.
 
 // A comment runs to `-->`, or to the end of the body when it is never closed,
 // which is how a browser reads an unclosed one.
@@ -78,9 +59,9 @@ function tokenAfter(url: string, baseUrl: string, path: string): string | null {
 }
 
 /**
- * True when stored dunning copy carries a working update link for this send:
- * the exact minted URL, or a click link an earlier attempt minted for the same
- * step whose card-update link still opens the same payment's page.
+ * True when stored dunning copy carries a working update link for this send: the exact minted URL,
+ * or a click link an earlier attempt minted for the same step whose card-update link still opens
+ * the same payment's page.
  */
 export async function storedCopyCarriesRecoveryLink(
   env: Env,
@@ -126,9 +107,8 @@ export interface ResubscribeLinkTarget {
 }
 
 /**
- * True when stored win-back copy carries a working resubscribe link for this
- * send: the exact minted URL, or a /p/ link an earlier tick minted for the same
- * sequence and step that is still live.
+ * True when stored win-back copy carries a working resubscribe link for this send: the exact minted
+ * URL, or a /p/ link an earlier tick minted for the same sequence and step that is still live.
  */
 export async function storedCopyCarriesResubscribeLink(
   env: Env,

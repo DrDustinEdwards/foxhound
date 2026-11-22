@@ -14,10 +14,9 @@ import {
 
 // Billing evidence ledger read models (Phase 5 slice 5d, DESIGN.md flagship
 // surface 1). Every query is account-scoped and strictly read-only: nothing
-// here recomputes a fee or a billable decision, both already live in the
-// stored billing_line_items rows (produced by app/lib/billing/run.ts, which is
-// itself a read consumer of app/db/billable.ts). This is why the ledger can
-// never contradict billable.ts: it renders exactly what billing already wrote.
+// here recomputes a fee or a billable decision, both already live in the stored
+// billing_line_items rows (produced by app/lib/billing/run.ts, which is itself
+// a read consumer of app/db/billable.ts).
 
 export type BillingInvoiceRow = typeof billingInvoices.$inferSelect;
 type BillingLineItemRow = typeof billingLineItems.$inferSelect;
@@ -26,15 +25,20 @@ type RecoveredPaymentRow = typeof recoveredPayments.$inferSelect;
 export interface EnrichedLineItem {
   lineItem: BillingLineItemRow;
   recoveredPayment: RecoveredPaymentRow | null;
-  /** The recovery_steps.step_type that earned the recovery, if attributed to one. */
+  /**
+   * The recovery_steps.step_type that earned the recovery, if attributed to
+   * one.
+   */
   creditedStepType: string | null;
   dispute: typeof disputes.$inferSelect | null;
   adminAuditEntry: typeof adminAuditLog.$inferSelect | null;
 }
 
-/** Batches the evidence lookups for a set of line items: one query per evidence
- *  table (recovered_payments / disputes / admin_audit_log / recovery_steps),
- *  not one per row. */
+/**
+ * Batches the evidence lookups for a set of line items: one query per evidence
+ * table (recovered_payments / disputes / admin_audit_log / recovery_steps), not
+ * one per row.
+ */
 async function enrichLineItems(
   db: Db,
   lineItems: BillingLineItemRow[],
@@ -98,13 +102,17 @@ export interface FreeLedgerEntry {
 export interface BillingLedger {
   /** Every billed fee, newest first, with its evidence. */
   lineItems: EnrichedLineItem[];
-  /** Every stripe_baseline recovery, newest first, marked FREE. Never billed by
-   *  definition (PRICING.md), so these never have a line item to join through. */
+  /**
+   * Every stripe_baseline recovery, newest first, marked FREE. Never billed by
+   * definition (PRICING.md), so these never have a line item to join through.
+   */
   freeRecoveries: FreeLedgerEntry[];
 }
 
-/** The flagship evidence ledger for the whole account: every fee ever billed,
- *  across every invoice, plus every baseline recovery. */
+/**
+ * The flagship evidence ledger for the whole account: every fee ever billed,
+ * across every invoice, plus every baseline recovery.
+ */
 export async function getBillingLedger(db: Db, accountId: string): Promise<BillingLedger> {
   const [lineItemRows, freeRows] = await Promise.all([
     db.select().from(billingLineItems).where(eq(billingLineItems.accountId, accountId)),
@@ -131,7 +139,9 @@ export async function getBillingLedger(db: Db, accountId: string): Promise<Billi
   };
 }
 
-/** Every invoice for the account, newest first (for the /billing invoice list). */
+/**
+ * Every invoice for the account, newest first (for the /billing invoice list).
+ */
 export async function listBillingInvoices(db: Db, accountId: string): Promise<BillingInvoiceRow[]> {
   const rows = await db
     .select()
@@ -145,8 +155,10 @@ export interface BillingInvoiceDetail {
   lineItems: EnrichedLineItem[];
 }
 
-/** One invoice's own line items with their evidence. Null when the id does not
- *  exist or belongs to another account (the route 404s). */
+/**
+ * One invoice's own line items with their evidence. Null when the id does not
+ * exist or belongs to another account (the route 404s).
+ */
 export async function getBillingInvoiceDetail(
   db: Db,
   accountId: string,
@@ -176,8 +188,6 @@ export async function getBillingInvoiceDetail(
   };
 }
 
-/** The account's subscriptions, oldest first, as Recova's Subscriptions section
- *  lists them. Read-only. */
 export async function listAccountSubscriptions(db: Db, accountId: string) {
   return db
     .select({

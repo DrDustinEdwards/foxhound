@@ -14,12 +14,10 @@ import {
   type DemoBusiness,
 } from "./constants";
 
-// Read-only demo view mode. A visitor who enters the demo gets a cookie that the
-// app-shell middleware recognizes; with it (and NO real session) it injects a
-// synthetic membership for the demo account so the REAL app routes render demo
-// data. The cookie carries no account id, so it can only ever resolve to a
-// hardcoded demo account, never a real tenant. HttpOnly so page scripts cannot
-// read or forge it, and __Host- (setHostCookie) so no sibling host can set it.
+// Read-only demo view mode. A visitor who enters the demo gets a cookie that
+// the app-shell middleware recognizes; with it (and NO real session) it injects
+// a synthetic membership for the demo account so the REAL app routes render
+// demo data.
 
 const DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8; // an 8h look-around is plenty
 
@@ -38,19 +36,17 @@ export function clearDemoCookieHeader(): string {
   return setHostCookie(DEMO_SESSION_COOKIE, "", 0);
 }
 
-// Legacy kept `active_demo_account` for a year (switch-account/route.ts), so a
-// returning visitor lands on the business they last looked at.
 const DEMO_ACTIVE_ACCOUNT_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
-/** The demo business with this account id, or null for anything else. The one
- *  check both the switch route and the cookie reader use: only an id in
- *  DEMO_BUSINESSES is ever honored, so neither can name a real account. */
+/**
+ * The demo business with this account id, or null for anything else. The one
+ * check both the switch route and the cookie reader use: only an id in
+ * DEMO_BUSINESSES is ever honored, so neither can name a real account.
+ */
 export function findDemoBusiness(accountId: string | null | undefined): DemoBusiness | null {
   return DEMO_BUSINESSES.find((b) => b.accountId === accountId) ?? null;
 }
 
-/** The demo business the visitor last switched to, else the first (Teamflow),
- *  as legacy's SiteNav.tsx read `active_demo_account || demoList[0].id`. */
 export function activeDemoBusiness(request: Request): DemoBusiness {
   return (
     findDemoBusiness(readCookie(request, bare(DEMO_ACTIVE_ACCOUNT_COOKIE))) ?? DEMO_BUSINESSES[0]
@@ -67,10 +63,8 @@ export function setActiveDemoAccountCookieHeader(business: DemoBusiness): string
 
 /**
  * Where a demo-related redirect should land depending on whether the caller
- * also has a real session (TASK-foxhound-demo-access-parity.md's
- * demo-over-session precedence means a signed-in caller can be viewing the
- * demo). Shared by the app-shell guard's not-yet-seeded fallback and
- * /demo/exit, so the two can never drift on this decision.
+ * also has a real session. Shared by the app-shell guard's not-yet-seeded
+ * fallback and /demo/exit, so the two can never drift on this decision.
  */
 export function demoFallbackPath(hasSession: boolean): string {
   return hasSession ? "/console" : "/demos";
@@ -81,7 +75,7 @@ export function demoFallbackPath(hasSession: boolean): string {
  * a demo visitor may only issue safe (read) requests. Every mutating action in
  * the app-shell tree is a POST, so blocking non-GET/HEAD makes the ENTIRE demo
  * surface read-only at one choke point (the app-shell middleware), rather than
- * relying on gating each action individually. "Look, don't touch."
+ * relying on gating each action individually.
  */
 export function demoBlocksMethod(method: string): boolean {
   const m = method.toUpperCase();

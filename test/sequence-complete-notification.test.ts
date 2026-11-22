@@ -1,4 +1,5 @@
 import type Database from "better-sqlite3";
+import { escapeHtml } from "@dustinedwards/site-runtime/html";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -140,6 +141,19 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
 });
 
 describe("PLANT 3: the demo refusal and a send failure", () => {
+  it("a customer name is shown as written, never read as markup", async () => {
+    seedAccount({});
+    seedPayment({ customerName: "Tom & Jerry <Co>" });
+    const out = await sendSequenceCompleteNotification(env, {
+      accountId: ACCOUNT,
+      failedPaymentId: FP,
+    });
+    expect(out.kind).toBe("sent");
+    const m = harness.sent[0] as { html: string; subject: string; text?: string };
+    expect(m.html).toContain(escapeHtml("Tom & Jerry <Co>"));
+    expect(m.html).not.toContain("<Co>");
+  });
+
   it("a database failure is caught and named, never thrown at the tick", async () => {
     harness.db = {
       select() {

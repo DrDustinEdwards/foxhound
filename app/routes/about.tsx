@@ -7,15 +7,10 @@ import { marketingMeta } from "~/lib/seo/meta";
 import type { Route } from "./+types/about";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 
-// NEW in Phase 6 Pass 1 (no legacy equivalent, per TASK-foxhound-phase6.md).
-// Founder/company bio plus Person JSON-LD for E-E-A-T. Linked from the
-// footer (required) and the header nav.
+// Founder/company bio plus Person JSON-LD for E-E-A-T. Linked from the footer and the header nav.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // personJsonLd's worksFor references the Organization node by @id
-  // (jsonld.ts); that node must actually be emitted on this page or
-  // the reference dangles. Render both here, same pattern as
-  // blog/post.tsx.
+  // personJsonLd's worksFor references the Organization node by @id (jsonld.ts); that node must be emitted on this page or the reference dangles. Render both here, as blog/post.tsx does.
   return [
     ...marketingMeta({
       title: "About",

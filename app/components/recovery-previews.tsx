@@ -16,20 +16,11 @@ import type {
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
 import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
-// The three previews on /product/recovery, Recova's three feature-block
-// UIs: the category sequences (page.tsx's CategorySequencePreview with
-// CategoryPill and SequenceTimeline, drawn by SequenceSteps here and on /features and the guide), the dashboard (RecoveryDashboardPreview:
-// StatCards' primary row and ROIWidget) and the payments table
-// (RecoveryPaymentsPreview: PaymentsTable and PaymentRow's preview row).
-//
-// Content and layout are Recova's; the parts are Capsomer's. The
-// sequences are read from RECOVERY_SCHEDULES and every figure from the demo
-// seed (app/lib/marketing/recovery-preview.server.ts), never a merchant's rows.
-// Recova draws no chart in any of the three, so neither does this page.
+// The three previews on /product/recovery: the category sequences (drawn by SequenceSteps here and on /features and the guide), the dashboard (stat cards' primary row and ROI widget) and the payments table. The sequences are read from RECOVERY_SCHEDULES and every figure from the demo seed (app/lib/marketing/recovery-preview.server.ts), never a merchant's rows. No chart in any of the three.
 
 const CATEGORIES = Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[];
 
-/** Recova's step timing words: "4 hr" under a day, "Day N" from a day on. */
+/** Step timing words: "4 hr" under a day, "Day N" from a day on. */
 export function timingLabel(offsetHours: number): string {
   if (offsetHours < 24) return `${offsetHours} hr`;
   return `Day ${Math.round(offsetHours / 24)}`;
@@ -103,8 +94,7 @@ function Figure({
   className: string;
   sub?: React.ReactNode;
 }) {
-  // Recova's stat card leads nowhere, so it is a panel with a figure in it,
-  // not Capsomer's stat tile, which is always a link or a button.
+  // The stat card leads nowhere, so it is a panel with a figure in it, not Capsomer's stat tile, which is always a link or a button.
   return (
     <li className="cap-panel">
       <div className="cap-panel-body">

@@ -1,19 +1,4 @@
 // /admin/platform/errors data layer. READ only.
-//
-// Two sources, each read only when something writes to it:
-//
-// 1. Sentry. The Worker sends to Sentry only while SENTRY_DSN is set
-//    (workers/app.ts). The DSN cannot read anything back: listing issues needs
-//    a Sentry auth token (event:read) and the organization's slug, so the page
-//    reads Sentry only when all three are set, and otherwise says which are
-//    missing. The token goes in the Authorization header to the sentry.io API
-//    for the DSN's own region and nowhere else; it is never returned, rendered
-//    or logged.
-// 2. Recova's list: audit log entries whose action names an error or a
-//    failure (app/admin/platform/errors/page.tsx, blob 9cca8956, the last 50).
-//    Foxhound writes such entries: staged.failed (app/lib/admin/staged.server.ts)
-//    and the account deletion's deauthorize failure
-//    (app/lib/auth/delete-account.server.ts).
 
 import { desc, like, or } from "drizzle-orm";
 
@@ -21,11 +6,10 @@ import type { Db } from "~/db";
 import { adminAuditLog } from "~/db";
 
 /** How many unresolved issues the page asks Sentry for. */
-export const SENTRY_ISSUE_LIMIT = 25;
+const SENTRY_ISSUE_LIMIT = 25;
 /** Sentry's own window for "seen recently" on the issues list. */
-export const SENTRY_STATS_PERIOD = "14d";
-/** Recova's page showed the last 50 matching entries. */
-export const FAILED_ACTION_LIMIT = 50;
+const SENTRY_STATS_PERIOD = "14d";
+const FAILED_ACTION_LIMIT = 50;
 const SENTRY_TIMEOUT_MS = 5000;
 
 export interface SentryIssue {
@@ -48,12 +32,14 @@ export type SentryState =
   | { state: "failed"; message: string }
   | { state: "ready"; issues: SentryIssue[] };
 
-// o<org id>.ingest[.<region>].sentry.io, exactly; anything else is not
-// Sentry's hosted service and is never sent the token.
+// o<org id>.ingest[.<region>].sentry.io, exactly; anything else is not Sentry's
+// hosted service and is never sent the token.
 const INGEST_HOST = /^o\d+\.ingest\.(?:([a-z]{2})\.)?sentry\.io$/;
 
-/** The sentry.io API base for a DSN's region and its numeric project id, or
- *  null when the DSN is not a hosted sentry.io one this page can read. */
+/**
+ * The sentry.io API base for a DSN's region and its numeric project id, or null
+ * when the DSN is not a hosted sentry.io one this page can read.
+ */
 export function sentryApiBase(dsn: string): { apiBase: string; projectId: string } | null {
   let url: URL;
   try {
@@ -70,8 +56,10 @@ export function sentryApiBase(dsn: string): { apiBase: string; projectId: string
   return { apiBase: region ? `https://${region}.sentry.io` : "https://sentry.io", projectId };
 }
 
-/** Sentry's own https page for an issue, or null for anything else, so the
- *  page never renders a link Sentry's answer could point anywhere. */
+/**
+ * Sentry's own https page for an issue, or null for anything else, so the page
+ * never renders a link Sentry's answer could point anywhere.
+ */
 function safePermalink(value: unknown): string | null {
   if (typeof value !== "string") return null;
   try {
@@ -144,7 +132,7 @@ export async function readSentry(env: Env): Promise<SentryState> {
       headers: { Authorization: `Bearer ${env.SENTRY_AUTH_TOKEN}`, Accept: "application/json" },
       signal: AbortSignal.timeout(SENTRY_TIMEOUT_MS),
       // Never followed: a redirect would carry the Authorization header to
-      // wherever Sentry's answer pointed (review of #94).
+      // wherever Sentry's answer pointed.
       redirect: "manual",
     });
   } catch {
@@ -173,8 +161,6 @@ export async function readSentry(env: Env): Promise<SentryState> {
   return { state: "ready", issues };
 }
 
-/** Recova's list: the newest audit entries whose action names an error or a
- *  failure. SQLite's LIKE ignores ASCII case, as Recova's ilike did. */
 export async function listFailedAuditEntries(db: Db, limit = FAILED_ACTION_LIMIT) {
   return db
     .select()

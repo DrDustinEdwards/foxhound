@@ -80,14 +80,7 @@ export const adminAuditLog = sqliteTable("admin_audit_log", {
   createdAt: ts("created_at").notNull(),
 });
 
-/**
- * Admin "View as merchant" (Recova's Impersonate, read-only). One row per
- * session an admin opens on a merchant's app. The browser holds only a random
- * token; this row holds its SHA-256, so the cookie names no account and a
- * leaked row cannot be replayed. app/lib/admin/impersonation.server.ts is the
- * one reader and writer; the app shell resolves the account from a row that is
- * open, unexpired, and whose admin still passes Cloudflare Access.
- */
+/** Admin "View as merchant" (read-only). One row per session an admin opens on a merchant's app. The browser holds only a random token; this row holds its SHA-256, so the cookie names no account and a leaked row cannot be replayed. app/lib/admin/impersonation.server.ts is the one reader and writer; the app shell resolves the account from a row that is open, unexpired, and whose admin still passes Cloudflare Access. */
 export const adminImpersonations = sqliteTable(
   "admin_impersonations",
   {
@@ -108,25 +101,10 @@ export const adminImpersonations = sqliteTable(
 );
 
 /**
- * The write trace for the merchant MCP (372's item-4 ruling: "write-audit
- * logging of key id per write").
- *
- * WHY A NEW TABLE AND NOT `admin_audit_log`. That table is PLATFORM-scoped: its
- * actor is an admin email, it has no `account_id`, and it has no column for a
- * key. An agent write has no admin and no email; writing merchant self-service
- * changes into the platform admin trail would put two different subjects in one
- * table keyed on a field one of them cannot fill. Measured at HEAD before this
- * table was added, and stated in parity/AGENT-SURFACE.md.
- *
- * FIELD NAMES, NEVER VALUES. `fields` records WHICH columns a tool touched, not
- * what it wrote. A trace carrying the new brand voice would be a second copy of
- * merchant content living in a log with different retention and different
- * readers, which is a worse problem than the one the trace solves.
- *
- * `api_key_id` IS A SOFT REF, deliberately, mirroring `email_sends.cron_run_id`
- * and 314's FK-retention catch: the trace must survive anything that happens to
- * the key, and a revoked or reaped key must not take its own history with it.
- * A trace that can be deleted by the party it traces is not a trace.
+ * The write trace for the merchant MCP: which key wrote what.
+ * A separate table from `admin_audit_log`, which is PLATFORM-scoped: its actor is an admin email, it has no `account_id` and no column for a key, and an agent write has no admin or email.
+ * FIELD NAMES, NEVER VALUES: `fields` records WHICH columns a tool touched, not what it wrote, so the trace is not a second copy of merchant content with different retention and readers.
+ * `api_key_id` IS A SOFT REF, deliberately (as `email_sends.cron_run_id`): a revoked or reaped key must not take its own history with it. A trace that can be deleted by the party it traces is not a trace.
  */
 export const mcpWrites = sqliteTable(
   "mcp_writes",
@@ -145,24 +123,11 @@ export const mcpWrites = sqliteTable(
 );
 
 /**
- * Every MCP tool call, one row each (MCP ruling 2026-10-10, rule 12.4): the
- * caller, the arguments and the result.
- *
- * WRITTEN AT THE DOOR, not in a tool (app/lib/mcp/call-log.server.ts), so a call
- * the SDK refused at its schema check or a call naming a tool that does not
- * exist is logged as surely as a call that ran. `mcp_writes` stays the
- * field-level trace that commits in the same batch as a write; this is the
- * wider record of what every key asked for.
- *
- * APPEND-ONLY IN THE SCHEMA. Migration 0026 adds triggers that abort any UPDATE
- * or DELETE on this table, so no code path can rewrite what a key did.
- *
- * THE RESULT IS KEPT AS AN OUTCOME, never as the data a read returned, so the
- * log does not become a second copy of the merchant's customers. `arguments`
- * has the Slack webhook URL replaced and `error` has email addresses masked.
- *
- * `api_key_id` IS A SOFT REF, as on `mcp_writes`: the record must survive the
- * key being revoked or reaped.
+ * Every MCP tool call, one row each: the caller, the arguments and the result.
+ * WRITTEN AT THE DOOR, not in a tool (app/lib/mcp/call-log.server.ts), so a call the SDK refused at its schema check or one naming a tool that does not exist is logged as surely as a call that ran. `mcp_writes` stays the field-level trace that commits in the same batch as a write.
+ * APPEND-ONLY IN THE SCHEMA: triggers abort any UPDATE or DELETE, so no code path can rewrite what a key did.
+ * THE RESULT IS KEPT AS AN OUTCOME, never as the data a read returned, so the log is not a second copy of the merchant's customers. `arguments` has the Slack webhook URL replaced and `error` has email addresses masked.
+ * `api_key_id` IS A SOFT REF, as on `mcp_writes`.
  */
 export const mcpCalls = sqliteTable(
   "mcp_calls",
@@ -171,8 +136,7 @@ export const mcpCalls = sqliteTable(
     accountId: accountRef(),
     /** api_keys.id. Soft ref; see the header. */
     apiKeyId: text("api_key_id").notNull(),
-    /** oauth_clients.id (or a metadata-document URL) the key was issued to;
-     *  null for a key made in Settings, and on rows from before 0070. */
+    /** oauth_clients.id (or a metadata-document URL) the key was issued to; null for a key made in Settings. */
     clientId: text("client_id"),
     /** The tool name the call asked for, whether or not it exists. */
     tool: text("tool").notNull(),
@@ -192,19 +156,8 @@ export const mcpCalls = sqliteTable(
 );
 
 /**
- * Changes an admin AI asked for that start or change money, waiting for a person
- * (MCP ruling 2026-10-10, DECIDE answer 4).
- *
- * The Foxhound Admin API may pause directly, because pausing stops money
- * moving. Resuming a merchant, releasing the brake, re-enabling a cron,
- * exempting an account from billing and granting a plan all start or change
- * money, so the API only STAGES them here. Nothing is applied until an admin
- * confirms the row in /admin/staged, signed in, and the confirmation runs the
- * same helper the matching /admin screen runs.
- *
- * `status` is pending, confirmed, rejected or failed. A pending row older than
- * seven days can no longer be confirmed (app/lib/admin/staged.server.ts). Every
- * transition writes an admin_audit_log row naming the admin who made it.
+ * Changes an admin AI asked for that start or change money, waiting for a person. The Foxhound Admin API may pause directly, because pausing stops money moving. Resuming a merchant, releasing the brake, re-enabling a cron, exempting an account from billing and granting a plan all start or change money, so the API only STAGES them here. Nothing is applied until an admin confirms the row in /admin/staged, signed in, and the confirmation runs the same helper the matching /admin screen runs.
+ * `status` is pending, confirmed, rejected or failed. A pending row older than seven days can no longer be confirmed (app/lib/admin/staged.server.ts). Every transition writes an admin_audit_log row naming the admin who made it.
  */
 export const stagedChanges = sqliteTable(
   "staged_changes",
@@ -231,14 +184,7 @@ export const stagedChanges = sqliteTable(
   (t) => [index("staged_changes_status_idx").on(t.status, t.requestedAt)],
 );
 
-/**
- * Every call to the Foxhound Admin API, one row each (MCP ruling rule 12.4 for
- * the admin server, whose own Worker holds no database).
- *
- * APPEND-ONLY IN THE SCHEMA, as `mcp_calls` is: migration 0027 adds triggers
- * that abort any UPDATE or DELETE. Only calls that passed both credentials are
- * logged; a refused call has no acting admin to name.
- */
+/** Every call to the Foxhound Admin API, one row each. APPEND-ONLY IN THE SCHEMA, as `mcp_calls` is: triggers abort any UPDATE or DELETE. Only calls that passed both credentials are logged; a refused call has no acting admin to name. */
 export const adminApiCalls = sqliteTable(
   "admin_api_calls",
   {
@@ -276,11 +222,7 @@ export const aiCalls = sqliteTable(
   (t) => [index("ai_calls_account_idx").on(t.accountId)],
 );
 
-// ai_calls retention target (ARCHITECTURE.md: raw 90 days, monthly cost aggregates
-// after). One row per (account, model, YYYY-MM); the retention sweeper aggregates
-// aged raw rows here then deletes them in the same atomic batch. account_id is a
-// soft aggregate key (no FK), storing "" for platform-level (null-account) calls
-// so the unique index dedupes them too.
+// ai_calls retention target: one row per (account, model, YYYY-MM); the retention sweeper aggregates aged raw rows (kept 90 days) here then deletes them in the same atomic batch. account_id is a soft aggregate key (no FK), storing "" for platform-level (null-account) calls so the unique index dedupes them too.
 export const aiCallsMonthly = sqliteTable(
   "ai_calls_monthly",
   {
@@ -322,5 +264,5 @@ export const customerNotes = sqliteTable(
   (t) => [index("customer_notes_account_idx").on(t.accountId)],
 );
 
-// site-runtime ./not-found's daily 404 count per path (raw page_404s rows are not migrated; see legacy-map.md).
+// site-runtime ./not-found's daily 404 count per path.
 export { page404Daily } from "@dustinedwards/site-runtime/drizzle";

@@ -1,5 +1,4 @@
-/* The parts only the home page uses, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the home page uses. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-queue-label {
     transition-property: opacity;
@@ -81,7 +80,7 @@
   }
   .fh-queue-block-3 {
     width: 100%;
-    /* The queue's labels are Recova's regular weight; its address and footnotes are faint. */
+    /* The queue's labels are regular weight; its address and footnotes are faint. */
     --fh-label-weight: var(--weight-regular);
   }
   .fh-queue-label-text {

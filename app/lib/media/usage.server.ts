@@ -6,16 +6,10 @@ import { blogPosts, type Db } from "~/db";
 
 import { MEDIA_ADDRESSES } from "./images";
 
-// The media library's reference check: every place a blog post cites a library
-// file, as `/media/<key>` in its body or as its cover address, published or
-// draft, and in a scheduled update waiting to replace it
-// (scheduled_updates.source, site-api's table, migration 0056). Old revisions
-// in blog_post_versions are not counted: they are history, never served.
-//
-// One read of the posts per call. The blog is tens of posts, so this is cheaper
-// than a reference table that every post write would have to keep right.
+// The media library's reference check: every place a blog post cites a library file (`/media/<key>` in its body or as its
+// cover, published or draft, and in a waiting scheduled_updates.source). Old revisions are history, never served, so not
+// counted. One read of the posts per call: cheaper than a reference table every post write would have to keep right.
 
-/** Every use of every file, by key. */
 export async function mediaUses(db: Db): Promise<Map<string, MediaUse[]>> {
   const [posts, waiting] = await Promise.all([
     db

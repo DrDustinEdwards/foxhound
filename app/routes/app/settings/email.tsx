@@ -22,64 +22,14 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// S33, /settings/email, a named launch blocker in core.md: with no writer for
-// `sender_name`, `toEmailContext` fell back to "your subscription" and that
-// phrase became the From display name of every recovery email. This page is
-// that writer.
-//
-// LEGACY IS THE SPEC, read whole at blob shas: email/page.tsx 62de18af (1,169),
-// EmailSectionForm.tsx 57b2fb09 (1,559), components/EmailSection.tsx 3c89ca41
-// (3,048), settings/update/route.ts 878c0637 (10,356), settings/test-email/
-// route.ts dcc3a06f (11,006), lib/email-utils.ts 9f0e7a8c (3,775).
-//
-// DIVERGENCES, each classed rather than glossed:
-//
-// 1. ONE OF LEGACY'S THREE FIELDS IS NOT RENDERED. `sender_domain` has no
-//    reader and is deliberately not built; its legacy job ("Used
-//    in billing portal links", its own help string) is a different subsystem.
-//    `reply_to_email` IS rendered since J03, with its reader: send.ts sets
-//    Reply-To on merchant-customer email only when a valid address is saved,
-//    and sets none otherwise, so a reply goes to the From. The writer landed
-//    with the reader. Two differences from legacy, both flagged
-//    for Dustin: a server-side format check and a 254-character bound
-//    (app/lib/settings/reply-to.ts), input hygiene like the sender name's bound;
-//    and no Reply-To fallback to the From when the box is empty, which legacy's
-//    engine has and which changes nothing for the recipient.
-// 2. `sender_name` IS OPTIONAL, matching legacy, and BOUNDED AT 80, which
-//    legacy is not. The requirement shipped for one session and 335 reverted it:
-//    legacy writes `|| null` on an empty box and its empty case delivers through
-//    the `|| 'Support'` fallback Foxhound matches, so requiring it was an
-//    unratified user-visible divergence. The BOUND stays, flagged for Dustin as
-//    input hygiene on a header field, and is still an addition rather than a
-//    port.
-// 3. THE WRITE PATH is this route's own action rather than legacy's shared
-//    `/settings/update` (unbuilt). Class (a), exactly S30's divergence
-//    1, and it avoids building S38 as a side effect.
-// 4. THE TEST EMAIL'S OUTCOMES. Recova's button says "Sent! Check your inbox"
-//    or "Failed. Try again." and goes back to "Send test email" after four
-//    seconds; so does this one. Foxhound's send path also refuses a suppressed
-//    address, which Recova's has no such gate for, and "Try again" would not
-//    help there, so that outcome says why nothing was sent.
-//
-// J37 rebuilt the page from Capsomer 0.9.0's parts under
-// Dustin's Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field
-// parts, Button and Status, amber throughout. Recova stays the spec for what is
-// here and in what order: the phone-only back link, the title and its line, one
-// card holding Sender name, Reply-to email and the Send test email button, and
-// under the card, right-aligned, Saved or the failure sentence beside Save
-// changes. Each field is Capsomer's TextField, its help under the input as Recova's is.
-//
-// THE TEST BUTTON SITS IN THE CARD BUT POSTS ITS OWN FORM, through the HTML
-// `form` attribute. Recova's is a type="button" inside the save form that
-// fetches its own route; a submit button owned by the save form would be the
-// one an Enter key in the sender name presses, and would send mail. Owned by
-// its own ReadOnlyForm it keeps the demo refusal and works without script.
+// /settings/email: the phone-only back link, the title and its line, one card holding Sender name, Reply-to email and the Send test email button, and under the card, right-aligned, Saved or the failure sentence beside Save changes. Each field is Capsomer's TextField, its help under the input. This page is the writer of `sender_name`; without it every recovery email's From display name fell back to "your subscription".
+// `sender_domain` has no reader and is deliberately not built. `reply_to_email` has its reader: send.ts sets Reply-To on merchant-customer email only when a valid address is saved, and none otherwise, so a reply goes to the From. It has a server-side format check and a 254-character bound (app/lib/settings/reply-to.ts).
+// `sender_name` is OPTIONAL and BOUNDED AT 80: an empty box writes null and delivers through the `|| 'Support'` fallback.
+// The route's own action writes (no shared /settings/update handler).
+// THE TEST EMAIL'S OUTCOMES: "Sent! Check your inbox" or "Failed. Try again.", going back to "Send test email" after four seconds. Foxhound's send path also refuses a suppressed address, where "Try again" would not help, so that outcome says why nothing was sent.
+// THE TEST BUTTON SITS IN THE CARD BUT POSTS ITS OWN FORM, through the HTML `form` attribute: a submit button owned by the save form would be the one an Enter key in the sender name presses, and would send mail. Owned by its own ReadOnlyForm it keeps the demo refusal and works without script.
 
-// THE RECOVERY EMAILS CARD was /settings/features (S34, J38): Recova's two
-// switches, win-back sequences and expiring card alerts. Dustin had the page
-// combined with this one on 2026-10-29, since both switches turn emails to
-// customers on or off. It keeps its own form and save bar, and the NULL-is-ON
-// pair: a merchant who never touched it has both on.
+// THE RECOVERY EMAILS CARD: win-back sequences and expiring card alerts, the switches that turn emails to customers on or off. It keeps its own form and save bar, and the NULL-is-ON pair: a merchant who never touched it has both on.
 
 export function meta() {
   return [{ title: "Email settings - Foxhound" }, NOINDEX];
@@ -87,20 +37,16 @@ export function meta() {
 
 const NULL_IS_ON = true;
 
-/** Legacy's SaveBar failure sentence, said when the write itself threw. */
+/** The failure sentence, said when the write itself threw. */
 const SAVE_FAILED = "Failed to save. Please try again.";
 
-/** Legacy's button labels, one per state of its `testEmailStatus`. */
 const TEST_IDLE = "Send test email";
 const TEST_SENDING = "Sending...";
 const TEST_SENT = "Sent! Check your inbox";
 const TEST_FAILED = "Failed. Try again.";
-/** The suppressed outcome (divergence 4). The send path suppresses an address
- *  on an unsubscribe (suppression.ts) or a bounce or complaint event
- *  (events.ts), and on nothing else. */
+/** The suppressed outcome. The send path suppresses an address on an unsubscribe (suppression.ts) or a bounce or complaint event (events.ts), and on nothing else. */
 const TEST_SUPPRESSED =
   "Not sent. Your address is blocked after an unsubscribe, bounce or complaint.";
-/** Legacy's `setTimeout(() => setTestEmailStatus('idle'), 4000)`. */
 const TEST_RESULT_MS = 4000;
 
 const TEST_FORM_ID = "settings-test-email";
@@ -137,14 +83,12 @@ interface ActionResult {
   /** A refusal, said beside `field` when it names one, else in the save bar. */
   error?: string;
   field?: SenderField;
-  /** The write itself failed: legacy's SaveBar sentence. */
   failed?: boolean;
   /** The test email's named outcome (EmailSendStatus). */
   status?: string;
 }
 
-/** Which field a refusal from applySenderName belongs to. Its sentences name
- *  the field they are about; "Connect Stripe..." names none. */
+/** Which field a refusal from applySenderName belongs to. Its sentences name the field they are about; "Connect Stripe..." names none. */
 function fieldOf(error: string): SenderField | undefined {
   if (/^Sender name\b/.test(error)) return "senderName";
   if (/reply-to/i.test(error)) return "replyToEmail";
@@ -159,24 +103,17 @@ export async function action({ request, context }: Route.ActionArgs) {
   const intent = String(form.get("_action") ?? "");
 
   if (intent === "sender") {
-    // THE SENDER BRANCH'S CORE is in apply.server.ts, shared with the MCP
-    // `set_sender_name` tool, so an agent is refused with this form's own
-    // sentences. The name stays OPTIONAL, per ruling 335: legacy writes
-    // `|| null` on an empty box and its empty case delivers through the
-    // `|| 'Support'` fallback Foxhound matches.
+    // THE SENDER BRANCH'S CORE is in apply.server.ts, shared with the MCP `set_sender_name` tool, so an agent is refused with this form's own sentences. The name stays OPTIONAL: an empty box writes null and delivers through the `|| 'Support'` fallback.
     let result: Awaited<ReturnType<typeof applySenderName>>;
     try {
       result = await applySenderName(getDb(env), accountId, {
         connectionId: form.get("connectionId"),
         senderName: form.get("senderName"),
-        // Sent only when the form carries the field, as legacy's
-        // `formData.has('reply_to_email')`.
+        // Sent only when the form carries the field (`formData.has('reply_to_email')`).
         replyToEmail: form.has("replyToEmail") ? form.get("replyToEmail") : undefined,
       });
     } catch (err) {
-      // Legacy answers a failed update with its SaveBar sentence, not an error
-      // page. The whole error is logged, stack included, so a D1 failure can be
-      // traced; it carries no form values.
+      // A failed update answers with the SaveBar sentence, not an error page. The whole error is logged, stack included, so a D1 failure can be traced; it carries no form values.
       console.error("email settings write failed:", err);
       return data<ActionResult>({ action: intent, ok: false, failed: true }, { status: 500 });
     }
@@ -193,9 +130,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "features") {
-    // TWO columns, through the shared apply layer so this form
-    // and the MCP `set_feature_settings` tool cannot disagree. A checkbox posts
-    // its name only when checked, so an absent key is OFF.
+    // TWO columns, through the shared apply layer so this form and the MCP `set_feature_settings` tool cannot disagree. A checkbox posts its name only when checked, so an absent key is OFF.
     try {
       await applyFeatureSettings(getDb(env), accountId, {
         winbackNotificationsEnabled: form.get("winbackNotificationsEnabled") === "on",
@@ -209,9 +144,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "test-email") {
-    // The address is the SESSION user's, never the form's, so this cannot be
-    // pointed at a third party. It sends with the account's live
-    // sending off, as Recova's does, because its audience is "preview".
+    // The address is the SESSION user's, never the form's, so this cannot be pointed at a third party. It sends with the account's live sending off, because its audience is "preview".
     try {
       const { result } = await sendTestEmail(env, accountId, auth.email);
       return data<ActionResult>({
@@ -220,8 +153,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         status: result.status,
       });
     } catch (err) {
-      // sendTestEmail returns a named outcome for every refused send; what
-      // throws is the read before it. Recova's button says it failed.
+      // sendTestEmail returns a named outcome for every refused send; what throws is the read before it.
       console.error("test email failed:", err);
       return data<ActionResult>({ action: intent, ok: false, status: "failed" }, { status: 500 });
     }
@@ -248,8 +180,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
     navigation.state === "idle" ? null : String(navigation.formData?.get("_action") ?? "");
   const saveResult = result?.action === "sender" ? result : undefined;
   const featuresResult = result?.action === "features" ? result : undefined;
-  // The test email's last outcome, held for legacy's four seconds and then
-  // dropped, so the button goes back to "Send test email".
+  // The test email's last outcome, held four seconds and then dropped, so the button goes back to "Send test email".
   const [testResult] = useShownFor(
     result?.action === "test-email" ? result : undefined,
     TEST_RESULT_MS,

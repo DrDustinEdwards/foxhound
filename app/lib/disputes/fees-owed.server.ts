@@ -7,16 +7,7 @@ import { SETTLED_STATUSES } from "~/lib/billing/charge-retry";
 
 import type { CurrencyAmount } from "~/lib/money/totals";
 
-// The disputes list's "Fees owed" card (J66 follow-up, Dustin's answer to PR #75
-// question 5: "yes ro all", 2026-10-15,
-// cmsg_01Nd8kh3hkgYNYpWXrNkvBQL2LnH5XBcKc3DcWHoEsDbT6).
-//
-// Recova's card summed its dispute_fees rows whose status was pending or
-// invoiced (app/(app)/disputes/dashboard/page.tsx, blob c97c3e93), so a fee
-// dropped off once paid. Foxhound's card had summed every fee on a won,
-// Foxhound-submitted dispute, paid or not, so it overstated once fees were
-// billed. Foxhound keeps the same facts in its billing records, and this reads
-// them, READ-ONLY:
+// The disputes list's "Fees owed" card.
 //
 // - Pending: a win the next billing run will bill, exactly the set and the fee
 //   /billing's preview shows (getBillableDisputes, the run's own query, and
@@ -26,11 +17,11 @@ import type { CurrencyAmount } from "~/lib/money/totals";
 //   nothing more will be collected on those, so nothing is owed. A failed charge
 //   is still owed, as the sweep still chases it. A credit note against the line
 //   reduces what is owed by its amount.
-//
-// No money writer, batch, key or order is touched; nothing here writes.
 
-/** The dispute fees an account still owes, one part per fee, in its currency.
- *  The caller totals them per currency (groupSumByCurrency). */
+/**
+ * The dispute fees an account still owes, one part per fee, in its currency.
+ * The caller totals them per currency (groupSumByCurrency).
+ */
 export async function getDisputeFeesOwed(
   db: Db,
   accountId: string,

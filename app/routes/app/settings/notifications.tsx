@@ -26,70 +26,20 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// S36, /settings/notifications. THE SURFACE FIVE ENGINES HAVE BEEN WAITING ON.
-//
-// Sessions 47, 48, 49, 52 and 55 each built a subsystem gated on a column with
-// no writer. 350 binding 2 recorded the sharpest case: the weekly digest cron
-// is correct, proven, and mails NOBODY, because `digest_enabled` is NULL-is-OFF
-// and nothing could set it. This page is what ends that.
-//
-// LEGACY IS THE SPEC, read whole at HEAD:
-//   settings/notifications/page.tsx               blob 93126fd2  1,669 bytes
-//   settings/notifications/NotificationsForm.tsx  blob 316c15cf  1,734 bytes
-//   settings/components/NotificationsSection.tsx  blob 494c6dfa  4,573 bytes
-//   settings/SaveBar.tsx                          blob f1d6eb23
-//   components/Toggle.tsx                         blob 0ebdd395
-//   components/SettingsBackLink.tsx               blob 64d4a153
-//   settings/update/route.ts                      blob 878c0637
-//
-// J39 rebuilt it from Capsomer 0.9.0's parts under Dustin's
-// Q10 and Q11 answers of 2026-10-14: PageHead, the panel, the field parts,
-// Switch, Status and Button, amber throughout. Recova stays the spec for what
-// is here and in what order: the phone-only back link, the title and its line,
-// one card holding the notification email, the Slack webhook URL, then four
-// toggles (Slack notifications, Weekly digest, Payment recovered notification,
-// Sequence complete notification), and under the card, right-aligned, Saved or
-// the failure sentence beside Save changes. Each field is Capsomer's TextField,
-// its help under the input.
-//
-// The win-back and expiring-card toggles are NOT here: legacy renders them on
-// its features page (S34).
-//
-// THE NULL MAP IS LEGACY'S OWN, read off its page defaults:
-//   slack_notifications_enabled ?? false            NULL renders OFF
-//   digest_enabled ?? false                         NULL renders OFF
-//   recovery_notifications_enabled ?? true          NULL renders ON
-//   sequence_complete_notifications_enabled ?? true NULL renders ON
-// The engine agrees: the digest cron selects `digest_enabled = true` and the
-// Slack sender gates on a truthy `slack_notifications_enabled`.
-//
-// ONE TRUTHFULNESS FIX: Recova's help line ends "Defaults to
-// your account email if blank." That was untrue there and is untrue here: a
-// blank box saves NULL (legacy's `|| null`), the payment recovered and sequence
-// complete notices skip a NULL address as `no_recipient`, and the digest cron
-// drops it. So the line says what a blank box does. Recova's prefill of the
-// signed-in email into the box is kept (Save stores it), but its placeholder
-// is not, because a cleared box showing that address grayed in would imply it
-// gets mail. A real fallback in the senders would be a behavior change and is
-// Dustin's ruling, not this page's.
-//
-// ONE DIVERGENCE, approved (APPROVED-DIFFERENCES, "Slack webhook addresses must
-// be on hooks.slack.com", 2026-09-19; RULES.md 4.16): the webhook URL is
-// validated to `https://hooks.slack.com`, and its refusal is said beside the
-// field. Legacy stores any string verbatim.
+// /settings/notifications: the phone-only back link, the title and its line, one card holding the notification email, the Slack webhook URL, then four toggles (Slack notifications, Weekly digest, Payment recovered notification, Sequence complete notification), and under the card, right-aligned, Saved or the failure sentence beside Save changes. Each field is Capsomer's TextField, its help under the input. This page is the writer of the columns the digest, Slack and notice engines are gated on (the weekly digest cron mails NOBODY while `digest_enabled` is NULL-is-OFF and nothing sets it). The win-back and expiring-card toggles are on /settings/email.
+// THE NULL MAP: slack_notifications_enabled ?? false (NULL renders OFF); digest_enabled ?? false (OFF); recovery_notifications_enabled ?? true (ON); sequence_complete_notifications_enabled ?? true (ON). The digest cron selects `digest_enabled = true` and the Slack sender gates on a truthy `slack_notifications_enabled`.
+// A blank notification email box saves NULL: the payment recovered and sequence complete notices skip a NULL address as `no_recipient`, and the digest cron drops it, so the help line says what a blank box does, and the placeholder does not show the signed-in address grayed in (it would imply it gets mail). A real fallback in the senders would be a behavior change. The signed-in email is prefilled in the box, and Save stores it.
+// The Slack webhook URL is validated to `https://hooks.slack.com`, and its refusal is said beside the field.
 
 export function meta() {
   return [{ title: "Notification settings - Foxhound" }, NOINDEX];
 }
 
-/** Legacy's `?? true` pair. A column nobody has touched means the merchant is
- *  notified, which is what every engine's reader already assumes. */
+/** A column nobody has touched means the merchant is notified, which is what every engine's reader already assumes. */
 const NULL_IS_ON = true;
-/** Legacy's `?? false` pair. Explicit opt-in. */
+/** Explicit opt-in. */
 const NULL_IS_OFF = false;
 
-/** Legacy's SaveBar failure sentence, said when the action returns
- *  `failed: true` because the write itself threw. */
 const SAVE_FAILED = "Failed to save. Please try again.";
 
 export async function loader({ context }: Route.LoaderArgs) {
@@ -111,9 +61,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     .limit(1);
 
   return {
-    // Recova's `notification_email ?? user.email`: a NULL address shows the
-    // signed-in email IN the box, so the first Save stores it. The box is
-    // truthful because Save writes what it shows.
+    // A NULL address shows the signed-in email IN the box, so the first Save stores it. The box is truthful because Save writes what it shows.
     notificationEmail: row?.notificationEmail ?? auth.email,
     // Opened for the merchant's own form only; the column holds it sealed.
     slackWebhookUrl: (await openSlackWebhook(env, row?.slackWebhookUrl ?? null)) ?? "",
@@ -121,8 +69,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     digestEnabled: row?.digestEnabled ?? NULL_IS_OFF,
     recoveryNotificationsEnabled: row?.recoveryNotificationsEnabled ?? NULL_IS_ON,
     sequenceCompleteNotificationsEnabled: row?.sequenceCompleteNotificationsEnabled ?? NULL_IS_ON,
-    // The alerts, once /settings/alerts, under the delivery settings
-    // (Dustin).
+    // The alerts sit under the delivery settings.
     alerts: await alertsSection,
   };
 }
@@ -132,7 +79,6 @@ interface ActionResult {
   /** A refusal with a field of its own, said beside that field. */
   error?: string;
   field?: "slackWebhookUrl";
-  /** The write itself failed: legacy's SaveBar sentence. */
   failed?: boolean;
 }
 
@@ -152,17 +98,14 @@ export async function action({ request, context }: Route.ActionArgs) {
     return answerAlertsAction(getDb(env), auth.membership.accountId, form, intent);
   }
 
-  // THE WEBHOOK RULE AND THE SIX COLUMNS live in apply.server.ts, shared with
-  // the MCP `set_notification_settings` tool, so an agent sees the same
-  // refusal sentence a person does.
+  // THE WEBHOOK RULE AND THE SIX COLUMNS live in apply.server.ts, shared with the MCP `set_notification_settings` tool, so an agent sees the same refusal sentence a person does.
   let result: Awaited<ReturnType<typeof applyNotificationSettings>>;
   let before:
     | { notificationEmail: string | null; platformStripeCustomerId: string | null }
     | undefined;
   try {
     const db = getDb(env);
-    // Read before the write, as Recova does, so a changed address can be
-    // pushed to the billing customer below.
+    // Read before the write, so a changed address can be pushed to the billing customer below.
     [before] = await db
       .select({
         notificationEmail: accounts.notificationEmail,
@@ -180,9 +123,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       sequenceCompleteNotificationsEnabled: checked(form, "sequenceCompleteNotificationsEnabled"),
     });
   } catch (err) {
-    // Legacy answers a failed update with its SaveBar sentence, not an error
-    // page. The whole error is logged, stack included, so a D1 failure can be
-    // traced; it carries no form values.
+    // A failed update answers with the SaveBar sentence, not an error page. The whole error is logged, stack included, so a D1 failure can be traced; it carries no form values.
     console.error("notification settings write failed:", err);
     return data<ActionResult>({ ok: false, failed: true }, { status: 500 });
   }
@@ -194,9 +135,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       { status: 400 },
     );
   }
-  // Recova's two-way sync with Stripe: a changed, non-empty notification email
-  // goes to the platform billing customer, when there is one. A failed push
-  // neither undoes nor fails the save.
+  // Two-way sync with Stripe: a changed, non-empty notification email goes to the platform billing customer, when there is one. A failed push neither undoes nor fails the save.
   const newEmail = result.state.notificationEmail;
   if (
     newEmail &&

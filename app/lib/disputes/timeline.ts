@@ -1,12 +1,4 @@
 // The dispute timeline: what happened to this chargeback, in order.
-//
-// Legacy built the same five events but appended them in source order and never
-// sorted, so a backfilled staged_at landing after submitted_at rendered out of
-// sequence. It also gave the terminal ruling the SAME timestamp as the outcome
-// notification, so "Outcome notification sent" and "Bank ruled: WON" always
-// printed identical times, and it emitted no terminal event at all for an
-// accepted dispute. This sorts, and it separates the ruling from the
-// notification by using resolved_at for the ruling.
 
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
@@ -16,8 +8,10 @@ import {
   SUBMITTED_EXTERNALLY,
 } from "./labels";
 
-/** One balance transaction Stripe recorded for the dispute
- *  (dispute_balance_transactions), signed as Stripe signs it. */
+/**
+ * One balance transaction Stripe recorded for the dispute
+ * (dispute_balance_transactions), signed as Stripe signs it.
+ */
 export interface DisputeFundsEntry {
   kind: string;
   amountCents: number;
@@ -50,17 +44,16 @@ export interface DisputeTimelineItem {
   label: string;
 }
 
-/** Who submitted the evidence, in Recova's words (components/disputes/
- *  timeline.ts, blob 04fbe976). Foxhound stores the approver's email for its
- *  own manual submissions, so anything but the two markers is Foxhound. */
 function submitterPhrase(submittedBy: string | null): string {
   if (submittedBy === SUBMITTED_EXTERNALLY) return "externally (merchant or Stripe)";
   if (submittedBy === SUBMITTED_AUTOMATICALLY) return "Foxhound (auto-submit)";
   return "Foxhound";
 }
 
-/** A funds entry in words: the amount moved and Stripe's own dispute fee, each
- *  in the balance transaction's currency. A fee Stripe returned is negative. */
+/**
+ * A funds entry in words: the amount moved and Stripe's own dispute fee, each
+ * in the balance transaction's currency. A fee Stripe returned is negative.
+ */
 function fundsLabel(f: DisputeFundsEntry): string {
   const amount = formatMoney(Math.abs(f.amountCents), f.currency);
   const fee = formatMoney(Math.abs(f.feeCents), f.currency);
@@ -108,9 +101,8 @@ export function buildDisputeTimeline(d: DisputeTimelineInput): DisputeTimelineIt
     items.push({ at: d.outcomeNotifiedAt, label: "Outcome notification sent." });
   }
 
-  // The ruling is anchored to resolved_at, not to the notification timestamp, so
-  // the two events do not print the same time. The words are Recova's; the fee
-  // a win carries is stated on the page's approval card, not here.
+  // The ruling is anchored to resolved_at, not to the notification timestamp,
+  // so the two events do not print the same time.
   if (d.state === "resolved_won") {
     items.push({ at: d.resolvedAt, label: "Bank ruled: WON. Funds retained." });
   } else if (d.state === "resolved_lost") {

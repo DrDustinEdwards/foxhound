@@ -40,20 +40,6 @@ import {
 } from "./recovery-window";
 import { percent } from "capsomer/behavior/meter";
 
-// The Recovery dashboard windowed read model (TASK-foxhound-recovery-surface-
-// parity.md Phase 1): Foxhound's equivalent of legacy's fetchDashboardData.
-// ONE function, called with ONE range, computing the full picture for that
-// range. The dual-range behavior (primary/secondary stat cards + timing chart
-// always 30d, everything else following the selector) is NOT built into this
-// function - it lives entirely in the CALLER (Phase 2's loader), which calls
-// this twice (once for the selected range, once for a fixed '30d', reusing
-// the single call when they're already equal, exactly like legacy's page.tsx)
-// and picks fields from whichever result each panel needs. This function
-// stays uniform on purpose: some of its fields are naturally range-invariant
-// (current-state facts like activePaymentsCount, or the always-30d
-// categorySparkline), and that falls out of what each field actually means,
-// not a branch on which call this is.
-
 export const UPCOMING_STEPS_WINDOW_MS = 48 * HOUR_MS;
 
 export interface RecoveryDashboardWindow {
@@ -79,16 +65,14 @@ export interface RecoveryDashboardWindow {
   lastRecoveryAgo: string | null;
   upcomingSteps: UpcomingStepRow[];
 
-  // Decline analysis, scoped to this call's range (categorySparkline is the
-  // one exception: always a genuine trailing 30 days, see recovery-window.ts).
+  // Decline analysis, scoped to this call's range (categorySparkline is the one
+  // exception: always a genuine trailing 30 days, see recovery-window.ts).
   categoryBreakdown: Partial<Record<DeclineCategory, number>>;
   categoryStats: Partial<Record<DeclineCategory, { total: number; recovered: number }>>;
   bestCategory: { cat: DeclineCategory; rate: number } | null;
   categorySparkline: Partial<Record<DeclineCategory, CategorySparklinePoint[]>>;
   recoveryRateDaily: DailyRatePoint[];
 
-  // Email engagement: UNSCOPED by range (verified against legacy's actual
-  // source, which carries no date filter on this query at all).
   emailCategoryPerformance: {
     category: DeclineCategory;
     openRatePct: number;
@@ -98,9 +82,11 @@ export interface RecoveryDashboardWindow {
   totalEmailsSent: number;
   openRatePct: number;
   clickRatePct: number;
-  /** The same engagement, counted over email steps executed inside this
-   *  call's range: the "Emails sent" stat card reads it from the 30-day
-   *  window, as every stat card does. */
+  /**
+   * The same engagement, counted over email steps executed inside this call's
+   * range: the "Emails sent" stat card reads it from the 30-day window, as
+   * every stat card does.
+   */
   emailsSentInRange: { sent: number; openRatePct: number; clickRatePct: number };
 
   // Win-back reactivation, scoped to this call's range.
@@ -154,9 +140,6 @@ export async function getRecoveryDashboardWindow(
     ...new Set(recentPayments.map((p) => p.stripeCustomerId)),
   ]);
 
-  // window, per listFailuresWithOutcome), never legacy's mismatch of a
-  // detected_at-anchored total against a separately recovered_at-anchored
-  // recovered count. ----
   const categoryBreakdown: Partial<Record<DeclineCategory, number>> = {};
   const categoryStats: Partial<Record<DeclineCategory, { total: number; recovered: number }>> = {};
   let recoveredInCohortCount = 0;
@@ -171,14 +154,11 @@ export async function getRecoveryDashboardWindow(
     categoryStats[row.declineCategory] = stat;
   }
 
-  // listRecoveredWithFailureContext), not the detected-at cohort above. This
-  // is a distribution over recoveries that happened in this window and how
-  // long each took - a question about the recovery events themselves, same
-  // as recoveredRevenue, not about the cohort of failures that started the
-  // window (which is what totalFailedCount/recoveredCount/categoryStats are
-  // for). Legacy anchors this the same way, off its one recovered_at-anchored
-  // query; the rate/count/category-stats side is the only part that needed
-  // to move onto a single detected-at cohort. ----
+  // listRecoveredWithFailureContext), not the detected-at cohort above. This is
+  // a distribution over recoveries that happened in this window and how long
+  // each took - a question about the recovery events themselves, same as
+  // recoveredRevenue, not about the cohort of failures that started the window
+  // (which is what totalFailedCount/recoveredCount/categoryStats are for).
   const recoveryDays = recovered
     .map((r) => (r.recoveredAt.getTime() - r.detectedAt.getTime()) / DAY_MS)
     .filter((d) => d >= 0);
@@ -187,15 +167,11 @@ export async function getRecoveryDashboardWindow(
       ? Math.round((recoveryDays.reduce((a, b) => a + b, 0) / recoveryDays.length) * 10) / 10
       : null;
 
-  // it must share that stat's cohort. Legacy built recoveredByDay from its
-  // recovered_at-anchored query (the same mismatch the headline rate had) and
-  // its own comment claimed the cumulative variant was "always <= 100% on
-  // clean data" - false, because a quiet week after a bad week lets recoveries
-  // of failures detected before the window outrun the in-window denominator.
-  // Sourcing both series from the SAME cohort (failuresWithOutcome) makes the
-  // bound structural: every row counted in recoveredByDay has recoveredAt >=
-  // detectedAt, and detectedAt already put it in failedByDay by that day, so
-  // cumulativeRecovered can never pass cumulativeFailed. No clamp needed. ----
+  // it must share that stat's cohort. Sourcing both series from the SAME cohort
+  // (failuresWithOutcome) makes the bound structural: every row counted in
+  // recoveredByDay has recoveredAt >= detectedAt, and detectedAt already put it
+  // in failedByDay by that day, so cumulativeRecovered can never pass
+  // cumulativeFailed.
   const failedByDay = countByDay(failuresWithOutcome.map((r) => r.detectedAt));
   const recoveredByDay = countByDay(
     failuresWithOutcome

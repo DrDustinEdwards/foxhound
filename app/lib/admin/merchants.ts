@@ -8,14 +8,8 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 export const MERCHANTS_PATH = "/admin/merchants";
 /** Where the page's forms post: the index route's own action. */
-export const MERCHANTS_ACTION = `${MERCHANTS_PATH}?index`;
+const MERCHANTS_ACTION = `${MERCHANTS_PATH}?index`;
 
-/** The Merchants page's three lists, as Recova's Merchants menu had them
- *  (app/admin/admin-nav.ts, blob c5df324c): every merchant, the paused ones and
- *  the billing exempt ones, each at Recova's own address. On the family admin
- *  pattern they are filters of one page, drawn as Capsomer's links form of
- *  tabs ("the better default for admin filters", tabs.md), so Back, a bookmark
- *  and a server render all work. */
 export type MerchantView = "all" | "paused" | "billing-exempt";
 
 export const MERCHANT_VIEWS: ReadonlyArray<{ view: MerchantView; label: string; path: string }> = [
@@ -28,9 +22,6 @@ export function merchantViewPath(view: MerchantView): string {
   return MERCHANT_VIEWS.find((v) => v.view === view)?.path ?? MERCHANTS_PATH;
 }
 
-/** The rows a list shows: exactly those whose flag is set, as Recova's
- *  .eq("processing_paused", true) and .eq("billing_exempt", true) reads did,
- *  so a canceled merchant still holding the flag stays on the list. */
 export function merchantsInView<T extends { processingPaused: boolean; billingExempt: boolean }>(
   rows: readonly T[],
   view: MerchantView,
@@ -40,27 +31,35 @@ export function merchantsInView<T extends { processingPaused: boolean; billingEx
   return [...rows];
 }
 
-/** Where a list's forms post: the list's own address, so a post made without
- *  script lands back on the same list. The index route needs ?index. */
+/**
+ * Where a list's forms post: the list's own address, so a post made without
+ * script lands back on the same list. The index route needs ?index.
+ */
 export function merchantsActionFor(view: MerchantView): string {
   return view === "all" ? MERCHANTS_ACTION : merchantViewPath(view);
 }
 
-/** The confirm page for canceling one merchant, on the list it was asked from. */
+/**
+ * The confirm page for canceling one merchant, on the list it was asked from.
+ */
 export function merchantCancelHref(accountId: string, view: MerchantView = "all"): string {
   return `${merchantViewPath(view)}?cancel=${encodeURIComponent(accountId)}`;
 }
 
-/** Where that confirm page posts: the list's action, keeping ?cancel so a
- *  mistyped word shows the confirm page again. */
+/**
+ * Where that confirm page posts: the list's action, keeping ?cancel so a
+ * mistyped word shows the confirm page again.
+ */
 export function merchantCancelAction(accountId: string, view: MerchantView): string {
   const action = merchantsActionFor(view);
   return `${action}${action.includes("?") ? "&" : "?"}cancel=${encodeURIComponent(accountId)}`;
 }
 
-/** Cancel cannot be undone (it revokes the Stripe grant), so it is typed
- *  (Capsomer confirm-dialog: "Type a short word only for what cannot be
- *  recovered"). Case does not matter; the server checks it again. */
+/**
+ * Cancel cannot be undone (it revokes the Stripe grant), so it is typed
+ * (Capsomer confirm-dialog: "Type a short word only for what cannot be
+ * recovered"). Case does not matter; the server checks it again.
+ */
 export const CANCEL_CONFIRM_WORD = "cancel";
 
 export function isCancelConfirmValid(typed: string): boolean {
@@ -69,10 +68,6 @@ export function isCancelConfirmValid(typed: string): boolean {
 
 export type MerchantTone = "crit" | "warn" | "ok" | "info" | "nodata";
 
-/** One status per row, in Recova's order (Paused, then Exempt, then Active,
- *  then Inactive), with Foxhound's Canceled first: a canceled merchant is
- *  stopped whatever its flags say. Inactive is Recova's word for a merchant
- *  with no live Stripe connection. */
 export function merchantStatus(row: {
   cancelledAt: Date | null;
   processingPaused: boolean;
@@ -98,8 +93,10 @@ export const CONNECTION_WORDS = {
   never_connected: "Never connected",
 } as const;
 
-/** Amounts in several currencies are never added together:
- *  each is said once, joined with a plus. */
+/**
+ * Amounts in several currencies are never added together: each is said once,
+ * joined with a plus.
+ */
 export function moneyWords(
   amounts: ReadonlyArray<{ cents: number; currency: string }>,
   none: string,
@@ -111,8 +108,6 @@ export function moneyWords(
 
 export type ToggleIntent = "billing-exempt" | "processing-paused";
 
-/** What a row is called: its name, else its owner's email (Recova showed the
- *  email when an account had no name), else its id. */
 export function merchantLabel(row: {
   id: string;
   name: string | null;
@@ -128,8 +123,10 @@ export interface ToggleResult {
   name: string | null;
   /** The value the flag was asked to hold. */
   value: boolean;
-  /** Whether the write changed it. A stale row asking for the value the flag
-   *  already holds changes nothing, and has nothing to undo. */
+  /**
+   * Whether the write changed it. A stale row asking for the value the flag
+   * already holds changes nothing, and has nothing to undo.
+   */
   changed: boolean;
   /** A resume that took a merchant off the emergency brake's books. */
   wasBrakePause: boolean;
@@ -143,7 +140,8 @@ export interface ToggleMessage {
   undo: { intent: ToggleIntent; accountId: string; value: boolean } | null;
 }
 
-/** What a toggle's answer says in the page and the Undo it offers, if any.
+/**
+ * What a toggle's answer says in the page and the Undo it offers, if any.
  *  The in-page (script) path and the no-script banner both read this, so the
  *  rule is in one place:
  *  - nothing changed: no Undo, it says so;
@@ -152,7 +150,8 @@ export interface ToggleMessage {
  *    put back what was there;
  *  - otherwise Undo posts the other value, marked as an Undo, which the
  *    action writes only where the flag still holds what this change set (and
- *    a pause's Undo resumes only a person's pause, never the brake's). */
+ *    a pause's Undo resumes only a person's pause, never the brake's).
+ */
 export function toggleMessage(
   r: Pick<ToggleResult, "intent" | "accountId" | "name" | "value" | "changed" | "wasBrakePause">,
 ): ToggleMessage {

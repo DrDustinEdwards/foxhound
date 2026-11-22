@@ -11,15 +11,9 @@ import { constructStripeEvent } from "~/lib/stripe/webhook";
 const SIGNATURE_REPORTS_PER_HOUR = 5;
 
 /**
- * A webhook whose signature failed. A secret-rotation slip stops payment ingestion, so make it visible;
- * but the endpoints are public and every junk POST lands here too. Report at most
- * SIGNATURE_REPORTS_PER_HOUR an hour per endpoint across the whole Worker (one shared key, so no caller
- * can spread around it): enough to show a rotation slip, not enough to spend the Sentry quota or bury
- * real alerts. The rest go to the Workers log only. The context carries no secret material.
- *
- * The cap fails CLOSED: when the limiter cannot answer, nothing is reported. Failing open would let every
- * junk POST through to Sentry exactly when the cap cannot count, which is the flood the cap exists to stop.
- * The limiter's own outage is logged by site-runtime, and the request is still logged here.
+ * A webhook whose signature failed. A secret-rotation slip stops payment ingestion, so make it
+ * visible; but the endpoints are public and every junk POST lands here too. The rest go to the
+ * Workers log only. The context carries no secret material.
  */
 async function reportBadSignature(
   env: Env,
@@ -54,9 +48,9 @@ async function reportBadSignature(
 }
 
 /**
- * The front of both Stripe webhook endpoints: a POST, a configured signing secret (a missing one fails
- * closed with a 500 so Stripe retries instead of dropping events), a bounded body, and a verified
- * signature. Returns the event, or the Response to send back.
+ * The front of both Stripe webhook endpoints: a POST, a configured signing secret (a missing one
+ * fails closed with a 500 so Stripe retries instead of dropping events), a bounded body, and a
+ * verified signature.
  */
 async function verifyStripeRequest(
   request: Request,
@@ -81,10 +75,9 @@ async function verifyStripeRequest(
 }
 
 /**
- * A Stripe webhook route's loader and action. A GET never reaches the action, and without a loader it rendered
- * as a 400 "Unexpected Server Error". The action verifies the request (`verifyStripeRequest`), hands the event to
- * `process`, and answers 200 for an applied, duplicate or ignored event and 500 for an error (Stripe retries).
- * `secretKey` names the signing secret in the environment; `endpoint` and `errorScope` name the endpoint in Sentry.
+ * A Stripe webhook route's loader and action. A GET never reaches the action, and without a loader
+ * it rendered as a 400 "Unexpected Server Error". `secretKey` names the signing secret in the
+ * environment; `endpoint` and `errorScope` name the endpoint in Sentry.
  */
 export function stripeWebhookRoute(options: {
   secretKey: "STRIPE_WEBHOOK_SECRET" | "STRIPE_PLATFORM_WEBHOOK_SECRET";

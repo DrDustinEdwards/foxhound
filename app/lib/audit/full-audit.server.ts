@@ -14,13 +14,11 @@ export interface CurrencyCents {
 
 /**
  * "Foxhound adds": the sum of THIS account's own recovered_payments rows
- * attributed to a Foxhound action (foxhound_retry, email_engaged,
- * card_update), i.e. everything that is NOT the free stripe_baseline. Reuses
- * the exact BILLABLE_ATTRIBUTION_KINDS filter the billing run and the
- * dashboard already use (PRICING.md: "Audit lift and the invoice are the
- * same query"), never a second hand-rolled predicate. For a freshly
- * connected account with no Foxhound history yet, this is honestly zero for
- * every currency, not a fabricated projection.
+ * attributed to a Foxhound action (foxhound_retry, email_engaged, card_update),
+ * i.e. everything that is NOT the free stripe_baseline. Reuses the exact
+ * BILLABLE_ATTRIBUTION_KINDS filter the billing run and the dashboard already
+ * use (PRICING.md: "Audit lift and the invoice are the same query"), never a
+ * second hand-rolled predicate.
  */
 export async function computeFoxhoundAddsCents(
   db: Db,

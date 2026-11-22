@@ -1,15 +1,6 @@
-// The five docs guides behind /docs/:slug. Recova's guides are the
-// spec for their Parts, their H3s and their order: app/(marketing)/docs/
-// {platform,audit,recovery,disputes,intelligence}/page.tsx at blobs 2b69517b,
-// 3b1153b4, 6166a6be, 598fcbaa and e7f18266, read whole. Every sentence is
-// Foxhound's, true of Foxhound's engine and its built settings pages; Recova's
-// copy described Recova's engine and is never restored verbatim.
-// Where Foxhound has not built what a Recova heading describes, the Part says
-// so, and the H3s whose whole content was that feature are cut, each named in
-// test/docs-guides-j73.test.ts.
-//
-// Figures come from the engine's constants, not retyped: the fee, the cap, the
-// windows, the bands and the schedules.
+// The five docs guides behind /docs/:slug. Every sentence is true of Foxhound's engine and its built settings pages. Where
+// Foxhound has not built what a heading describes, the Part says so, and H3s whose whole content was that feature are cut.
+// Figures come from the engine's constants, not retyped: the fee, the cap, the windows, the bands and the schedules.
 
 import type { DocWidgetName } from "~/components/docs/doc-widgets";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
@@ -43,13 +34,9 @@ import {
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 import { listText } from "capsomer/behavior/hooks";
 
-// THE BLOCK VOCABULARY, Recova's own.
-//
-// A PLAIN STRING IS A PARAGRAPH. Anything richer is a tagged object, so the two
-// forms cannot be confused. Recova's inline set is Strong, Code, RelLink and a
-// bare font-mono span, plus a HealthScoreBadge inside the intelligence guide's
-// thresholds paragraph; its block set is H3, Note, Tip, Steps, List and a
-// reference table.
+// The block vocabulary. A plain string is a paragraph; anything richer is a tagged object, so the two forms cannot be confused.
+// Inline: Strong, Code, RelLink, a bare font-mono span, and a HealthScoreBadge in the intelligence thresholds paragraph. Block:
+// H3, Note, Tip, Steps, List and a reference table.
 
 export type DocInline =
   | string
@@ -59,7 +46,6 @@ export type DocInline =
   | { badge: number }
   | { link: string; to: string };
 
-/** A string, or a run of inline nodes. */
 export type DocRich = string | DocInline[];
 
 export type DocBlock =
@@ -70,30 +56,21 @@ export type DocBlock =
   | { kind: "tip"; body: DocRich }
   | { kind: "steps"; items: DocRich[] }
   | { kind: "list"; items: DocRich[] }
-  /** `label` names the table's scroll region for a screen reader. */
   | { kind: "table"; label: string; columns: string[]; rows: DocRich[][] }
   | { kind: "widget"; name: DocWidgetName };
 
 export interface DocGuide {
   slug: string;
-  /** The /docs card's title, and the breadcrumb's last item. */
   title: string;
-  /** The /docs card's description, and the page's meta description. */
   description: string;
-  /** The page's h1, Recova's page heading ("Platform setup"). */
+  /** The page's h1. */
   heading: string;
-  /**
-   * ISO date the guide first shipped, for the TechArticle JSON-LD.
-   *
-   * MEASURED FROM GIT, NOT CHOSEN. All five guides first appear in commit
-   * `5478d6b` (2026-07-19). NO `dateModified` counterpart: the content module
-   * tracks no per-guide revision and the Worker has no git at runtime.
-   */
+  /** ISO date the guide first shipped, for the TechArticle JSON-LD (measured from git: commit `5478d6b`). There is no
+   *  `dateModified`: the content module tracks no per-guide revision and the Worker has no git at runtime. */
   datePublished: string;
   sections: { heading: string; body: DocBlock[] }[];
 }
 
-/** The date every guide in DOC_GUIDES first shipped. */
 export const DOCS_FIRST_PUBLISHED = "2026-07-19";
 
 const RECOVERY_FEE = `${RECOVERY_FEE_PERCENT}%`;
@@ -960,13 +937,9 @@ export const DOC_GUIDES: DocGuide[] = [
       {
         heading: "Recommendations",
         body: [
-          // Recova's Part 3 (docs/intelligence/page.tsx, blob e7f18266), with
-          // truthfulness fixes: Recova's "Seven action types" lists three no
-          // rule produces (recommend.ts), and its deprioritize line's "will be
-          // delayed 48 hours" never ran in Recova and does not in Foxhound.
-          // Each line is checked against recommend.ts's table.
-          // The nightly scoring batch writes the action (ai-run.server.ts),
-          // and the Recommendations page shows the two that ask for you.
+          // Each line is checked against recommend.ts's table: three of Recova's seven action types are produced by no rule, and the
+          // deprioritize delay never ran. The nightly scoring batch writes the action (ai-run.server.ts); the Recommendations page shows
+          // the two that ask for you.
           { kind: "h3", text: "Four action types" },
           "Intelligence produces one of four recommendations per customer:",
           {

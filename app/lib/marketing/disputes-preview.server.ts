@@ -18,45 +18,20 @@ import { hourlyPreview } from "./hourly-preview";
 
 import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
 
-// The data behind the /product/disputes previews: the demo account's
-// seed, never a merchant's rows. Recova draws these from a hand-written
-// eight-dispute array (DisputesDashboardPreview.tsx, blob dcde195e), a second
-// hand-written six-row array (DisputesTablePreview.tsx, blob ed33fa95) and
-// typed stat values (page.tsx's DisputesStatCardsPreview, blob c412d54f), so
-// its three figures disagree with each other. Foxhound builds the Teamflow
-// disputes its demo runs on (buildDisputesSeed, pure, no database and no
-// Stripe) and reads them the way the merchant dashboard
-// (app/routes/app/disputes/index.tsx) reads its own rows:
-//
-// - The order: sortDisputesNewestFirst, the order listDisputesPage reads.
-// - The cards: the dashboard's five, from computeDisputeStats (the same sums
-//   the dashboard's computeDisputeStatsFromGroups makes), totaled per
-//   currency with groupSumByCurrency and written with formatAmounts, and Win
-//   rate's words from winRateCard.
-// - The status words: disputeListStatus, with "has evidence" decided from the
-//   seed's evidence rows by getDisputesWithEvidence's own test (a non-blank
-//   field value).
-// - Deadline days and bands: daysUntilDeadline and deadlineUrgency.
-//
-// Strings are formatted here, on the server, so the page renders the same
-// text on the server and in the browser.
+// The data behind the /product/disputes previews: the demo account's seed, never a merchant's rows. Foxhound builds the Teamflow
+// disputes its demo runs on (buildDisputesSeed, pure) and reads them the way the merchant dashboard
+// (app/routes/app/disputes/index.tsx) does: order from sortDisputesNewestFirst; the five cards from computeDisputeStats, totaled
+// per currency with groupSumByCurrency and written with formatAmounts (Win rate's words from winRateCard); status words from
+// disputeListStatus, with "has evidence" decided from the evidence rows by getDisputesWithEvidence's own test; deadline days and
+// bands from daysUntilDeadline and deadlineUrgency. Strings are formatted here, on the server, so server and browser render the same text.
 
-/** Recova's dispute table preview lists six disputes. */
 const PREVIEW_TABLE_ROWS = 6;
 
-/**
- * "Fees owed" for the demo account, which the dashboard reads from billing
- * records (getDisputeFeesOwed) that a preview with no database does not have.
- * It is what the dashboard shows for the demo, and for the same two reasons:
- * the pending half (getBillableDisputes) never includes a demo account (its
- * billable query excludes the demo_ id prefix), and the invoiced half finds
- * only the demo's one seeded invoice (app/lib/demo/seed.ts, status "paid"),
- * whose dispute fees are settled. So nothing is owed, and the card reads
- * $0.00, as the demo dashboard does.
- */
+/** "Fees owed" for the demo account, which the dashboard reads from billing records a preview does not have. Nothing is owed: the
+ *  pending half never includes a demo account (the demo_ id prefix is excluded) and the one seeded invoice is paid, so the card
+ *  reads $0.00, as the demo dashboard does. */
 const DEMO_FEES_OWED: CurrencyAmount[] = [];
 
-/** Build the preview as of `now`. Pure: the same instant gives the same preview. */
 function buildDisputesPreview(now: Date): DisputesPreview {
   const nowMs = now.getTime();
   const seed = buildDisputesSeed(DEMO_ACCOUNT_ID, now, DEMO_MEMBER_EMAIL);
@@ -127,5 +102,4 @@ function buildDisputesPreview(now: Date): DisputesPreview {
   };
 }
 
-// One preview per clock hour (hourlyPreview).
 export const disputesPreviewFor = hourlyPreview(buildDisputesPreview);

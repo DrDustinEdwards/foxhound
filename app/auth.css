@@ -1,6 +1,4 @@
-/* The sign-in pages' own parts (the auth card, /connect, the OAuth consent, the card update and
-   unsubscribe pages): Recova's centered card, its 48px inset and 42px fields, the provider list and
-   the "or" rule. In the site layer (app.css). */
+/* The sign-in pages' own parts (the auth card, /connect, the OAuth consent, the card update and unsubscribe pages): a centered card, 48px inset, 42px fields, the provider list and the "or" rule. In the site layer (app.css). */
 @layer site {
   .fh-connect-note {
     margin-bottom: var(--space-6);

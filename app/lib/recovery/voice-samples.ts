@@ -1,12 +1,6 @@
-// The merchant's own past emails, pasted on /settings/brand-voice, that recovery
-// and win-back drafts are written from. Examples carry a voice far better than a
-// description of it does, so these sit beside the tone presets rather than
-// replacing them. A recorded difference from Recova, which had the tone box only
-// (parity/APPROVED-DIFFERENCES.md, 2026-10-24).
-//
-// Stored as one JSON array of strings in `stripe_connections.brand_voice_samples`,
-// NULL when there are none. Read leniently: anything that is not an array of
-// strings reads as no samples, so a bad row costs the voice, never a send.
+// The merchant's own past emails, pasted on /settings/brand-voice, that recovery and win-back
+// drafts are written from. Read leniently: anything that is not an array of strings reads as no
+// samples, so a bad row costs the voice, never a send.
 
 import { untrusted } from "@dustinedwards/site-runtime/anthropic";
 import { copiedRuns } from "@dustinedwards/site-runtime/prose";
@@ -51,9 +45,8 @@ export function storeVoiceSamples(samples: readonly unknown[]): string | null {
 }
 
 /**
- * The prompt lines that carry the samples, or none. Each sample is merchant
- * text, so it goes in as untrusted data: the model copies how it reads, never
- * what it says or asks.
+ * The prompt lines that carry the samples, or none. Each sample is merchant text, so it goes in as
+ * untrusted data: the model copies how it reads, never what it says or asks.
  */
 export function voiceSampleLines(samples: readonly string[]): string[] {
   if (samples.length === 0) return [];
@@ -68,12 +61,9 @@ const URL_IN_TEXT = /https?:\/\/[^\s"'<>]+/gi;
 const EMAIL_IN_TEXT = /[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g;
 
 /**
- * What a draft says that it was never given, in the order found: a link or web
- * address other than `url` (the one link the prompt hands it), an email
- * address, or a run of eight or more words copied from a sample. The prompt
- * forbids all three; this is what makes that hold, because a pasted email can
- * carry an old offer, a customer's name or "add this payment link". A draft
- * with any of them sends the template. Pure.
+ * What a draft says that it was never given, in the order found: a link or web address other than
+ * `url` (the one link the prompt hands it), an email address, or a run of eight or more words
+ * copied from a sample.
  */
 export function strayContent(
   bodyHtml: string,

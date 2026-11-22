@@ -1,0 +1,198 @@
+import { RouterContextProvider } from "react-router";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+
+import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
+
+// Sign-in and signup are limited by site-runtime's limiter: signup 5 an hour
+// and login 10 a minute, per IP. Foxhound's auth bucket (10 a minute per IP,
+// shared by every signed-out POST that tests a passkey or sends mail) is kept.
+//
+// These drive the real route actions. The counter is site-runtime's own
+// hitRules on a real SQLite database, one per Durable Object name, so only the
+// Durable Object's storage is stood in for. Better Auth is replaced by
+// counters, so each test can say how many requests reached a sign-in or a mail
+// send.
+
+const harness = vi.hoisted(() => ({
+  calls: { signInSocial: 0, handler: 0 },
+}));
+
+vi.mock("~/lib/auth", async (importOriginal) => {
+  const original = await importOriginal<typeof import("~/lib/auth")>();
+  const json = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+  return {
+    ...original,
+    getAuth: async () => ({
+      api: {
+        signInSocial: async () => {
+          harness.calls.signInSocial++;
+          return json(200, { url: "https://accounts.google.com/o/oauth2/auth" });
+        },
+      },
+      // The sign-in link and every /api/auth POST: Better Auth's handler.
+      handler: async () => {
+        harness.calls.handler++;
+        return json(200, { status: true });
+      },
+    }),
+  };
+});
+vi.mock("~/lib/auth/session", () => ({ getSession: async () => null }));
+
+const login = await import("~/routes/auth/login");
+const signup = await import("~/routes/auth/signup");
+const socialStart = await import("~/routes/auth/social-start");
+const apiAuth = await import("~/routes/api/auth");
+
+let namespace: ReturnType<typeof makeRateLimiterNamespace>;
+
+function makeEnv(ns: unknown = namespace): Env {
+  return {
+    AUTH_RATE_LIMITER: ns,
+    BETTER_AUTH_URL: "https://foxhoundapp.com",
+    GOOGLE_CLIENT_ID: "client",
+    GOOGLE_CLIENT_SECRET: "secret",
+  } as unknown as Env;
+}
+
+function context(env: Env) {
+  const ctx = new RouterContextProvider();
+  ctx.set(cloudflareContext, { env, ctx: {} as ExecutionContext });
+  return ctx;
+}
+
+function form(path: string, fields: Record<string, string>, ip = "203.0.113.7") {
+  return new Request(`https://foxhoundapp.com${path}`, {
+    method: "POST",
+    headers: { "CF-Connecting-IP": ip, "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams(fields).toString(),
+  });
+}
+
+type ActionModule = { action: (args: never) => unknown };
+
+/** Runs a route's action and returns its status and body, whether it answered
+ *  with data(), a Response, or threw a redirect. */
+async function run(mod: ActionModule, request: Request, env = makeEnv()) {
+  let out: unknown;
+  try {
+    const provider = new URL(request.url).pathname.split("/")[2];
+    out = await mod.action({ request, context: context(env), params: { provider } } as never);
+  } catch (thrown) {
+    out = thrown;
+  }
+  if (out instanceof Response) {
+    return {
+      status: out.status,
+      headers: out.headers,
+      body: null as Record<string, unknown> | null,
+    };
+  }
+  const d = out as { type?: string; data?: unknown; init?: ResponseInit | null };
+  if (d && d.type === "DataWithResponseInit") {
+    return {
+      status: d.init?.status ?? 200,
+      headers: new Headers(d.init?.headers),
+      body: d.data as Record<string, unknown>,
+    };
+  }
+  return { status: 200, headers: new Headers(), body: out as Record<string, unknown> };
+}
+
+const loginForm = (ip?: string) => form("/login", { email: "a@example.com" }, ip);
+const signupForm = (ip?: string) => form("/signup", { email: "a@example.com" }, ip);
+
+beforeEach(() => {
+  namespace = makeRateLimiterNamespace();
+  for (const k of Object.keys(harness.calls) as (keyof typeof harness.calls)[])
+    harness.calls[k] = 0;
+  // Pin the clock to the first second of an hour, so ten requests can never
+  // straddle a minute boundary and five can never straddle an hour.
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-10-16T12:00:00.000Z"));
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("sign-in: 10 a minute per IP, through the login action", () => {
+  it("lets ten link requests reach Better Auth and refuses the eleventh before it does", async () => {
+    for (let i = 0; i < 10; i++) {
+      // A different address each time, so only the IP bucket can refuse.
+      const r = await run(login, form("/login", { email: `a${i}@example.com` }));
+      expect(r.status, `attempt ${i + 1}`).toBe(200);
+    }
+    expect(harness.calls.handler).toBe(10);
+
+    const eleventh = await run(login, loginForm());
+    expect(eleventh.status).toBe(429);
+    expect(harness.calls.handler).toBe(10);
+    expect(eleventh.body?.error).toBe("Too many attempts. Please try again in a minute.");
+    expect(Number(eleventh.headers.get("Retry-After"))).toBeGreaterThan(0);
+    expect(Number(eleventh.headers.get("Retry-After"))).toBeLessThanOrEqual(60);
+  });
+});
+
+describe("signup: 5 an hour per IP, through the signup action", () => {
+  it("lets five signups reach Better Auth and refuses the sixth", async () => {
+    for (let i = 0; i < 5; i++) {
+      // A fresh minute each time, so only the hourly bucket can refuse.
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 16, 12, i * 2, 0)));
+      expect((await run(signup, signupForm())).status, `signup ${i + 1}`).toBe(200);
+    }
+    vi.setSystemTime(new Date(Date.UTC(2026, 9, 16, 12, 30, 0)));
+    const sixth = await run(signup, signupForm());
+    expect(sixth.status).toBe(429);
+    expect(sixth.body?.error).toBe("Too many requests. Please try again later.");
+    expect(harness.calls.handler).toBe(5);
+    // The hourly window has about half an hour left.
+    expect(Number(sixth.headers.get("Retry-After"))).toBeGreaterThan(60);
+    expect(Number(sixth.headers.get("Retry-After"))).toBeLessThanOrEqual(1800);
+  });
+});
+
+describe("the shared auth bucket: every signed-out POST that tests a passkey or sends mail", () => {
+  it("is one budget of 10 a minute across the two pages, Google and /api/auth", async () => {
+    const apiPost = () =>
+      new Request("https://foxhoundapp.com/api/auth/sign-in/magic-link", {
+        method: "POST",
+        headers: { "CF-Connecting-IP": "203.0.113.7" },
+        body: "{}",
+      });
+    await run(login, loginForm());
+    await run(signup, signupForm());
+    await run(socialStart, form("/auth/google", {}));
+    await run(apiAuth, apiPost());
+    for (let i = 0; i < 6; i++) await run(login, loginForm());
+    // Ten spent. Each surface now refuses before reaching Better Auth.
+    const before = { ...harness.calls };
+    expect((await run(signup, signupForm())).status).toBe(429);
+    // A form post: the refusal goes back to the login page, which says why.
+    const google = await run(socialStart, form("/auth/google", {}));
+    expect(google.status).toBe(303);
+    expect(google.headers.get("Location")).toBe("/login?error=rate_limited");
+    expect((await run(apiAuth, apiPost())).status).toBe(429);
+    expect(harness.calls).toEqual(before);
+  });
+
+  it("keys on the client address, and never puts the email in a counter's name", async () => {
+    await run(login, loginForm());
+    await run(signup, signupForm());
+    expect(namespace.names).toEqual(["auth:203.0.113.7", "auth:203.0.113.7", "signup:203.0.113.7"]);
+    expect(namespace.names.some((n) => n.includes("example.com"))).toBe(false);
+  });
+});
+
+describe("a counter that fails lets the request through, by design", () => {
+  it("signs up when the binding is missing altogether", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const r = await run(signup, signupForm(), makeEnv(undefined));
+    expect(r.status).toBe(200);
+    expect(harness.calls.handler).toBe(1);
+    log.mockRestore();
+  });
+});

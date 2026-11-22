@@ -1,14 +1,9 @@
 import { lineChart } from "enarratio/lite/line";
 import type { ChartFit } from "capsomer/react/chart-frame";
 
-// Pure churn-surface helpers. Separate from views.server.ts because the churn
-// route's COMPONENT needs this, and a value import from a *.server.ts module in
-// a component fails the client build ("Server-only module referenced by
-// client"). Types can cross that boundary because they are erased; values
-// cannot. Same reason app/routes/app/recovery/payments/index.tsx keeps its own
-// page-size constant.
+// Pure churn-surface helpers, separate from views.server.ts because the churn route's component needs them and a
+// value import from a *.server.ts module in a component fails the client build (types are erased, values are not).
 
-/** One month of the churn-rate chart, as the churn view returns it. */
 export interface ChurnRatePointLike {
   at: Date;
   voluntaryPct: number | null;
@@ -21,13 +16,11 @@ const MONTH = new Intl.DateTimeFormat("en-US", {
   timeZone: "UTC",
 });
 
-/** "Sep 2025": a snapshot's month, pinned to UTC so the server and browser agree.
- *  Shared by the chart's axis table and its text alternative. */
+/** "Sep 2025": a snapshot's month, pinned to UTC so server and browser agree. Shared by the chart's axis table and text alternative. */
 function formatChurnMonth(date: Date | number): string {
   return MONTH.format(date);
 }
 
-/** A churn rate in percent, to at most two decimals: 2.756 reads "2.76%". */
 function formatChurnPct(value: number): string {
   return `${Math.round(value * 100) / 100}%`;
 }
@@ -47,13 +40,9 @@ function seriesSentence(
   return `${name} churn went from ${at(first)} to ${at(last)}`;
 }
 
-/**
- * The churn-rate chart's text alternative (capsid/conventions-web.md rule 8):
- * the window and, per series, its first and last rate with the month of each
- * (a series can start or end on a gap, so its months may not be the window's). Computed from the
- * same points the chart draws, so the words cannot disagree with the picture.
- * A month with no rate is a gap here as on the chart, never a zero.
- */
+/** The churn-rate chart's text alternative: the window and, per series, its first and last rate with the month of
+ *  each (a series can start or end on a gap). Computed from the same points the chart draws; a month with no rate
+ *  is a gap, never a zero. */
 export function churnRateAlt(points: readonly ChurnRatePointLike[]): string {
   if (points.length === 0) return "Monthly churn rate: no snapshots yet.";
   const start = formatChurnMonth(points[0].at);
@@ -64,8 +53,7 @@ export function churnRateAlt(points: readonly ChurnRatePointLike[]): string {
   return `Monthly churn rate, ${window}. ${involuntary}; ${voluntary}.`;
 }
 
-// Recova's ResponsiveContainer is 180px tall with its axes inside; Enarratio
-// draws its legend outside the SVG and keeps 64px of the height for its axes.
+// Enarratio draws its legend outside the SVG and keeps 64px of the height for its axes.
 const CHART_HEIGHT = 220;
 
 interface ChurnRow {
@@ -93,16 +81,11 @@ export function drawChurnRate(
     x: "Month",
     y: "rate",
     series: "series",
-    // Recova's legend order: Involuntary, then Voluntary.
     seriesDomain: ["Involuntary", "Voluntary"],
-    // Recova's colors, through Enarratio's own option: Involuntary on the
-    // error color (Recova's var(--red)), Voluntary on tertiary text (Recova's
-    // var(--dim)). Recova also dashes Voluntary; Enarratio has no
-    // per-series dash (enarratio gap).
+    // Involuntary on the error color, Voluntary on tertiary text. Enarratio has no per-series dash.
     colors: { Involuntary: "var(--crit)", Voluntary: "var(--dim)" },
     xLabel: null,
-    // Enarratio has no tick format, so Recova's "2%" ticks read as "2"
-    // under this axis label until it does (enarratio gap).
+    // Enarratio has no tick format, so ticks read as plain numbers under an axis label naming the unit.
     yLabel: "Churn rate (%)",
     formatValue: formatChurnPct,
     formatX: formatChurnMonth,

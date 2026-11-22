@@ -60,10 +60,12 @@ function paymentRecovered(db: Db, failedPaymentId: AnySQLiteColumn): SQL {
   );
 }
 
-/** A recovery step is evidence when its payment was recovered: the steps are
- *  the actions the attribution chose between (PRICING.md, "action -> recovery
- *  -> fee"), so every step of a recovered payment is kept, not only the
- *  credited one. */
+/**
+ * A recovery step is evidence when its payment was recovered: the steps are the
+ * actions the attribution chose between (PRICING.md, "action -> recovery ->
+ * fee"), so every step of a recovered payment is kept, not only the credited
+ * one.
+ */
 function stepKept(db: Db, stepId: AnySQLiteColumn): SQL {
   return exists(
     db
@@ -92,7 +94,9 @@ function sendKept(db: Db, sendId: AnySQLiteColumn): SQL {
   );
 }
 
-/** A dispute was billed when any line item points at it (a fee or its credit). */
+/**
+ * A dispute was billed when any line item points at it (a fee or its credit).
+ */
 function disputeBilled(db: Db, disputeId: AnySQLiteColumn): SQL {
   return exists(
     db
@@ -103,8 +107,8 @@ function disputeBilled(db: Db, disputeId: AnySQLiteColumn): SQL {
 }
 
 /**
- * The statements that delete one owned account's personal data, in
- * foreign-key order. Pure: compiles without a database.
+ * The statements that delete one owned account's personal data, in foreign-key
+ * order. Pure: compiles without a database.
  */
 export function buildAccountScrubStatements(
   db: Db,
@@ -178,7 +182,8 @@ export function buildAccountScrubStatements(
       })
       .where(eq(accounts.id, accountId)),
 
-    // them; disconnected, and the token and every merchant-written field cleared.
+    // them; disconnected, and the token and every merchant-written field
+    // cleared.
     db
       .update(stripeConnections)
       .set({
@@ -275,8 +280,8 @@ export function buildAccountScrubStatements(
     // by Foxhound, approved: app/db/billable.ts's predicate without the run
     // date), is kept with its approval. Drafts, open and lost disputes are not.
     db.delete(disputeEvidence).where(eq(disputeEvidence.accountId, accountId)),
-    // Stripe's own balance transactions for the disputes: Stripe's ledger,
-    // not evidence of a Foxhound fee (the kept dispute row is).
+    // Stripe's own balance transactions for the disputes: Stripe's ledger, not
+    // evidence of a Foxhound fee (the kept dispute row is).
     db
       .delete(disputeBalanceTransactions)
       .where(eq(disputeBalanceTransactions.accountId, accountId)),

@@ -16,14 +16,7 @@ import "capsomer/button.css";
 import "capsomer/panel.css";
 import "~/reference.css";
 
-// NEW in Phase 6 Pass 3 (net-new). Templated Foxhound-vs-competitor page for
-// each of the six named competitors (ROUTES.md Rev 2). Neither Capsid
-// content doc (checked at session start and again before writing this file)
-// existed, so the row-level copy in app/lib/compare/competitors.ts is this
-// pass's own researched, source-checked writing (see that file's header
-// comment), not a dedicated content pass's copy; it is still real content,
-// not a placeholder shell, since every claim there is either grounded in a
-// well-known public fact or explicitly marked omitted.
+// Templated Foxhound-vs-competitor page for each of the six named competitors. The row-level copy in app/lib/compare/competitors.ts is source-checked: every claim is either grounded in a well-known public fact or explicitly marked omitted.
 export function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const competitor = COMPETITORS[params.competitor];

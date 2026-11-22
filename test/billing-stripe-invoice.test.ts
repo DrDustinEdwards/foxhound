@@ -157,6 +157,16 @@ describe("createPlatformInvoice call shape (Phase 5 review HIGH fix)", () => {
     });
   });
 
+  it("a non-USD invoice sends its currency on the create and on every item", async () => {
+    // Missing on either, Stripe falls back to the customer's existing currency: a EUR recovery
+    // silently becomes a USD charge.
+    await createPlatformInvoice({} as Env, { ...baseInput, currency: "eur" });
+    const params = mockStripe.calls
+      .filter((c) => c.method === "invoices.create" || c.method === "invoiceItems.create")
+      .map((c) => (c.args[0] as { currency?: string }).currency);
+    expect(params).toEqual(["eur", "eur", "eur"]);
+  });
+
   it("a mid-loop failure and a full retry leave EXACTLY one Stripe item per line", async () => {
     // The duplicate-charge path this commit closes. Three lines; the second
     // one blows up, so line 1 has already landed on the invoice when the whole

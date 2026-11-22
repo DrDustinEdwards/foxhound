@@ -1,7 +1,4 @@
-/* The merchant app's own parts (the console, settings, billing, help and welcome pages, and the
-   recovery, disputes, intelligence and audit pages as they move): page columns, rows, setting rows,
-   ledger lines and their spacing, as Recova laid them out. In the site layer (app.css). Loaded by
-   the app shell. */
+/* The merchant app's own parts (console, settings, billing, help, welcome, recovery, disputes, intelligence and audit pages): page columns, rows, setting rows, ledger lines and their spacing. In the site layer (app.css). Loaded by the app shell. */
 @layer site {
   .fh-welcome {
     margin-inline: auto;

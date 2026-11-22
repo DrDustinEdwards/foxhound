@@ -9,24 +9,12 @@ import { decryptToken } from "~/lib/stripe/encryption";
 
 import { processConnectedWebhook } from "./process";
 
-// THE MISSED-EVENT SWEEP. Stripe retries a failed webhook delivery for three
-// days and then drops it, and its own advice is to list recent events and
-// process the ones you never handled
-// (docs.stripe.com/webhooks/process-undelivered-events). An outage longer than
-// the retry window, or an endpoint misconfigured for a while, otherwise loses a
-// failed payment, a dispute or a recovery for good.
-//
-// Daily, for every live connection, this lists the last four days of the
-// account's events (one day past Stripe's retry window, so a run that is a day
-// late still overlaps), skips any already in webhook_events, and feeds the
-// rest, oldest first, through processConnectedWebhook: the exact entry the
-// /webhooks/stripe route uses, idempotent on stripe_event_id, so a delivery
-// racing this sweep is a duplicate and nothing more.
-//
-// It lists every event rather than delivery_success=false: read with the
-// merchant's own token, that filter is not documented to cover Foxhound's
-// Connect endpoint, and webhook_events is the record of what we actually
-// handled, so "not claimed here" is the test that cannot be wrong.
+// THE MISSED-EVENT SWEEP. Stripe retries a failed webhook delivery for three days and then drops
+// it, and its own advice is to list recent events and process the ones you never handled
+// (docs.stripe.com/webhooks/process-undelivered-events). It lists every event rather than
+// delivery_success=false: read with the merchant's own token, that filter is not documented to
+// cover Foxhound's Connect endpoint, and webhook_events is the record of what we actually handled,
+// so "not claimed here" is the test that cannot be wrong.
 
 const MISSED_EVENT_LOOKBACK_DAYS = 4;
 /** Events listed per account per run; past it the account is reported, not hidden. */

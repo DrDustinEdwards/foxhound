@@ -20,14 +20,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import type { Route } from "./+types/passkey-offer";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /passkey, where a sign-in by emailed link, typed code, Google or Apple lands
-// (passkeyOfferURL, app/lib/auth/sign-in-link.server.ts): it offers a passkey,
-// so the next sign-in has no email to wait for, and goes on to `next` (A3).
-// site-runtime's shouldOfferPasskey decides: someone with a passkey, or who
-// said "Not now" in the last 30 days, goes straight on, and so does a browser
-// with no platform authenticator (canOfferPasskey). "Not now" posts here and
-// is kept for the person, not the browser (dismissPasskeyOffer). Foxhound's
-// own page, in the sign-in card.
+// /passkey, where a sign-in by emailed link, typed code, Google or Apple lands (passkeyOfferURL, app/lib/auth/sign-in-link.server.ts): it offers a passkey, so the next sign-in has no email to wait for, and goes on to `next`. site-runtime's shouldOfferPasskey decides: someone with a passkey, or who said "Not now" in the last 30 days, goes straight on, and so does a browser with no platform authenticator (canOfferPasskey). "Not now" posts here and is kept for the person, not the browser (dismissPasskeyOffer).
 
 export function meta() {
   return [{ title: "Create a passkey - Foxhound" }, NOINDEX];

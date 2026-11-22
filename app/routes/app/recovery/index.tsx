@@ -66,46 +66,10 @@ import {
 } from "../../../components/recovery-dashboard-panels";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// /recovery/dashboard. Recova is the spec: its page,
-// app/(app)/recovery/dashboard/page.tsx at blob 208b0066, and every component
-// it renders, each read whole at the blob J74 names (StatCards b1923468,
-// ROIWidget 549b89ef, DeclineBreakdown 79b7de3f, DeclineSparkline a7ce51f5,
-// RecoveryQueue c84fdca1, WinBackCard 10cf28fb, BenchmarkCard 0efb234c,
-// DeliverabilityPanel 87a88d88, OnboardingChecklist f4284965, PaymentsTable
-// 3dc398a2, RecoveryRateChart 52e207d6, RecoveryTimingChart f635f08d,
-// EmailCategoryChart b4ed4bef, RevenueChart 2932dac5, DynamicCharts 8a5510e6),
-// with lib/dashboard-data.ts at e1dfbcaa and components/recovery/PaymentRow.tsx
-// at 0d2e1f52. In Recova's order: the getting-started checklist or the
-// watching banner, the head, the primary stats, the ROI widget, the two
-// time-series panels, decline analysis, timing beside win-back, the queue, the
-// secondary stats, then the failed-payments table.
-//
-// Built from Capsomer 0.9.0's parts with every chart drawn by Enarratio,
-// amber throughout. components/charts.css hides Enarratio's gridlines, which
-// Recova's charts never drew, and the frame's title under a Panel heading. Recova's per-category colors, its green and red figures inside
-// panels, and its 12px radius wait for Capsomer's per-site layer (capsomer
-// job_ec5ec0754626), listed in the J74 pull request.
-//
-// Two Recova panels are not here, each for a reason in the source:
-// BenchmarkCard renders only from a benchmark_data row with metric_name
-// recovery_rate_bps in the industry or all_merchants cohort; Foxhound's
-// benchmark_data holds only the seeded leakage estimator rows, and nothing
-// writes a recovery-rate row, so the card could never render (the docs say the
-// dashboard shows no outside benchmark); and the open-disputes card shows only
-// when the Disputes product is inactive, which cannot happen here, because
-// Disputes has no product gate in Foxhound (app/lib/nav/manifest.ts).
-//
-// The deliverability panel is Recova's on what Foxhound records: sends from
-// email_sends, bounces and spam complaints from the suppressions the Email
-// Service events consumer writes. Foxhound stores no delivered event, so
-// Recova's delivered rate and the alert built on it are not shown. The
-// consumer does not yet know which account an event belongs to (it writes
-// account_id null), so until it maps an event back through email_sends the
-// panel shows its empty state, worded to promise nothing.
-//
-// Recova's page also set accounts.onboarding_completed once all three
-// checklist steps were done, so the checklist stayed gone afterwards; Foxhound
-// recomputes it on every load, so clearing the sender name brings it back.
+// /recovery/dashboard: the getting-started checklist or the watching banner, the head, the primary stats, the ROI widget, the two time-series panels, decline analysis, timing beside win-back, the queue, the secondary stats, then the failed-payments table. Every chart is Enarratio's; components/charts.css hides Enarratio's gridlines and the frame's title under a Panel heading.
+// No benchmark card: benchmark_data holds only the seeded leakage estimator rows and nothing writes a recovery-rate row, so it could never render (the docs say the dashboard shows no outside benchmark). No open-disputes card: it shows only when the Disputes product is inactive, which cannot happen here (app/lib/nav/manifest.ts).
+// The deliverability panel: sends from email_sends, bounces and spam complaints from the suppressions the Email Service events consumer writes. Foxhound stores no delivered event, so no delivered rate or alert. The consumer does not yet know which account an event belongs to (it writes account_id null), so until it maps an event back through email_sends the panel shows its empty state, worded to promise nothing.
+// The checklist is recomputed on every load (not latched by accounts.onboarding_completed), so clearing the sender name brings it back.
 
 export function meta() {
   return [{ title: "Recovery - Foxhound" }, NOINDEX];
@@ -125,9 +89,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const nowMs = Date.now();
   const range = parseRange(new URL(request.url).searchParams.get("range"));
 
-  // `data` follows the range selector; `data30d` is always 30 days, for the
-  // stat cards and the timing chart, and is the same read when the range is
-  // already 30d, as in Recova's page.
+  // `data` follows the range selector; `data30d` is always 30 days, for the stat cards and the timing chart, and is the same read when the range is already 30d.
   const [data, data30dRaw, lifetimeStats, profile] = await Promise.all([
     getRecoveryDashboardWindow(db, accountId, range, nowMs),
     range === "30d"
@@ -142,8 +104,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   if (data.connection) {
     const now = new Date(nowMs);
     const firstOfMonthUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
-    // This month is every attributed recovery since the 1st, matured or not,
-    // as Recova's column was; all time is what Foxhound bills (matured).
+    // This month is every attributed recovery since the 1st, matured or not; all time is what Foxhound bills (matured).
     const [thisMonth, allTime] = await Promise.all([
       listAttributedRecoveredSince(db, accountId, firstOfMonthUtc),
       listBillableRecoveredForRoi(db, accountId, nowMs, null),
@@ -171,8 +132,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   }
 
   const onboarding = onboardingChecklistState(profile, Boolean(data.connection));
-  // Recova's banner: connected, onboarding out of the way, and no failed
-  // payment ever recorded (renewal noise excluded).
+  // The banner: connected, onboarding out of the way, and no failed payment ever recorded (renewal noise excluded).
   const watchingForFailures =
     onboarding.connected && !onboarding.needed && lifetimeStats.totalFailedCount === 0;
 
@@ -205,9 +165,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
   } = loaderData;
   const hasBanners = onboarding.needed || watchingForFailures;
 
-  // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10, with
-  // its banners above it in the same column. The shell owns the page's one
-  // <main>, so this is a plain wrapper.
+  // max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10, with its banners above it in the same column. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-recovery cap-admin-page" data-width="page">
       {hasBanners ? (

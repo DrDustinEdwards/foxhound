@@ -11,38 +11,18 @@ import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/field.css";
 
-/** The slider's starting position. An ASSUMPTION the visitor may change, never a
- *  Foxhound result: 52 is where the page has always started and is kept so the
- *  first render is unchanged. */
+/** The slider's starting position. An assumption the visitor may change, never a Foxhound result. */
 const DEFAULT_ASSUMED_RECOVERY_SHARE = 52;
 
-/** The failure slider's starting position, also an ASSUMPTION the visitor may
- *  change. It replaced "About 8% of MRR fails on average" (2026-10-30), a
- *  statistic with no page or date behind it (CLAUDE.md hard rule 1); no
- *  verifiable public source for a share of MRR that fails was found. 8 is kept
- *  so the first render's figures are unchanged. */
+/** The failure slider's starting position, also an assumption the visitor may change: no verifiable public source for a share of MRR that fails exists (CLAUDE.md hard rule 1). */
 const DEFAULT_ASSUMED_FAILURE_SHARE = 8;
 
 const percent = (value: number) => `${value}%`;
 
-// Recova's components/marketing/RecoveryCalculator.tsx (blob 1a4374f5), read
-// whole: pure client math, unchanged multipliers, Recova's rows in Recova's
-// order. The changes: the second slider (approved 2026-08-26 and 2026-09-19),
-// the attribution and maturity labels (sanctioned, M3 divergences 31 and 32),
-// and the look, which is Capsomer's: the card is a panel and the call to
-// action its primary button, at Recova's sizes and padding (p-6, p-8 from sm).
-// The sliders are Capsomer's RangeField: its Range (a 4px track filled in amber
-// up to a round amber thumb, as Recova's were), the value read out at the end of
-// the label's line and the words under each end, in Recova's label and end type.
+// Pure client math. The card is a panel and the call to action its primary button (p-6, p-8 from sm). The sliders are Capsomer's RangeField: a 4px track filled in amber up to a round amber thumb, the value read out at the end of the label's line and the words under each end.
 export function RecoveryCalculator() {
   const [mrr, setMrr] = useState(25000);
-  // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM.
-  // It used to be a hardcoded share with a footnote calling it
-  // illustrative, which is a Foxhound recovery rate in everything but name:
-  // every visitor saw the same number and it was ours. Foxhound has no ledger to
-  // draw a rate from and the docs refuse to project one, so the only honest
-  // version of this control is one the reader sets. The default stays at 52 so
-  // the page looks the same on arrival; what changed is who owns the number.
+  // THE RECOVERY SHARE IS THE VISITOR'S ASSUMPTION, NOT FOXHOUND'S CLAIM. Foxhound has no ledger to draw a rate from and the docs refuse to project one, so the only honest version of this control is one the reader sets. The default stays at 52.
   const [recoveryShare, setRecoveryShare] = useState(DEFAULT_ASSUMED_RECOVERY_SHARE);
 
   const [failureShare, setFailureShare] = useState(DEFAULT_ASSUMED_FAILURE_SHARE);

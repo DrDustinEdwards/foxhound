@@ -24,29 +24,13 @@ import {
 } from "./notices";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// THE SENDERS for the merchant's dispute notices. The words and rules are
-// in ./notices.ts; this reads the rows and hands each notice to processEmailJob,
+// THE SENDERS for the merchant's dispute notices. The words and rules are in
+// ./notices.ts; this reads the rows and hands each notice to processEmailJob,
 // the one send path, so suppression, the per-account live-send gate and the
 // email_sends claim all apply.
 //
-// RECIPIENT: accounts.notification_email ONLY, as Recova's
-// ensureNotificationTarget, and as RULES.md 3.16 requires of a merchant notice.
-// No fallback to a login address: an account that never named one is not
-// notified, and the skip says so.
-//
-// ONCE PER DISPUTE, AT THE SEND LAYER. Each notice's idempotency key is stable
-// per dispute (and per band for a reminder), so the email_sends claim is the
-// once-only mark Recova kept in outcome_notified_at and in its reminder outcome
-// rows. A redelivered webhook or a second cron tick finds the claim and sends
+// A redelivered webhook or a second cron tick finds the claim and sends
 // nothing.
-//
-// THIS MODULE WRITES NOTHING: no outcome, no stamp. The callers
-// write those after a send, through the money-write Durable Object.
-//
-// NEVER THROWS. A notice is sent after the money write has committed, and a mail
-// failure must not unwind a dispute or fail a webhook, as Recova's try/catch
-// around every one of these. A refusal names itself and an error names itself,
-// never a null.
 
 type DisputeNoticeSkip = "not_found" | "no_recipient" | "paused" | "not_resolved";
 
@@ -74,10 +58,11 @@ interface NoticeRow {
   notificationEmail: string | null;
   processingPaused: boolean;
   billingExempt: boolean;
-  /** Whether the auto-submit job would submit for this account (its reader's
-   *  own conditions: the setting on, a recorded opt-in, Disputes on). */
+  /**
+   * Whether the auto-submit job would submit for this account (its reader's own
+   * conditions: the setting on, a recorded opt-in, Disputes on).
+   */
   autoSubmit: boolean;
-  /** The dispute's own connection's sender name, for Recova's footer line. */
   senderName: string | null;
 }
 
@@ -114,9 +99,6 @@ async function loadNoticeRow(
     })
     .from(disputes)
     .innerJoin(accounts, eq(accounts.id, disputes.accountId))
-    // Recova reads sender_name from the account's primary connection, its only
-    // one; Foxhound has several per account, so the connection
-    // the dispute arrived on speaks, as E9 pins the payment's own connection.
     .leftJoin(stripeConnections, eq(stripeConnections.id, disputes.stripeConnectionId))
     .where(and(eq(disputes.id, disputeId), eq(disputes.accountId, accountId)))
     .limit(1);
@@ -132,8 +114,10 @@ export function appUrl(env: Env, path: string): string {
   return `${appOrigin(env)}${path}`;
 }
 
-/** Hand one merchant notice to the send path. Also used by the early fraud
- *  warning notice (./fraud-warnings.server.ts), which is the same kind of mail. */
+/**
+ * Hand one merchant notice to the send path. Also used by the early fraud
+ * warning notice (./fraud-warnings.server.ts), which is the same kind of mail.
+ */
 export async function send(
   env: Env,
   accountId: string,
@@ -149,16 +133,14 @@ export async function send(
     fromName: DISPUTE_NOTICE_FROM_NAME,
     subject: content.subject,
     template,
-    // Platform-to-merchant mail: no unsubscribe, no postal footer
-    // (see EmailAudience).
+    // Platform-to-merchant mail: no unsubscribe, no postal footer (see
+    // EmailAudience).
     audience: "merchant" as const,
     unsubscribeToken: "",
     physicalAddress: "",
     idempotencyKey,
     cronRunId,
   };
-  // Capsomer's notice template, and Recova's footer line, under which send.ts
-  // puts "Manage email settings" on merchant mail (E16, E17, E19, E20).
   const result = await processEmailJob(
     env,
     { ...common, notice: content.notice, footerNote: content.footerNote },
@@ -180,10 +162,7 @@ function failed(
   return { kind: "error", message };
 }
 
-/**
- * The new-dispute notice, sent once the intake batch has committed. Recova
- * returns before its email when the account is paused, so this does too.
- */
+/** The new-dispute notice, sent once the intake batch has committed. */
 export async function sendDisputeCreatedNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string },
@@ -226,12 +205,6 @@ export async function sendDisputeCreatedNotice(
   }
 }
 
-/**
- * The won or lost notice, from the dispute's RESOLVED state rather than the
- * event, so a dispute the merchant accepted (resolved lost before Stripe's
- * closing event arrives) is told the same as Recova told it. Recova sends it
- * whether or not the account is paused, and so does this.
- */
 export async function sendDisputeOutcomeNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string },
@@ -250,11 +223,12 @@ export async function sendDisputeOutcomeNotice(
         currency: row.currency,
         reason: row.reason,
         foxhoundSubmitted: row.submittedAt != null,
-        // A billing-exempt account is never invoiced (accountBillingEligibleCondition).
+        // A billing-exempt account is never invoiced
+        // (accountBillingEligibleCondition).
         feeCents: row.billingExempt ? null : row.resolvedFeeCents,
         feeCurrency: row.resolvedFeeCurrency ?? row.currency,
-        // A paused account is skipped by the billing run until it resumes, so no
-        // date is promised.
+        // A paused account is skipped by the billing run until it resumes, so
+        // no date is promised.
         invoiceDate: row.processingPaused
           ? null
           : nextDisputeBillingRun(row.resolvedAt ?? new Date()),
@@ -277,13 +251,9 @@ export async function sendDisputeOutcomeNotice(
 }
 
 /**
- * The won notice again, once a fee priced late is stored.
- * The first won notice went out without a fee sentence because the cap could
- * not be converted at resolution, and a fee the merchant was never told is
- * never billed. So the pricing retry sends Recova's won notice a second time,
- * now carrying its fee sentence and the run that will invoice it, under its
- * own once-only key. Only a priced, Foxhound-submitted win on an account that
- * is invoiced is told; anything else has no fee to state.
+ * The won notice again, once a fee priced late is stored. The first won notice
+ * went out without a fee sentence because the cap could not be converted at
+ * resolution, and a fee the merchant was never told is never billed.
  */
 export async function sendDisputeFeeNotice(
   env: Env,
@@ -326,9 +296,11 @@ export async function sendDisputeFeeNotice(
   }
 }
 
-/** A dispute_approvals row exists for the dispute, pinned to the account. The
- *  cron selects only unsubmitted disputes, so a row here is an approval Stripe
- *  has not confirmed. */
+/**
+ * A dispute_approvals row exists for the dispute, pinned to the account. The
+ * cron selects only unsubmitted disputes, so a row here is an approval Stripe
+ * has not confirmed.
+ */
 async function hasStandingApproval(
   env: Env,
   accountId: string,
@@ -385,8 +357,6 @@ function autoSubmittedKey(disputeId: string): string {
   return `dispute-auto-submitted:${disputeId}`;
 }
 
-/** Recova's "Dispute response submitted", after the auto-submit job's
- *  submission is confirmed. The job chose the dispute. */
 export async function sendDisputeAutoSubmittedNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string; cronRunId: string | null },

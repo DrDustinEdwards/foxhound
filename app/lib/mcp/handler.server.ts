@@ -30,68 +30,32 @@ import {
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
 import { MCP_SERVER, MCP_SERVER_INFO, serveMcp } from "./server";
 
-// THE MERCHANT MCP ENDPOINT (370, roadmap item 3; brought to the 2026-10-10
-// MCP ruling by job_874dc20ea9ac).
-//
-// THIS FILE IS THE DOOR, NOT THE PROTOCOL. It decides who may call (origin,
-// bearer key, scope, demo refusal, rate limits) and hands an authenticated
-// request to the official SDK in ./server.ts, which speaks both protocol eras.
-//
-// Stateless Streamable HTTP at /mcp, mounted at the WORKER level rather than as
-// a React Router route, because this is JSON-RPC over POST with its own header
-// contract and none of the router's loader/action machinery applies. It matches
-// how the worker entry already handles cross-cutting concerns before the router:
-// the rate-limit check and the cache policy run there for the same reason.
-//
-// NO SESSION, NO USER, NO DURABLE OBJECT. The 2026-07-28 revision removed
-// protocol-level sessions, so every request is self-contained and the endpoint
-// is horizontally stateless. `verifyMcpToken` resolves an ACCOUNT from a bearer
-// key; nothing on this path calls `getSession` and there is no user identity
-// anywhere in it. That is what makes the HUMAN-FOREVER five enforceable rather
-// than merely policy: `dispute_approvals.approved_by_user_id` cannot be
-// satisfied by a caller that has no user.
-//
-// THE SCOPE IS PER TOOL. The key's scopes (merchant.read, and merchant.write
-// when the owner allowed changes) go to the SDK as authInfo, and a call to a
-// tool the key may not use gets the SDK's 403 insufficient_scope naming the
-// scopes it needs (./server.ts), so the client can step up.
-//
-// THE 401 IS BYTE-STABLE ACROSS EVERY FAILURE. Missing header, wrong scheme,
-// wrong prefix, unknown key, revoked key and admin-scope-on-the-merchant-path
-// all produce the SAME body and the same status. A body that varied would tell
-// an attacker which of their guesses was a real key that had been revoked, which
-// is the classic user-enumeration leak wearing different clothes.
-//
-// THE 401 SAYS WHERE TO SIGN IN. Its WWW-Authenticate carries RFC 9728's
-// resource_metadata, pointing at /.well-known/oauth-protected-resource/mcp,
-// which names this origin as the authorization server, and scope, the least a
-// client should ask for (merchant.read), as recova-mcp's 401 pointed the way
-// (src/auth.ts wwwAuthenticateHeader). That is how an MCP client such as Claude
-// finds /oauth/authorize. It is site-runtime's challenge, the one the family's
-// other MCP doors send, and depends on the origin only.
+// The merchant MCP endpoint: the door, not the protocol. It decides who may call (origin, bearer key, scope, demo refusal,
+// rate limits) and hands an authenticated request to the SDK in ./server.ts. Stateless Streamable HTTP at /mcp, mounted
+// at the Worker level (JSON-RPC over POST has no loader/action machinery). No session, no user, no Durable Object:
+// `verifyMcpToken` resolves an ACCOUNT from a bearer key, which is what makes the HUMAN-FOREVER five enforceable
+// (`dispute_approvals.approved_by_user_id` cannot be satisfied by a caller with no user). Scope is per tool: the key's
+// scopes go to the SDK as authInfo, and a call the key may not make gets 403 insufficient_scope naming what it needs.
+// The 401 is byte-stable across every failure (missing header, wrong scheme or prefix, unknown or revoked key, admin
+// scope), so a varying body cannot tell an attacker a guess was a real revoked key. Its WWW-Authenticate carries RFC 9728
+// resource_metadata and the least scope (merchant.read) so a client finds /oauth/authorize; that is site-runtime's challenge.
 
-/** JSON-RPC codes this file answers with itself, before the SDK is reached. */
 const MCP_ERROR = { INVALID_REQUEST: -32600 } as const;
-/** JSON-RPC internal error: the door could not do its own part. */
 const INTERNAL_ERROR = -32603;
 
 function mcpErrorBody(id: string | number | null, code: number, message: string) {
   return { jsonrpc: "2.0", id, error: { code, message } };
 }
 
-/** The server as the shared log names it. */
 const AUDIT_SERVER = { name: MCP_SERVER_INFO.name, version: MCP_SERVER_INFO.version };
 
-/** What the endpoint resolved before dispatching. */
 interface McpAuthContext {
   keyId: string;
   accountId: string;
   scopes: string[];
-  /** The OAuth client the key was issued to; null for a key made in Settings. */
   clientId: string | null;
 }
 
-/** The 429, with the limiter's Retry-After. */
 function tooMany(retryAfter: number): Response {
   return jsonResponse(mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "Too many requests"), 429, {
     "Retry-After": String(retryAfter),
@@ -109,7 +73,6 @@ function rpcErrorResponse(
   return jsonResponse(mcpErrorBody(id, code, message), status);
 }
 
-/** The one 401. Identical for every authentication failure. */
 function unauthorized(origin: string): Response {
   const challenge = bearerChallenge({
     resource: mcpResource(origin),
@@ -120,34 +83,19 @@ function unauthorized(origin: string): Response {
   });
 }
 
-/**
- * Resolve the caller, or refuse.
- *
- * THE ANON RATE LIMIT IS SPENT ONLY ON FAILURE, and that is deliberate. Spending
- * it on every request would put a per-IP cap on legitimate agents, which breaks
- * a team behind one NAT for no security gain, since a real agent is already
- * capped by its own key bucket. Spending it on failures caps key guessing where
- * the guessing happens.
- *
- * THE COST THAT IS NOT COVERED, STATED: one indexed `api_keys.key_hash` lookup
- * happens before the anon limit is consulted, so a flood of syntactically valid
- * random keys costs one D1 read each until the per-IP cap bites. That read is a
- * single point lookup and volumetric floods are absorbed at Cloudflare's edge
- * before the Worker runs. Recorded rather than hidden, because a limiter that
- * looks like it protects the database here does not quite.
- */
+/** Resolve the caller, or refuse. The anon rate limit is spent only on failure: spending it on every request would cap a
+ *  team behind one NAT for no gain, since a real agent has its own key bucket. Known cost: one indexed
+ *  `api_keys.key_hash` lookup precedes the anon check, so a flood of well-formed random keys costs one D1 read each until
+ *  the per-IP cap bites; volumetric floods are absorbed at Cloudflare's edge. */
 async function authenticate(
   request: Request,
   env: Env,
 ): Promise<{ ok: true; auth: McpAuthContext } | { ok: false; response: Response }> {
   const ip = clientIp(request);
   const refuse = async (reason: string) => {
-    // site-runtime's checkRateLimit, which fails closed: a limiter that cannot
-    // answer is a 429, never a free guess.
+    // site-runtime's checkRateLimit fails closed: a limiter that cannot answer is a 429, never a free guess.
     const limit = await checkRateLimit(env.RATE_LIMITER, `mcp-anon:${ip}`, RATE_LIMIT_MCP_ANON.max);
-    // The reason is logged, never returned, so the response stays byte-stable.
-    // OWASP's names (site-runtime ./log), at log level: a refused connect is
-    // expected traffic on a public endpoint.
+    // The reason is logged, never returned, so the response stays byte-stable. At log level: a refused connect is expected traffic.
     logEvent(OWASP_EVENTS.signInFailure, { ...requestFields(request), door: "mcp", reason });
     if (!limit.allowed) {
       logEvent(
@@ -169,11 +117,8 @@ async function authenticate(
   const verified = await verifyMcpToken(getDb(env), token);
   if (!verified) return { ok: false, response: await refuse("unknown or revoked key") };
 
-  // AN ADMIN KEY IS REFUSED HERE, and this is the separation 370 named. An
-  // `mcp_admin` key verifies fine and carries `account_id = null`; if this path
-  // accepted it, every account-scoped helper would receive a null account and
-  // the byAccount predicates would either throw or read broadly. The admin
-  // surface, if it is ever built, is a different route with its own tool list.
+  // An admin key is refused here: an `mcp_admin` key verifies fine with `account_id = null`, and accepting it would hand
+  // every account-scoped helper a null account. An admin surface would be a different route with its own tool list.
   if (verified.scope !== MCP_TOKEN_SCOPE.MERCHANT) {
     return { ok: false, response: await refuse("admin scope on the merchant endpoint") };
   }
@@ -181,12 +126,8 @@ async function authenticate(
     return { ok: false, response: await refuse("merchant key with no account") };
   }
 
-  // DEMO ACCOUNTS CANNOT DRIVE THIS ENDPOINT. S29's page refuses a demo
-  // merchant at the form (every mutating demo request is 405'd), so no demo key
-  // should exist; `createAccountApiKey` itself carries no such check, which
-  // makes this defense in depth rather than duplication. It uses the existing
-  // prefix constant, the same one accountProcessingEligibleCondition uses, and
-  // changes no firewall.
+  // Demo accounts cannot drive this endpoint. No demo key should exist (every mutating demo request is 405'd), so this is
+  // defense in depth, using the same prefix constant as accountProcessingEligibleCondition.
   if (verified.accountId.startsWith(DEMO_ACCOUNT_ID_PREFIX)) {
     return { ok: false, response: await refuse("demo account key") };
   }
@@ -202,10 +143,7 @@ async function authenticate(
   };
 }
 
-/**
- * The endpoint. Returns null when the request is not for /mcp, so the worker
- * entry can fall through to the router without a second URL parse there.
- */
+/** The endpoint. Returns null when the request is not for /mcp, so the worker entry falls through to the router. */
 export async function handleMcpRequest(
   request: Request,
   env: Env,
@@ -214,9 +152,7 @@ export async function handleMcpRequest(
   const url = new URL(request.url);
   if (url.pathname !== "/mcp") return null;
 
-  // "HTTP GET or DELETE to the MCP endpoint: respond with 405 Method Not
-  // Allowed." Everything that is not POST gets the same, since the endpoint
-  // supports exactly one method.
+  // Everything that is not POST gets 405: the endpoint supports exactly one method.
   if (request.method !== "POST") {
     return jsonResponse(
       mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "The MCP endpoint accepts POST only"),
@@ -225,23 +161,14 @@ export async function handleMcpRequest(
     );
   }
 
-  // ORIGIN IS VALIDATED BEFORE ANYTHING ELSE. "Servers MUST validate the Origin
-  // header on all incoming connections to prevent DNS rebinding attacks. If the
-  // Origin header is present and invalid, servers MUST respond with HTTP 403."
-  // Only a browser sends one; an agent does not, so an ABSENT Origin is normal
-  // and only a PRESENT foreign one is refused.
-  // site-runtime's check, the one every family MCP door runs: no browser
-  // origin but this one.
+  // Origin is validated before anything else (MCP spec: DNS rebinding). Only a browser sends one, so an ABSENT Origin is
+  // normal and only a PRESENT foreign one is refused (site-runtime's check).
   const foreign = mcpOriginRefusal(request);
   if (foreign) return foreign;
 
-  // THE LIST-ONLY TEST KEY (Dustin 2026-11-01, "do the best practice"): the
-  // secret MCP_PROBE_KEY lets the daily live check connect and list the read
-  // tools, and nothing else. It is not a merchant key: it names no account and
-  // no D1 lookup happens for it. site-runtime's probeDoor refuses any method but
-  // the handshake, ping or a list before the SDK runs, and logs it; past that,
-  // the key holds no scope, so a tool that somehow ran would refuse itself.
-  // No key in the request, or no secret set, is null: on to the merchant keys.
+  // The list-only test key: the secret MCP_PROBE_KEY lets the daily live check connect and list the read tools and nothing
+  // else. It names no account and no D1 lookup happens. site-runtime's probeDoor refuses anything but the handshake, ping
+  // or a list before the SDK runs; the key holds no scope. No key, or no secret set, is null: on to the merchant keys.
   const probed = await probeDoor(request, env, {
     server: MCP_SERVER,
     limiter: env.RATE_LIMITER,
@@ -266,17 +193,10 @@ export async function handleMcpRequest(
   const authenticated = await authenticate(request, env);
   if (!authenticated.ok) return authenticated.response;
 
-  // THE AUTHED BUCKET IS KEYED ON THE KEY ID, not the IP: the caller of an agent
-  // endpoint is the key, and an IP is meaningless for a server-to-server client
-  // that may move between them. The id rather than the token hash because
-  // verifyMcpToken already resolved it, so this costs no second SHA-256, and an
-  // opaque row id is a safer thing to put in a Durable Object name than anything
-  // derived from a secret.
-  //
-  // site-runtime's checkRateLimit, the one every family MCP door runs (area 11,
-  // S1): thirty requests a minute per key, and it FAILS CLOSED, so a limiter
-  // that cannot answer refuses the request rather than letting it through
-  // uncounted. A refused request is a `rate-limited` row in the shared log.
+  // The authed bucket is keyed on the key id, not the IP (the caller of an agent endpoint is the key). The id rather than
+  // the token hash: verifyMcpToken already resolved it (no second SHA-256) and an opaque row id is safer in a Durable
+  // Object name. site-runtime's checkRateLimit: thirty requests a minute per key, failing closed; a refusal is a
+  // `rate-limited` row in the shared log.
   const caller = {
     accountId: authenticated.auth.accountId,
     apiKeyId: authenticated.auth.keyId,
@@ -299,9 +219,8 @@ export async function handleMcpRequest(
     return tooMany(limit.retryAfter);
   }
 
-  // THE TOOL CALLS IN THIS REQUEST, read to a ceiling before the SDK sees the
-  // body, so the call log (rule 12.4) sees every call that got past the door.
-  // A body that is not JSON holds no call; the SDK answers it with a parse error.
+  // The tool calls in this request, read to a ceiling before the SDK sees the body, so the call log sees every call past
+  // the door. A body that is not JSON holds no call; the SDK answers it with a parse error.
   const text = await readCapped(request, BODY_MAX_BYTES);
   if (text === null)
     return rpcErrorResponse(413, null, MCP_ERROR.INVALID_REQUEST, "Request body too large");
@@ -313,8 +232,7 @@ export async function handleMcpRequest(
   }
   const calls = toolCallsIn(body);
 
-  // EACH CALL'S `started` ROW IS WRITTEN BEFORE ANYTHING RUNS, and a call whose
-  // row cannot be written is refused (area 11, L1): no tool runs untraced.
+  // Each call's `started` row is written BEFORE anything runs, and a call whose row cannot be written is refused: no tool runs untraced.
   let started: StartedCall[] = [];
   try {
     started = await startToolCalls(env, AUDIT_SERVER, caller, calls);
@@ -355,13 +273,10 @@ export async function handleMcpRequest(
       resource: new URL(mcpResource(url.origin)),
     },
   );
-  // Belt and braces with the worker's own cache policy: an answer carrying a
-  // merchant's data must never be stored by an intermediary, whatever the SDK
-  // set. (The 2026-07-28 cache hints in the body are for the client only.)
+  // Belt and braces with the worker's cache policy: an answer carrying a merchant's data must never be stored by an intermediary.
   if (calls.length > 0) {
     const text = await response.clone().text();
-    // A step-up answers the HTTP request, not the call, so the call is logged
-    // with the challenge as its error.
+    // A step-up answers the HTTP request, not the call, so the call is logged with the challenge as its error.
     const challenge = response.status === 403 ? response.headers.get("www-authenticate") : null;
     await recordToolCalls(
       env,

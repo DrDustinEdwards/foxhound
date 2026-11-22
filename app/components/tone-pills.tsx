@@ -4,13 +4,7 @@ import { CATEGORY_PILL_WORDS } from "~/lib/marketing/recovery-copy";
 
 import "capsomer/status.css";
 
-// Recova's tinted pills as Capsomer badges with no glyph, each on its own tint
-// with an edge in its color: the decline category (CategoryPill: soft blue,
-// network amber, expired orange, fraud red; Foxhound's revoked red and
-// unclassified gray), the sequence step (SequenceTimeline: blue for an email,
-// amber for a retry, its timing in mono beneath) and the product tag on a
-// feature card (FeatureCard: Recovery amber, Disputes blue, Intelligence
-// green, Audit and Platform gray).
+// Tinted pills as Capsomer badges with no glyph, each on its own tint with an edge in its color: the decline category (soft blue, network amber, expired orange, fraud red; revoked red and unclassified gray), the sequence step (blue for an email, amber for a retry, its timing in mono beneath) and the product tag on a feature card (Recovery amber, Disputes blue, Intelligence green, Audit and Platform gray).
 
 const TONE: Record<DeclineCategory, "info" | "accent" | "warn" | "crit" | "nodata"> = {
   soft: "info",

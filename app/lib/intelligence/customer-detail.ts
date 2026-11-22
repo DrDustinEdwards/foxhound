@@ -10,17 +10,12 @@ import { formatAmounts } from "~/lib/money/totals";
 import { healthScoreBand, type HealthScoreBand } from "./health-band";
 import { DAY_MS } from "~/lib/constants";
 
-// The Intelligence customer detail page's words and figures (row S18, job
-// J68), kept out of the route so they are testable without a render tree and
-// out of views.server.ts so the browser bundle can use them. Recova is the
-// spec: app/(app)/intelligence/customers/[id]/page.tsx at blob 8d31766d and
-// components/intelligence/HealthSparkline.tsx at blob f4a163f5.
+// The Intelligence customer detail page's words and figures, kept out of the route so they are testable without a
+// render tree and out of views.server.ts so the browser bundle can use them.
 
 const MONTH_MS = 30 * DAY_MS;
 
-/** Recova's tenureFromSince (page.tsx:20-30) word for word: "unknown",
- *  "< 1 month", "1 month", "N months", "N year(s)", "Ny Mmo". Takes nowMs so
- *  the server and browser renders agree. */
+/** "unknown", "< 1 month", "1 month", "N months", "N year(s)", "Ny Mmo". Takes nowMs so server and browser renders agree. */
 export function tenureFromSince(since: Date | null, nowMs: number): string {
   if (!since) return "unknown";
   const months = Math.floor((nowMs - since.getTime()) / MONTH_MS);
@@ -34,9 +29,7 @@ export function tenureFromSince(since: Date | null, nowMs: number): string {
 
 type Amounts = readonly { currency: string; cents: number }[];
 
-/** What Foxhound has on record for one customer, read from its own tables
- *  (getCustomerActivity in views.server.ts). Money is per currency, never
- *  added across currencies. */
+/** What Foxhound has on record for one customer (getCustomerActivity in views.server.ts). Money is per currency, never added across. */
 export interface CustomerActivity {
   recovery: {
     failedPaymentCount: number;
@@ -44,7 +37,6 @@ export interface CustomerActivity {
     recoveredAmounts: Amounts;
     lastFailedAt: Date | null;
     lastRecoveredAt: Date | null;
-    /** A Foxhound sequence is running for one of the customer's payments. */
     activeRecovery: boolean;
   };
   disputes: {
@@ -57,14 +49,12 @@ export interface CustomerActivity {
     lastOutcome: "resolved_won" | "resolved_lost" | null;
   };
   engagement: {
-    /** Any open or click on record, at any time. */
     everEngaged: boolean;
     opens30d: number;
     clicks30d: number;
     lastOpenAt: Date | null;
   };
-  /** The latest failed payment, recovery, dispute or engagement event on
-   *  record: the page's "Last seen". Null when there is none. */
+  /** The latest failed payment, recovery, dispute or engagement event: the page's "Last seen". Null when none. */
   lastActivityAt: Date | null;
 }
 
@@ -75,9 +65,7 @@ export interface SignalField {
 
 const date = (d: Date | null) => (d ? (formatDate(d, { style: "medium" }) ?? "") : "-");
 
-/** Recova's "Recovery signals" card. Null is its empty state, "No recovery
- *  events". Recova showed the active recovery's raw database id (RULES.md
- *  1.5); Foxhound says whether one is running. */
+/** The "Recovery signals" card. Null is its empty state, "No recovery events". Says whether a sequence is running, not its raw id. */
 export function recoverySignalFields(r: CustomerActivity["recovery"]): SignalField[] | null {
   if (r.failedPaymentCount === 0) return null;
   return [
@@ -90,8 +78,7 @@ export function recoverySignalFields(r: CustomerActivity["recovery"]): SignalFie
   ];
 }
 
-/** Recova's "Dispute signals" card; null is "No dispute history". The last
- *  outcome is the dispute list's word ("Won", "Lost"), not the stored state. */
+/** The "Dispute signals" card; null is "No dispute history". The last outcome is the dispute list's word ("Won", "Lost"). */
 export function disputeSignalFields(d: CustomerActivity["disputes"]): SignalField[] | null {
   if (d.count === 0) return null;
   return [
@@ -104,8 +91,7 @@ export function disputeSignalFields(d: CustomerActivity["disputes"]): SignalFiel
   ];
 }
 
-/** Recova's "Engagement signals" card; null is "No engagement data yet". The
- *  30-day counts are counted over the last 30 days, so the labels are true. */
+/** The "Engagement signals" card; null is "No engagement data yet". */
 export function engagementSignalFields(e: CustomerActivity["engagement"]): SignalField[] | null {
   if (!e.everEngaged) return null;
   return [
@@ -120,7 +106,6 @@ export interface HealthReading {
   healthScore: number;
 }
 
-/** The text equivalent of the health history chart. */
 function healthHistoryAlt(readings: readonly HealthReading[]): string {
   return describeSeries({
     what: "Health score",
@@ -131,20 +116,17 @@ function healthHistoryAlt(readings: readonly HealthReading[]): string {
   });
 }
 
-/** The line's color, by the latest score's band, as Recova colored its line
- *  by the latest score (HealthSparkline.tsx:20-22), on Foxhound's bands and
- *  the same colors the dashboard's health chart uses. */
+/** The line's color by the latest score's band, the same colors as the dashboard's health chart. */
 const BAND_COLOR: Record<HealthScoreBand, string> = {
   at_risk: "var(--red)",
   watch: "var(--warn)",
   healthy: "var(--green)",
 };
 
-/** Recova's chart is 120px of plot; Enarratio keeps 64px for its axes. */
+/** Enarratio keeps 64px of this for its axes. */
 const HEALTH_CHART_HEIGHT = 184;
 
-/** Recova's HealthSparkline: an area chart of the readings, oldest first, with
- *  short dates along the bottom. Readings arrive oldest first. */
+/** An area chart of the readings, oldest first, with short dates along the bottom. */
 export function drawHealthHistory(
   readings: readonly HealthReading[],
   width: number,

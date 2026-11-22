@@ -1,12 +1,8 @@
 import { isRouteErrorResponse } from "react-router";
 
-// Pure message-selection logic for the ErrorBoundaries (app/root.tsx and app/layouts/app-shell.tsx), split out so
-// it is unit-testable without a router/component harness. The one case this
-// exists for (TASK-foxhound-demo-system-completion.md Phase 1): a route or
-// middleware throws data(SOME_MESSAGE, { status }) - React Router surfaces
-// that as error.data - and the boundary must show SOME_MESSAGE verbatim
-// instead of falling back to the generic HTTP reason phrase a bare thrown
-// Response would otherwise leave it with.
+// Message selection for the ErrorBoundaries (app/root.tsx, app/layouts/app-shell.tsx), split out so it is
+// unit-testable. A route or middleware that throws data(MESSAGE, { status }) surfaces it as error.data, and
+// the boundary shows MESSAGE verbatim rather than the generic HTTP reason phrase.
 
 const DEFAULT_DETAILS = "An unexpected error occurred.";
 const NOT_FOUND_DETAILS = "The requested page could not be found.";

@@ -30,29 +30,9 @@ import { normalizeSlackWebhookUrl } from "./slack-webhook";
 import { sealSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { readVoiceSamples, storeVoiceSamples } from "~/lib/recovery/voice-samples";
 
-// THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN (372's item-4 ruling).
-//
-// WHY THIS MODULE EXISTS. The settings forms and the MCP write tools must agree
-// exactly: same bounds, same allowlist, same refusal string. Two implementations
-// of "what is a valid sender name" is the drift 372 asked to prevent, and the
-// version somebody re-reads would be the one that stayed right. So the ACTION'S
-// CORE moved here, and both callers invoke it: the route action passes values it
-// read from a FormData, the tool passes values it read from JSON. Neither
-// validates anything itself.
-//
-// THE ROUTE ACTIONS ARE NOW THIN, and deliberately so. What is left in each one
-// is reading the form and rendering the result, which is the part that is
-// genuinely about being a form.
-//
-// A DISCRIMINATED OUTCOME, never a throw. A refusal carries the
-// user-facing string the form already showed, so an agent sees the same sentence
-// a person would and a merchant reading both gets one answer.
-//
-// EVERY WRITE LEAVES A TRACE WHEN AN AGENT MAKES IT. `applyX` takes an optional
-// `trace`; the form omits it (a signed-in human's change is already attributable
-// through the session) and the tool always passes one. The trace row goes in the
-// SAME `db.batch` as the write, so a change without its trace is not a state the
-// database can reach. An unattended write without a trace is not a safe write.
+// THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN. WHY THIS MODULE EXISTS. The settings forms and
+// the MCP write tools must agree exactly: same bounds, same allowlist, same refusal string. A
+// DISCRIMINATED OUTCOME, never a throw.
 
 /** What every apply function returns. `fields` is the column names touched,
  *  which is what the trace records and what a tool reports back. */
@@ -79,13 +59,7 @@ function traceInsert(db: Db, accountId: string, fields: string[], trace: WriteTr
   });
 }
 
-/** Run the write, plus its trace when there is one, as one batch.
- *
- *  `statement` takes an ARRAY when one setting spans two tables or two
- *  statements: brand voice writes the general column and the four category
- *  columns through two allowlisted builders, and both plus the trace have to
- *  land or none of them do. The route used to `await` those two separately,
- *  so a failure between them left half a voice stored. */
+/** Run the write, plus its trace when there is one, as one batch. */
 async function commit(
   db: Db,
   accountId: string,
@@ -118,12 +92,7 @@ export interface AuditSettingsState {
   autoRun: boolean;
 }
 
-/**
- * S30's two columns. `normalizeLookback` is the allowlist and it CLAMPS rather
- * than refusing, which is the form's behavior and stays the tool's: legacy
- * clamps on render and posts the clamped value, and the action clamps again
- * server-side because an action takes whatever is posted.
- */
+/** S30's two columns. */
 export async function applyAuditSettings(
   db: Db,
   accountId: string,
@@ -186,19 +155,7 @@ export interface DisputeSettingsActor {
 /** Stripe's limit on an evidence text field, which the description becomes. */
 export const DISPUTE_PRODUCT_DESCRIPTION_ERROR = `Keep the product description under ${formatCount(DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH)} characters.`;
 
-/**
- * S32's three columns, and nothing else: the product description, which
- * dispute intake reads into every response's evidence, ships-physical, which
- * puts the shipping inputs on the dispute page, and Recova's auto-submit, which
- * the disputes cron reads (app/lib/cron/dispute-auto-submit.ts). A blank
- * description is stored as null, so the reader's "not set" is one value.
- *
- * AUTO-SUBMIT IS A STANDING APPROVAL (PRICING.md: no approval row, no
- * submission). Turning it on records who did it and when, and every automatic
- * submission's dispute_approvals row names that person and time. Saving while
- * it is already on keeps the original opt-in; turning it off clears it, so a
- * later turn-on is a new opt-in by whoever makes it.
- */
+/** A blank description is stored as null, so the reader's "not set" is one value. */
 export async function applyDisputeSettings(
   db: Db,
   accountId: string,
@@ -249,12 +206,7 @@ export async function applyDisputeSettings(
   return { ok: true, fields, state };
 }
 
-/**
- * The Disputes on/off switch (Recova's DisputesToggle, which posted to
- * /api/disputes/{enable,disable} over account_products). One column; the
- * description and ships-physical are left exactly as stored, as Recova's hidden
- * inputs kept them while the section was collapsed.
- */
+/** The Disputes on/off switch. */
 export async function applyDisputesEnabled(
   db: Db,
   accountId: string,
@@ -283,11 +235,8 @@ export interface NotificationSettingsState {
 }
 
 /**
- * The six controls the notifications page renders.
- *
- * `normalizeSlackWebhookUrl` is the ONE webhook rule: it refuses anything off
- * Slack's own host, and its refusal string is what the form shows. An agent
- * pasting an attacker's URL gets the same sentence a person would.
+ * The six controls the notifications page renders. An agent pasting an attacker's URL gets the same
+ * sentence a person would.
  */
 export async function applyNotificationSettings(
   env: Env,
@@ -302,8 +251,6 @@ export async function applyNotificationSettings(
   if (!webhook.ok) return { ok: false, error: webhook.error };
 
   const state: NotificationSettingsState = {
-    // Legacy's `|| null`: clearing the box is how a merchant turns every
-    // notification off, which 339 binding 1 already relies on.
     notificationEmail: asOptionalText(input.notificationEmail),
     slackWebhookUrl: webhook.value,
     slackNotificationsEnabled: asBoolean(input.slackNotificationsEnabled),
@@ -340,16 +287,8 @@ export interface SenderNameState {
 }
 
 /**
- * The sender name on one connection.
- *
- * TWO REFUSALS, both the form's own strings: no connection, and over the bound.
- * The bound is 80 (see ./sender-name.ts for why it exists at all, given legacy
- * has none).
- *
- * THE CONNECTION IS VERIFIED TO BELONG TO THIS ACCOUNT before the write, which
- * the form got for free from its own loader and a tool does not: an agent passes
- * a connection id as an argument, so the ownership check has to be explicit
- * here or the argument would be a way to name somebody else's connection.
+ * The sender name on one connection. TWO REFUSALS, both the form's own strings: no connection, and
+ * over the bound. The bound is 80.
  */
 export async function applySenderName(
   db: Db,
@@ -370,12 +309,6 @@ export async function applySenderName(
     };
   }
 
-  // THE REPLY-TO, legacy's "Reply-to email" field on the same form.
-  // Written only when the caller sent it, which is legacy's own
-  // `if (formData.has('reply_to_email'))`: the MCP sender tool sends no such
-  // field, so it leaves the column alone. Empty is NULL, as legacy's `|| null`.
-  // The format check and the bound are input hygiene legacy does not have
-  // (./reply-to.ts says why).
   const writesReplyTo = input.replyToEmail !== undefined;
   const replyToEmail = writesReplyTo ? asOptionalText(input.replyToEmail) : undefined;
   if (replyToEmail && replyToEmail.length > REPLY_TO_EMAIL_MAX_LENGTH) {
@@ -437,33 +370,9 @@ type BrandVoiceKey = keyof typeof BRAND_VOICE_COLUMNS;
 const NO_CONNECTION_FOR_VOICE = "Connect Stripe before setting a brand voice.";
 
 /**
- * The general voice plus the four decline-category voices, on one connection.
- *
- * NO BOUND AND NO SANITIZER ON THE WAY IN, which is legacy and is the form:
- * no maxLength, no pattern, no required. Adding one here would be an
- * unratified user-visible divergence, and it would also be guarding the wrong
- * end. This text becomes part of the SYSTEM PROMPT that generates a recovery
- * email (`resolveBrandVoice` feeds `buildSystemPrompt`), so what protects the
- * merchant is on the OUTPUT side and already ships: every generated subject and
- * body goes through `sanitizeCopy`, and `passesQualityGate` rejects the result
- * before it is sent. An agent writing this column is writing a prompt fragment,
- * and the fragment is not trusted downstream any more than a person's is.
- *
- * ABSENT MEANS LEAVE ALONE; EMPTY MEANS CLEAR. The form always posts all five
- * (four hidden inputs plus the textarea), so it always supplies every key and
- * this distinction never fires for it: `form.get` returns "" for a cleared box,
- * which stores NULL exactly as legacy's `|| null` does. A TOOL caller can omit
- * a key, and omission must not wipe four categories the merchant set in the UI.
- * There is no `get_brand_voice` read tool to preserve them from, so silently
- * clearing on omission would be unrecoverable rather than merely surprising.
- * This is not a second validator: the bounds, the allowlist and the refusal
- * string are one implementation. It only decides which columns are in the SET.
- *
- * THE CONNECTION IS VERIFIED, and this closes a silent no-op the route shipped
- * with. Both builders pin `account_id`, so a foreign or stale `connectionId`
- * matched zero rows and the action returned 200 with nothing written. 374
- * binding 3: a zero-row UPDATE reported as success is a lie the moment the
- * input source widens, and registering a tool is exactly that widening.
+ * The general voice plus the four decline-category voices, on one connection. ABSENT MEANS LEAVE
+ * ALONE; EMPTY MEANS CLEAR. A TOOL caller can omit a key, and omission must not wipe four
+ * categories the merchant set in the UI. It only decides which columns are in the SET.
  */
 export async function applyBrandVoice(
   db: Db,
@@ -558,31 +467,11 @@ export interface IntelligenceContextState {
 export const MRR_ERROR = "Enter a monthly recurring revenue of zero or more, or leave it blank.";
 
 /**
- * The three merchant-context fields the Intelligence card writes.
- *
- * WHAT THEY ARE FOR, because it decides how carefully they are handled: like
- * the brand voice, these are fed to the model that writes recovery copy, and
- * they will feed risk scoring when that engine lands. Free text, no bound,
- * matching the form and legacy.
- *
- * ABSENT MEANS LEAVE ALONE, the rule `applyBrandVoice` carries and for the same
- * reason. All three are set once and forgotten, the form posts all three every
- * time so nothing changes for it, and an agent updating only the industry must
- * not blank the other two.
- *
- * A NON-BLANK AMOUNT THAT IS NOT A NUMBER IS NOW REFUSED, and this is a fix
- * rather than a new bound. `parseMoneyInput` returns null for "abc" and for
- * a negative, and the action stored that null and answered "Saved": the field
- * is a plain text input, so a person could always type into it and be told
- * their entry was kept when it had been discarded. That is 374 binding 3's
- * lesson one table over, and registering a tool is the widening it warns about.
- * BLANK IS STILL NULL, because clearing the field is a real thing to want.
- *
- * `alongside` is statements the CALLER builds and wants committed in the same
- * batch, after this write: the account page saves the name with these three
- * as one form (Recova's AccountProfileForm), so a failed name write must not
- * leave the context saved. It is not validated or traced here; the caller owns
- * it. Nothing is committed when the input is refused.
+ * The three merchant-context fields the Intelligence card writes. All three are set once and
+ * forgotten, the form posts all three every time so nothing changes for it, and an agent updating
+ * only the industry must not blank the other two. `alongside` is statements the CALLER builds and
+ * wants committed in the same batch, after this write: the account page saves the name with these
+ * three as one form, so a failed name write must not leave the context saved.
  */
 export async function applyIntelligenceContext(
   db: Db,
@@ -645,20 +534,10 @@ export async function applyIntelligenceContext(
   return { ok: true, fields, state };
 }
 
-// Alerts, in TWO functions, because the action is in two shapes
-//
-// THE FORM'S ACTION BRANCHES EXACTLY HERE and the split follows it rather than
-// inventing one: `if (intent === "create")` validates four fields and takes no
-// id, then `if (intent === "toggle" || intent === "delete")` shares the id
-// reading and the refusal between two verbs that operate on a row that already
-// exists. Nothing is shared across that line: no argument, no validation, no
-// refusal string.
-//
-// SO THERE ARE TWO TOOLS. A single one would need a schema whose required
-// fields depend on the value of another field, which is the shape an agent gets
-// wrong, and it would put the foreign-id guard on a code path that sometimes
-// has no id to guard. Splitting makes the guard unconditional where an id
-// exists and structurally absent where one does not.
+// Alerts, in TWO functions, because the action is in two shapes THE FORM'S ACTION BRANCHES EXACTLY
+// HERE and the split follows it rather than inventing one: `if (intent === "create")` validates
+// four fields and takes no id, then `if (intent === "toggle" || intent === "delete")` shares the id
+// reading and the refusal between two verbs that operate on a row that already exists.
 
 export interface AlertCreateState {
   id: string;
@@ -669,28 +548,15 @@ export interface AlertCreateState {
   channel: string;
 }
 
-/** Recova's two channels. Email is the default, as Recova's form opens on it. */
 const ALERT_CHANNELS = ["email", "slack"] as const;
 
 /** The three refusals, the form's own sentences. */
 const ALERT_METRIC_ERROR = "Choose a metric Foxhound tracks.";
 const ALERT_DIRECTION_ERROR = "Choose whether the metric rises or drops.";
-export const ALERT_THRESHOLD_ERROR = "Enter a threshold of zero or more.";
+const ALERT_THRESHOLD_ERROR = "Enter a threshold of zero or more.";
 const ALERT_NOT_FOUND_ERROR = "Select an alert.";
 
-/**
- * Create one alert.
- *
- * THE ENUMS ARE THE EVALUATOR'S, not the select's. A posted metric the nightly
- * `evaluateAlerts` cannot compute is refused here rather than stored and then
- * skipped in silence every night, which is the form's own reasoning and now
- * covers an agent that invents a metric name.
- *
- * THE THRESHOLD ARRIVES IN DOLLARS FOR A CENTS METRIC and is stored in cents,
- * because that is the column the evaluator compares against. A tool passing a
- * JSON number goes through the identical conversion, so an agent cannot store
- * an amount a hundred times too small by taking the other reading.
- */
+/** Create one alert. THE ENUMS ARE THE EVALUATOR'S, not the select's. */
 export async function applyAlertCreate(
   db: Db,
   accountId: string,
@@ -742,21 +608,7 @@ export interface AlertConfigState {
   deleted: boolean;
 }
 
-/**
- * Enable, disable or delete one existing alert.
- *
- * THE ALERT IS VERIFIED TO BELONG TO THIS ACCOUNT, and this closes the second
- * silent no-op of the session. Both writers pin `account_id`, and the route's
- * own comment said so approvingly: "an alert on another account matches zero
- * rows and changes nothing". It then returned `ok: true`. Nothing being changed
- * IS the problem once an id can be typed by something that guessed it: the
- * caller is told the alert is off when it is still firing, or that it is gone
- * when it is not. 374 binding 3, and the same fixture proves an absent id and a
- * foreign one both refuse.
- *
- * DELETING TAKES THE FIRING HISTORY WITH IT, which is legacy's cascade and the
- * foreign key's requirement, so the two statements batch in that order.
- */
+/** Enable, disable or delete one existing alert. It then returned `ok: true`. */
 export async function applyAlertConfig(
   db: Db,
   accountId: string,

@@ -1,17 +1,18 @@
-// The account deletion confirmation, per case (row S40, review fix F2). A
-// deletion clears every account the person OWNS and only removes them from the
-// rest, so the copy names what will actually go: nothing but the login for a
-// member who owns no account, the one owned account by name, or every owned
-// account by name when there are several. Pure, so the route and its tests
-// share it.
+// The account deletion confirmation, per case. A deletion clears every account
+// the person OWNS and only removes them from the rest, so the copy names what
+// will actually go: nothing but the login for a member who owns no account, the
+// one owned account by name, or every owned account by name when there are
+// several.
 
 import { MEMBER_ROLE } from "./roles";
 import { listText } from "capsomer/behavior/hooks";
 
-/** The names of the accounts a deletion clears: the person's active
- *  memberships (the session's, the list the switcher shows) where they are the
- *  owner, the predicate readDeletionPlan acts on. Taken from the session so the
- *  settings loader reads no other account's rows. */
+/**
+ * The names of the accounts a deletion clears: the person's active memberships
+ * (the session's, the list the switcher shows) where they are the owner, the
+ * predicate readDeletionPlan acts on. Taken from the session so the settings
+ * loader reads no other account's rows.
+ */
 export function ownedAccountNames(
   memberships: Array<{ accountName: string | null; role: string }>,
 ): Array<string | null> {

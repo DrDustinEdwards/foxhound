@@ -76,16 +76,7 @@ export async function action({ context, request }: Route.ActionArgs) {
     return data({ error: `Unknown cron: ${cronName}` }, { status: 400 });
   }
 
-  // ENABLE is type-to-confirm; DISABLE stays one click (review MEDIUM-4).
-  // Stopping a scheduled job is safe and an operator in an incident should not
-  // have to type to do it. Starting one is the dangerous direction, and this
-  // page could restart the card-charging recovery tick with a single click while
-  // the brake panel, which gates the identical action behind a phrase, went on
-  // rendering "Tick DISABLED" from its own stale loader data.
-  //
-  // Validated before the write AND before the audit row, matching the brake
-  // panel, so a mistyped confirmation never records an attempt that did not
-  // happen.
+  // ENABLE is type-to-confirm; DISABLE stays one click. Stopping a scheduled job is safe and an operator in an incident should not have to type to do it; starting one is the dangerous direction (this page could otherwise restart the card-charging recovery tick with one click while the brake panel, which gates the identical action behind a phrase, kept rendering "Tick DISABLED" from stale loader data). Validated before the write AND before the audit row, so a mistyped confirmation never records an attempt that did not happen.
   if (nextEnabled && !isCronEnableConfirmValid(cronName, String(form.get("confirm") ?? ""))) {
     return data(
       {
@@ -95,9 +86,7 @@ export async function action({ context, request }: Route.ActionArgs) {
     );
   }
 
-  // INTENT before STATE (review LOW-4), matching applyBrakeTransition and the
-  // brake panel's own tick toggle. A failed audit insert must leave a cron's
-  // enabled state unchanged, never changed-with-no-record.
+  // INTENT before STATE, matching applyBrakeTransition: a failed audit insert must leave a cron's enabled state unchanged, never changed-with-no-record.
   await logAdminAction(db, {
     actorEmail: auth.email,
     action: nextEnabled ? "cron.enable" : "cron.disable",
@@ -108,9 +97,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   return data({ ok: true as const, cronName, enabled: nextEnabled });
 }
 
-// A run's status in words, with Capsomer's status glyph (shape, word and
-// color together), not an uppercase code-style badge. Recova's status pills:
-// success, failed, and "no runs" for a cron that has never run.
+// A run's status in words, with Capsomer's status glyph (shape, word and color together): success, failed, and "no runs" for a cron that has never run.
 const RUN_STATUS: Record<string, { tone: StatusTone; word: string }> = {
   ok: { tone: "ok", word: "Succeeded" },
   failed: { tone: "crit", word: "Failed" },
@@ -119,19 +106,7 @@ const RUN_STATUS: Record<string, { tone: StatusTone; word: string }> = {
 
 const HEADING_ID = "admin-crons-heading";
 
-// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
-// and his review of 2026-10-11: one page name (the shell's "Crons"), one table
-// in Capsomer's parts with plain sentence-case words, relative times with the
-// exact time on hover, a pending state and an empty state. Recova's crons page
-// (app/admin/platform/crons, blobs 98fc42ff and 9a820fd4) is the inventory: a
-// row per cron with its on or off state, the last run's status pill, when it
-// last succeeded, the last message and a note for a cron never switched.
-//
-// Disable is one click; Enable opens Capsomer's confirm page and needs the
-// cron's own typed phrase (APPROVED-DIFFERENCES, 2026-09-19; review MEDIUM-4).
-// No Undo after a Disable: undoing it is an Enable, which must be typed. There
-// is no "Run now". Everything is a form or a link, so
-// the page works without script.
+// One table in Capsomer's parts with plain sentence-case words, relative times with the exact time on hover, a pending state and an empty state: a row per cron with its on or off state, the last run's status, when it last succeeded, the last message and a note for a cron never switched. Disable is one click; Enable opens Capsomer's confirm page and needs the cron's own typed phrase. No Undo after a Disable (undoing it is an Enable, which must be typed) and no "Run now". Everything is a form or a link, so the page works without script.
 export default function AdminCrons({ loaderData, actionData }: Route.ComponentProps) {
   const { crons, confirmEnable } = loaderData;
   const navigation = useNavigation();

@@ -1,30 +1,14 @@
 // Per-code marketing copy for the /decline-codes library.
 //
-// SOURCING: content is drawn from recova/phase6-content-decline-codes.md (the
-// dedicated content pass, 32 codes) plus a hand-written card_error entry
-// (not covered by that doc; written in the same style, grounded in ordinary
-// payments-industry knowledge, since card_error is a real code in
-// decline.ts's NETWORK_CODES). Two codes needed correction against the
-// source doc rather than a verbatim copy: revocation_of_authorization and
-// do_not_try_again were researched and written while decline.ts's
-// classifier still defaulted an unrecognized code to a silent soft retry
-// (an open, since-fixed safety gap, see foxhound-decline-classifier-gap.md).
-// decline.ts now fails closed (an unrecognized code resolves to "unknown",
-// never auto-retried) and both codes are explicitly classified as fraud
-// (never retried, same bucket as a reported lost or stolen card), so their
-// copy here reflects that current, safer reality rather than the doc's
-// original gap-disclosure framing. Every other unclassified code's copy was
-// updated the same way: the source doc was written assuming an unmapped
-// code silently auto-retries; it now fails closed to the card-update email
-// path instead, and the FAQ/how-to-fix language here says so.
-//
-// No recovery-rate numbers appear anywhere here (hard requirement, no
-// platform data exists yet).
-//
-// Category (soft/network/expired/fraud/unknown) and retryability are NEVER
-// hand-authored here: every page reads them live from
-// app/lib/decline-codes/codes.ts, which calls classifyDecline()/isRetryable()
-// directly. This file only holds the code-specific explanatory prose.
+// Two codes needed correction against the source doc rather than a verbatim
+// copy: revocation_of_authorization and do_not_try_again were researched and
+// written while decline.ts's classifier still defaulted an unrecognized code to
+// a silent soft retry (an open, since-fixed safety gap, see
+// foxhound-decline-classifier-gap.md). decline.ts now fails closed (an
+// unrecognized code resolves to "unknown", never auto-retried) and both codes
+// are explicitly classified as fraud (never retried, same bucket as a reported
+// lost or stolen card), so their copy here reflects that current, safer reality
+// rather than the doc's original gap-disclosure framing.
 
 interface DeclineFaq {
   question: string;

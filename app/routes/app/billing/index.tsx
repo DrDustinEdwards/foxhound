@@ -40,19 +40,7 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// /billing: Recova's billing page on Foxhound's billing engine.
-// Recova is the spec (app/(app)/billing/page.tsx at blob 34e56833): the page
-// head, then Recovery, Dispute Fees, Subscriptions and Payment method, in a
-// 720px column (Recova's Intelligence offer is gone: Intelligence is free,
-// Dustin 2026-10-29). The sections are in
-// app/components/billing-sections.tsx. The evidence ledger, which Recova does
-// not have and PRICING.md requires ("The billing page renders action ->
-// recovery -> fee for every charge"), follows them; whether it stays is an open
-// question for Dustin in the J65 pull request.
-//
-// The loader is read-only: billing preview, invoices and their line items,
-// subscriptions and the card on file. The one
-// write is the existing billing-setup action below, unchanged.
+// /billing: the page head, then Recovery, Dispute Fees, Subscriptions and Payment method, in a 720px column (sections in app/components/billing-sections.tsx). The evidence ledger follows them, since PRICING.md requires "action -> recovery -> fee for every charge". The loader is read-only: billing preview, invoices and their line items, subscriptions and the card on file. The one write is the billing-setup action below.
 
 export function meta() {
   return [{ title: "Billing - Foxhound" }, NOINDEX];
@@ -73,17 +61,10 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   const auth = context.get(authContext);
   const accountId = auth.membership.accountId;
 
-  // Return leg of the Stripe-hosted setup session (mirrors the Connect OAuth
-  // callback shape): finalize once, then redirect to the clean URL so a
-  // refresh never re-processes the same session_id. The session_id is an
-  // unauthenticated URL param, so finalize verifies it belongs to THIS account
-  // (account-scoping audit HIGH #2): pass our OWN stored platform customer id
-  // as the expected owner; a foreign session never mutates a customer.
+  // Return leg of the Stripe-hosted setup session: finalize once, then redirect to the clean URL so a refresh never re-processes the same session_id. The session_id is an unauthenticated URL param, so finalize verifies it belongs to THIS account: pass our OWN stored platform customer id as the expected owner; a foreign session never mutates a customer.
   const sessionId = new URL(request.url).searchParams.get("session_id");
   if (sessionId) {
-    // The demo never calls Stripe (hard rule 10), and an admin viewing as a
-    // merchant does not finalize the merchant's card for them: both just land
-    // on the clean URL.
+    // The demo never calls Stripe (hard rule 10), and an admin viewing as a merchant does not finalize the merchant's card for them: both just land on the clean URL.
     if (auth.isDemo || auth.viewingAs) throw redirect("/billing");
     const accountRow = await loadAccountBillingRow(env, accountId);
     await finalizeBillingSetupSession(env, {
@@ -104,8 +85,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     listAccountSubscriptions(db, accountId),
   ]);
 
-  // The card on file is a Stripe read. The demo never calls Stripe (RULES.md
-  // 4.12), and an account that never started setup has no customer to read.
+  // The card on file is a Stripe read. The demo never calls Stripe, and an account that never started setup has no customer to read.
   const customerId = accountRow?.platformStripeCustomerId ?? null;
   const card = customerId && !auth.isDemo ? await getDefaultCard(env, customerId) : null;
 

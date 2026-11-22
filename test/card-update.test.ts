@@ -1,14 +1,39 @@
 import { drizzle } from "drizzle-orm/d1";
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import * as schema from "~/db/schema";
 import { finalizeCardUpdateSession } from "~/lib/card-update/service";
 import { buildCardUpdateSignal } from "~/lib/card-update/signal";
 import { signCardUpdateToken, verifyCardUpdateToken } from "~/lib/card-update/token";
-import {
+import CardUpdate, {
   resolveConnectionForFailedPayment,
   type ConnectionCandidate,
 } from "~/routes/utility/card-update";
+
+// Capsomer's real Button, wrapped only to keep hold of the click handler its
+// rendered <button> carries, so a test can click the button the page really
+// drew. The wrapper calls the real Button inside its own render (hooks and
+// all) and returns its element unchanged, so the markup is Capsomer's.
+const clicks = vi.hoisted(() => ({ handlers: [] as ((e: unknown) => void)[] }));
+vi.mock("capsomer/react/button", async (importOriginal) => {
+  const real = await importOriginal<typeof import("capsomer/react/button")>();
+  function Button(props: Parameters<typeof real.Button>[0]) {
+    const el = real.Button(props) as ReactElement<{
+      onClick?: (e: unknown) => void;
+      children?: unknown;
+    }>;
+    const btn =
+      el.type === "button"
+        ? el
+        : (el.props.children as ReactElement<{ onClick?: (e: unknown) => void }>[])[0];
+    if (btn.props.onClick) clicks.handlers.push(btn.props.onClick);
+    return el;
+  }
+  return { ...real, Button };
+});
 
 const stripe = vi.hoisted(() => ({
   session: {} as Record<string, unknown>,
@@ -44,7 +69,7 @@ describe("card-update token sign/verify", () => {
   });
 });
 
-describe("resolveConnectionForFailedPayment (Phase 5 review MEDIUM fix)", () => {
+describe("resolveConnectionForFailedPayment", () => {
   const connA: ConnectionCandidate = { id: "conn_a", stripeAccessToken: "enc_a" };
   const connB: ConnectionCandidate = { id: "conn_b", stripeAccessToken: "enc_b" };
 
@@ -107,4 +132,62 @@ describe("finalizeCardUpdateSession: only the session this link made", () => {
     expect(await finalizeCardUpdateSession(link)).toEqual({ ok: true });
     expect(stripe.updated).toEqual(["cus_link"]);
   });
+});
+
+type Props = Parameters<typeof CardUpdate>[0];
+type LoaderData = Props["loaderData"];
+
+function render(loaderData: LoaderData): string {
+  const props = { loaderData, params: { token: "t" }, matches: [] } as unknown as Props;
+  const router = createMemoryRouter([{ path: "*", element: createElement(CardUpdate, props) }], {
+    initialEntries: ["/p/t"],
+  });
+  return renderToStaticMarkup(createElement(RouterProvider, { router }));
+}
+
+const READY: LoaderData = { state: "ready", amountCents: 9900, currency: "usd" };
+const RESUBSCRIBE: LoaderData = { state: "resubscribe", planName: "Pro" };
+
+/**
+ * Render the page while a POST to its own action is in flight: the router's
+ * navigation is "submitting" because the action never settles, which is what
+ * a customer sees between pressing the button and Stripe's redirect.
+ */
+async function renderSubmitting(loaderData: LoaderData): Promise<string> {
+  const props = { loaderData, params: { token: "t" }, matches: [] } as unknown as Props;
+  const router = createMemoryRouter(
+    [{ path: "*", element: createElement(CardUpdate, props), action: () => new Promise(() => {}) }],
+    { initialEntries: ["/p/t"] },
+  );
+  void router.navigate("/p/t", { formMethod: "post", formData: new FormData() });
+  for (let i = 0; i < 20 && router.state.navigation.state !== "submitting"; i++)
+    await Promise.resolve();
+  expect(router.state.navigation.state, "the POST is in flight").toBe("submitting");
+  return renderToStaticMarkup(createElement(RouterProvider, { router }));
+}
+
+describe("the pay button while the Checkout redirect starts", () => {
+  for (const [name, state] of [
+    ["recovery", READY],
+    ["resubscribe", RESUBSCRIBE],
+  ] as const) {
+    it(`${name}: a second press while pending is stopped before the form can submit again`, async () => {
+      clicks.handlers = [];
+      await renderSubmitting(state);
+      expect(clicks.handlers.length, "the page drew Capsomer's button").toBeGreaterThan(0);
+      const click = clicks.handlers[clicks.handlers.length - 1];
+      const prevented = vi.fn();
+      click({ preventDefault: prevented });
+      expect(prevented).toHaveBeenCalledTimes(1);
+    });
+
+    it(`${name}: when idle the same press goes through (the guard discriminates)`, () => {
+      clicks.handlers = [];
+      render(state);
+      const click = clicks.handlers[clicks.handlers.length - 1];
+      const prevented = vi.fn();
+      click({ preventDefault: prevented });
+      expect(prevented).not.toHaveBeenCalled();
+    });
+  }
 });

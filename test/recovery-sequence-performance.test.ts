@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 
+import * as constants from "~/lib/constants";
 import { DECLINE_CATEGORIES } from "~/lib/constants";
+import { sequenceRateTone } from "~/lib/recovery/sequence-categories";
 import {
   buildCategorySections,
   buildStepCard,
+  sequenceStepLabel,
   formatStepTiming,
   summarizeStepPerformance,
   type StepPerformanceInput,
@@ -227,5 +230,54 @@ describe("buildCategorySections", () => {
 describe("each category's timing chips are that category's own offsets", () => {
   it("shows no timing for a step no schedule defines, never a fabricated one", () => {
     expect(buildStepCard("email_made_up", [], null).timingLabel).toBeNull();
+  });
+});
+
+describe("step labels and rate tones", () => {
+  it("names a retry by its own category's offset, so a 24 hour retry never reads 48hr", () => {
+    expect(sequenceStepLabel("retry_early", constants.STEP_TIMING_RETRY_EARLY_HOURS)).toBe(
+      "4hr retry",
+    );
+    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_RETRY_DAY2_HOURS)).toBe(
+      "48hr retry",
+    );
+    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_NETWORK_RETRY_DAY2_HOURS)).toBe(
+      "24hr retry",
+    );
+  });
+
+  it("bands open and click rates at their boundaries", () => {
+    expect([51, 50, 20, 19].map((r) => sequenceRateTone(r, "open"))).toEqual([
+      "green",
+      "caution",
+      "caution",
+      "red",
+    ]);
+    expect([21, 20, 5, 4].map((r) => sequenceRateTone(r, "click"))).toEqual([
+      "green",
+      "caution",
+      "caution",
+      "red",
+    ]);
+  });
+
+  it("the latest subject is the newest send that has one, with that send's body", () => {
+    const sent = { result: "email_sent", openedAt: null, clickedAt: null };
+    const card = buildStepCard(
+      "email_day1",
+      [
+        { ...sent, executedAt: new Date("2026-10-03"), aiSubject: null, aiBodyHtml: null },
+        {
+          ...sent,
+          executedAt: new Date("2026-10-02"),
+          aiSubject: "Older subject",
+          aiBodyHtml: "<p>Older body</p>",
+        },
+      ],
+      1,
+    );
+    if (card.kind !== "email") throw new Error("expected an email card");
+    expect(card.latestSubject).toBe("Older subject");
+    expect(card.latestBodyHtml).toBe("<p>Older body</p>");
   });
 });

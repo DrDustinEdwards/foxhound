@@ -3,14 +3,9 @@ import type { MoneyWrite } from "~/db/money-write";
 
 import type { CommitResult, CompiledStatement } from "./serializer";
 
-// The money-write executor: the single public entry point every money write in
-// the engine rides (outcomes, attributed billing, webhook claims, stripe
-// connection writes). It compiles the caller's Drizzle batch to plain
-// { sql, params } statements and hands them to this account's money-write
-// Durable Object, which serializes and commits them atomically.
-//
-// Callers keep full Drizzle ergonomics via MoneyWrite.build; nothing but plain
-// data crosses the DO boundary. See docs/engine/money-writes.md.
+// The money-write executor: the single entry point every money write rides (outcomes, attributed billing, webhook claims,
+// stripe connection writes). It compiles the caller's Drizzle batch to plain { sql, params } statements and hands them to
+// this account's money-write Durable Object, which serializes and commits them atomically. See docs/engine/money-writes.md.
 
 interface SqlWrapper {
   toSQL(): { sql: string; params: unknown[] };

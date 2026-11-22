@@ -1,17 +1,6 @@
 import { SectionTrail } from "~/components/section-trail";
 
-// Ported from legacy components/MarketingPageHeader.tsx: the shared
-// eyebrow/title/subtext block. Legacy uses it on exactly seven marketing pages
-// (pricing, products, demos, docs, features, privacy, terms), verified against
-// legacy source rather than its own header comment, which names Blog instead of
-// Products. Blog hand-rolls the pattern in BlogHeaderIntro.tsx.
-//
-// Container is 1080px and left aligned; the subtext clamps at 560px inside it so
-// long lines do not stretch the full width. Legacy has no bottom border and does
-// not center. title is ReactNode because legacy's pricing embeds an accent span (amber here)
-// span in the second half of its headline.
-//
-// The three lines reveal one after another as a Capsomer reveal stack (capsomer/reveal.css, CSS only).
+// The shared eyebrow/title/subtext block, used on pricing, products, demos, docs, features, privacy and terms; the blog hand-rolls it in BlogHeaderIntro.tsx. The container is 1080px and left aligned; the subtext clamps at 560px so long lines do not stretch the full width. title is ReactNode so pricing can embed an accent span (amber) in the second half of its headline. The three lines reveal one after another as a Capsomer reveal stack (capsomer/reveal.css, CSS only).
 export function MarketingPageHeader({
   title,
   subtext,

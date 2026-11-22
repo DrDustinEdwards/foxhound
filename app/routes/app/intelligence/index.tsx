@@ -51,32 +51,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// /intelligence/dashboard. Recova is the spec: its real
-// page, app/(app)/intelligence/dashboard/page.tsx at blob cbe7e8fe, and the
-// seven components it mounts, each read whole (MRRStatCards 2920fa3b,
-// MRRTrendChart c7a0da3f, NRRChart b07e9de3, MRRMovementChart 3c94525e,
-// PlanBreakdown 65b5674f, HealthDistributionChart cd7dd675, MonthlyNarrative
-// 791e2f5f). In Recova's order and width: the head, four stat cards, the MRR
-// trend, NRR, MRR movement, MRR by plan, customer health distribution, then
-// the monthly summary with its month pager and Generate/Regenerate button. With
-// no snapshot yet, Recova's syncing card stands in for all of it.
-//
-// Built from Capsomer 0.9.0's parts, charts by Enarratio, amber
-// throughout. No Foxhound CSS sits over a Capsomer component: Recova's
-// 12px card radius, its uppercase eyebrow labels and its stat figure colors
-// wait for Capsomer's per-site layer, listed in
-// the J67 pull request.
-//
-// Foxhound's engine, never Recova's (78/79): snapshots come from
-// intelligence-sync, which runs daily as Recova's job did, so the series is
-// Recova's ninety days of daily rows (trends.server.ts). The movement chart
-// sums each week, where Recova drew every 7th day under a "by week" caption
-// (a truthfulness fix, dashboard.ts weeklyMovements). The
-// narrative is Foxhound's (narrative.ts), a template written from the
-// engine's facts with no model call, through report-generate.server.ts.
-//
-// The "Most at-risk customers" table is Foxhound's own and HELD for Dustin
-// (TASK-seven-walked-pages.md): it is kept exactly as it was, after the summary.
+// /intelligence/dashboard: the head, four stat cards, the MRR trend, NRR, MRR movement, MRR by plan, customer health distribution, then the monthly summary with its month pager and Generate/Regenerate button. With no snapshot yet, a syncing card stands in for all of it. Charts are Enarratio's. Snapshots come from intelligence-sync, which runs daily, so the series is ninety days of daily rows (trends.server.ts). The movement chart sums each week (dashboard.ts weeklyMovements). The narrative is a template written from the engine's facts with no model call (narrative.ts), through report-generate.server.ts. The "Most at-risk customers" table is Foxhound's own, held for Dustin, kept after the summary.
 
 export function meta() {
   return [{ title: "Intelligence - Foxhound" }, NOINDEX];
@@ -115,8 +90,7 @@ function refused(error: GenerateReportError) {
   return data<ActionResult>({ ok: false, error }, { status: GENERATE_REPORT_ERROR_STATUS[error] });
 }
 
-/** Recova's Generate report button. The account is the session's, never the
- *  form's; the demo never reaches here. */
+/** The Generate report button. The account is the session's, never the form's; the demo never reaches here. */
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
@@ -125,10 +99,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   // safe on its own.
   if (auth.isDemo) return refused("demo_read_only");
 
-  // Everything below, reads and the report write included, is caught: a
-  // thrown error would reach the route's error boundary and replace the whole
-  // dashboard, where Recova's card showed its server-500 sentence, "Could not
-  // generate the report. Try again or contact support."
+  // Everything below, reads and the report write included, is caught: a thrown error would reach the route's error boundary and replace the whole dashboard, where the card shows "Could not generate the report. Try again or contact support."
   try {
     const db = getDb(env);
     const form = await readForm(request, BODY_MAX_BYTES);
@@ -153,8 +124,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
     loaderData;
   const latest = mrrSeries[mrrSeries.length - 1];
 
-  // Recova's main: max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The
-  // shell owns the page's one <main>, so this is a plain wrapper.
+  // max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-intel-page-tall cap-admin-page" data-width="page">
       <div className="fh-intel-head">
@@ -162,9 +132,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
       </div>
 
       {!latest ? (
-        // Recova's card is a line and two sentences, not a heading, so it is
-        // a plain Capsomer panel body rather than Empty (whose title would be
-        // a heading Recova does not have).
+        // The card is a line and two sentences, not a heading, so it is a plain Capsomer panel body rather than Empty (whose title would be a heading).
         <div className="cap-panel">
           <div className="cap-panel-body fh-center">
             <p className="fh-body fh-medium fh-text">Syncing your MRR data</p>
@@ -234,15 +202,7 @@ export default function IntelligenceDashboardPage({ loaderData }: Route.Componen
 type Series = Route.ComponentProps["loaderData"]["mrrSeries"];
 type Latest = Series[number];
 
-/**
- * Recova's MRRStatCards: MRR, Day-over-day, Active customers, New MRR (MTD),
- * two across on a phone and four from md, in Recova's colors. Day-over-day is
- * the latest snapshot less the one before, green up and red down, "--" when
- * flat or with one snapshot, as Recova drew it; its fall carries a minus, where
- * Recova printed the bare amount (truthfulness). A figure that leads nowhere
- * is plain text in a panel, not a Capsomer stat tile (which is always a link
- * or a button), the same choice as the churn page's band cards.
- */
+/** MRR, Day-over-day, Active customers, New MRR (MTD), two across on a phone and four from md. Day-over-day is the latest snapshot less the one before, green up and red down, "--" when flat or with one snapshot; a fall carries a minus. A figure that leads nowhere is plain text in a panel, not a Capsomer stat tile (which is always a link or a button), as on the churn page's band cards. */
 function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; nowMs: number }) {
   const delta = dayOverDayCents(series);
   const deltaClass = !delta ? "fh-quiet" : delta > 0 ? "fh-success" : "fh-error";
@@ -271,7 +231,7 @@ function StatCards({ series, latest, nowMs }: { series: Series; latest: Latest; 
   );
 }
 
-/** Recova's MRRTrendChart: total MRR, every daily snapshot of the 90 days. */
+/** Total MRR, every daily snapshot of the 90 days. */
 function MrrTrend({ series, currency }: { series: Series; currency: string }) {
   const draw = useCallback(
     (w: number, fit: ChartFit) => drawMrrTrend(series, currency, w, fit),
@@ -280,9 +240,7 @@ function MrrTrend({ series, currency }: { series: Series; currency: string }) {
   return <ChartPanel title="MRR trend (90 days)" draw={draw} />;
 }
 
-/** Recova's NRRChart: every 7th daily snapshot, withheld (as Recova withholds
- *  it) until some snapshot carries a positive retention figure. Single
- *  series, so no legend. */
+/** NRR: every 7th daily snapshot, withheld until some snapshot carries a positive retention figure. Single series, so no legend. */
 function NrrCard({ series }: { series: Series }) {
   const sampled = useMemo(() => sampleEveryNth(series), [series]);
   const draw = useCallback((w: number, fit: ChartFit) => drawNrr(sampled, w, fit), [sampled]);
@@ -290,8 +248,7 @@ function NrrCard({ series }: { series: Series }) {
   return <ChartPanel title="Net Revenue Retention (90 days)" draw={draw} />;
 }
 
-/** Recova's MRRMovementChart: its five series, its stacking and its gate on any
- *  non-zero movement, one bar per week of summed daily movement. */
+/** MRR movement: five series, stacked, gated on any non-zero movement, one bar per week of summed daily movement. */
 function MovementCard({ series, currency }: { series: Series; currency: string }) {
   const weeks = useMemo(() => weeklyMovements(series), [series]);
   const draw = useCallback(
@@ -310,12 +267,7 @@ function MovementCard({ series, currency }: { series: Series; currency: string }
   return <ChartPanel title="MRR movement" draw={draw} />;
 }
 
-/**
- * Recova's PlanBreakdown: the latest snapshot's MRR per plan, largest first,
- * drawn as Enarratio bars. Recova also printed each plan's customer count;
- * Foxhound's snapshot keeps MRR per plan and no count (buildPlanBreakdown), so
- * no count is shown rather than one computed some other way.
- */
+/** MRR by plan: the latest snapshot's MRR per plan, largest first, drawn as Enarratio bars. The snapshot keeps MRR per plan and no customer count (buildPlanBreakdown), so no count is shown. */
 function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string }) {
   const rows = useMemo(() => planBreakdownRows(perPlan), [perPlan]);
   const draw = useCallback(
@@ -326,9 +278,7 @@ function PlanCard({ perPlan, currency }: { perPlan: unknown; currency: string })
   return <ChartPanel title="MRR by plan" gridlines="x" draw={draw} />;
 }
 
-/** Recova's HealthDistributionChart: customers per band per sampled day over
- *  90 days (intelligence-ai is daily, so the window is true here), in
- *  Foxhound's bands (healthScoreBand, 78/79). */
+/** Customers per band per sampled day over 90 days (intelligence-ai is daily, so the window is true here), in Foxhound's bands (healthScoreBand). */
 function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["healthDistribution"] }) {
   const draw = useCallback((w: number, fit: ChartFit) => drawHealth(days, w, fit), [days]);
   if (days.length === 0) return null;
@@ -336,16 +286,8 @@ function HealthCard({ days }: { days: Route.ComponentProps["loaderData"]["health
 }
 
 /**
- * Recova's MonthlyNarrative: a month pager, a Generate or Regenerate button,
- * and the month's report, or a line saying there is none. Reports come from
- * the loader (Recova's local cache of twelve months) and the button posts to
- * this route's action. Every failure is said in the card, Recova's words where
- * Recova had them.
- *
- * The button shows for the current month only. Foxhound's narrative is written
- * from today's facts, so a past month's report cannot be generated honestly,
- * and a control that cannot do its job is left out. In the demo
- * the button answers with the demo's read-only sentence instead of posting.
+ * The monthly narrative: a month pager, a Generate or Regenerate button, and the month's report, or a line saying there is none. Reports come from the loader and the button posts to this route's action. Every failure is said in the card.
+ * The button shows for the current month only: the narrative is written from today's facts, so a past month's report cannot be generated honestly, and a control that cannot do its job is left out. In the demo the button answers with the demo's read-only sentence instead of posting.
  */
 function MonthlySummary({
   reports,

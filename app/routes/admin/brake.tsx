@@ -58,16 +58,7 @@ interface ActionResult {
   message?: string;
 }
 
-/**
- * Two independent stops, both type-to-confirm, both audited.
- *
- * The brake pauses ACCOUNTS (the tick still runs, it just finds nothing eligible
- * for those merchants). Disabling recovery-tick stops the LOOP itself for
- * everyone, including accounts the brake deliberately skipped. They are offered
- * side by side because during an incident the right answer is sometimes one,
- * sometimes the other, and an operator should not have to know which page the
- * other one lives on.
- */
+/** Two independent stops, both type-to-confirm, both audited. The brake pauses ACCOUNTS (the tick still runs, it just finds nothing eligible for those merchants). Disabling recovery-tick stops the LOOP itself for everyone, including accounts the brake deliberately skipped. They are offered side by side because during an incident the right answer is sometimes one, sometimes the other. */
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(adminContext);
@@ -124,12 +115,7 @@ export async function action({ context, request }: Route.ActionArgs) {
   }
 
   const nextEnabled = intent === "tick-enable";
-  // INTENT before STATE, the ordering applyBrakeTransition deliberately adopted
-  // and this branch of the same panel did not (review LOW-4). If the audit
-  // insert fails, nothing has changed and there is nothing to have recorded. The
-  // other way round, a failed insert left the tick's enabled state flipped with
-  // no record that anyone flipped it, which is the exact failure the umbrella
-  // row was moved first to prevent.
+  // INTENT before STATE, as applyBrakeTransition does: if the audit insert fails, nothing has changed and there is nothing to have recorded. The other way round, a failed insert would leave the tick's enabled state flipped with no record that anyone flipped it.
   await logAdminAction(db, {
     actorEmail: auth.email,
     action: nextEnabled ? "cron.enable" : "cron.disable",

@@ -11,12 +11,7 @@ import {
 
 import type { Route } from "./+types/export";
 
-// /recovery/payments/export.csv: Recova's Export CSV writes the rows on
-// screen (PaymentsClient.tsx handleExport, exportToCSV(filtered)), so this
-// re-runs the list's own filters, sort, page and page size, server side and
-// scoped to the signed-in account. "All" as the page size exports every
-// matching row, as it shows every row. The 13 columns are Recova's
-// (lib/csv.ts); see app/lib/recovery/payments-csv.ts.
+// /recovery/payments/export.csv writes the rows on screen, so it re-runs the list's own filters, sort, page and page size, server side and scoped to the signed-in account. "All" as the page size exports every matching row. Columns: app/lib/recovery/payments-csv.ts.
 
 export async function loader({ context, request }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

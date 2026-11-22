@@ -19,13 +19,7 @@ import { NOINDEX } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/email-confirm";
 
-// /email/confirm (site-runtime's EMAIL_CONFIRM_PATH), where both email-change
-// links open (send-auth-email.ts mails emailConfirmURL). Its GET only shows the
-// button, so a mail scanner that opens every link confirms nothing; the
-// button's POST is site-runtime's confirmEmailLink, which runs Better Auth's
-// verify-email with the token and comes back here with done= (the current
-// address approved, so the new one is mailed; or the change made) or error=,
-// which emailLinkResult reads.
+// /email/confirm (site-runtime's EMAIL_CONFIRM_PATH), where both email-change links open. Its GET only shows the button, so a mail scanner that opens every link confirms nothing; the button's POST is site-runtime's confirmEmailLink, which runs Better Auth's verify-email with the token and comes back here with done= (the current address approved, so the new one is mailed; or the change made) or error=, which emailLinkResult reads.
 
 export function meta() {
   return [{ title: "Confirm your email change - Foxhound" }, NOINDEX];

@@ -23,28 +23,21 @@ import { appUrl, type DisputeNoticeOutcome, send } from "./notices.server";
 import { getConnectionAccessToken } from "./queries.server";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// EARLY FRAUD WARNINGS, the reads and writes (the words are ./fraud-warnings.ts).
+// EARLY FRAUD WARNINGS, the reads and writes (the words are
+// ./fraud-warnings.ts).
 //
 // THE REFUND is the merchant's choice on the disputes dashboard, guarded like
-// the dispute Accept (accept.server.ts): the warning is read under the signed-in
-// account, Stripe is asked first, and only then is anything written. Before it
-// refunds, Stripe's own charge is read, and a charge already fully refunded or
-// already disputed is never refunded here; the page says which.
-//
-// ONE STRIPE REFUND PER WARNING. refunds.create carries the idempotency key
-// `early-fraud-warning-refund:<stripe warning id>`, so two tabs or two clicks
-// make one refund at Stripe and the second gets the first's result back.
-//
-// NOTHING BILLABLE. A refund here is not a won dispute and earns Foxhound
-// nothing, so the only write is the warning's own refunded_at and refund id.
-// When the refunded charge was a Foxhound recovery, Stripe's charge.refunded
-// event unbills that recovery through the existing refund stamp, as any refund
-// does.
+// the dispute Accept (accept.server.ts): the warning is read under the
+// signed-in account, Stripe is asked first, and only then is anything written.
+// Before it refunds, Stripe's own charge is read, and a charge already fully
+// refunded or already disputed is never refunded here; the page says which.
 
 export type WarningRow = typeof earlyFraudWarnings.$inferSelect;
 
-/** The open warnings on the page, newest first, and whether the account has
- *  ever had one (the section shows only then). */
+/**
+ * The open warnings on the page, newest first, and whether the account has ever
+ * had one (the section shows only then).
+ */
 export async function listEarlyFraudWarnings(
   db: Db,
   accountId: string,
@@ -110,8 +103,7 @@ export async function readWarningCharge(
  * The merchant's notice for a new actionable warning. Gated the way the
  * new-dispute notice is (sendDisputeCreatedNotice): the account's notification
  * address only, nothing while processing is paused, and once per warning at the
- * send layer (`early-fraud-warning:<row id>`). A warning no longer open is not
- * announced. Never throws.
+ * send layer (`early-fraud-warning:<row id>`). Never throws.
  */
 export async function sendEarlyFraudWarningNotice(
   env: Env,
@@ -183,8 +175,8 @@ function refundIdempotencyKey(stripeWarningId: string): string {
 }
 
 /**
- * Refund the charge behind one warning. Never throws for an expected refusal;
- * a database failure after Stripe refunded is reported in words that say so.
+ * Refund the charge behind one warning. Never throws for an expected refusal; a
+ * database failure after Stripe refunded is reported in words that say so.
  */
 export async function refundEarlyFraudWarning(
   env: Env,
@@ -207,7 +199,8 @@ export async function refundEarlyFraudWarning(
     stripe = getConnectedStripe(await decryptToken(env, token));
   }
 
-  // Stripe's own word on the charge, read now: the warning row can be behind it.
+  // Stripe's own word on the charge, read now: the warning row can be behind
+  // it.
   let refundId: string;
   try {
     const charge = await stripe.charges.retrieve(warning.stripeChargeId);
@@ -253,8 +246,10 @@ export async function refundEarlyFraudWarning(
   return { status: "refunded", refundId };
 }
 
-/** Dismiss one open warning: the merchant chose not to refund. Returns whether
- *  a row was open to dismiss. */
+/**
+ * Dismiss one open warning: the merchant chose not to refund. Returns whether a
+ * row was open to dismiss.
+ */
 async function dismissEarlyFraudWarning(
   env: Env,
   input: { accountId: string; warningId: string; now: Date },

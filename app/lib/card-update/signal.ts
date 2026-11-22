@@ -8,14 +8,15 @@ import { recoverySteps } from "~/db";
 // against the connected account. findAttributionSignals
 // (app/lib/recovery/attribution.ts) reads this same shape (stepType
 // "card_update", result "card_updated") when webhooks/process.ts resolves
-// attribution on invoice.payment_succeeded (M1, Phase 4 review). Operational
-// write, not money (recording that an update happened does not itself gate
-// billing), so a plain insert, mirroring the engagement click-stamp
-// precedent (gotcha #25/#37).
+// attribution on invoice.payment_succeeded. Operational write, not money
+// (recording that an update happened does not itself gate billing), so a plain
+// insert, mirroring the engagement click-stamp precedent.
 
-/** True if a card_update signal already exists for this failed payment. Read
- *  guard before inserting (fast path; a double-submit races harmlessly, this
- *  is not a money write, but avoids a duplicate row on the common case). */
+/**
+ * True if a card_update signal already exists for this failed payment. Read
+ * guard before inserting (fast path; a double-submit races harmlessly, this is
+ * not a money write, but avoids a duplicate row on the common case).
+ */
 export async function hasCardUpdateSignal(db: Db, failedPaymentId: string): Promise<boolean> {
   const rows = await db
     .select({ id: recoverySteps.id })

@@ -1,8 +1,7 @@
-// Tags and alt text a model suggests for one library picture: site-api's mediaSuggester (Claude Haiku 5.5, straight at
-// Anthropic with ANTHROPIC_API_KEY). Nothing here writes a file: a suggestion reaches one only
-// when an editor accepts it in Carrel, as an alt or a tags write. The only pictures sent are the blog pictures Carrel
-// uploaded; no merchant data is ever in them or in the prompt. Every call is metered in ai_calls (source
-// "media-suggest", no account), as the Anthropic calls are.
+// Tags and alt text a model suggests for one library picture (site-api's mediaSuggester, Claude Haiku 5.5, straight at
+// Anthropic). Nothing here writes a file: a suggestion reaches one only when an editor accepts it in Carrel. Only blog
+// pictures Carrel uploaded are sent; no merchant data is in them or the prompt. Every call is metered in ai_calls (source
+// "media-suggest", no account).
 
 import { mediaSuggester } from "@dustinedwards/site-api";
 

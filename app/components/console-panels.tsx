@@ -19,22 +19,10 @@ import { recoveryRateBand, recoveryRateClassNameOrNull } from "~/lib/dashboard/r
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import type { AttentionRow, ConsoleHero, ConsoleTiles } from "~/lib/dashboard/console.server";
 
-// The console's three parts in Recova's order (app/(app)/console/page.tsx at
-// blob 3b8a736e, with lib/console-data.tsx at 234791c4): the hero row of three
-// platform figures, the four product tiles, then the needs-attention rows.
-// Built from Capsomer 0.9.0's parts: the hero cards are Panels, the
-// product tiles are StatTiles, the attention rows are row-list rows with a
-// Pill for the product. No Foxhound CSS sits over a Capsomer component; what
-// Recova's look needs beyond Capsomer's defaults (the tile icons and arrows,
-// the dimmed inactive tile, the row's colored dot) waits for Capsomer's
-// per-site layer and is listed in the J64 pull
-// request.
-//
-// Pure components: every number arrives already computed from
-// app/lib/dashboard/console.server.ts. Type-only imports from that module are
-// erased at build, so no server code reaches the client bundle.
+// The console's three parts: the hero row of three platform figures, the four product tiles, then the needs-attention rows. Hero cards are Panels, product tiles StatTiles, attention rows row-list rows with a Pill for the product.
+// Pure components: every number arrives already computed from app/lib/dashboard/console.server.ts. Type-only imports from that module are erased at build, so no server code reaches the client bundle.
 
-/** Recova's hero card: a label, one large figure and a line beneath. */
+/** A hero card: a label, one large figure and a line beneath. */
 function HeroCard({
   label,
   value,
@@ -125,9 +113,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           label="Disputes"
           figure={String(tiles.openDisputeCount)}
           unit="open"
-          // Recova keeps the open count neutral and makes only the due line red.
-          // A tile tone would color the figure too, so the line carries the
-          // color and the tile takes none.
+          // The open count stays neutral and only the due line is red. A tile tone would color the figure too, so the line carries the color and the tile takes none.
           detail={
             tiles.disputesDueSoonCount > 0 ? (
               <span className="fh-medium fh-error">{tiles.disputesDueSoonCount} due in 48h</span>
@@ -143,8 +129,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
           label="Intelligence"
           figure={formatCurrencyTotalsShort(tiles.highRiskMrr)}
           unit="MRR at risk"
-          // Recova's figure for MRR at risk is amber while any is at risk and
-          // green when none is: Capsomer's warn tone, then ok.
+          // MRR at risk is amber while any is at risk and green when none is: Capsomer's warn tone, then ok.
           tone={highRisk ? "warn" : "ok"}
           detail={
             tiles.highRiskCustomerCount > 0
@@ -182,8 +167,7 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
   );
 }
 
-/** Recova's urgent rows have a red dot. Capsomer marks a critical row with its
- *  red edge; the other two tones are told apart by their words. */
+/** Capsomer marks a critical row with its red edge; the other two tones are told apart by their words. */
 const ROW_TONE: Record<AttentionRow["tone"], "crit" | undefined> = {
   urgent: "crit",
   warning: undefined,
@@ -191,8 +175,7 @@ const ROW_TONE: Record<AttentionRow["tone"], "crit" | undefined> = {
 };
 
 export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
-  // Recova's list has no heading of its own; the list's name gives a screen
-  // reader one without adding a visible heading Recova never had.
+  // The list has no visible heading; its name gives a screen reader one.
   if (rows.length === 0) {
     return <p className="fh-small fh-faint">All clear. The platform is running.</p>;
   }

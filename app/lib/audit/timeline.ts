@@ -1,21 +1,7 @@
 import { barChart } from "enarratio/lite/bar";
 import type { ChartFit } from "capsomer/react/chart-frame";
 
-// Recova's ExpiringCardsTimeline (components/audit/ExpiringCardsTimeline.tsx,
-// blob 33537a84), drawn by Enarratio in place of recharts. Pure and
-// client-safe: the audit sections draw it on the server and redraw it at the
-// measured width in the browser (Capsomer's ChartFrame).
-//
-// WHAT IS PLOTTED IS RECOVA'S: the months with at least one card expiring,
-// oldest first, at most four, each labeled "Oct 2026", one bar per month, and
-// the month (or months) with the most cards marked in red. Recova marks the
-// peak by color alone; here the peak is its own series, so the legend and the
-// data table say which month it is in words too (WCAG 1.4.1). The other bars
-// are amber. Recova hides the value axis; Enarratio
-// keeps one, which is the chart library's difference and is covered by Q1.
-
 export interface ExpiringMonth {
-  /** "Oct 2026", Recova's tick. */
   label: string;
   count: number;
 }
@@ -23,7 +9,6 @@ export interface ExpiringMonth {
 const PEAK = "Most cards expiring";
 const OTHER = "Cards expiring";
 
-/** Recova's months: non-zero buckets, sorted by their YYYY-MM key, first four. */
 export function expiringCardsMonths(expiresByMonth: Record<string, number>): ExpiringMonth[] {
   return Object.entries(expiresByMonth)
     .filter(([, count]) => count > 0)
@@ -64,8 +49,8 @@ export function drawExpiringCardsTimeline(
     y: "count",
     series: "kind",
     seriesDomain: series,
-    // Only the series in the chart get a color: Enarratio refuses a color
-    // for a series that is not there, which is every equal-months chart.
+    // Only the series in the chart get a color: Enarratio refuses a color for a
+    // series that is not there, which is every equal-months chart.
     colors: Object.fromEntries(series.map((s) => [s, s === PEAK ? "var(--red)" : "var(--accent)"])),
     xLabel: null,
     yLabel: null,

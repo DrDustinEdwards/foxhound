@@ -1,8 +1,4 @@
-// The /recovery/payments "time" filter dropdown (TASK-foxhound-recovery-
-// surface-parity.md Phase 3). Pure and separate from the dashboard's
-// RecoveryRange (7d/30d/90d/all): this one also has "today", legacy's
-// DATE_RANGES set, and is a single-sided detected-after cutoff, not a
-// dual-range window.
+// The /recovery/payments "time" filter dropdown.
 
 import { DAY_MS } from "~/lib/constants";
 

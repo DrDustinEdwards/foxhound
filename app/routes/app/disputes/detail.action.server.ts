@@ -46,10 +46,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   const detail = await getDisputeDetail(db, accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
 
-  // No post to this page is near one evidence file's size except an upload, so
-  // a body far past it is refused before it is held in memory (J07): at once
-  // when its declared length says so, else by readForm, which reads to the
-  // ceiling as it arrives and throws its 413. Either is the upload field's error.
+  // No post to this page is near one evidence file's size except an upload, so a body far past it is refused before it is held in memory: at once when its declared length says so, else by readForm, which reads to the ceiling as it arrives and throws its 413. Either is the upload field's error.
   const ceiling = DISPUTE_EVIDENCE_MAX_SIZE_BYTES + UPLOAD_BODY_SLACK_BYTES;
   if (Number(request.headers.get("content-length") ?? "0") > ceiling) {
     return fileResult("upload_file", "file_too_large", 413);
@@ -65,8 +62,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }
   const intent = String(form.get("intent") ?? "");
 
-  // Approving submits evidence to Stripe and accepting concedes the dispute;
-  // neither can be undone, so only the account owner does either.
+  // Approving submits evidence to Stripe and accepting concedes the dispute; neither can be undone, so only the account owner does either.
   if ((intent === "approve" || intent === "accept") && auth.membership.role !== MEMBER_ROLE.OWNER) {
     return data({ error: "Only the account owner can do this.", intent }, { status: 403 });
   }
@@ -81,10 +77,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
         { status: 409 },
       );
     }
-    // Once a merchant has approved, the evidence that approval attests is never
-    // rewritten here, even while the state is still approvable (a submission in
-    // flight, rejected by Stripe, or unconfirmed). saveDisputeDraft carries the
-    // same guard inside each write, so a race past this read writes nothing.
+    // Once a merchant has approved, the evidence that approval attests is never rewritten here, even while the state is still approvable (a submission in flight, rejected by Stripe, or unconfirmed). saveDisputeDraft carries the same guard inside each write, so a race past this read writes nothing.
     if (detail.approval) {
       return data(
         {
@@ -97,7 +90,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     const fields = [
       { fieldName: NARRATIVE_FIELD, fieldValue: form.get("narrative") },
       { fieldName: CUSTOMER_IP_FIELD, fieldValue: form.get("customer_ip") },
-      // Present only when the shipping inputs are on the page (S32's setting).
+      // Present only when the shipping inputs are on the page.
       {
         fieldName: SHIPPING_TRACKING_FIELD,
         fieldValue: trimmed(form.get(SHIPPING_TRACKING_FIELD)),
@@ -124,15 +117,11 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
         new Date(),
       );
     } catch (err) {
-      // Recova's line beside Save draft is "Could not save."; the whole error
-      // goes to the log, never to the page.
+      // The whole error goes to the log, never to the page.
       console.error("dispute draft save failed", err);
       return data({ error: "Could not save.", intent: "save" as const }, { status: 500 });
     }
-    // A guarded write that changed nothing (an approval or another session's
-    // save got there between this read and the write) is reported, never
-    // "Saved.". The result is not ok, so the page keeps the
-    // draft unsaved and Approve held.
+    // A guarded write that changed nothing (an approval or another session's save got there between this read and the write) is reported, never "Saved.". The result is not ok, so the page keeps the draft unsaved and Approve held.
     if (!written) {
       return data(
         {
@@ -147,9 +136,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }
 
   if (intent === "upload_file" || intent === "delete_file") {
-    // Recova's upload-evidence and delete-evidence. The dispute was read
-    // under the signed-in account above, so another account's dispute is
-    // already a 404. With no bucket bound, the answer says so first.
+    // The dispute was read under the signed-in account above, so another account's dispute is already a 404. With no bucket bound, the answer says so first.
     if (!env.EVIDENCE) return fileResult(intent, "uploads_unavailable");
     if (!canApprove(detail.dispute.state as DisputeState) || detail.approval) {
       return fileResult(intent, "evidence_locked");
@@ -171,8 +158,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }
 
   if (intent === "sync_dispute") {
-    // Recova's DisputeSyncForm: the same manual import the disputes list runs,
-    // on the signed-in account's own Stripe connection.
+    // The same manual import the disputes list runs, on the signed-in account's own Stripe connection.
     const posted = form.get("stripe_dispute_id");
     try {
       const result = await importDisputeFromStripe(
@@ -192,16 +178,14 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }
 
   if (intent === "accept") {
-    // Recova's /api/disputes/accept: refuse a dispute that is no longer open,
-    // close it at Stripe, then write the accepted state and its outcome.
+    // Refuse a dispute that is no longer open, close it at Stripe, then write the accepted state and its outcome.
     if (!canApprove(detail.dispute.state as DisputeState)) {
       return data(
         { error: "This dispute is already closed or submitted.", intent: "accept" as const },
         { status: 409 },
       );
     }
-    // Not while an approval stands: its submission is in
-    // flight, rejected or unconfirmed, and a concession would race it.
+    // Not while an approval stands: its submission is in flight, rejected or unconfirmed, and a concession would race it.
     if (detail.approval) {
       return data({ error: ACCEPT_APPROVED_MESSAGE, intent: "accept" as const }, { status: 409 });
     }
@@ -243,14 +227,11 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
         { status: 500 },
       );
     }
-    // Recova: router.push('/disputes/dashboard').
     return redirect(BACK_LINK_REAL.href);
   }
 
   if (intent === "approve") {
-    // Re-check against a fresh read, never the form's own hidden state: this is
-    // the schema-enforced gate (dispute_approvals is unique per dispute), the
-    // app-level check here just fails fast with a readable message.
+    // Re-check against a fresh read, never the form's own hidden state: the schema enforces the gate (dispute_approvals is unique per dispute); this check just fails fast with a readable message.
     if (!canApprove(detail.dispute.state as DisputeState)) {
       return data(
         { error: "This dispute has already been submitted.", intent: "approve" as const },
@@ -270,14 +251,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
     }
 
     try {
-      // Ordering (approveAndSubmitDispute, wrapping approveAndSubmit): a
-      // durable pending-approval record is written BEFORE the Stripe call, and
-      // the `submitted` marker (submitted_at, which billing keys off) is
-      // written only AFTER Stripe accepts. So the record and the submission
-      // can never diverge (dispute-intake review MEDIUM), and billing counts
-      // this dispute only if Stripe genuinely took it. The submitted package
-      // is what the merchant approved: the currently-saved evidence (their
-      // edits, not the raw AI draft).
+      // Ordering (approveAndSubmitDispute, wrapping approveAndSubmit): a durable pending-approval record is written BEFORE the Stripe call, and the `submitted` marker (submitted_at, which billing keys off) only AFTER Stripe accepts. So the record and the submission can never diverge, and billing counts this dispute only if Stripe genuinely took it. The submitted package is what the merchant approved: the currently-saved evidence, not the raw AI draft.
       const result = await approveAndSubmitDispute(
         db,
         env,
@@ -298,12 +272,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
       }
       return data({ ok: true, intent: "approve" as const });
     } catch (err) {
-      // The throw can come before the Stripe call (the pending record, the
-      // token) or after it (the confirmation write). In the second case Stripe
-      // holds the submission while submitted_at did not land; the pending
-      // approval record still exists, so billing safely under-counts until it
-      // is reconciled, never over-bills. Either way the page cannot know which,
-      // so it says so. The whole error goes to the log and to Sentry.
+      // The throw can come before the Stripe call (the pending record, the token) or after it (the confirmation write). In the second case Stripe holds the submission while submitted_at did not land; the pending approval record still exists, so billing safely under-counts until reconciled, never over-bills. The page cannot know which, so it says so. The whole error goes to the log and to Sentry.
       logEvent(
         "dispute_submit_failed",
         { dispute_id: detail.dispute.id, error: err },
@@ -345,7 +314,7 @@ function trimmed(value: FormDataEntryValue | null): string | null {
   return typeof value === "string" ? value.trim() : null;
 }
 
-/** The carrier select's value, held to Recova's list (blank is "Select"). */
+/** The carrier select's value, held to the list (blank is "Select"). */
 function carrier(value: FormDataEntryValue | null): string | null {
   if (typeof value !== "string") return null;
   return (SHIPPING_CARRIERS as readonly string[]).includes(value) ? value : "";

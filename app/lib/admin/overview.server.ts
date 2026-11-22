@@ -1,7 +1,8 @@
 // Platform-wide health summary for /admin (overview). Every query here is
 // GLOBAL (no account_id scope, this is the operator surface, not a tenant
 // surface) and excludes demo accounts (DEMO_ACCOUNT_ID_PREFIX), matching the
-// accountBillingEligibleCondition demo-exclusion convention in app/db/billable.ts.
+// accountBillingEligibleCondition demo-exclusion convention in
+// app/db/billable.ts.
 
 import {
   and,
@@ -41,25 +42,25 @@ import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 const NOT_DEMO = notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`);
 
-/** How old an open dispute with no response is before it needs attention, and
- *  how far back a connection counts as new: Recova's overview (app/admin/page.tsx)
- *  used seven days for both. */
 const STALE_DISPUTE_DAYS = 7;
 const NEW_CONNECTION_DAYS = 7;
 
-/** A ceiling on the dispute and fee attention rows. The list shows five of a
- *  group; their groups have no page to link on to, so the titles carry the
- *  real counts and nothing says "All N". */
+/**
+ * A ceiling on the dispute and fee attention rows. The list shows five of a
+ * group; their groups have no page to link on to, so the titles carry the real
+ * counts and nothing says "All N".
+ */
 const ATTENTION_LIMIT = 50;
 
-/** Recova's Recent admin actions showed the newest ten audit rows. */
 const RECENT_ACTIONS_LIMIT = 10;
 
 interface PausedMerchant {
   id: string;
   name: string | null;
-  /** PAUSE_REASON_BRAKE when the emergency brake paused it, PAUSE_REASON_MANUAL
-   *  (or null on an older row) when an operator did (app/lib/admin/brake.ts). */
+  /**
+   * PAUSE_REASON_BRAKE when the emergency brake paused it, PAUSE_REASON_MANUAL
+   * (or null on an older row) when an operator did (app/lib/admin/brake.ts).
+   */
   pauseReason: string | null;
 }
 
@@ -83,52 +84,66 @@ interface FailedFeeInvoice {
   /** payment_failed, gave_up or uncollectible. */
   status: string;
   chargeAttemptCount: number;
-  /** The last charge attempt, or when the invoice was made if none is stamped. */
+  /**
+   * The last charge attempt, or when the invoice was made if none is stamped.
+   */
   failedAt: Date;
 }
 
-/** What GET /platform (the admin API, foxhound_admin_get_platform) returns:
- *  the four fields it always had. The /admin page reads AdminOverview. */
+/**
+ * What GET /platform (the admin API, foxhound_admin_get_platform) returns: the
+ * four fields it always had. The /admin page reads AdminOverview.
+ */
 export interface PlatformOverview {
   merchantCount: number;
   activeRecoveriesCount: number;
   mrrByCurrency: Array<{ currency: string; totalCents: number; accountCount: number }>;
   cronHealth: {
     failedLast24h: number;
-    /** The failed runs themselves (newest first), so the Overview can link to
-     *  each one on /admin/platform/crons. */
+    /**
+     * The failed runs themselves (newest first), so the Overview can link to
+     * each one on /admin/platform/crons.
+     */
     failedRuns: Array<{ id: string; cronName: string; finishedAt: Date; message: string | null }>;
     lastRunAt: Date | null;
     disabledCount: number;
   };
 }
 
-/** The /admin Overview's read: the platform overview plus Recova's overview
- *  inventory (app/admin/page.tsx), each computed by Foxhound's engine. */
 export interface AdminOverview extends PlatformOverview {
-  /** Merchants whose processing is paused and who could be resumed (not
-   *  canceled or deleted, where processing is gated anyway). */
+  /**
+   * Merchants whose processing is paused and who could be resumed (not canceled
+   * or deleted, where processing is gated anyway).
+   */
   pausedCount: number;
   billingExemptCount: number;
   /** Stripe connections made in the last NEW_CONNECTION_DAYS and still live. */
   newConnectionsCount: number;
   /** Disputes not yet resolved, by Foxhound's dispute state machine. */
   openDisputesCount: number;
-  /** How many of those are older than STALE_DISPUTE_DAYS with no response
-   *  submitted, counted rather than read, so it holds past ATTENTION_LIMIT. */
+  /**
+   * How many of those are older than STALE_DISPUTE_DAYS with no response
+   * submitted, counted rather than read, so it holds past ATTENTION_LIMIT.
+   */
   staleDisputesCount: number;
-  /** Fee invoices that need a person (FEE_ATTENTION_STATUSES, last
-   *  FEE_ATTENTION_DAYS), counted. */
+  /**
+   * Fee invoices that need a person (FEE_ATTENTION_STATUSES, last
+   * FEE_ATTENTION_DAYS), counted.
+   */
   failedFeeInvoicesCount: number;
-  /** Attributed recoveries (BILLABLE_ATTRIBUTION_KINDS) since the first of this
-   *  UTC month, per currency: what /billing's "Recovered this month" shows one
-   *  merchant (attributedThisMonth), across all of them. */
+  /**
+   * Attributed recoveries (BILLABLE_ATTRIBUTION_KINDS) since the first of this
+   * UTC month, per currency: what /billing's "Recovered this month" shows one
+   * merchant (attributedThisMonth), across all of them.
+   */
   recoveredThisMonth: { byCurrency: CurrencyAmount[]; paymentCount: number };
   attention: {
     /** Every one, not capped, so a group's "All N" link count is true. */
     pausedMerchants: PausedMerchant[];
-    /** Open, no response submitted, older than STALE_DISPUTE_DAYS; those still
-     *  answerable first, soonest evidence deadline first. */
+    /**
+     * Open, no response submitted, older than STALE_DISPUTE_DAYS; those still
+     * answerable first, soonest evidence deadline first.
+     */
     staleDisputes: StaleDispute[];
     /** Newest first. */
     failedFeeInvoices: FailedFeeInvoice[];
@@ -140,10 +155,6 @@ async function countMerchants(db: Db): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
-/** Failed payments in an active recovery sequence, demo accounts and
- *  soft-deleted rows not counted (Recova's queue read: deleted_at is null).
- *  The Overview's "Active recoveries", the Operations page's queue depth and
- *  /admin/merchants' "Payments in queue" read this one count, so they agree. */
 export async function countActiveRecoveries(db: Db): Promise<number> {
   const rows = await db
     .select({ n: count() })
@@ -153,12 +164,13 @@ export async function countActiveRecoveries(db: Db): Promise<number> {
   return rows[0]?.n ?? 0;
 }
 
-/** Latest mrr_snapshots row per (non-demo) account, summed by currency. Simple
- *  per-account "latest snapshot date" read; platform scale (~hundreds of
- *  accounts pre-launch) makes an in-app group-by-max fine without a window
- *  function, matching the "small volume" posture the rest of the admin
- *  surface takes (SCHEMA.md target scale ~300 merchants). The Merchants
- *  page's "Estimated MRR" reads the same figure. */
+/**
+ * Latest mrr_snapshots row per (non-demo) account, summed by currency. Simple
+ * per-account "latest snapshot date" read; platform scale (~hundreds of
+ * accounts pre-launch) makes an in-app group-by-max fine without a window
+ * function, matching the "small volume" posture the rest of the admin surface
+ * takes (SCHEMA.md target scale ~300 merchants).
+ */
 export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrByCurrency"]> {
   const rows = await db
     .select({
@@ -177,7 +189,8 @@ export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrB
     if (!latestByAccount.has(row.accountId)) latestByAccount.set(row.accountId, row);
   }
 
-  // The totals through groupSumByCurrency (hard rule 2), each with how many accounts it holds.
+  // The totals through groupSumByCurrency (hard rule 2), each with how many
+  // accounts it holds.
   const latest = [...latestByAccount.values()];
   return groupSumByCurrency(
     latest.map((row) => ({ currency: row.currency, cents: row.totalMrrCents })),
@@ -211,9 +224,11 @@ const RESUMABLE = and(
   isNull(accounts.deletedAt),
 );
 
-/** Every paused merchant, uncapped: the group links on to /admin/merchants
- *  with Capsomer's "All N", which counts the rows given, so they must all be
- *  given. Bounded by the merchant count (SCHEMA.md target ~300). */
+/**
+ * Every paused merchant, uncapped: the group links on to /admin/merchants with
+ * Capsomer's "All N", which counts the rows given, so they must all be given.
+ * Bounded by the merchant count (SCHEMA.md target ~300).
+ */
 async function pausedMerchants(db: Db): Promise<PausedMerchant[]> {
   return db
     .select({ id: accounts.id, name: accounts.name, pauseReason: accounts.pauseReason })
@@ -296,14 +311,14 @@ async function openDisputes(
   return { count: countRows[0]?.n ?? 0, staleCount: staleCountRows[0]?.n ?? 0, stale };
 }
 
-/** Fee invoices that need a person: a charge that failed and is still being
- *  chased (payment_failed), and fees owed that nobody will collect without one
- *  (gave_up, written by the retry sweep when it stops; uncollectible, from
- *  Stripe). void is left out: a voided invoice was canceled on purpose.
- *  billing/labels.ts counts all four as failed. */
+/**
+ * Fee invoices that need a person: a charge that failed and is still being
+ * chased (payment_failed), and fees owed that nobody will collect without one
+ * (gave_up, written by the retry sweep when it stops; uncollectible, from
+ * Stripe). void is left out: a voided invoice was canceled on purpose.
+ * billing/labels.ts counts all four as failed.
+ */
 const FEE_ATTENTION_STATUSES = ["payment_failed", "gave_up", "uncollectible"] as const;
-/** Recova's window for failed billing charges; an older write-off has had
- *  its month on the Overview. */
 const FEE_ATTENTION_DAYS = 30;
 
 async function failedFeeInvoices(
@@ -434,12 +449,16 @@ export interface RecentAdminAction {
   id: string;
   createdAt: Date;
   actorEmail: string;
-  /** The action as a sentence (audit-describe.ts), the same words /admin/platform/audit-log uses. */
+  /**
+   * The action as a sentence, the same words /admin/platform/audit-log uses.
+   */
   action: string;
   target: AuditTarget | null;
 }
 
-/** The newest audit rows, described as /admin/platform/audit-log describes them. */
+/**
+ * The newest audit rows, described as /admin/platform/audit-log describes them.
+ */
 export async function listRecentAdminActions(db: Db): Promise<RecentAdminAction[]> {
   const rows = await listAuditLog(db, RECENT_ACTIONS_LIMIT);
   const lookups = await loadAuditLookups(db, rows);

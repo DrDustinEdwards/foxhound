@@ -6,9 +6,7 @@ import { Form, useActionData, useNavigation } from "react-router";
 import "capsomer/button.css";
 import "capsomer/panel.css";
 import "capsomer/status-mark.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// status tones and the focus ring read. The site header loads the same file;
-// importing it here keeps the page whole under any layout (as legal-page.tsx).
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the status tones and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { Header } from "~/components/header";
@@ -34,47 +32,14 @@ export function meta() {
   return [{ title: "Unsubscribe - Foxhound" }];
 }
 
-// This URL is per-recipient and token-bearing, so it is never cacheable by any
-// shared intermediary (Dustin). Neither side sent a directive here:
-// legacy sets no Cache-Control on its unsubscribe route either, and Foxhound's
-// own e/o pixel was the only one of the four tokenised routes that did. Same
-// correctness class as the F2 robots row, where Foxhound already disallows
-// /u/ /p/ /e/ that legacy crawled and the ledger records that it must not be
-// reverted; robots.txt is advisory and a cache directive is not.
+// This URL is per-recipient and token-bearing, so it is never cacheable by any shared intermediary. robots.txt disallows /u/ /p/ /e/ but is advisory and a cache directive is not.
 export const headers = () => PRIVATE_PAGE_HEADERS;
 
-// CAN-SPAM one-click unsubscribe (ROUTES.md public-utility /u/:token, ARCHITECTURE
-// non-negotiable #8). Every dunning email signs a real unsubscribe token
-// (execute-step.ts) into a /u/:token link plus the RFC 8058 List-Unsubscribe /
-// List-Unsubscribe-Post headers (send.ts). The token is HMAC-signed and stateless
-// (app/lib/email/unsubscribe-token.ts, mirrors the /e/* engagement + /p/ card-update
-// pattern); it is verified before anything runs, so a tampered/garbage link renders
-// a clean "invalid link" state, never a stack trace. A valid link writes an
-// account-scoped email_suppressions row (reason=unsubscribe) that SendGates (dispatch.ts)
-// then gates every future send on. The suppression write is idempotent, so a second
-// confirm (or the List-Unsubscribe POST arriving after it) is a no-op.
-//
-// ONLY A POST WRITES. A GET verifies the token and shows a confirm button: mail
-// security scanners and link previews fetch every link in a message, and a write
-// on GET unsubscribed customers who never clicked. The button posts back to this
-// URL; so does a mail client's RFC 8058 one-click request.
-//
-// No auth: the visitor is a merchant's customer, not a Foxhound account holder, so
-// there is no session to thread; the header takes the root loader's theme, as in
-// card-update.tsx. Account scope comes from the signed token
-// payload, never from a query param.
-//
-// ROW F7. Recova's app/api/unsubscribe/route.ts (blob 31de4bc5, read whole)
-// is the spec for the page: its four states and their words, its per-IP limit and
-// its layout. Foxhound's engine above stays; Recova's Supabase token lookup is not
-// copied.
+// CAN-SPAM one-click unsubscribe (/u/:token). Every dunning email signs a real unsubscribe token (execute-step.ts) into a /u/:token link plus the RFC 8058 List-Unsubscribe / List-Unsubscribe-Post headers (send.ts). The token is HMAC-signed and stateless (app/lib/email/unsubscribe-token.ts, as the /e/* engagement and /p/ card-update tokens); it is verified before anything runs, so a tampered or garbage link renders a clean "invalid link" state, never a stack trace. A valid link writes an account-scoped email_suppressions row (reason=unsubscribe) that SendGates (dispatch.ts) then gates every future send on. The suppression write is idempotent, so a second confirm (or the List-Unsubscribe POST arriving after it) is a no-op.
+// ONLY A POST WRITES. A GET verifies the token and shows a confirm button: mail security scanners and link previews fetch every link in a message, and a write on GET unsubscribed customers who never clicked. The button posts back to this URL; so does a mail client's RFC 8058 one-click request.
+// No auth: the visitor is a merchant's customer, not a Foxhound account holder, so there is no session to thread; the header takes the root loader's theme, as in card-update.tsx. Account scope comes from the signed token payload, never from a query param.
 
-// Recova's limit: 10 requests per 60 seconds per IP, else a plain-text 429
-// "Too many requests", checked before the token is looked at. Middleware rather
-// than the loader so the answer is that plain response, not the error page, and
-// so neither the root loader nor the suppression write runs for a throttled
-// request. The RFC 8058 POST is not limited: Recova had no POST, and a mail
-// client's one-click request must not be refused for sharing an IP.
+// Limit: 10 requests per 60 seconds per IP, else a plain-text 429 "Too many requests", checked before the token is looked at. Middleware rather than the loader so the answer is that plain response, not the error page, and so neither the root loader nor the suppression write runs for a throttled request. The RFC 8058 POST is not limited: a mail client's one-click request must not be refused for sharing an IP.
 export const middleware: Route.MiddlewareFunction[] = [
   async ({ request, context }, next) => {
     if (request.method === "POST") return next();
@@ -97,13 +62,7 @@ type LoaderState =
   | { state: "done" }
   | { state: "already"; email: string };
 
-/**
- * Follow one valid link. A customer token suppresses the address, as Recova's
- * route does. A digest token (E23) switches off that account's weekly digest
- * and writes no suppression row, so the merchant's notices and every other
- * account sharing the address carry on; "changed" when the
- * account no longer mails the digest to that address.
- */
+/** Follow one valid link. A customer token suppresses the address. A digest token switches off that account's weekly digest and writes no suppression row, so the merchant's notices and every other account sharing the address carry on; "changed" when the account no longer mails the digest to that address. */
 async function follow(
   env: Env,
   payload: UnsubscribeTokenPayload,
@@ -122,8 +81,7 @@ async function follow(
 export async function loader({ params, context }: Route.LoaderArgs): Promise<LoaderState> {
   const { env } = context.get(cloudflareContext);
   const token = params.token;
-  // The route requires :token, so Recova's no-token state ("Invalid unsubscribe
-  // link.") cannot arise here; an absent token folds into the invalid state.
+  // The route requires :token, so a no-token state cannot arise here; an absent token folds into the invalid state.
   const payload = token ? await verifyUnsubscribeToken(env, token) : null;
   if (!payload || !token) return { state: "invalid" };
   return { state: "confirm" };
@@ -132,12 +90,7 @@ export async function loader({ params, context }: Route.LoaderArgs): Promise<Loa
 /** The confirm button's field, which tells the page's own POST from a mail client's. */
 const CONFIRM_FIELD = "confirm";
 
-// POST: the page's confirm button, or the RFC 8058 one-click
-// List-Unsubscribe-Post request. Both write the suppression. The button gets the
-// page's outcome back; a mail client only needs a 200 and no page, whether the
-// token was good or not, so token validity never leaks to it. The first confirm
-// reads "unsubscribed", any later one (or one for an address a bounce already
-// suppressed) "already unsubscribed".
+// POST: the page's confirm button, or the RFC 8058 one-click List-Unsubscribe-Post request. Both write the suppression. The button gets the page's outcome back; a mail client only needs a 200 and no page, whether the token was good or not, so token validity never leaks to it. The first confirm reads "unsubscribed", any later one (or one for an address a bounce already suppressed) "already unsubscribed".
 export async function action({
   params,
   context,
@@ -155,8 +108,7 @@ export async function action({
 
 function message(data: LoaderState): string {
   switch (data.state) {
-    // A digest link for an address the account no longer uses has expired in
-    // the sense Recova's words mean, and nothing was switched off.
+    // A digest link for an address the account no longer uses has expired, and nothing was switched off.
     case "invalid":
     case "changed":
       return "This unsubscribe link is invalid or has expired.";
@@ -177,11 +129,7 @@ const HEADING: Record<LoaderState["state"], string> = {
   done: "Unsubscribed",
 };
 
-// The status mark: Recova's 48px circle on the tone's tint with a 1px edge in the
-// tone, a check for success and an X for failure. Capsomer 0.9.0 has no round
-// status mark (status.css draws a glyph or a pill), so it is composed here from
-// the family's ok and crit tone tokens. Decorative: the sentence beside it says
-// the same thing.
+// The status mark: a 48px circle on the tone's tint with a 1px edge in the tone, a check for success and an X for failure. Capsomer has no round status mark (status.css draws a glyph or a pill), so it is composed here from the family's ok and crit tone tokens. Decorative: the sentence beside it says the same thing.
 export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
   const posted = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";

@@ -1,20 +1,15 @@
 // Plain writing for every model-written text Foxhound shows or sends: recovery
 // and win-back emails, dispute evidence, the Intelligence narrative, the audit
 // summary and the home page's email sample. The check and the rules are
-// site-runtime ./prose's, the family's one prose check, which Carrel runs on
-// AI drafts too. An approved difference from Recova (Dustin, 2026-10-24,
-// parity/APPROVED-DIFFERENCES.md).
-//
-// Only high and critical findings count: the phrases and words current models
-// still write ("no hard feelings", "genuinely", "great question"), from
-// site-runtime's tested lists. The medium ones (a dash, "not X, it's Y") and a
-// list of three are the prompt's to prevent, and a retry over one would cost
-// more than the phrase does.
+// site-runtime ./prose's, the family's one prose check, which Carrel runs on AI
+// drafts too.
 
 import { checkProse, WRITING_RULES, type ProseIssue } from "@dustinedwards/site-runtime/prose";
 
-/** The family's plain-writing rules as prompt lines. Its line on headings is
- *  about blog posts and is left out. */
+/**
+ * The family's plain-writing rules as prompt lines. Its line on headings is
+ * about blog posts and is left out.
+ */
 export const PLAIN_WRITING_LINES: readonly string[] = WRITING_RULES.split("\n").filter(
   (line) => line.startsWith("- ") && !/headings/i.test(line),
 );
@@ -22,8 +17,10 @@ export const PLAIN_WRITING_LINES: readonly string[] = WRITING_RULES.split("\n").
 /** The lines a prompt carries: a heading, then the rules. */
 export const PLAIN_WRITING_PROMPT = ["Plain writing:", ...PLAIN_WRITING_LINES].join("\n");
 
-/** The stock phrasing in a text that a reader notices at once, less any
- *  phrase in `allow`. Pure. */
+/**
+ * The stock phrasing in a text that a reader notices at once, less any phrase
+ * in `allow`. Pure.
+ */
 export function findStockPhrasing(text: string, allow: readonly string[] = []): ProseIssue[] {
   return checkProse(text, { allow: [...allow] }).filter(
     (i) => i.severity === "high" || i.severity === "critical",

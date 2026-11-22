@@ -6,11 +6,7 @@ import { oauthResponse, parseOAuthBody, revokeOAuthToken } from "~/lib/oauth/pro
 
 import type { Route } from "./+types/oauth-revoke";
 
-// POST /api/oauth/revoke, at Recova's path: RFC 7009 revocation. Always
-// 200 with an empty body, as Recova answered, so the endpoint never says
-// whether a token was real. RATE LIMIT: Recova's 30 a minute per IP. The
-// shared Worker sends an answer with no Cache-Control as private, no-store, so
-// the route sets no caching header of its own.
+// POST /api/oauth/revoke: RFC 7009 revocation. Always 200 with an empty body, so the endpoint never says whether a token was real. RATE LIMIT: 30 a minute per IP. The shared Worker sends an answer with no Cache-Control as private, no-store, so the route sets no caching header of its own.
 export async function action({ request, context }: Route.ActionArgs) {
   if (request.method !== "POST") {
     return oauthResponse({ status: 405, body: { error: "invalid_request" } }, { Allow: "POST" });

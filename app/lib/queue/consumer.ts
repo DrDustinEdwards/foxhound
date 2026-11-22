@@ -41,10 +41,10 @@ export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): 
   }
 
   if (batch.queue === AUDIT_QUEUE_NAME) {
-    // Imported here, not at the top: the audit graph (Stripe, the model client,
-    // the engine) stays off the email arms and off fetch(), which imports this
-    // module statically. One message per invocation by consumer config; the loop
-    // still treats each message on its own, so one failure never decides another.
+    // Imported here, not at the top: the audit graph (Stripe, the model client, the engine) stays
+    // off the email arms and off fetch(), which imports this module statically. One message per
+    // invocation by consumer config; the loop still treats each message on its own, so one failure
+    // never decides another.
     const { processMonthlyAuditMessage } = await import("~/lib/audit/monthly.server");
     // The same queue carries the anonymous audit's delayed grant revoke
     // (app/lib/audit/grant-revoke.server.ts), told apart by its `kind`.

@@ -1,21 +1,6 @@
 import { FEATURE_FILTERS, type FeatureFilterValue } from "~/lib/marketing/features-content";
 
-// The /features product filter. Recova's spec is
-// components/features/FeatureFilter.tsx (blob 4e2ef1fa): six pills, All first,
-// exactly one active, flex-wrap with gap-2 and mb-10 under the header. The
-// pills are Capsomer's filter chips (capsomer/chips.css), the family part for
-// "filter a list by up to six values": a pressed chip carries a tick,
-// the accent edge and the tint, so the active one is not marked by color
-// alone. Recova's one-active behavior is kept, so a press moves the choice
-// rather than adding to it; Capsomer's FilterChips React wrapper is
-// multi-select, which is why the chip markup is used here directly.
-//
-// Recova marks the row up as a tablist of tabs with aria-selected but no tab
-// panels. Capsomer's chips are a labeled group of toggle buttons with
-// aria-pressed, which says what the control does. The group keeps Recova's
-// accessible name. A visually hidden live line says what the filter left,
-// as Capsomer's chips do with a visible count; Recova shows no count, so the
-// line is for screen readers only and the page looks as Recova's does.
+// The /features product filter: six pills, All first, exactly one active. The pills are Capsomer's filter chips (capsomer/chips.css): a pressed chip carries a tick, the accent edge and the tint, so the active one is not marked by color alone. One-active behavior means a press moves the choice rather than adding to it; Capsomer's FilterChips React wrapper is multi-select, which is why the chip markup is used here directly. The row is a labeled group of toggle buttons with aria-pressed. A visually hidden live line says what the filter left; no visible count.
 export function FeatureFilter({
   active,
   onChange,
@@ -28,7 +13,7 @@ export function FeatureFilter({
   totalCount: number;
 }) {
   return (
-    // Recova's mb-10 sits on a wrapper so the Capsomer group carries no Foxhound class.
+    // The mb-10 sits on a wrapper so the Capsomer group carries no Foxhound class.
     <div className="fh-feature-filter-block">
       {/* Recova's filter: mono chips, the pressed one filled amber. */}
       <div

@@ -6,9 +6,7 @@ import "capsomer/status.css";
 import "capsomer/button.css";
 import "capsomer/disclosure.css";
 import "capsomer/source-line.css";
-// Capsomer's tokens and the amber family (capbase layer), which every part on
-// this page reads. The site header loads the same file; importing it here
-// keeps the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which every part on this page reads. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 import { jsonLd, faqPage } from "@drdustinedwards/site-helpers/schema";
 import { Link, ButtonLink } from "capsomer/react/link";
@@ -55,33 +53,12 @@ import type { Route } from "./+types/home";
 import { PRODUCT_ICONS, Arrow, HOW_IT_WORKS, BILLING_ANSWER } from "../components/home-parts";
 import "~/home.css";
 
-// The marketing home page. Recova's spec, read whole at HEAD:
-// app/(marketing)/page.tsx (blob c10db7d5), components/hero/RecoveryDemo.tsx
-// (453261b6), components/marketing/EmailGenerator.tsx (c4592a56),
-// components/marketing/RecoveryCalculator.tsx (1a4374f5),
-// components/FaqAccordion.tsx (b5f1e487) and components/FadeUp.tsx (cdcfc8cb).
-//
-// Recova's sections, in Recova's order, at Recova's widths and padding (1100px
-// sections, 760px FAQ and closing block, 600px calculator and generator,
-// px-5 sm:px-8, py-24 on the stats, calculator and closing block).
-//
-// Look is Capsomer's with Recova's sizes (Dustin,
-// 2026-10-25: "there is still so much wrong with foxhound... as compared to
-// recova"): cards are Capsomer panels, linked ones lifting 4px with an amber
-// edge under the pointer (the foxhound site layer), calls to action Capsomer
-// buttons, the FAQ Capsomer's card disclosure, the decline picker its cards
-// layout. Text takes Recova's size for each role from the marketing scale in
-// app.css, and cards Recova's 24px padding (CARD).
-//
-// Copy, and every number in it read from the engine, is in
-// lib/marketing/home-copy.ts.
+// The marketing home page, in order: the hero, the stats, the email generator, the calculator, the FAQ and the closing block (1100px sections, 760px FAQ and closing block, 600px calculator and generator, px-5 sm:px-8, py-24 on the stats, calculator and closing block). Cards are Capsomer panels, linked ones lifting 4px with an amber edge under the pointer (the foxhound site layer), calls to action Capsomer buttons, the FAQ Capsomer's card disclosure, the decline picker its cards layout. Text takes its size for each role from the marketing scale in app.css, and cards a 24px padding (CARD). Copy, and every number in it read from the engine, is in lib/marketing/home-copy.ts.
 
 const H2 = "fh-home-h2 fh-section fh-semibold fh-text";
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // JSON-LD, as Recova emits it: Organization, SoftwareApplication, the
-  // FAQPage from the plain answers above, the Speakable WebPage and the
-  // WebSite. Every URL comes from the loader's siteUrl.
+  // JSON-LD: Organization, SoftwareApplication, the FAQPage from the plain answers above, the Speakable WebPage and the WebSite. Every URL comes from the loader's siteUrl.
   const url = loaderData?.siteUrl ?? "";
   return [
     ...marketingMeta({
@@ -108,9 +85,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-// Recova's blog strip: the featured post first, then the two most recent that
-// are not it, or the three most recent when nothing is featured (M3 divergence
-// 34). Trimmed-column queries, never the full-body select.
+// The blog strip: the featured post first, then the two most recent that are not it, or the three most recent when nothing is featured. Trimmed-column queries, never the full-body select.
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   // The blog strip is the page's only database read. A D1 error drops the

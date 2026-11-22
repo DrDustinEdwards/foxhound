@@ -8,48 +8,24 @@ import { manageEmailSettingsLine, renderFoxhoundEmail } from "./templates";
 import type { EmailAudience, OutboundEmailJob } from "./types";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 
-// THE ONE send module (ARCHITECTURE.md non-negotiable #3: only this file touches
-// the EMAIL binding). Everything else enqueues a job; the queue consumer calls
-// through here. Message construction is pure and unit-tested; the binding call is
-// the single seam finalized when Email Service is live.
-//
-// THE FRAME. Every message is rendered by templates.ts on
-// Capsomer's shared email component, which gives an HTML part and a plain-text
-// part from the same content. Both functions below go through it, so no mail
-// leaves without both parts. A body link the frame refuses is kept as words; a
-// refused URL Foxhound supplies itself (the unsubscribe base URL, tracking)
-// throws from the render, before the binding is reached, and the throw is left
-// to propagate exactly like the CAN-SPAM guards below.
+// The one send module: only this file touches the EMAIL binding. Every message is rendered by templates.ts
+// on Capsomer's email component (HTML and text parts from the same content). A refused URL Foxhound
+// supplies itself throws from the render, before the binding, like the CAN-SPAM guards below.
 
-// Legacy's From fallback, verbatim: `merchant.sender_name || 'Support'` in
-// lib/recovery-execution.ts:197, and the same string again in its test-email
-// route. It was "Billing" here, which no legacy surface produces.
 const DEFAULT_FROM_NAME = "Support";
 
-/** Escape a display name for use in a From header, stripping quotes and controls. */
 function fromDisplayName(name: string | null | undefined): string {
   const cleaned = (name ?? DEFAULT_FROM_NAME).replace(/["\r\n]/g, "").trim();
   return cleaned.length > 0 ? cleaned : DEFAULT_FROM_NAME;
 }
 
-/**
- * Build the ready-to-send message from a job. Pure. Enforces CAN-SPAM
- * (ARCHITECTURE.md non-negotiable #8): a merchant-customer send MUST carry a
- * physical postal address and a one-click unsubscribe. Missing either throws, so
- * a non-compliant send can never reach the binding.
- */
+/** Build the message from a job. Pure. A merchant-customer send must carry a postal address and a
+ *  one-click unsubscribe; missing either throws, so a non-compliant send never reaches the binding. */
 export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): EmailSendMessage {
-  // FAIL CLOSED: an absent audience is treated as the customer case, so a job
-  // that forgets the field gets the CAN-SPAM guard rather than skipping it.
+  // Fail closed: an absent audience is the customer case, so it gets the CAN-SPAM guard.
   const audience: EmailAudience = job.audience ?? "customer";
 
-  // Merchant mail is platform-to-our-own-user mail: no postal footer, no
-  // unsubscribe, exactly as sendTransactionalEmail already does and exactly as
-  // legacy sends its merchant notification. See the EmailAudience doc for why an
-  // unsubscribe there would be actively harmful.
-  //
-  // The weekly digest is the one merchant mail that carries both (E23): Recova
-  // wraps it with an unsubscribe token, so it takes the same two guards.
+  // Merchant mail carries no postal footer or unsubscribe (see EmailAudience); the weekly digest takes both guards.
   let unsubUrl: string | null = null;
   if (audience === "customer" || audience === "digest") {
     if (!job.physicalAddress || !job.physicalAddress.trim()) {
@@ -62,22 +38,8 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   }
 
   const fromName = fromDisplayName(job.fromName);
-  // On customer mail the CAN-SPAM lines go in Capsomer's footer slot, under its
-  // "This message was sent to" line: the one-click unsubscribe link, then the
-  // postal address. The text part carries both, the link on its own line. A
-  // job's footer note (Recova's "You're receiving this from" sentence on
-  // recovery mail, J85) goes first in the slot.
-  //
-  // Preview mail (E3) puts only its note in the slot: Recova's preview footer
-  // sentence, with no unsubscribe and no postal address, as Recova's has none.
-  //
-  // Digest mail (E23) carries the customer footer: Recova's sentence, then
-  // Unsubscribe, then the postal address, as wrapEmailHtml writes it with a
-  // token.
-  //
-  // Merchant mail with a note (E10) carries Recova's footer as wrapEmailHtml
-  // writes it with no unsubscribe token: the sentence, then "Manage email
-  // settings" to /settings. A merchant mail with no note has no footer line.
+  // Customer mail: the footer note, then the unsubscribe link, then the postal address. Preview: note only.
+  // Digest: as customer. Merchant: note then "Manage email settings"; no note, no footer line.
   const note = job.footerNote ? [job.footerNote] : [];
   const footer = unsubUrl
     ? [...note, { text: "Unsubscribe", url: unsubUrl }, job.physicalAddress]
@@ -107,17 +69,8 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
     html: rendered.html,
     text: rendered.text,
   };
-  // REPLY-TO: a customer who replies reaches the merchant's own inbox,
-  // from Recova's `replyTo: replyTo ?? fromAddress` (lib/recovery-execution.ts).
-  // Customer mail, and the preview of it (E3), as in Recova, whose test-email
-  // route passes the same reply_to_email; its merchant notices carry none.
-  //
-  // SET ONLY WHEN THE MERCHANT SAVED AN ADDRESS, a bare one. Recova's fallback
-  // to the From changes nothing for the recipient (a reply goes to the From
-  // either way), and it would put a "Name <addr>" string on every customer
-  // email that the binding has not been shown live to accept. A stored value
-  // that is not exactly one address (a line break would be a header
-  // injection) is dropped the same way rather than reaching the binding.
+  // Reply-To only when the merchant saved exactly one bare address; anything else (a line break would be
+  // header injection) is dropped before the binding.
   if (audience === "customer" || audience === "preview") {
     const replyTo = job.replyTo?.trim() ?? "";
     if (replyTo && isValidReplyToEmail(replyTo)) message.replyTo = replyTo;
@@ -131,13 +84,8 @@ export function buildEmailMessage(job: OutboundEmailJob, baseUrl: string): Email
   return message;
 }
 
-/**
- * Send one message through the Email Service binding (site-runtime ./email: a
- * line break in an address is refused, a subject's folded, and `job.redact` and
- * the recipient are cut out of the error). Throws when it is not sent. Returns
- * the binding's message id, which Email Sending events carry as
- * payload.messageId, so it is how a bounce finds its send (events.ts).
- */
+/** Send one message through the Email Service binding. Throws when not sent. Returns the message id,
+ *  which bounce events carry as payload.messageId (events.ts). */
 export async function sendJobEmail(
   env: Env,
   job: OutboundEmailJob,
@@ -151,26 +99,18 @@ export async function sendJobEmail(
   return { providerMessageId: sent.messageId };
 }
 
-/**
- * Send a TRANSACTIONAL platform email (auth verification, the cron alerts) through
- * the same single binding seam. Transactional platform mail to our own users is
- * NOT commercial mail, so it deliberately carries no CAN-SPAM unsubscribe/postal
- * footer (you cannot unsubscribe from a password reset). Still the only path to
- * the binding: keeps "one send module" intact. Throws if the binding is
- * unconfigured, so a send failure surfaces rather than silently dropping.
- */
+/** Send transactional platform mail (auth, cron alerts) through the same binding seam. Not commercial,
+ *  so no unsubscribe or postal footer. Throws if the binding is unconfigured. */
 export async function sendTransactionalEmail(
   env: Env,
   message: { to: string; subject: string; bodyHtml: string; fromName?: string | null },
 ): Promise<{ providerMessageId: string | null }> {
   const { fromName, rendered } = renderTransactional(message);
   const sent = await sendThroughAuthSender(env, { to: message.to, rendered, fromName });
-  // A missing binding and a refusal both reach the caller as throws.
   if (sent.status === "sent") return { providerMessageId: sent.providerMessageId };
   throw new Error(sent.error ?? "EMAIL binding is not configured");
 }
 
-/** The From name and the rendered parts of a transactional mail. Pure. */
 function renderTransactional(message: {
   to: string;
   subject: string;
@@ -190,8 +130,6 @@ function renderTransactional(message: {
   return { fromName, rendered };
 }
 
-/** The auth sender's message for already-rendered mail, exactly as
- *  sendThroughAuthSender hands it to the binding. Pure. */
 function authSenderMessage(to: string, rendered: Rendered, fromName: string): EmailSendMessage {
   return {
     from: `${fromName} <${EMAIL_AUTH_SENDER_ADDRESS}>`,
@@ -202,7 +140,6 @@ function authSenderMessage(to: string, rendered: Rendered, fromName: string): Em
   };
 }
 
-/** The message sendTransactionalEmail would hand the binding. Pure. */
 export function buildTransactionalMessage(message: {
   to: string;
   subject: string;
@@ -213,7 +150,6 @@ export function buildTransactionalMessage(message: {
   return authSenderMessage(message.to, rendered, fromName);
 }
 
-/** The message sendRenderedTransactionalEmail would hand the binding. Pure. */
 export function buildRenderedTransactionalMessage(message: {
   to: string;
   rendered: Rendered;
@@ -221,9 +157,7 @@ export function buildRenderedTransactionalMessage(message: {
   return authSenderMessage(message.to, message.rendered, "Foxhound");
 }
 
-/** The one place transactional mail meets env.EMAIL: the auth sender's From,
- *  no headers, and the binding's message id. Never throws; each of `secrets`
- *  and the recipient is cut out of a refusal's error. */
+/** The one place transactional mail meets env.EMAIL. Never throws; `secrets` and the recipient are cut out of a refusal's error. */
 async function sendThroughAuthSender(
   env: Env,
   message: { to: string; rendered: Rendered; fromName: string; secrets?: string[] },
@@ -238,23 +172,13 @@ async function sendThroughAuthSender(
   return { status: "failed", reason: "provider_error", error: sent.error };
 }
 
-/**
- * What a transactional send that does not throw comes back with. The names
- * reuse email_sends' statuses ("sent", "failed"); `reason` says which refusal.
- */
+/** What a transactional send that does not throw returns; `reason` says which refusal. */
 export type TransactionalSendOutcome =
   | { status: "sent"; providerMessageId: string | null }
   | { status: "failed"; reason: "email_binding_missing" | "provider_error"; error: string | null };
 
-/**
- * Send a transactional mail that is already rendered (the password reset, on
- * Capsomer's reset template, J82) through the same seam as
- * sendTransactionalEmail: From "Foxhound" at the auth sender, no footer, no
- * unsubscribe, no tracking. It never throws: a refusal comes back named. Every
- * string in `redact` (the reset link, its token, the recipient) is cut out of a
- * provider's error before it is returned, so a provider that echoes the message
- * cannot put the link into a log.
- */
+/** Send already-rendered transactional mail (the password reset) through the same seam. Never throws:
+ *  a refusal comes back named, with every `redact` string cut out of the error. */
 export async function sendRenderedTransactionalEmail(
   env: Env,
   message: { to: string; rendered: Rendered; redact?: string[] },

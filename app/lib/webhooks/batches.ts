@@ -27,18 +27,9 @@ import { planRecoverySteps } from "~/lib/recovery/schedule";
 import { buildStopRecoveryBatch } from "~/lib/recovery/manual-action-batches.server";
 import { planWinbackSteps, WINBACK_STATUS } from "~/lib/recovery/winback";
 
-// The atomic DO batches for connected-account webhook processing. Every webhook
-// side effect is committed together with the webhook_events CLAIM in ONE batch
-// through the per-account money-write DO. The webhook_events unique index on
-// stripe_event_id is the exactly-once key: a replay makes the claim insert fail
-// the unique constraint, the whole batch rolls back, and executeMoneyWrite
-// reports applied=false (idempotent no-op). Claim-with-side-effects is stronger
-// than a separate claim step: there is no "claimed but not processed" gap.
-//
-// DEVIATION (flagged for Dustin): ARCHITECTURE.md lists a distinct webhook-claim
-// DO keyed by event id. We instead fold the claim into the per-account money-write
-// DO batch keyed by account_id. The exactly-once guarantee is preserved (unique
-// index) and atomicity is stronger. Reconcile the canon DO count when convenient.
+// The atomic DO batches for connected-account webhook processing. Every webhook side effect is
+// committed together with the webhook_events CLAIM in ONE batch through the per-account money-write
+// DO. We instead fold the claim into the per-account money-write DO batch keyed by account_id.
 
 export interface WebhookClaimInput {
   stripeEventId: string;
@@ -75,11 +66,11 @@ export interface IntakeBatchInput {
   claim: WebhookClaimInput;
   failedPaymentId: string;
   accountId: string;
-  /** The stripe_connections row this failed payment belongs to (Phase 5
-   *  review MEDIUM fix companion, 2026-07-19): recorded so the card-update
-   *  page (app/routes/utility/card-update.tsx) can resolve the CORRECT
-   *  connection for an account with more than one, instead of an arbitrary
-   *  active one. */
+  /**
+   * The stripe_connections row this failed payment belongs to: recorded so the card-update page
+   * (app/routes/utility/card-update.tsx) can resolve the CORRECT connection for an account with
+   * more than one, instead of an arbitrary active one.
+   */
   stripeConnectionId: string;
   stripeEventId: string;
   invoiceId: string;
@@ -98,10 +89,8 @@ export interface IntakeBatchInput {
    *  history to say the payment failed on the day Stripe gave up. */
   detectedAt: Date;
   /**
-   * Whether the sequence starts now: Stripe has stopped retrying (ruling
-   * 377(1)), or the decline is hard and Stripe will not retry it on this card
-   * (decline.ts isHardDecline). False parks the row in `stripe_retrying` with
-   * NO steps planned; true is a live sequence from the first event.
+   * Whether the sequence starts now: Stripe has stopped retrying (, or the decline is hard and
+   * Stripe will not retry it on this card (decline.ts isHardDecline).
    */
   startSequence: boolean;
   /** Absent or null when the charge could not be read; the columns stay null. */
@@ -109,15 +98,9 @@ export interface IntakeBatchInput {
 }
 
 /**
- * invoice.payment_failed: claim + insert the failed_payments row (core fields;
- * ML enrichment via extra Stripe reads is a deferred seam) +, ONLY when Stripe
- * has given up, the silent-first recovery_steps sequence. All atomic.
- *
- * The split is ruling 377(1). Foxhound used to plan the sequence on the first
- * failure, so its 4-hour retry and day-1 email ran while Stripe's own Smart
- * Retries were still scheduled, and a click on a Foxhound email during Stripe's
- * window made Stripe's recovery billable. The row is still created immediately,
- * because the involuntary-churn guard keys on it existing.
+ * invoice.payment_failed: claim + insert the failed_payments row (core fields; ML enrichment via
+ * extra Stripe reads is a deferred seam) +, ONLY when Stripe has given up, the silent-first
+ * recovery_steps sequence. All atomic.
  */
 export function buildIntakeBatch(db: Db, input: IntakeBatchInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
@@ -163,17 +146,9 @@ export interface SequenceStartBatchInput {
   accountId: string;
   declineCategory: DeclineCategory;
   /**
-   * THE SCHEDULE ANCHOR, which is the moment Stripe gave up, not the moment the
-   * payment first failed. schedule.ts:143 adds every offset to whatever it is
-   * handed and is untouched, as are RECOVERY_SCHEDULES: what moved is the value
-   * passed in.
-   *
-   * The row's own `detected_at` stays where it was, and the two are deliberately
-   * different numbers. 377(1) records the cost of the split as "day 30 becomes
-   * roughly day 58", which is counted from the ORIGINAL failure; that arithmetic
-   * only works if detected_at still marks it. Moving the column instead would
-   * make every sequence look like it finished on day 30 and would move the
-   * payment's failure date on the dashboard.
+   * THE SCHEDULE ANCHOR, which is the moment Stripe gave up, not the moment the payment first
+   * failed. schedule.ts:143 adds every offset to whatever it is handed and is untouched, as are
+   * RECOVERY_SCHEDULES: what moved is the value passed in.
    */
   startedAt: Date;
   /** The decline code the category came from, written only when one is known
@@ -184,18 +159,10 @@ export interface SequenceStartBatchInput {
 }
 
 /**
- * Stripe has stopped retrying: flip a `stripe_retrying` row to `active` and plan
- * its sequence, atomically with the claim.
- *
- * THE UPDATE IS CONDITIONAL ON THE ROW STILL BEING `stripe_retrying`, so a
- * second promotion flips nothing. That alone is NOT what stops a second
- * cadence, and the first version of this comment claimed it was. A plant that
- * ran this batch directly measured the truth: a WHERE matching zero rows does
- * not abort a batch, so the step inserts landed anyway and the payment got
- * sixteen steps. What actually stops it is the caller's idempotency key, which
- * is scoped to the PAYMENT rather than the event (see process.ts), so the money
- * Durable Object treats a second promotion of the same payment as already done.
- * Recorded this way because the wrong version was believable.
+ * Stripe has stopped retrying: flip a `stripe_retrying` row to `active` and plan its sequence,
+ * atomically with the claim. What actually stops it is the caller's idempotency key, which is
+ * scoped to the PAYMENT rather than the event (see process.ts), so the money Durable Object treats
+ * a second promotion of the same payment as already done.
  */
 export function buildSequenceStartBatch(db: Db, input: SequenceStartBatchInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
@@ -238,16 +205,11 @@ export interface DeclineRefreshInput {
 }
 
 /**
- * A Foxhound retry was declined: store what that decline said, so the steps
- * still to run read the newest category and network advice (the tick loads
- * both from the row). A hard, fraud, expired or do_not_try_again reading is
- * what stops the later retries (engine/retry-step.ts). The decline code is
- * written only when the error carried one, as the sequence-start flip does.
- *
- * Only on a row still `active`: a payment recovered or stopped meanwhile keeps
- * its record, and nothing else rides this batch for a zero-row match to leak
- * into. Its own batch, not the step patch's: failed_payments is a money table
- * and goes through the money Durable Object.
+ * A Foxhound retry was declined: store what that decline said, so the steps still to run read the
+ * newest category and network advice (the tick loads both from the row). The decline code is
+ * written only when the error carried one, as the sequence-start flip does. Only on a row still
+ * `active`: a payment recovered or stopped meanwhile keeps its record, and nothing else rides this
+ * batch for a zero-row match to leak into.
  */
 export function buildDeclineRefreshBatch(db: Db, input: DeclineRefreshInput): MoneyWriteBatch {
   return [
@@ -284,21 +246,13 @@ export interface RecoverBatchInput {
 }
 
 /**
- * invoice.payment_succeeded: claim + flip failed_payments active->recovered
- * (this webhook OWNS the recovered status, never a cron) + record the recovery
- * (recovered_payments + outcomes, attributed or free baseline). All atomic.
- * The status flip is conditional on status='active' so a replay/concurrent event
- * touches zero rows.
+ * invoice.payment_succeeded: claim + flip failed_payments active->recovered (this webhook OWNS the
+ * recovered status, never a cron) + record the recovery (recovered_payments + outcomes, attributed
+ * or free baseline). All atomic.
  */
 export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
-  // Conditional so a replay or concurrent event touches zero rows. The condition
-  // covers failed_unrecovered as well as active: once the exhausted-sequence
-  // sweep started flipping rows, an `= 'active'` check would have quietly
-  // refused to record a customer who paid after the dunning cadence ran out.
-  // Widened deliberately, with findRecoverableFailedPayment as its counterpart
-  // on the lookup side (both would have to be narrow for the drop to happen, and
-  // both are pinned by test/cron-exhausted-sequences.test.ts).
+  // Conditional so a replay or concurrent event touches zero rows.
   const statusFlip = db
     .update(failedPayments)
     .set({ status: "recovered", resolvedAt: input.recoveredAt })
@@ -325,31 +279,11 @@ export function buildRecoverBatch(db: Db, input: RecoverBatchInput): MoneyWriteB
 }
 
 /**
- * charge.refunded: claim + the refund MARKER on failed_payments + the
- * recovered_payments stamp, in one atomic batch, so a claim without its marker
- * is impossible.
- *
- * WHAT IS STAMPED. refunded_cents is the charge's cumulative amount_refunded,
- * and the fee is 20% of what is left (Dustin, 2026-11-18: "reduce the fee by
- * the refunded share. A full refund means no fee."). refunded_at is stamped
- * only once the charge is FULLY refunded, which takes the recovery out of
- * billing altogether. Stripe sends a cumulative figure on every event and may
- * deliver them out of order, so the amount only ever grows (max) and the
- * first full refund's time is kept.
- *
- * TWO writes, not one, because the stamp alone is order-dependent. The stamp is
- * an UPDATE, so it can only work once a recovered_payments row exists. A refund
- * processed BEFORE invoice.payment_succeeded matched zero rows, committed its
- * claim regardless, returned 200, and was never redelivered: the recovery was
- * then recorded unrefunded and billed at maturity. Review HIGH-1.
- *
- * The marker closes it from the other side: it is written unconditionally, and
- * buildRecoveryBatch reads it when inserting, so a later recovery is born
- * refunded. The two halves are exhaustive because both batches run through the
- * SAME per-account money-write DO (idFromName(accountId)) and SerialMoneyCommitter
- * runs one commit at a time, so exactly one of these holds:
- *   marker commits first  -> the recovery insert's subquery sees it
- *   recovery commits first -> the stamp below finds the row
+ * charge.refunded: claim + the refund MARKER on failed_payments + the recovered_payments stamp, in
+ * one atomic batch, so a claim without its marker is impossible. A full refund means no fee.").
+ * refunded_at is stamped only once the charge is FULLY refunded, which takes the recovery out of
+ * billing altogether. Stripe sends a cumulative figure on every event and may deliver them out of
+ * order, so the amount only ever grows (max) and the first full refund's time is kept.
  */
 export function buildRefundStampBatch(
   db: Db,
@@ -391,18 +325,16 @@ export function buildRefundStampBatch(
   ];
 }
 
-/** The conditional recovered_payments.disputed_at stamp (feeds the billable
- *  predicate, SCHEMA.md spine #3): only touches a row that is not already
- *  stamped, so a replay or a second dispute event on the same recovery is a
- *  no-op, not a second write. Used by buildDisputeIntakeBatch, which excludes
- *  the underlying recovery from billing when the disputed charge is resolved
- *  to one. */
+/**
+ * The conditional recovered_payments.disputed_at stamp (feeds the billable predicate, SCHEMA.md
+ * spine #3): only touches a row that is not already stamped, so a replay or a second dispute event
+ * on the same recovery is a no-op, not a second write.
+ */
 function buildDisputedAtStamp(db: Db, accountId: string, failedPaymentId: string, at: Date) {
   return [
-    // The order-independent half, as refund_signal_at is for refunds: a dispute
-    // that lands BEFORE the recovery row exists stamps the failed payment, and
-    // buildRecoveryBatch reads it so the recovery is born disputed. First
-    // dispute wins.
+    // The order-independent half, as refund_signal_at is for refunds: a dispute that lands BEFORE
+    // the recovery row exists stamps the failed payment, and buildRecoveryBatch reads it so the
+    // recovery is born disputed.
     db
       .update(failedPayments)
       .set({ disputeSignalAt: at })
@@ -441,28 +373,26 @@ export interface DisputeIntakeInput {
   status: string;
   evidenceDeadline: Date | null;
   createdAt: Date;
-  /** The failed_payments row this disputed charge recovered from, if the
-   *  Stripe-read enrichment seam (Phase 8 live) resolved one. When set, the
-   *  matching recovered_payments row is stamped disputed_at in the same
-   *  atomic batch, so it is excluded from recovery billing immediately
-   *  (never a separate write). */
+  /**
+   * The failed_payments row this disputed charge recovered from, if the Stripe-read enrichment seam
+   * resolved one. When set, the matching recovered_payments row is stamped disputed_at in the same
+   * atomic batch, so it is excluded from recovery billing immediately (never a separate write).
+   */
   linkedFailedPaymentId: string | null;
   /** AI-drafted evidence, grounded only in real records (never fabricated;
    *  app/lib/disputes/evidence.ts). Empty when nothing grounds it. */
   evidence: EvidenceField[];
-  /** What Stripe said about the charge and customer, and Recova's triage over
-   *  it (app/lib/disputes/triage.ts). Absent on a caller that read nothing. */
+  /** Absent on a caller that read nothing. */
   contextColumns?: DisputeContextColumns;
 }
 
 /**
- * charge.dispute.created (dispute intake, TASK-foxhound-dispute-intake.md):
- * claim + insert the disputes row (state: pending_review, "awaiting merchant
- * review", never auto-submitted) + insert the drafted dispute_evidence rows +
- * (when the disputed charge resolves to a known recovery) stamp
- * recovered_payments.disputed_at so the maturity-window billable predicate
- * excludes it. All atomic through the per-account money-write DO, same shape
- * as buildIntakeBatch/buildRecoverBatch (claim-with-side-effects).
+ * charge.dispute.created (dispute intake, TASK-foxhound-dispute-intake.md): claim + insert the
+ * disputes row (state: pending_review, "awaiting merchant review", never auto-submitted) + insert
+ * the drafted dispute_evidence rows + (when the disputed charge resolves to a known recovery) stamp
+ * recovered_payments.disputed_at so the maturity-window billable predicate excludes it. All atomic
+ * through the per-account money-write DO, same shape as buildIntakeBatch/buildRecoverBatch
+ * (claim-with-side-effects).
  */
 export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
@@ -530,23 +460,21 @@ export interface DisputeResolutionInput {
    *  unbilled state has a stated reason rather than looking like a win nobody
    *  charged for. */
   capError: string | null;
-  /** Whether Foxhound actually drafted AND submitted the evidence for this
-   *  dispute (disputes.submitted_at set). A win Foxhound did NOT submit
-   *  (merchant-fought, or auto-resolved) is never billable (PRICING.md rev 3),
-   *  so no fee is snapshotted for it, keeping the UI honest (resolved_fee_cents
-   *  is null) alongside the authoritative getBillableDisputes gate. */
+  /**
+   * Whether Foxhound actually drafted AND submitted the evidence for this dispute
+   * (disputes.submitted_at set). A win Foxhound did NOT submit (merchant-fought, or auto-resolved)
+   * is never billable (PRICING.md rev 3), so no fee is snapshotted for it, keeping the UI honest
+   * (resolved_fee_cents is null) alongside the authoritative getBillableDisputes gate.
+   */
   foxhoundSubmitted: boolean;
   resolvedAt: Date;
 }
 
 /**
- * charge.dispute.closed (5c Scope B, closes review finding L1): claim + set
- * state=resolved_won|resolved_lost, conditional on the dispute not already being
- * resolved (a replay or a second close event touches zero rows, not a second
- * fee snapshot). On a win Foxhound SUBMITTED, snapshots the capped fee via
- * disputeFeeCents onto resolved_fee_cents. A win Foxhound did not submit, or a
- * loss, snapshots no fee (a lost dispute never carries a stale won-fee; a
- * merchant-fought win is never billed, PRICING.md rev 3).
+ * charge.dispute.closed: claim + set state=resolved_won|resolved_lost, conditional on the dispute
+ * not already being resolved (a replay or a second close event touches zero rows, not a second fee
+ * snapshot). A win Foxhound did not submit, or a loss, snapshots no fee (a lost dispute never
+ * carries a stale won-fee; a merchant-fought win is never billed, PRICING.md rev 3).
  */
 export function buildDisputeResolutionBatch(
   db: Db,
@@ -556,11 +484,10 @@ export function buildDisputeResolutionBatch(
 }
 
 /**
- * The resolution UPDATE itself, the one writer of a dispute's resolved state
- * and fee snapshot. buildDisputeResolutionBatch rides it behind the webhook
- * claim, unchanged; the merchant's Accept (app/lib/disputes/accept.server.ts)
- * rides it as a loss Foxhound did not submit, so an accepted dispute is resolved
- * by the same statement Stripe's closing event would have used, with no fee.
+ * The resolution UPDATE itself, the one writer of a dispute's resolved state and fee snapshot.
+ * buildDisputeResolutionBatch rides it behind the webhook claim, unchanged; the merchant's Accept
+ * (app/lib/disputes/accept.server.ts) rides it as a loss Foxhound did not submit, so an accepted
+ * dispute is resolved by the same statement Stripe's closing event would have used, with no fee.
  */
 export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResolutionInput, "claim">) {
   const billableWin = input.won && input.foxhoundSubmitted;
@@ -569,12 +496,11 @@ export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResoluti
     .set({
       state: input.won ? "resolved_won" : "resolved_lost",
       resolvedAt: input.resolvedAt,
-      // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT. It
-      // needs a Stripe FX quote, and an external call cannot live inside the
-      // money batch, so process.ts fetches it and hands the result in. A
-      // quote that failed arrives as a null cap and the fee is NOT
-      // snapshotted: the dispute resolves, and it is simply not billable
-      // until a run that can price it. Never the flat 50,000.
+      // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT. It needs a Stripe FX quote, and an external
+      // call cannot live inside the money batch, so process.ts fetches it and hands the result in.
+      // A quote that failed arrives as a null cap and the fee is NOT snapshotted: the dispute
+      // resolves, and it is simply not billable until a run that can price it. Never the flat
+      // 50,000.
       resolvedFeeCents:
         billableWin && input.cap
           ? feeForCurrency(
@@ -603,25 +529,12 @@ export function buildClaimOnlyBatch(db: Db, claim: WebhookClaimInput): MoneyWrit
 }
 
 /**
- * customer.subscription.deleted where the customer still has ACTIVE failed
- * payments: legacy's involuntary-churn branch. Legacy stops those recoveries and
- * starts NO win-back, because a customer whose card failed did not choose to
- * leave. Ported under 291.
- *
- * THE TRANSITION IS 265'S, NOT LEGACY'S. Legacy fires an unconditional per-row
- * `Promise.all` and discards both results. Foxhound already has a RATIFIED
- * active-to-canceled transition in buildStopRecoveryBatch: the status UPDATE
- * CLAIMS on `status = 'active'`, and the steps UPDATE is conditioned on that
- * claim having landed via a correlated subquery. Reusing it is what keeps this
- * from seating a second writer against a ratified money transition, and it means
- * a raced or redelivered stop cannot double-resolve: the claim takes zero rows
- * the second time and the steps subquery is then reading a row this batch did
- * not cancel.
- *
- * The builder is reused UNCHANGED. It takes (accountId, failedPaymentId, now)
- * and asserts nothing about who is stopping the recovery, so a system-caused
- * stop needs no redesign, which is what 291 asked this session to determine.
- * invoice.voided's stop rides this batch too (recovery-handlers.ts).
+ * Foxhound already has a RATIFIED active-to-canceled transition in buildStopRecoveryBatch: the
+ * status UPDATE CLAIMS on `status = 'active'`, and the steps UPDATE is conditioned on that claim
+ * having landed via a correlated subquery. Reusing it is what keeps this from seating a second
+ * writer against a ratified money transition, and it means a raced or redelivered stop cannot
+ * double-resolve: the claim takes zero rows the second time and the steps subquery is then reading
+ * a row this batch did not cancel.
  */
 export interface InvoluntaryStopInput {
   claim: WebhookClaimInput;
@@ -661,20 +574,11 @@ export interface WinbackStartInput {
 }
 
 /**
- * customer.subscription.deleted: claim + the win-back sequence + its steps, all
- * atomic. Ported from legacy's handleSubscriptionDeleted; this is
- * planWinbackSteps' FIRST production caller, the planner having existed since
- * the rebuild with only the demo seeder and its own test calling it.
- *
- * EXACTLY-ONCE IS STRUCTURAL, not a second mechanism: win_back_sequences carries
- * a real UNIQUE index on stripe_subscription_id (win_back_sequences_subscription_uq,
- * schema.ts), so a redelivery's insert violates it, the whole atomic batch rolls
- * back INCLUDING the steps and the claim, and executeMoneyWrite reports
- * applied=false. That is the spine's payment-not-event principle applied to a
- * subscription: the key is the SUBSCRIPTION, never the event id, so two different
- * events for one cancellation still collapse to one sequence. No migration was
- * needed and none was written; legacy's own replay guard is a SELECT, which this
- * keeps as a cheap pre-check while the index is what actually guarantees it.
+ * customer.subscription.deleted: claim + the win-back sequence + its steps, all atomic.
+ * EXACTLY-ONCE IS STRUCTURAL, not a second mechanism: win_back_sequences carries a real UNIQUE
+ * index on stripe_subscription_id (win_back_sequences_subscription_uq, schema.ts), so a
+ * redelivery's insert violates it, the whole atomic batch rolls back INCLUDING the steps and the
+ * claim, and executeMoneyWrite reports applied=false.
  */
 export function buildWinbackStartBatch(db: Db, input: WinbackStartInput): MoneyWriteBatch {
   const sequenceId = crypto.randomUUID();

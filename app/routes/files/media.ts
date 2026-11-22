@@ -6,20 +6,8 @@ import { mediaRow } from "~/lib/media/store.server";
 
 import type { Route } from "./+types/media";
 
-// The blog's media library files (app/lib/carrel/media-adapter.server.ts): the
-// original, or one size for `?w=`, through site-runtime ./image's serve,
-// with its closed width set, ETag and 304, the edge cache keyed by the
-// object's etag, and the original when a transform fails. Only an upload's own
-// key is served, so the earlier bytes kept under revisions/ never are. No SVG
-// is ever stored, so no picture here can carry script.
-//
-// IMMUTABLE ONLY WHEN VERSIONED. A page names a file by its bytes (`?v=`, the
-// start of the index row's SHA-256, mediaUrl), so a replace, a turn or a revert
-// is a new address and the year-long immutable default of ./image's respond is
-// safe. An address without a version, or with one that is no longer the file's,
-// would outlive new bytes under the same key, so it gets five minutes, as the
-// feed's own short TTL does; the transformed sizes stay in the
-// Cache API by etag, so a refresh is not another billed transform.
+// The blog's media library files (app/lib/carrel/media-adapter.server.ts): the original, or one size for `?w=`, through site-runtime ./image's serve, with its closed width set, ETag and 304, the edge cache keyed by the object's etag, and the original when a transform fails. Only an upload's own key is served, so the earlier bytes kept under revisions/ never are. No SVG is ever stored, so no picture here can carry script.
+// IMMUTABLE ONLY WHEN VERSIONED. A page names a file by its bytes (`?v=`, the start of the index row's SHA-256, mediaUrl), so a replace, a turn or a revert is a new address and the year-long immutable default of ./image's respond is safe. An address without a version, or with one that is no longer the file's, would outlive new bytes under the same key, so it gets five minutes; the transformed sizes stay in the Cache API by etag, so a refresh is not another billed transform.
 const UNVERSIONED_CACHE_CONTROL = "public, max-age=300";
 
 export async function loader({ request, context }: Route.LoaderArgs) {

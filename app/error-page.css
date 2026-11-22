@@ -1,17 +1,4 @@
-/* The 404, 410 and error page (Capsomer's ErrorPage in app/root.tsx, the bar,
-   footer and words in app/components/error-view.tsx): Capsomer's button,
-   Empty and error page on the amber family, in Foxhound's neutrals.
-
-   Capsomer's tokens and the amber family go into the capbase layer, the
-   lowest, here alone (the site header reads this copy), so Foxhound's own
-   tokens keep winning everywhere else; the component's CSS sits in
-   Capsomer's own cap layer. The page wraps itself in .fh-cap with
-   data-family="amber" (app.css), so the button reads Foxhound's surface, text
-   and line values and only the accents are amber.
-
-   This file reaches every page, not just the boundary: root.tsx imports the
-   view, so its CSS rides in the root route's stylesheet. Nothing here changes
-   a page that draws no .cap-btn, .cap-empty or .fh-error-page. */
+/* The 404, 410 and error page (Capsomer's ErrorPage in app/root.tsx; the bar, footer and words in app/components/error-view.tsx) on the amber family, in Foxhound's neutrals. Capsomer's tokens and the amber family go into the lowest layer, capbase, here alone (the site header reads this copy), so Foxhound's own tokens keep winning elsewhere. The page wraps itself in .fh-cap with data-family="amber" (app.css), so only the accents are amber. This file reaches every page, since root.tsx imports the view; nothing here changes a page that draws no .cap-btn, .cap-empty or .fh-error-page. */
 @import "capsomer/tokens.css" layer(capbase);
 @import "capsomer/family-amber.css" layer(capbase);
 @import "capsomer/button.css";
@@ -29,10 +16,7 @@
   border-bottom-color: var(--chrome-border);
 }
 
-/* A missing page is an expected state, not a fault: the 410 withdrawal's calm look, not
-   Capsomer's failed Empty (a critical-colored title and a dashed critical edge, which read as
-   if the site had broken; parity audit, 2026-11-10). The title is the page's text color, the
-   edge goes, and the glyph keeps the family's accent. A server error keeps the failed look. */
+/* A missing page is an expected state, not a fault: the 410 withdrawal's calm look, not Capsomer's failed Empty (a critical-colored title and dashed edge, which read as if the site had broken). A server error keeps the failed look. */
 .fh-error-page .cap-error-page[data-status="404"] .cap-empty {
   border-color: transparent;
 }

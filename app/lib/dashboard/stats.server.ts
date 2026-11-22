@@ -22,7 +22,10 @@ export interface RecoveryStats {
   /** null when there is no failure history yet (a zero state, not a 0%). */
   recoveryRatePct: number | null;
   revenueRecovered: CurrencyAmount[];
-  /** The billable (attributed, matured) subset of revenueRecovered that feeOwed is 20% of. */
+  /**
+   * The billable (attributed, matured) subset of revenueRecovered that feeOwed
+   * is 20% of.
+   */
   billableRevenue: CurrencyAmount[];
   feeOwed: CurrencyAmount[];
 }
@@ -32,10 +35,10 @@ export async function getRecoveryStats(
   accountId: string,
   nowMs: number,
 ): Promise<RecoveryStats> {
-  // Three independent reads, none depending on another's result (perf-audit
-  // fix, foxhound-audit-perf.md M-3): the dashboard's own outer loader already
-  // parallelizes getRecoveryStats against getMrrAnalytics, but these three
-  // were running one after another inside this function.
+  // Three independent reads, none depending on another's result: the
+  // dashboard's own outer loader already parallelizes getRecoveryStats against
+  // getMrrAnalytics, but these three were running one after another inside this
+  // function.
   const [failures, recovered, billable] = await Promise.all([
     db
       .select({ status: failedPayments.status, isRenewalNoise: failedPayments.isRenewalNoise })
@@ -79,8 +82,10 @@ export async function getRecoveryStats(
 type MrrSnapshotRow = typeof mrrSnapshots.$inferSelect;
 
 export interface MrrAnalytics {
-  /** This month so far: the latest snapshot, with the month's movements and
-   *  rates (rollUpByMonth). */
+  /**
+   * This month so far: the latest snapshot, with the month's movements and
+   * rates (rollUpByMonth).
+   */
   latest: MrrSnapshotRow | null;
   /** One row per month, chronological (oldest -> newest), for trend charts. */
   trend: MrrSnapshotRow[];
@@ -88,9 +93,11 @@ export interface MrrAnalytics {
 
 const MRR_TREND_MONTHS = 12;
 
-/** The console's and the narrative's MRR, by month. intelligence-sync writes a
- *  row a day, so the rows are rolled up into months here; the window reaches
- *  one day further back so the oldest month has its starting MRR. */
+/**
+ * The console's and the narrative's MRR, by month. intelligence-sync writes a
+ * row a day, so the rows are rolled up into months here; the window reaches one
+ * day further back so the oldest month has its starting MRR.
+ */
 export async function getMrrAnalytics(
   db: Db,
   accountId: string,

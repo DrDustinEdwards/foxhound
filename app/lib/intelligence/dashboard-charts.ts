@@ -16,27 +16,16 @@ import {
   type PlanRow,
 } from "./dashboard";
 
-// The Intelligence dashboard's five charts, drawn by
-// Enarratio from what Recova's charts plot: MRRTrendChart (area),
-// NRRChart (line with a dashed 100% rule), MRRMovementChart (five stacked
-// series, contraction and churn below the baseline), PlanBreakdown (one bar
-// per plan, largest first) and HealthDistributionChart (three stacked bands).
-// Each returns Enarratio's figure as HTML at a given width; the page redraws
-// it at its panel's width.
-//
-// Colors are Recova's, by Foxhound's token of the same name, except Recova's
-// accent color: the MRR line and the plan bars are amber, and the
-// "Medium risk" band takes the caution color every other band in the app uses.
-//
-// Enarratio has no tick formatter, so Recova's "$1,200" and "102%" ticks
-// read as plain numbers under an axis label naming the unit, as on the churn
-// chart (an Enarratio gap, named in the J67 pull request).
+// The Intelligence dashboard's five charts, drawn by Enarratio: MRR trend (area), NRR (line with a dashed 100% rule),
+// MRR movement (five stacked series, contraction and churn below the baseline), plan breakdown (one bar per plan,
+// largest first) and health distribution (three stacked bands). Each returns Enarratio's figure as HTML at a given
+// width; the page redraws it at its panel's width. The MRR line and plan bars are amber and the "Medium risk" band
+// takes the caution color every other band uses. Enarratio has no tick formatter, so ticks read as plain numbers
+// under an axis label naming the unit.
 
-/** Recova's chart heights plus the 64px Enarratio keeps for its axes, so the
- *  plotted area is about Recova's. */
+/** Chart heights, including the 64px Enarratio keeps for its axes. */
 const CHART_HEIGHTS = { trend: 220, nrr: 180, movement: 240, health: 240 } as const;
 
-/** Whole units of the account currency (yen for JPY, not hundredths of it). */
 const whole = (minor: number, currency: string) => Math.round(toMajorUnits(minor, currency));
 const unit = (currency: string) => currency.toUpperCase();
 
@@ -90,7 +79,6 @@ export function drawNrr(points: readonly NrrPoint[], width: number, fit: ChartFi
     xLabel: null,
     yLabel,
     colors: { [yLabel]: "var(--blue)" },
-    // Recova's y domain is ['auto', 'auto'] and its line has no dots.
     zero: false,
     points: false,
     references: [{ y: 100, label: "100%" }],
@@ -113,7 +101,7 @@ export interface MovementPoint {
   churnMrrCents: number;
 }
 
-/** Recova's five series, in its legend order, with its colors. */
+/** The five series in legend order. */
 const MOVEMENT_SERIES = ["New", "Expansion", "Reactivation", "Contraction", "Churn"] as const;
 const MOVEMENT_COLORS: Record<(typeof MOVEMENT_SERIES)[number], string> = {
   New: "var(--green)",
@@ -123,8 +111,7 @@ const MOVEMENT_COLORS: Record<(typeof MOVEMENT_SERIES)[number], string> = {
   Churn: "var(--red)",
 };
 
-/** Recova works in whole dollars and draws contraction and churn as negatives
- *  (MRRMovementChart.tsx:32-38); here whole units of the account currency. */
+/** Whole units of the account currency, contraction and churn as negatives. */
 function movementRows(points: readonly MovementPoint[], currency: string) {
   return points.flatMap((p) => [
     { Week: p.at, series: "New", amount: whole(p.newMrrCents, currency) },
@@ -146,7 +133,6 @@ export function drawMovement(
     source: { name: "Stripe subscriptions" },
     data: movementRows(points, currency),
     x: "Week",
-    // One bar per week (weeklyMovements), named by its Monday.
     xType: "time",
     interval: "week",
     formatX: (start) => formatDate(start, { style: "monthDay" }) ?? "",
@@ -165,7 +151,7 @@ export function drawMovement(
   });
 }
 
-/** One bar per plan: about Recova's row rhythm, never shorter than an axis. */
+/** One bar per plan, never shorter than an axis. */
 function planChartHeight(planCount: number): number {
   return Math.max(140, 64 + planCount * 36);
 }

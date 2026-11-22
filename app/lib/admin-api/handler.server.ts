@@ -55,35 +55,12 @@ import { readJson } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding";
 
-// THE FOXHOUND ADMIN API at /api/admin/v1 (MCP ruling 2026-10-10, rule 9
-// amendment; job_21de68b30fc2 PR 1).
+// THE FOXHOUND ADMIN API at /api/admin/v1.
 //
-// WHO CALLS IT. The Foxhound Admin MCP, which runs as its own Worker holding no
-// Stripe key, no money binding and no database, and reaches this API over a
-// service binding. It is the only thing in that Worker that can touch Foxhound.
-// It is served only on the AdminApi entrypoint (workers/admin-api.ts), which
-// that binding names; the public fetch handler never routes it (FH-20).
-//
-// TWO CREDENTIALS ON EVERY CALL. An `mcp_admin` key (the MCP Worker's, issued
-// in the admin area, Operations) and the acting admin's email in the
-// Foxhound-Acting-Admin header, which is re-checked against ADMIN_EMAIL on every
-// call. The key says the caller is the admin MCP; the email says which person it
-// is acting for, and a person dropped from ADMIN_EMAIL loses the API on their
-// next call, whatever the MCP still believes. The key failures share one 401
-// body so a guess cannot tell a revoked key from an unknown one.
-//
-// WHAT IT OFFERS. Reads (backups are Capsid Admin's, through /api/operator), a pause (one merchant, or every merchant through the
-// brake), staging, and the owner's test mail (/emails: preview any email, or
-// send it to the caller's own inbox; ../admin/email-send.server.ts, approved by
-// Dustin 2026-10-15). Test mail moves no money and writes no recovery state. Pausing stops money moving, so it is a direct write;
-// everything that starts or changes money is staged (../admin/staged.server.ts)
-// and applied only when an admin confirms it in /admin/staged. Refunds,
-// adjustments, cancel and Stripe disconnect are not routes, and no import here
-// can reach them.
-//
-// EVERY CALL THAT PASSES BOTH CREDENTIALS IS LOGGED in admin_api_calls, which
-// the schema keeps append-only, and every write or staging also leaves an
-// admin_audit_log row naming the acting admin.
+// The Foxhound Admin MCP, which runs as its own Worker holding no Stripe key,
+// no money binding and no database, and reaches this API over a service
+// binding. It is served only on the AdminApi entrypoint (workers/admin-api.ts),
+// which that binding names; the public fetch handler never routes it (FH-20).
 
 const ADMIN_API_PREFIX = "/api/admin/v1";
 const ACTING_ADMIN_HEADER = "Foxhound-Acting-Admin";
@@ -198,8 +175,10 @@ function stagedForAgent(row: StagedRow) {
   return { ...row, summary: describeStaged(row) };
 }
 
-/** One merchant, minus every credential its rows carry: the Stripe access
- *  token on each connection and the Slack webhook URL on the account. */
+/**
+ * One merchant, minus every credential its rows carry: the Stripe access token
+ * on each connection and the Slack webhook URL on the account.
+ */
 async function merchantForAgent(db: Db, accountId: string) {
   const detail = await getMerchantDetail(db, accountId);
   if (!detail) {
@@ -237,9 +216,10 @@ async function merchantForAgent(db: Db, accountId: string) {
   };
 }
 
-/** The merchant whose settings a test mail renders with. Customer mail and
- *  the weekly digest (its unsubscribe is signed for an account, E23) need one;
- *  other merchant and platform mail use it when given. */
+/**
+ * The merchant whose settings a test mail renders with. Customer mail and the
+ * weekly digest need one; other merchant and platform mail use it when given.
+ */
 async function emailMerchant(
   db: Db,
   body: Json,
@@ -360,11 +340,9 @@ const ROUTES: ApiRoute[] = [
     // run for the named account, so an admin sees exactly the answer the
     // merchant's agent would get (the same picks, the same masking, the same
     // pagination) and nothing the merchant's key could not read. Allowlisted by
-    // the registry itself (a tool whose scope is "read"), so a write tool cannot
-    // be named here and a tool added later is covered on the day it is
-    // registered. Reads only, like the signed-in View as merchant (30 minutes,
-    // 405 on every write), and each read leaves an admin_audit_log row naming
-    // the admin, the account and the tool, as that view's start and stop do.
+    // the registry itself (a tool whose scope is "read"), so a write tool
+    // cannot be named here and a tool added later is covered on the day it is
+    // registered.
     method: "POST",
     pattern: "/merchants/:id/view",
     handler: async ({ db, env, caller, params, body, now }) => {
@@ -509,7 +487,8 @@ const ROUTES: ApiRoute[] = [
     }),
   },
   {
-    // Render one email exactly as it would be sent. Sends nothing, writes nothing.
+    // Render one email exactly as it would be sent. Sends nothing, writes
+    // nothing.
     method: "POST",
     pattern: "/emails/preview",
     handler: async ({ db, env, caller, body, now }) => {

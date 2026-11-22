@@ -9,39 +9,13 @@ import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// THE MERCHANT RECOVERY NOTIFICATION. Ported from legacy's
-// app/api/webhooks/stripe/route.ts (blob `deb585e4`, 47,093 bytes), the
-// "Notify merchant" block inside handlePaymentSucceeded.
-//
-// TRIGGER: the same event, at the same point. Legacy sends it only after its
-// active-to-recovered transition claim returns rows, so a replayed webhook
-// affects zero rows, returns early, and sends nothing. Foxhound's equivalent
-// claim is `executeMoneyWrite`'s `applied` flag, which is false on a replay
-// because the outcomes idempotency key collides and the whole batch rolls back.
-// The caller passes that flag; this module is only ever reached when the
-// recovery genuinely just transitioned.
-//
-// IT RUNS AFTER THE MONEY WRITE HAS COMMITTED AND CHANGES NOTHING ABOUT IT.
-// recordOutcome and the recovery batch are untouched: this reads three rows and
-// sends mail. Legacy does the same, in a try/catch that logs and continues, so
-// a mail failure never unwinds a recorded recovery.
-//
-// NO UNSUBSCRIBE AND NO POSTAL FOOTER, because this is platform-to-merchant
-// mail about the merchant's own account. Legacy sends it with neither. The job
-// declares `audience: "merchant"`, which is what scopes CAN-SPAM off; the guard
-// still fires for anything that omits the field. Its footer is legacy's other
-// one (lib/email.ts wrapEmailHtml with no unsubscribe token): the "You're
-// receiving this from" sentence and a "Manage email settings" link (E10).
-//
-// THE SHELL IS CAPSOMER'S `notice` TEMPLATE (E10):
-// title, sentence, View payment button, in Foxhound's amber family.
+// THE MERCHANT RECOVERY NOTIFICATION. TRIGGER: the same event, at the same point. The caller passes
+// that flag; this module is only ever reached when the recovery genuinely just transitioned. IT
+// RUNS AFTER THE MONEY WRITE HAS COMMITTED AND CHANGES NOTHING ABOUT IT. recordOutcome and the
+// recovery batch are untouched: this reads three rows and sends mail.
 
 const RECOVERY_NOTIFY_TEMPLATE = "merchant_recovery_notify";
 
-/** Legacy's From identity for this message: the PLATFORM, never the merchant's
- *  own sender name. Legacy uses `FROM_RECOVERY` ("Recova <recovery@...>") and
- *  wraps the body with the sender name "Recova", both hardcoded. It reads
- *  `sender_name` into the row it builds and then never uses it. */
 export const RECOVERY_NOTIFY_FROM_NAME = "Foxhound";
 
 export interface RecoveryNotificationContext {
@@ -50,13 +24,7 @@ export interface RecoveryNotificationContext {
 }
 
 /**
- * Why nothing was sent, or what happened when something was.
- *
- * THE `skipped` REASONS ARE THE POINT. An earlier shape returned `null` for
- * every non-send, which made a deliberate refusal indistinguishable from a
- * crash the catch had swallowed: deleting the recipient guard threw on
- * `null.trim()`, the catch returned null, and the plant that asserted null
- * passed. A refusal now names itself and an error names itself.
+ * Why nothing was sent, or what happened when something was. THE `skipped` REASONS ARE THE POINT.
  */
 export type RecoveryNotificationOutcome =
   | { kind: "sent"; result: EmailJobResult }
@@ -72,17 +40,13 @@ interface NotificationData {
 }
 
 /**
- * Legacy's money formatting for this email, verbatim:
- * `Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'usd' })`
- * over `amount_cents / 100`. Note the falsy-currency coercion, which is legacy's.
- * The division is now the currency's own (site-runtime ./money), so a yen amount is
- * not shown a hundred times too small.
+ * The division is now the currency's own (site-runtime ./money), so a yen amount is not shown a
+ * hundred times too small.
  */
 export function formatNotifyAmount(amountCents: number, currency: string): string {
   return formatMoney(amountCents, currency || "usd");
 }
 
-/** Legacy's subject line, verbatim. */
 function recoveryNotifySubject(data: {
   amountCents: number;
   currency: string;
@@ -91,21 +55,7 @@ function recoveryNotifySubject(data: {
   return `Payment recovered: ${formatNotifyAmount(data.amountCents, data.currency)} from ${data.customerLabel}`;
 }
 
-/**
- * Legacy's body, verbatim in wording and order (route.ts:759-761), as the
- * content of Capsomer's `notice` template (E10, J88): legacy's bold first line
- * is the title and the mail's one heading, its sentence is the one paragraph,
- * and its "View payment" button is the action. Foxhound's name where legacy
- * says Recova. The one other change is the link target: legacy points at
- * `${APP_URL}/payments/${id}`, Foxhound's route for the same page is
- * `/recovery/payments/:id` until the URL reverts land.
- *
- * PLAIN STRINGS, NOT MARKUP. Capsomer escapes each value, so a customer name
- * from Stripe is shown exactly as written; before this it was put into HTML
- * unescaped and read back, and "<Co>" in a name vanished as a tag. Legacy's
- * bold run on the amount has no place in a Capsomer paragraph (a Capsomer gap,
- * named in the PR); the words are unchanged.
- */
+/** PLAIN STRINGS, NOT MARKUP. */
 function recoveryNotifyBody(data: {
   amountCents: number;
   currency: string;
@@ -124,13 +74,7 @@ function recoveryNotifyBody(data: {
   };
 }
 
-/**
- * Everything the notice job says and carries, from the loaded data. Pure, and
- * shared with the admin preview so a preview is this function's output: the
- * platform's From name, legacy's subject, the notice, and legacy's footer
- * sentence with "Foxhound" as `wrapEmailHtml(notifyBody, 'Recova')` has it
- * (send.ts puts "Manage email settings" under it on merchant mail).
- */
+/** Everything the notice job says and carries, from the loaded data. */
 export function recoveryNotifyContent(
   data: { amountCents: number; currency: string; customerLabel: string; declineCategory: string },
   paymentUrl: string,
@@ -145,17 +89,8 @@ export function recoveryNotifyContent(
 }
 
 /**
- * The recipient and the toggle, read exactly as legacy reads them.
- *
- * RECIPIENT: `accounts.notification_email` ONLY. Legacy has NO fallback to the
- * owner's login address: its guard is `if (notifyEmail && ...)`, so an account
- * that never set one is simply not notified. Reproduced rather than improved,
- * because inventing a fallback would email an address the merchant never
- * nominated for this.
- *
- * TOGGLE: `recovery_notifications_enabled !== false`, so NULL is ON. That is
- * legacy's own reading and 337 binding 3's per-column rule; 315's NULL-is-OFF
- * belongs to `audit_auto_run` and does not generalize.
+ * RECIPIENT: `accounts.notification_email` ONLY. Reproduced rather than improved, because inventing
+ * a fallback would email an address the merchant never nominated for this.
  */
 async function loadNotificationData(
   db: Db,
@@ -196,7 +131,6 @@ async function loadNotificationData(
 
   return {
     notificationEmail: account.notificationEmail,
-    // Legacy: `customer_name || customer_email`.
     customerLabel: payment.customerName || payment.customerEmail,
     amountCents: payment.amountCents,
     currency: payment.currency,
@@ -205,18 +139,8 @@ async function loadNotificationData(
 }
 
 /**
- * Send the notification for one just-recorded recovery.
- *
- * Goes through `processEmailJob`, the same function the dunning path uses, so
- * the suppression gate, the per-account live-send gate and the `email_sends`
- * row all apply. That is also where a DEMO account refuses: `liveSendsEnabled`
- * reads false for it and the block is logged rather than silent, at the same
- * gate every other send meets.
- *
- * NEVER THROWS. Legacy wraps this whole block in a try/catch that logs to
- * Sentry and continues, because the recovery and its fee are already committed
- * and a mail failure must not unwind them or fail the webhook. Returns the
- * a named outcome for the caller to log, never null.
+ * Send the notification for one just-recorded recovery. NEVER THROWS. Returns the a named outcome
+ * for the caller to log, never null.
  */
 export async function sendRecoveryNotification(
   env: Env,

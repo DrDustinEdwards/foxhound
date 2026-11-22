@@ -1,20 +1,3 @@
-// Admin "View as merchant": Recova's Impersonate (app/admin/AdminClient.tsx,
-// its impersonate_email cookie and requireAccount's override), rebuilt
-// read-only.
-//
-// What differs from Recova, and why:
-//   - The cookie holds a random token, never an account id or an email
-//     (RULES.md 4.6: the account is never chosen by a cookie). The token's
-//     SHA-256 keys an admin_impersonations row, which names the admin, the
-//     account and when it ends.
-//   - It lasts 30 minutes, and is honored only while the admin who started it
-//     still passes Cloudflare Access (accessAdmin) on the same request.
-//   - It is read-only: appShellMiddleware refuses every non-GET/HEAD with 405
-//     while the cookie is present, before any session, membership or database
-//     work, the demo firewall's approach.
-//   - Start, Stop and expiry each write admin_audit_log (impersonation_start /
-//     impersonation_stop, Recova's codes), naming the admin and the account.
-
 import { accessAdmin } from "@dustinedwards/site-runtime/access";
 import { base64url, sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { and, asc, desc, eq, isNull } from "drizzle-orm";
@@ -97,8 +80,10 @@ export async function startImpersonation(
   return { setCookie: setImpersonationCookieHeader(token) };
 }
 
-/** Ends an open row and logs impersonation_stop, once: the update only matches
- *  a row still open, so a second Stop, or Stop racing expiry, logs nothing. */
+/**
+ * Ends an open row and logs impersonation_stop, once: the update only matches a
+ * row still open, so a second Stop, or Stop racing expiry, logs nothing.
+ */
 async function endImpersonation(
   db: Db,
   row: { id: string; accountId: string },
@@ -129,8 +114,10 @@ async function findByToken(db: Db, token: string) {
   return row ?? null;
 }
 
-/** Stop: ends the request's open row, if any, and returns the account it was
- *  on so the admin lands back on that merchant's page. */
+/**
+ * Stop: ends the request's open row, if any, and returns the account it was on
+ * so the admin lands back on that merchant's page.
+ */
 export async function stopImpersonation(
   db: Db,
   request: Request,
@@ -153,14 +140,6 @@ export interface ActiveImpersonation {
   email: string;
 }
 
-/**
- * The view this request should render, or null when the cookie is not honored
- * (no row, ended, expired, or the admin no longer passes Access). An expired
- * row is ended and logged here, on the first request that sees it.
- *
- * The merchant is seen as its owner sees it: the earliest active owner's
- * membership (else the earliest active member's), and that person's name.
- */
 export async function resolveImpersonation(
   env: Env,
   db: Db,

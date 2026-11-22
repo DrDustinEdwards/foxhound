@@ -1,9 +1,7 @@
 // /admin/operations data layer: the recovery queue's depth, cron-lock health,
 // D1 cap telemetry, env sanity and migration status. ARCHITECTURE.md requires
 // D1 size + per-table growth surfaced here, alert at 50% of the 10GB cap, from
-// day one. The queue depth and the lock health are what Recova's Operations
-// page showed (OperationsClient.tsx, blob 419a51ac), read from Foxhound's own
-// engine.
+// day one.
 
 import { and, count, eq, isNotNull, isNull, min } from "drizzle-orm";
 
@@ -32,44 +30,30 @@ import {
   webhookEvents,
 } from "~/db";
 
-/** D1's Workers-binding query metadata reports the live database size in bytes
- *  on every query (`D1Meta.size_after`), so a size read is just any cheap
- *  query's byproduct - no `dbstat`/pragma virtual table is needed. Confirmed
- *  2026-07-20 that `pragma_page_count()`/`pragma_page_size()` are NOT
- *  authorized on D1 (SQLITE_AUTH), so `size_after` is the only in-app source
- *  for this; there is no Cloudflare REST-API alternative reachable from inside
- *  the Worker without a new CLOUDFLARE_API_TOKEN secret, which is out of this
- *  pass's scope. This reads the raw D1 binding directly (not through Drizzle):
- *  Drizzle's d1 driver does not surface `.meta` on query results, and this is
- *  infrastructure telemetry, not a business-logic query (ARCHITECTURE.md's
- *  "Drizzle only" rule governs business logic; the schema comment in
- *  app/db/schema/ scopes the raw-SQL ban the same way). */
+/**
+ * D1's Workers-binding query metadata reports the live database size in bytes
+ * on every query (`D1Meta.size_after`), so a size read is just any cheap
+ * query's byproduct - no `dbstat`/pragma virtual table is needed. Confirmed
+ * 2026-07-20 that `pragma_page_count()`/`pragma_page_size()` are NOT authorized
+ * on D1 (SQLITE_AUTH), so `size_after` is the only in-app source for this;
+ * there is no Cloudflare REST-API alternative reachable from inside the Worker
+ * without a new CLOUDFLARE_API_TOKEN secret, which is out of this pass's scope.
+ */
 export async function getD1SizeBytes(env: Env): Promise<number> {
   const result = await env.DB.prepare("SELECT 1").run();
   return result.meta.size_after;
 }
 
-/** Applied-migration filenames, in order, DERIVED from drizzle's own journal.
+/**
+ * Applied-migration filenames, in order, DERIVED from drizzle's own journal.
  *
- *  THE HAND-MAINTAINED LIST IS GONE. It failed twice: it drifted FOUR
- *  behind in July (stopping at 0005 against a schema at 0009, so
- *  /admin/operations under-reported schema state on the page treated as the
- *  authoritative answer for exactly that), and it went red again at 316 when
- *  0017 shipped. A list that a human must remember to update is a defect
- *  generator, and the guard around it only converted silent drift into a CI
- *  failure someone still had to fix by hand.
- *
- *  `drizzle/migrations/meta/_journal.json` is written by `drizzle-kit generate`
- *  itself, so it cannot fall behind the migrations it records. Importing it is a
- *  plain JSON import (resolveJsonModule), bundled at BUILD time, which is what
- *  keeps this working in a Worker with no filesystem at runtime. Sorting by
- *  `idx` rather than trusting array order makes the ordering explicit, since
- *  `getMigrationStatus` renders these in sequence.
- *
- *  test/admin-known-migrations.test.ts still cross-checks against the actual
- *  .sql files on disk. That check is now the load-bearing one: it catches a
- *  migration file present without a journal entry, or a journal entry whose file
- *  is missing, neither of which the journal can self-report. */
+ * It failed twice: it drifted FOUR behind in July (stopping at 0005 against a
+ * schema at 0009, so /admin/operations under-reported schema state on the page
+ * treated as the authoritative answer for exactly that), and it went red again
+ * at 316 when 0017 shipped. A list that a human must remember to update is a
+ * defect generator, and the guard around it only converted silent drift into a
+ * CI failure someone still had to fix by hand.
+ */
 export const KNOWN_MIGRATIONS: readonly string[] = [...migrationJournal.entries]
   .sort((a, b) => a.idx - b.idx)
   .map((entry) => `${entry.tag}.sql`);
@@ -80,10 +64,12 @@ export interface MigrationStatusRow {
   appliedAt: Date | null;
 }
 
-/** Pure diff: which known migrations are applied (with their timestamp), and
- *  which applied migration names aren't in the known list at all (a build
- *  that shipped a migration file this constant wasn't updated for). Split
- *  from the D1 read so the diff itself is unit-testable without a database. */
+/**
+ * Pure diff: which known migrations are applied (with their timestamp), and
+ * which applied migration names aren't in the known list at all (a build that
+ * shipped a migration file this constant wasn't updated for). Split from the D1
+ * read so the diff itself is unit-testable without a database.
+ */
 export function diffMigrations(
   known: readonly string[],
   appliedByName: Map<string, string>,
@@ -101,11 +87,13 @@ export function diffMigrations(
   return { rows, unexpectedApplied };
 }
 
-/** `d1_migrations` is wrangler's own migration-tracking table (created by
- *  `wrangler d1 migrations apply`); it is a normal queryable table, unlike the
- *  pragma virtual tables D1 blocks. Cross-referenced against KNOWN_MIGRATIONS
- *  (via diffMigrations) so a migration that shipped in code but never ran
- *  against this database is visibly flagged rather than silently absent. */
+/**
+ * `d1_migrations` is wrangler's own migration-tracking table (created by
+ * `wrangler d1 migrations apply`); it is a normal queryable table, unlike the
+ * pragma virtual tables D1 blocks. Cross-referenced against KNOWN_MIGRATIONS
+ * (via diffMigrations) so a migration that shipped in code but never ran
+ * against this database is visibly flagged rather than silently absent.
+ */
 export async function getMigrationStatus(env: Env): Promise<{
   rows: MigrationStatusRow[];
   unexpectedApplied: string[];
@@ -126,9 +114,11 @@ export interface GrowthTableRow {
   rowCount: number;
 }
 
-/** Row counts for every table ARCHITECTURE.md's retention table governs.
- *  Byte-level per-table breakdown isn't available from the binding (only the
- *  whole-database size_after is); row counts are the honest available signal. */
+/**
+ * Row counts for every table ARCHITECTURE.md's retention table governs.
+ * Byte-level per-table breakdown isn't available from the binding (only the
+ * whole-database size_after is); row counts are the honest available signal.
+ */
 export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
   const [
     engagementEventsCount,
@@ -190,7 +180,7 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
   ];
 }
 
-export type EnvSanityKind = "binding" | "var" | "secret";
+type EnvSanityKind = "binding" | "var" | "secret";
 
 export interface EnvSanityRow {
   name: string;
@@ -211,11 +201,13 @@ function stripeKeyProblem(key: unknown): string | null {
   return key.startsWith("sk_live_") || key.startsWith("rk_live_") ? null : "Not a live key";
 }
 
-/** Every configured-or-configurable binding/var/secret this Worker uses, by
- *  NAME ONLY - values are never rendered here (ARCHITECTURE.md #5), and the one
- *  value read at all is the Stripe key's mode prefix (stripeKeyProblem).
- *  Static list mirrors wrangler.jsonc + env.d.ts; kept in sync by hand since
- *  there is no runtime introspection of "what secrets exist" on Workers. */
+/**
+ * Every configured-or-configurable binding/var/secret this Worker uses, by NAME
+ * ONLY - values are never rendered here (ARCHITECTURE.md #5), and the one value
+ * read at all is the Stripe key's mode prefix (stripeKeyProblem). Static list
+ * mirrors wrangler.jsonc + env.d.ts; kept in sync by hand since there is no
+ * runtime introspection of "what secrets exist" on Workers.
+ */
 export function getEnvSanity(env: Env): EnvSanityRow[] {
   const rows: Array<[string, EnvSanityKind]> = [
     ["DB", "binding"],
@@ -226,14 +218,16 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["CRON_TICKER", "binding"],
     ["RATE_LIMITER", "binding"],
     ["AUTH_RATE_LIMITER", "binding"],
-    // The CSP report sink's limit (site-runtime ./worker). Unset means every report is dropped, still 204.
+    // The CSP report sink's limit (site-runtime ./worker). Unset means every
+    // report is dropped, still 204.
     ["CSP_REPORT_RATE_LIMIT", "binding"],
     ["TOOL_CALL_LOG", "binding"],
-    // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under job_7bbec6ab48d1). Unset means the d1-backup
-    // cron throws on every run and /health reports no backup.
+    // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under
+    // job_7bbec6ab48d1). Unset means the d1-backup cron throws on every run and
+    // /health reports no backup.
     ["BACKUPS", "binding"],
-    // The monthly audit queue producer. Unset means the
-    // monthly-audit cron fails on its first send and no account is audited.
+    // The monthly audit queue producer. Unset means the monthly-audit cron
+    // fails on its first send and no account is audited.
     ["AUDIT_QUEUE", "binding"],
     // Merchant dispute evidence files. Unset means uploads answer 503
     // uploads_unavailable and a submission goes to Stripe without files.
@@ -263,8 +257,8 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     ["TURNSTILE_SECRET_KEY", "secret"],
     ["PHYSICAL_ADDRESS", "secret"],
     ["SENTRY_DSN", "secret"],
-    // Read back by /admin/platform/errors: optional, unset means the
-    // page says it cannot read Sentry and names what is missing.
+    // Read back by /admin/platform/errors: optional, unset means the page says
+    // it cannot read Sentry and names what is missing.
     ["SENTRY_AUTH_TOKEN", "secret"],
     ["SENTRY_ORG", "secret"],
     ["EMAIL", "binding"],
@@ -281,21 +275,23 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
 }
 
 export interface RecoveryQueueDepth {
-  /** Failed payments in an active sequence, demo accounts not counted: Recova's
-   *  "Payments in active recovery queue", the same count as the Overview's. */
   activePayments: number;
-  /** Steps the recovery tick would run if it ran now: due, on an active payment,
-   *  on an account it may process (not paused, canceled or demo). */
+  /**
+   * Steps the recovery tick would run if it ran now: due, on an active payment,
+   * on an account it may process (not paused, canceled or demo).
+   */
   dueSteps: number;
   /** When the longest-waiting of those steps fell due; null when none waits. */
   oldestDueAt: Date | null;
 }
 
-/** The recovery queue's depth, by the tick's own conditions (stepDueCondition
- *  and accountProcessingEligibleCondition), so this page and the tick never
- *  disagree about what is waiting. A step's due time is its next_retry_at when a
- *  send backoff set one, else its scheduled_at; the two are read apart and the
- *  earlier taken, so no SQL expression is written by hand. Read only. */
+/**
+ * The recovery queue's depth, by the tick's own conditions (stepDueCondition
+ * and accountProcessingEligibleCondition), so this page and the tick never
+ * disagree about what is waiting. A step's due time is its next_retry_at when a
+ * send backoff set one, else its scheduled_at; the two are read apart and the
+ * earlier taken, so no SQL expression is written by hand.
+ */
 export async function getRecoveryQueueDepth(
   db: Db,
   now: number = Date.now(),
@@ -344,17 +340,14 @@ export async function getRecoveryQueueDepth(
 
 export interface CronLockRow {
   name: string;
-  /** idle, running and not-released are lockHealth's; unreadable means the
-   *  lock's Durable Object did not answer, which the page says rather than fail. */
+  /**
+   * idle, running and not-released are lockHealth's; unreadable means the
+   * lock's Durable Object did not answer, which the page says rather than fail.
+   */
   state: "idle" | "running" | "not-released" | "unreadable";
   heldUntil: Date | null;
 }
 
-/** Every registered cron's lock, in the registry's order (Recova's cron-lock
- *  table, read from Foxhound's CronLock Durable Objects). Each read is the
- *  object's `peek`, which writes nothing and never hands out the holder's token.
- *  The reads are independent: one that fails, or does not answer within
- *  CRON_LOCK_PEEK_TIMEOUT_MS, marks that row unreadable and the rest still show. */
 export async function readCronLocks(env: Env, now: number = Date.now()): Promise<CronLockRow[]> {
   const ns = env.CRON_LOCK;
   const reads = await Promise.allSettled(

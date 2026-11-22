@@ -1,13 +1,8 @@
 // /admin/merchants data layer: list + figures + detail (read-only) and the
 // money-adjacent write actions (Pass 2): billing_exempt / processing_paused
 // toggles and merchant cancel/disconnect. Adjustment creation lives in
-// app/lib/billing/adjustment.ts (it flows through the billing ledger, not
-// this file). Every write here is a plain, account-scoped db operation, not a
-// money write (ARCHITECTURE.md's DO rule covers outcome recording, attributed
-// billing, and webhook claims; a flag toggle or a connection-disconnect stamp
-// is operational, matching the brand-voice-update / cron-toggle precedent),
-// except billing exempt: it decides which fees are forgiven, so it is a money
-// write (setBillingExempt).
+// app/lib/billing/adjustment.ts (it flows through the billing ledger, not this
+// file).
 
 import {
   and,
@@ -61,30 +56,23 @@ export interface MerchantListRow {
   activeRecoveriesCount: number;
 }
 
-/** The /admin/merchants row: the admin API's MerchantListRow plus Recova's
- *  inventory (app/admin/AdminClient.tsx, blob df4b3713, and the
- *  /api/admin/users route that fed it), each read from Foxhound's engine. */
 export interface AdminMerchantRow extends MerchantListRow {
   /** PAUSE_REASON_BRAKE or PAUSE_REASON_MANUAL while paused (brake.ts). */
   pauseReason: string | null;
-  /** The active owner's sign-in email (Recova: the owner member's auth email). */
   ownerEmail: string | null;
-  /** The live connection's Stripe account: the live primary, else the oldest
-   *  live one. A disconnected primary stops counting as the primary one
-   *  (APPROVED-DIFFERENCES, 2026-09-19). Null with no live connection. */
+  /**
+   * The live connection's Stripe account: the live primary, else the oldest
+   * live one. A disconnected primary stops counting as the primary one
+   * (APPROVED-DIFFERENCES, 2026-09-19). Null with no live connection.
+   */
   stripeUserId: string | null;
   /** That connection's last webhook. */
   lastWebhookAt: Date | null;
-  /** Recova's rate: recoveries over failures, both with deleted rows left
-   *  out, rounded to a whole percent. Null when nothing has failed. */
   recoveryRatePct: number | null;
   /** Everything recovered for this merchant, per currency. */
   recovered: CurrencyAmount[];
 }
 
-/** One row per account, newest first, demo accounts included as Recova's list
- *  included them. Each column is one grouped read over every account (six
- *  reads in all, whatever the merchant count), joined here. */
 export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
   const [rows, owners, connections, activeCounts, failedCounts, recoveredRows] = await Promise.all([
     db
@@ -123,7 +111,6 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
     db
       .select({ accountId: failedPayments.accountId, n: count() })
       .from(failedPayments)
-      // Soft-deleted rows are not in a sequence (Recova's queue read: deleted_at is null).
       .where(and(eq(failedPayments.status, "active"), isNull(failedPayments.deletedAt)))
       .groupBy(failedPayments.accountId),
     db
@@ -187,8 +174,10 @@ export async function listAdminMerchants(db: Db): Promise<AdminMerchantRow[]> {
   });
 }
 
-/** The admin API's merchants list (GET /merchants): the same rows, with the
- *  fields it has always returned and no more. */
+/**
+ * The admin API's merchants list (GET /merchants): the same rows, with the
+ * fields it has always returned and no more.
+ */
 export async function listMerchants(db: Db): Promise<MerchantListRow[]> {
   const rows = await listAdminMerchants(db);
   return rows.map((r) => ({
@@ -203,23 +192,13 @@ export async function listMerchants(db: Db): Promise<MerchantListRow[]> {
   }));
 }
 
-/** Recova's five stat cards on its merchants page, from Foxhound's engine.
- *  Demo accounts are not counted, as Recova's platform figures left them out. */
 export interface MerchantFigures {
   /** Accounts, demo ones not counted: the denominator for connectedCount. */
   merchantCount: number;
-  /** Recova's "Est. MRR": each merchant's latest MRR snapshot, per currency
-   *  (the Overview's "MRR under management"). */
   mrrByCurrency: Array<{ currency: string; totalCents: number; accountCount: number }>;
-  /** Recova's "Stripe Connected": merchants with a live connection. */
   connectedCount: number;
-  /** Recova's "Total Recovered": all time, every currency, deleted rows out. */
   totalRecovered: CurrencyAmount[];
-  /** Recova's "Revenue (MTD)": recovery fees on invoices made since the first
-   *  of this UTC month, a voided invoice left out. */
   recoveryFeesThisMonth: CurrencyAmount[];
-  /** Recova's "Payments in Queue": failed payments in an active sequence,
-   *  soft-deleted ones left out as Recova's read left them out. */
   paymentsInQueue: number;
 }
 
@@ -298,11 +277,12 @@ export interface MerchantDetail {
 
 const DISPUTE_OPEN_STATES = ["draft", "pending_review", "approved", "submitted"] as const;
 
-/** The currencies an admin adjustment may be in for this account: its home
- *  currency and every currency it has a fee invoice in, lowercase. An
- *  adjustment lands on an invoice in its currency, so any other is a typo, and
- *  the amount is read in that currency's minor units (Mythos billing review,
- *  finding 5). An account with neither gets usd, the form's default. */
+/**
+ * The currencies an admin adjustment may be in for this account: its home
+ * currency and every currency it has a fee invoice in, lowercase. An adjustment
+ * lands on an invoice in its currency, so any other is a typo, and the amount
+ * is read in that currency's minor units.
+ */
 export async function listAdjustmentCurrencies(db: Db, accountId: string): Promise<Set<string>> {
   const [account, invoices] = await Promise.all([
     db.select({ currency: accounts.currency }).from(accounts).where(eq(accounts.id, accountId)),
@@ -363,9 +343,11 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
   };
 }
 
-/** What the Merchants page's action needs to know before it writes: that the
- *  account exists, its name for the result, and whether the brake owns its
- *  pause (a resume of that has no Undo). Null when there is no such account. */
+/**
+ * What the Merchants page's action needs to know before it writes: that the
+ * account exists, its name for the result, and whether the brake owns its pause
+ * (a resume of that has no Undo). Null when there is no such account.
+ */
 export async function getMerchantActionTarget(
   db: Db,
   accountId: string,
@@ -392,17 +374,17 @@ export async function getMerchantActionTarget(
   return rows[0] ?? null;
 }
 
-/** Exempt or un-exempt an account from billing, and record the stretch.
+/**
+ * Exempt or un-exempt an account from billing, and record the stretch.
  *
- *  An exemption forgives (Dustin, 2026-10-25, "Forgive, like Recova"): a fee
- *  earned or due while the account is exempt is never billed. app/db/billable.ts
- *  reads billing_exemption_periods for that, so the flag and its stretch are one
- *  money write, through the account's money Durable Object, which also orders it
- *  against that account's billing batches. Written only where the flag still
- *  holds the other value, in the same batch. Returns whether it changed, so the
- *  Merchants page offers Undo only for a real change: a stale row's "Set exempt"
- *  on a merchant someone else exempted changes nothing, and its Undo must not
- *  un-exempt them. `now` is required (RULES 3.10): it bounds what is forgiven. */
+ * An exemption forgives: a fee earned or due while the account is exempt is
+ * never billed. app/db/billable.ts reads billing_exemption_periods for that, so
+ * the flag and its stretch are one money write, through the account's money
+ * Durable Object, which also orders it against that account's billing batches.
+ * Returns whether it changed, so the Merchants page offers Undo only for a real
+ * change: a stale row's "Set exempt" on a merchant someone else exempted
+ * changes nothing, and its Undo must not un-exempt them.
+ */
 export async function setBillingExempt(
   env: Env,
   accountId: string,
@@ -489,50 +471,14 @@ export async function setBillingExempt(
   return landed.length > 0;
 }
 
-/** Pause or resume recovery/dispute processing. Honored by
- *  app/lib/cron/recovery-tick.ts's accountProcessingEligibleCondition and
- *  app/lib/intelligence/sync.server.ts's accountProcessingEligible, and (per
- *  PRICING.md) ALSO by the billing gate (app/db/billable.ts): a paused
- *  merchant is not billed while paused, which is deliberate and distinct from
- *  cancel (see cancelMerchant).
- *
- *  `reason` records WHY, and only the global emergency brake passes one
- *  (PAUSE_REASON_BRAKE). It is written in the same statement as the flag so the
- *  two can never disagree.
- *
- *  Three cases, and the middle one is a fix for review LOW-2:
- *
- *  - **Resume** always clears the reason. A human resuming a brake-paused
- *    merchant takes that row off the brake's books, which is the correct reading
- *    of a person overriding an automated hold.
- *  - **Pause with no explicit reason** (the single-merchant toggle) PRESERVES an
- *    existing reason and stamps 'manual' only when the row was actually
- *    unpaused. It used to overwrite unconditionally, so a stale
- *    /admin/merchants/:id form (rendered before the brake engaged, carrying
- *    nextPaused=true) silently converted a brake pause into a manual one and
- *    stranded that merchant paused after the next release. The CASE runs
- *    server-side in the same UPDATE rather than as a read-then-write, so two
- *    concurrent operators cannot interleave into a lost marker.
- *  - **Pause with an explicit reason** (the brake) sets it outright, but only
- *    where `guard` still holds. See the guard parameter.
- *
- *  `guard` is an optional extra condition ANDed into the WHERE, so the caller's
- *  OWN selection predicate is re-evaluated server-side at write time. The brake
- *  passes it and nothing else does (review MEDIUM-1): engage reads its eligible
- *  ids once and then writes them in chunks, so an account paused for cause
- *  between the read and its chunk was overwritten with the brake marker and
- *  resumed by the next release. That is the exact hazard the no-reason branch's
- *  CASE was added for, and the explicit-reason branch three lines up had kept
- *  the read-then-write shape that reasoning rejects.
- *
- *  The guard is a WHERE clause rather than a preserve-existing CASE on purpose.
- *  A CASE would keep the right reason but still write the row, leaving the
- *  caller unable to tell a real transition from a no-op; the WHERE skips the row
- *  outright, which is what makes the RETURNING count below honest.
- *
- *  Every branch RETURNs the id it changed. A guarded write that matched nothing
- *  returns no rows, so a caller can count rows actually TRANSITIONED rather than
- *  rows it selected (review INFO-2). */
+/**
+ * Pause or resume recovery/dispute processing. Honored by
+ * app/lib/cron/recovery-tick.ts's accountProcessingEligibleCondition and
+ * app/lib/intelligence/sync.server.ts's accountProcessingEligible, and (per
+ * PRICING.md) ALSO by the billing gate (app/db/billable.ts): a paused merchant
+ * is not billed while paused, which is deliberate and distinct from cancel (see
+ * cancelMerchant).
+ */
 export function buildSetProcessingPaused(
   db: Db,
   accountId: string,
@@ -580,9 +526,11 @@ export async function setProcessingPaused(
   await withAudit(db, buildSetProcessingPaused(db, accountId, paused), audit);
 }
 
-/** Run one write, and the admin's audit row with it in one batch when there is
- *  one, so a change never stands without its record (Mythos billing review,
- *  finding 7). Returns the write's RETURNING rows. */
+/**
+ * Run one write, and the admin's audit row with it in one batch when there is
+ * one, so a change never stands without its record. Returns the write's
+ * RETURNING rows.
+ */
 async function withAudit(
   db: Db,
   write: ReturnType<typeof buildSetProcessingPaused>,
@@ -593,11 +541,13 @@ async function withAudit(
   return rows;
 }
 
-/** Pauses or resumes one merchant only when the flag holds the other value,
- *  and says whether it moved, so the merchants page offers Undo only for a
- *  real change. With `undoOfPause`, a resume matches only a manual pause: an
- *  Undo of a pause can never take a merchant off the emergency brake, whose
- *  pause may have landed on the row since. */
+/**
+ * Pauses or resumes one merchant only when the flag holds the other value, and
+ * says whether it moved, so the merchants page offers Undo only for a real
+ * change. With `undoOfPause`, a resume matches only a manual pause: an Undo of
+ * a pause can never take a merchant off the emergency brake, whose pause may
+ * have landed on the row since.
+ */
 export async function setProcessingPausedIfChanged(
   db: Db,
   accountId: string,

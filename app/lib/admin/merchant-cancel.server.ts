@@ -20,15 +20,17 @@ interface CancelledConnection {
 }
 
 // Not a MoneyWriteBatch (app/db/money-write.ts): this batch is plain, not
-// DO-routed (mirrors app/lib/disputes/approval.ts's OperationalBatch - a
-// cancel is an account-state write, not outcome recording/attributed
-// billing/a webhook claim).
+// DO-routed (mirrors app/lib/disputes/approval.ts's OperationalBatch - a cancel
+// is an account-state write, not outcome recording/attributed billing/a webhook
+// claim).
 type CancelBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 
-/** Pure batch builder for the local half of cancel: stamps accounts.cancelledAt
- *  and disconnects every given connection, as ONE atomic batch. Compile-testable
- *  via .toSQL() like buildBillingInvoiceBatch (billing/run.ts), independent of
- *  whether a live D1 batch executor is available. */
+/**
+ * Pure batch builder for the local half of cancel: stamps accounts.cancelledAt
+ * and disconnects every given connection, as ONE atomic batch. Compile-testable
+ * via .toSQL() like buildBillingInvoiceBatch (billing/run.ts), independent of
+ * whether a live D1 batch executor is available.
+ */
 function buildCancelMerchantBatch(
   db: Db,
   accountId: string,
@@ -70,8 +72,7 @@ function buildCancelMerchantBatch(
  * The local half of cancel, wired to a real db: reads the active connections,
  * then commits buildCancelMerchantBatch atomically. Isolated from the Stripe
  * call so cancelMerchant can inject a fake here in tests without touching a
- * live D1 binding. Returns the connections that were just disconnected, so the
- * caller knows which ones still need a Stripe oauth.deauthorize call.
+ * live D1 binding.
  */
 async function cancelMerchantLocal(
   db: Db,
@@ -85,7 +86,7 @@ async function cancelMerchantLocal(
     .where(activeConnectionWhere(accountId));
 
   // The admin's audit row commits in the same batch as the cancel, so the
-  // cancel never stands without its record (Mythos billing review, finding 7).
+  // cancel never stands without its record.
   const auditInsert = audit
     ? [
         buildAdminAuditLogInsert(db, {
@@ -128,17 +129,15 @@ export interface CancelMerchantDeps {
 
 /**
  * Cancel a merchant: commits the local state (deps.cancelLocal, default
- * cancelMerchantLocal) BEFORE any Stripe call. cancelledAt is a PROCESSING
- * gate only (recovery-tick, intelligence sync); it is deliberately absent from
+ * cancelMerchantLocal) BEFORE any Stripe call. cancelledAt is a PROCESSING gate
+ * only (recovery-tick, intelligence sync); it is deliberately absent from
  * app/db/billable.ts, so already-matured, unbilled recoveries/disputes still
  * bill at the next run unless the account is also billing_exempt (PRICING.md:
  * cancel never silently forgives owed fees). The Stripe oauth.deauthorize call
  * is best-effort AFTER the local commit: a deauthorize failure is logged,
  * queued for the daily stripe-deauthorize-retry cron, and returned for the
  * caller to surface, but NEVER rolls back the local cancel - the merchant is
- * canceled on our side regardless. Both deps default to the real IO; tests inject
- * fakes to prove the local-commit-first ordering and that a deauthorize
- * failure never leaves a half-canceled account.
+ * canceled on our side regardless.
  */
 export async function cancelMerchant(
   env: Env,
@@ -167,18 +166,9 @@ export async function cancelMerchant(
   return { cancelledAt: now, connectionsDisconnected: disconnected.length, deauthorizeErrors };
 }
 
-// S37: disconnect ONE connection from Settings.
-//
 // The same posture as cancelMerchant above, narrowed to a single connection:
-// plain batch, local commit first, Stripe revoke best-effort after. 333 ruled
-// this explicitly onto cancelMerchant's path and OFF executeMoneyWrite, because
-// a second writer on stripe_connections.disconnected_at with a different
-// atomicity guarantee is 262 decision five's shape one table over.
+// plain batch, local commit first, Stripe revoke best-effort after.
 
-/** Stamps disconnectedAt and NOTHING else. is_primary deliberately survives:
- *  333 ruled against promotion and against clearing the flag, because legacy
- *  does neither. The three is_primary readers filter on disconnected_at
- *  instead, which is the change that makes the flag harmless. */
 function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date): CancelBatch {
   return [
     db
@@ -190,9 +180,10 @@ function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date)
 
 /**
  * The local half of disconnectConnection alone, for a grant Stripe has already
- * revoked (account.application.deauthorized): the merchant cut Foxhound off from
- * their Stripe dashboard, so there is nothing left to revoke and no retry to
- * queue. The same batch, so stripe_connections.disconnected_at keeps one writer.
+ * revoked (account.application.deauthorized): the merchant cut Foxhound off
+ * from their Stripe dashboard, so there is nothing left to revoke and no retry
+ * to queue. The same batch, so stripe_connections.disconnected_at keeps one
+ * writer.
  */
 export async function disconnectConnectionLocal(
   db: Db,
@@ -204,9 +195,11 @@ export async function disconnectConnectionLocal(
 
 export interface DisconnectConnectionResult {
   disconnectedAt: Date;
-  /** Set when the OAuth revoke failed. The local disconnect still stands: the
-   *  merchant asked to disconnect and IS disconnected, and the revoke is a
-   *  retriable follow-up the caller surfaces as a warning, never a rollback. */
+  /**
+   * Set when the OAuth revoke failed. The local disconnect still stands: the
+   * merchant asked to disconnect and IS disconnected, and the revoke is a
+   * retriable follow-up the caller surfaces as a warning, never a rollback.
+   */
   deauthorizeError?: string;
 }
 
@@ -235,8 +228,7 @@ export async function disconnectConnection(
  * connection id AND the caller's ACTIVE account AND disconnected_at IS NULL, so
  * a connection under another account the caller holds is refused exactly like
  * one they do not hold at all, and an already-disconnected row cannot be
- * stamped twice. Returns null on every refusing case, which the route turns
- * into a 403 having written nothing.
+ * stamped twice.
  */
 export async function findLiveConnection(
   db: Db,

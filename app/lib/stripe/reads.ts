@@ -8,37 +8,13 @@ import type {
   ReadOutcome,
 } from "~/lib/audit/engine";
 
-// Phase (b) of the audit port, ruled by 362 ruling 4. The Stripe half the pure
-// engine takes as injected input.
-//
-// EVERY LIST HERE IS PAGINATED TO THE END, and that is the
-// whole reason this module exists. Legacy's audit issues five `limit: 100`
-// calls and reads exactly one page of each, so a merchant past their first
-// hundred subscriptions gets an audit of their first hundred and no sign that
-// anything was left out. 341 found the same defect in the expiring-card scan
-// and fixed it there with `for await`; this is that fix generalized.
-//
-// EVERY ROW IS NARROWED AS IT IS READ. Paging to the end
-// with whole Stripe objects held in memory puts a large merchant's audit at
-// the mercy of the Worker's 128 MB: an expanded subscription carries its
-// customer, its payment method and its items, and none of that is read. So
-// each page is cut down to the fields the engine reads before the next page
-// arrives, and the full object is never kept. The narrowed rows are typed as
-// the engine's own row types (AuditInvoice and the rest in engine.ts); the
-// fields left out are fields the engine does not read, which the equivalence
-// test in test/audit-results-j63.test.ts holds.
-//
-// A FAILED READ IS DATA, NOT A THROW. Each read answers `{ ok: false, reason }`,
-// which the engine turns into that scope's failed status, so a Stripe outage
-// renders as "we could not read this" instead of as a zero.
+// Phase (b) of the audit port, ruled. The Stripe half the pure engine takes as injected input.
+// EVERY ROW IS NARROWED AS IT IS READ. So each page is cut down to the fields the engine reads
+// before the next page arrives, and the full object is never kept.
 
 /**
- * Walk an auto-paginating Stripe list to the end, keeping only what `narrow`
- * returns for each row.
- *
- * THE ONE IMPLEMENTATION. Every reader below goes through this, so a new read
- * cannot arrive with its own hand-rolled paging, with none, or with whole
- * objects kept.
+ * Walk an auto-paginating Stripe list to the end, keeping only what `narrow` returns for each row.
+ * THE ONE IMPLEMENTATION.
  */
 export async function collectPaginated<T, R>(
   list: AsyncIterable<T>,
@@ -190,12 +166,9 @@ export function readOpenInvoices(stripe: Stripe): Promise<ReadOutcome<AuditInvoi
 }
 
 /**
- * Every subscription in any state, with the default payment method expanded.
- *
- * THE EXPANSION AND THE PAGINATION ARE THE SAME ONES `cron/expiring-cards.ts`
- * ALREADY USES. The cron narrows to `status: "active"` because it only alerts on
- * live subscriptions; the audit needs `"all"` because past-due and canceled
- * subscriptions are two of its six scopes. Same call, one parameter apart.
+ * Every subscription in any state, with the default payment method expanded. The cron narrows to
+ * `status: "active"` because it only alerts on live subscriptions; the audit needs `"all"` because
+ * past-due and canceled subscriptions are two of its six scopes.
  */
 export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<AuditSubscription>> {
   return read(
@@ -213,20 +186,12 @@ export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<AuditSubs
   );
 }
 
-/** Disputes. NEW to Foxhound's Stripe surface: the wrapper previously called
- *  `disputes.update` and nothing else. */
+/** Disputes. */
 export function readDisputes(stripe: Stripe): Promise<ReadOutcome<AuditDispute>> {
   return read("disputes", () => stripe.disputes.list({ limit: 100 }), narrowDispute);
 }
 
-/**
- * Card Updater events in the CAU window. NEW to Foxhound's Stripe surface.
- *
- * ONE EVENT NAME, and legacy's own comment is the citation: the historical
- * `card.automatically_updated` and `payment_method.card_automatically_updated`
- * are no longer emitted, so a fallback would match nothing and imply coverage
- * that does not exist.
- */
+/** Card Updater events in the CAU window. NEW to Foxhound's Stripe surface. */
 export function readCardUpdaterEvents(
   stripe: Stripe,
   windowStartSeconds: number,

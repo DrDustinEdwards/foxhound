@@ -11,51 +11,13 @@ import { buildDisputeResolutionUpdate } from "~/lib/webhooks/batches";
 
 import { canApprove } from "./approval";
 
-// ACCEPT DISPUTE. Recova's spec, read whole:
-//   app/api/disputes/accept/route.ts          blob d85b5761, 5,069 bytes
-//   components/disputes/DisputeActionBar.tsx  blob c73b381a, 2,731 bytes
-//   hooks/useDisputeActions.ts                blob b650cd6d, 9,172 bytes
-//
-// Recova's order, kept: refuse a dispute that is no longer open, close it at
-// Stripe on the connected account, and only then write. Recova then marked the
-// row lost with submitted_by left null ("no Recova fee on accepted disputes")
-// and recorded the outcome dispute_accepted with outcome "accepted".
-//
-// THE STATE IS THE EXISTING WRITER'S. An accepted dispute is resolved_lost,
-// written by buildDisputeResolutionUpdate, the same statement Stripe's closing
-// event uses, as a loss Foxhound did not submit: no fee can be snapshotted, and
-// when Stripe's charge.dispute.closed arrives it finds the dispute resolved and
-// only sends the lost notice (Recova's handleDisputeClosed did the same).
-//
 // ONE MONEY BATCH through the per-account Durable Object, keyed on the dispute:
 // the resolution and its outcome row commit together or not at all, and a
-// second Accept of the same dispute is a no-op. The outcome insert reads its
-// account from the dispute row itself, so an id from another account writes
-// nothing.
+// second Accept of the same dispute is a no-op.
 //
-// A STRIPE FAILURE WRITES NOTHING, AND ONLY STRIPE'S OWN "NO" IS CALLED ONE
-// (PR 149 review). Recova returned stripe_close_failed with Stripe's message
-// for every throw. Here only a 4xx answer (Stripe read the request and refused
-// it) says "Stripe did not accept the dispute". A 5xx, a dropped connection or
-// timeout, or a 409 from a concurrent request on the same idempotency key
-// leaves the result unknown: Stripe may already have conceded the dispute, so
-// the merchant is told to check it in Stripe, as the approve path does.
-//
-// ONE STRIPE CALL PER DISPUTE. The close carries the idempotency key
-// `dispute-accept:<dispute id>`, so two tabs that both pass the state check
-// make one close at Stripe; the second gets the first's result back.
-//
-// NOT WHILE AN APPROVAL STANDS. Once the merchant has
-// approved the evidence, a submission is in flight, was rejected, or is
-// unconfirmed, and conceding the dispute under it would race the submission.
-// Accept is refused until that is settled. Whether a rejected submission may
-// be re-approved or accepted is the open question in the J06 pull request.
-//
-// THE OUTCOME ROW IS INSERTED HERE, NOT THROUGH recordOutcome. recordOutcome
-// runs its own money write; the accepted state and its outcome must commit in
-// one batch, so the insert is a statement in this batch, keyed like
-// recordOutcome's rows (idempotency_key, unique). Named for the seat in the
-// J06 pull request: it is a third insert site for outcomes.
+// A STRIPE FAILURE WRITES NOTHING, AND ONLY STRIPE'S OWN "NO" IS CALLED ONE.
+// Here only a 4xx answer (Stripe read the request and refused it) says "Stripe
+// did not accept the dispute".
 
 export type AcceptDisputeResult = { status: "accepted" } | { status: "error"; message: string };
 
@@ -63,11 +25,16 @@ export interface AcceptDisputeInput {
   accountId: string;
   disputeId: string;
   stripeDisputeId: string;
-  /** The dispute's state as just read; a submitted or resolved one is refused. */
+  /**
+   * The dispute's state as just read; a submitted or resolved one is refused.
+   */
   state: string;
   amountCents: number;
   currency: string;
-  /** Encrypted stripe_connections.stripe_access_token of the dispute's connection. */
+  /**
+   * Encrypted stripe_connections.stripe_access_token of the dispute's
+   * connection.
+   */
   connectionAccessToken: string;
   acceptedAt: Date;
   /** A dispute_approvals row exists for the dispute (read with the state). */
@@ -80,10 +47,8 @@ export const ACCEPT_APPROVED_MESSAGE =
   "This dispute's evidence has been approved for submission, so it cannot be accepted here.";
 // STRIPE REPLAYS ITS ANSWER. The close carries a stable key
 // (stripeCloseIdempotencyKey), and Stripe returns the stored result of a keyed
-// request for 24 hours, a 500 included (no result is stored for a 409, a 429,
-// a validation failure or a request that never arrived). The key stays stable on purpose: it is
-// what keeps two tabs or two clicks to one close. So the message says a retry
-// may repeat the answer, rather than varying the key on a retry.
+// request for 24 hours, a 500 included (no result is stored for a 409, a 429, a
+// validation failure or a request that never arrived).
 const ACCEPT_UNKNOWN_MESSAGE =
   "Something went wrong while accepting. Stripe may or may not have closed this dispute, so check it in Stripe before trying again. If Stripe returned a server error, trying again here within 24 hours gets the same answer.";
 
@@ -92,7 +57,6 @@ function stripeCloseIdempotencyKey(disputeId: string): string {
   return `dispute-accept:${disputeId}`;
 }
 
-/** The outcome Recova recorded, its event and its words. */
 const DISPUTE_ACCEPTED_EVENT = "dispute_accepted";
 const DISPUTE_ACCEPTED_OUTCOME = "accepted";
 
@@ -154,8 +118,10 @@ function buildDisputeAcceptBatch(
   ];
 }
 
-/** Stripe answered and refused: a 4xx other than a concurrent idempotent
- *  request (409) or a rate limit (429), neither of which says what happened. */
+/**
+ * Stripe answered and refused: a 4xx other than a concurrent idempotent request
+ * (409) or a rate limit (429), neither of which says what happened.
+ */
 export function isDefiniteRefusal(error: unknown): boolean {
   const status = (error as { statusCode?: unknown } | null)?.statusCode;
   return (

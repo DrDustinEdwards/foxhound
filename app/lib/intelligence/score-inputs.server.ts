@@ -10,18 +10,15 @@ import {
   type SubscriptionChangeState,
 } from "./subscription-change";
 
-// The health score's inputs that are not customer_context columns: the
-// recorded subscription changes (subscription_changes, from the webhook) and
-// the card funding on the customer's latest failed payment. Read by the nightly
-// scoring batch (ai-run.server.ts) for every customer, and by rescoreCustomer
-// for one, so both score from the same inputs and neither undoes the other.
+// The health score's inputs that are not customer_context columns: recorded subscription changes
+// (subscription_changes) and the card funding on the latest failed payment. Read by the nightly batch and by
+// rescoreCustomer, so both score from the same inputs and neither undoes the other.
 
 export interface ScoreExtras {
   subscriptionChanges: SubscriptionChangeState | null;
   latestFailedCardFunding: string | null;
 }
 
-/** Per customer, for the account or for one customer of it. */
 export async function loadScoreExtras(
   db: Db,
   accountId: string,
@@ -80,7 +77,6 @@ export async function loadScoreExtras(
   };
   for (const [id, rows] of changesBy)
     entry(id).subscriptionChanges = summarizeSubscriptionChanges(rows, nowMs);
-  // Newest first, so the first row seen per customer is the latest.
   for (const row of cardRows) {
     const e = entry(row.stripeCustomerId);
     if (e.latestFailedCardFunding === null) e.latestFailedCardFunding = row.cardFunding;
@@ -88,7 +84,6 @@ export async function loadScoreExtras(
   return extras;
 }
 
-/** The customer_context columns the score reads. */
 export const scoreColumns = {
   subscriptionAgeDays: customerContext.subscriptionAgeDays,
   planChangeCount: customerContext.planChangeCount,
@@ -113,7 +108,6 @@ type ScoreColumnRow = {
   engagementSignals: unknown;
 };
 
-/** One customer's score input from its customer_context row and extras. */
 export function healthScoreInput(
   row: ScoreColumnRow,
   extras: ScoreExtras | undefined,
@@ -135,16 +129,10 @@ export function healthScoreInput(
   };
 }
 
-/**
- * Re-scores one customer now, from the same inputs the nightly batch reads,
- * and writes the score and factors to customer_context: what the nightly batch
- * would write if it ran this minute. The alerts read health_score on the
- * recovery tick (alert-run.server.ts), so a scheduled cancellation reaches the
- * high-risk count and the critical customers check within minutes. Writes no
- * history, prediction or recommendation row: those stay one per night. Returns
- * the new score, or null when the customer has no customer_context row yet (the
- * next daily sync creates it, and the nightly batch scores it with the change).
- */
+/** Re-scores one customer now from the same inputs the nightly batch reads and writes the score and factors to
+ *  customer_context, so a scheduled cancellation reaches the alerts' high-risk count within minutes. Writes no
+ *  history, prediction or recommendation row (those stay one per night). Returns the new score, or null when the
+ *  customer has no customer_context row yet. */
 export async function rescoreCustomer(
   db: Db,
   accountId: string,

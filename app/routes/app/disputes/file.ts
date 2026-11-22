@@ -9,16 +9,7 @@ import { readEvidenceFile } from "~/lib/disputes/evidence-files.server";
 import type { Route } from "./+types/file";
 import { contentDisposition } from "@dustinedwards/site-runtime/r2-object";
 
-// /disputes/:id/files/:fileId: one merchant evidence file, served by the
-// Worker. Recova's evidence-url route (57ccef71) checked the key's account
-// prefix and that an evidence row named it, then handed back a one-hour signed
-// S3 URL; Foxhound's bucket is a Worker binding with no signed URLs, so the
-// Worker checks the row under the signed-in account and this dispute and
-// streams the object itself. The file is someone's customer data: never
-// cached (site-runtime's Worker sends an answer with no Cache-Control as
-// private, no-store, so the route sets no header of its own), never sniffed
-// into another type, and inert: site-runtime's UPLOAD_HEADERS (nosniff and a
-// sandboxed policy that loads nothing), except a PDF's policy below.
+// /disputes/:id/files/:fileId: one merchant evidence file, served by the Worker. The bucket is a Worker binding with no signed URLs, so the Worker checks the row under the signed-in account and this dispute and streams the object itself. The file is someone's customer data: never cached (site-runtime's Worker sends an answer with no Cache-Control as private, no-store), never sniffed into another type, and inert: site-runtime's UPLOAD_HEADERS (nosniff and a sandboxed policy that loads nothing), except a PDF's policy below.
 
 /** A PDF needs the browser's own viewer, which a sandboxed document is refused
  *  (Chrome will not run its viewer in one), so the PDF policy allows only that

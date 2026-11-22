@@ -11,10 +11,7 @@ import "capsomer/button.css";
 import "capsomer/consent.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// button, the field, the banner and alert, and the focus ring read. The site
-// header loads the same file; importing it here keeps the page whole under any
-// layout.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the button, the field, the banner and alert, and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { getDb, stripeConnections } from "~/db";
@@ -43,26 +40,14 @@ export function meta() {
   return [{ title: "Set up your account - Foxhound" }];
 }
 
-// Account setup + Stripe Connect. Phase 3 built the account-naming step; Phase 4a
-// adds the real Stripe Connect OAuth start (the token exchange lives in the
-// /connect/callback resource route). An authenticated-but-no-account user lands
-// here (middleware redirect target); once the account exists, this offers the
-// Connect Stripe step.
+// Account setup + Stripe Connect. An authenticated-but-no-account user lands here (middleware redirect target); once the account exists, this offers the Connect Stripe step (the token exchange lives in the /connect/callback resource route).
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const session = await getSession(env, request);
   if (!session) throw redirect("/login");
 
   const db = getDb(env);
-  // THE ACTIVE ACCOUNT, not the earliest. This loader renders an account NAME
-  // and that account's connection state on the screen where a merchant grants a
-  // live payment processor, and the OAuth flow the action starts attaches to
-  // whichever account the CALLBACK resolves, which is the active one
-  // (connect-callback.ts:223). While this read used the null-marker
-  // shim the two disagreed: a merchant switched to a second account, then
-  // bounced back here by any `/connect?error=...` redirect, was shown the first
-  // account's name and the first account's "already connected" state for a flow
-  // that would attach somewhere else. Session 61, phase (c).
+  // THE ACTIVE ACCOUNT, not the earliest. This loader renders an account NAME and that account's connection state on the screen where a merchant grants a live payment processor, and the OAuth flow the action starts attaches to whichever account the CALLBACK resolves, which is the active one. Reading the earliest would show a merchant switched to a second account the first account's name and "already connected" state for a flow that attaches somewhere else.
   const membership = await resolveActiveMembership(
     db,
     session.user.id,
@@ -84,8 +69,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     accountName: membership?.accountName ?? null,
     userName: session.user.name,
     hasConnection,
-    // Only an owner may attach a Stripe account; a member is told so instead of
-    // being offered a button the action and the callback would refuse.
+    // Only an owner may attach a Stripe account; a member is told so instead of being offered a button the action and the callback would refuse.
     isOwner: membership?.role === MEMBER_ROLE.OWNER,
     stripeEnabled: Boolean(env.STRIPE_CLIENT_ID),
     error: new URL(request.url).searchParams.get("error"),
@@ -98,23 +82,10 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (!session) throw redirect("/login");
 
   const db = getDb(env);
-  // THE SHIM IS CORRECT HERE, and it is the last caller left. This action reads
-  // only `!membership`, which is "does this user hold ANY account", and that
-  // answer is identical under every resolution: the marked membership and the
-  // earliest membership are both non-null exactly when the user holds one. No
-  // account IDENTITY is consumed below, so nothing can resolve to the wrong
-  // account. Kept rather than substituted so the shim keeps a live caller and a
-  // test, instead of becoming dead code the next session deletes on sight.
+  // THE SHIM IS CORRECT HERE, and it is the last caller left. This action reads only `!membership`, "does this user hold ANY account", which is identical under every resolution. No account IDENTITY is consumed below, so nothing can resolve to the wrong account.
   const membership = await resolveMembership(db, session.user.id);
 
-  // No account yet: create it. The membership read above is a fast path, not a
-  // lock, and it never was: a concurrent double-submit can pass it twice. What
-  // stops the second submit is inside createAccountForUser, which serializes
-  // both through one money-write Durable Object partitioned by the user and
-  // gives them the SAME idempotency key, so the loser is a no-op that reports
-  // the winner's account (ruling 329 phase (d), the debt 327 named). Either way
-  // the account now exists, so both outcomes redirect to /connect, where the
-  // loader re-reads the membership and shows the Connect Stripe step.
+  // No account yet: create it. The membership read above is a fast path, not a lock: a concurrent double-submit can pass it twice. What stops the second submit is inside createAccountForUser, which serializes both through one money-write Durable Object partitioned by the user and gives them the SAME idempotency key, so the loser is a no-op that reports the winner's account. Either way the account now exists, so both outcomes redirect to /connect, where the loader re-reads the membership and shows the Connect Stripe step.
   if (!membership) {
     const form = await readForm(request, BODY_MAX_BYTES);
     const name = String(form.get("name") ?? "").trim();
@@ -132,9 +103,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       { status: 400 },
     );
   }
-  // ONLY AN OWNER STARTS THE FLOW, on the account the callback will attach to
-  // (the active one). The callback asks again before it exchanges the code, so
-  // this is the early, clear refusal rather than the only one.
+  // ONLY AN OWNER STARTS THE FLOW, on the account the callback will attach to (the active one). The callback asks again before it exchanges the code, so this is the early, clear refusal rather than the only one.
   const active = await resolveActiveMembership(
     db,
     session.user.id,
@@ -143,45 +112,18 @@ export async function action({ request, context }: Route.ActionArgs) {
   if (active?.role !== MEMBER_ROLE.OWNER) {
     return data({ error: OWNER_REQUIRED_MESSAGE }, { status: 403 });
   }
-  // MARKED "connect" as of ruling 329 phase (d). It used to be a bare
-  // crypto.randomUUID(), which the callback could only read as "not
-  // add_account". An unmarked state is how legacy's own add-account control
-  // falls through to the upsert branch (DEFECT 1), so both flows now say what
-  // they are and the callback refuses anything that says neither.
+  // MARKED "connect": an unmarked state is how an add-account control falls through to the upsert branch, so both flows say what they are and the callback refuses anything that says neither.
   const state = buildConnectState(CONNECT_ACTION, session.user.id);
   return redirect(buildConnectAuthorizeUrl(env, state), {
     headers: { "Set-Cookie": setStateCookie(state) },
   });
 }
 
-// The access-disclosure panel (ruling 20(d)): Recova's own panel from
-// app/connect/page.tsx (blob a79ee373, lines 21 to 31 and 59 to 77), restored
-// on the screen where a merchant grants the connection.
-//
-// RECOVA'S LINES ARE KEPT WORD FOR WORD WHERE THEY ARE TRUE OF FOXHOUND AND SAY
-// AS MUCH AS THE GRANT DOES. The rest are fixed as copy, never by narrowing the
-// scope:
-//
-//   - The read line stays the wider one main carried until Dustin rules (PR #65,
-//     open question 1). Recova's "View failed invoices and payment history" says
-//     less than Foxhound reads: every customer, subscription, invoice and charge
-//     (intelligence/sync.server.ts), disputes and payment methods.
-//   - "Register a webhook to receive payment events" is dropped. Foxhound never
-//     calls webhookEndpoints.create on a connected account; Connect events reach
-//     one platform-level endpoint.
-//   - Recova's "can do" list names one write, retrying an invoice. Foxhound's
-//     grant is used for five more, so each is listed: setting a customer's
-//     default payment method (card-update/service.ts, customers.update and
-//     subscriptions.update), opening a subscription-mode Stripe checkout for a
-//     win-back customer who chooses to resubscribe (createResubscribeSession),
-//     submitting dispute evidence a person approved (disputes/submission.ts),
-//     closing a dispute the merchant chose to accept (disputes/accept.server.ts,
-//     J06), and refunding a charge the merchant chose to refund after an early
-//     fraud warning (disputes/fraud-warnings.server.ts).
-//   - "Create new charges or move money" is false: a retried invoice moves money,
-//     and a completed win-back checkout makes a new subscription, invoice and
-//     charge. What is true is that Foxhound charges a customer only those two
-//     ways.
+// The access-disclosure panel, on the screen where a merchant grants the connection. The lines are fixed as copy, never by narrowing the scope:
+// - The read line is the wider one: Foxhound reads every customer, subscription, invoice and charge (intelligence/sync.server.ts), disputes and payment methods.
+// - No "Register a webhook to receive payment events": Foxhound never calls webhookEndpoints.create on a connected account; Connect events reach one platform-level endpoint.
+// - The "can do" list names every write the grant is used for: retrying an invoice, setting a customer's default payment method (card-update/service.ts), opening a subscription-mode Stripe checkout for a win-back customer who chooses to resubscribe (createResubscribeSession), submitting dispute evidence a person approved (disputes/submission.ts), closing a dispute the merchant chose to accept (disputes/accept.server.ts), and refunding a charge the merchant chose to refund after an early fraud warning (disputes/fraud-warnings.server.ts).
+// - "Create new charges or move money" is false: a retried invoice moves money, and a completed win-back checkout makes a new subscription, invoice and charge. Foxhound charges a customer only those two ways.
 const CONNECTION_CAN = [
   "Read your invoices, subscriptions, disputes, and customer records",
   "Retry failed invoice payments",
@@ -198,8 +140,7 @@ const CONNECTION_CANNOT = [
   "Store raw card data",
 ];
 
-/** Recova's inner box: the two lists on the page ground, inside the card,
- *  as Capsomer's permission lists. */
+/** The inner box: the two lists on the page ground, inside the card, as Capsomer's permission lists. */
 function AccessDisclosure() {
   return (
     <div className="fh-connect-note">
@@ -224,14 +165,7 @@ function AccessDisclosure() {
 const OWNER_REQUIRED_MESSAGE =
   "Only an account owner can connect Stripe. Ask the owner to connect it.";
 
-// Recova's error words (app/connect/page.tsx lines 11 to 19) for every code
-// Foxhound's callback sends here. Recova's three setup codes (oauth_failed,
-// billing_setup_failed, account_products_setup_failed) are not carried:
-// nothing in Foxhound sends them. stripe_account_already_connected is
-// Foxhound's own refusal (one live Foxhound account per Stripe account, RULES.md
-// 4.6); Recova moved the connection instead, so it has no words for it. "Please
-// try again" would be untrue there, since trying again is refused again, and the
-// sentence names no account, so it tells nobody whose ledger holds it.
+// Error words for every code Foxhound's callback sends here. stripe_account_already_connected is Foxhound's own refusal (one live Foxhound account per Stripe account); "Please try again" would be untrue there, since trying again is refused again, and the sentence names no account, so it tells nobody whose ledger holds it.
 const OAUTH_ERROR_MESSAGES: Record<string, string> = {
   denied: "You canceled the Stripe connection. Try again when ready.",
   invalid_state: "Security check failed. Please try again.",
@@ -244,19 +178,7 @@ const OAUTH_ERROR_MESSAGES: Record<string, string> = {
 };
 const OAUTH_ERROR_FALLBACK = "Something went wrong. Please try again.";
 
-/**
- * The page's frame: Recova's one card, centered, 480px wide (app/connect/page.tsx
- * line 43), under the site header. Not AuthShell: Recova's /connect has no
- * brand panel, and AuthShell's own main landmark would sit inside the marketing
- * layout's.
- *
- * The card is Capsomer's panel through its HTML contract, body only, because
- * the React Panel always draws an h2 header band and this page's one heading is
- * its h1 (the Capsomer gap J62 named). The wrapper puts the parts in Capsomer's
- * amber family with Foxhound's neutrals (.fh-cap, the pairing the site header
- * uses), so the button and its focus ring are amber. One inner div holds
- * Recova's spacing, so the panel body's own grid gap does not replace it.
- */
+/** The page's frame: one card, centered, 480px wide, under the site header. Not AuthShell: there is no brand panel, and AuthShell's own main landmark would sit inside the marketing layout's. The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws an h2 header band and this page's one heading is its h1. The wrapper puts the parts in Capsomer's amber family with Foxhound's neutrals (.fh-cap), so the button and its focus ring are amber. One inner div holds the spacing, so the panel body's own grid gap does not replace it. */
 function ConnectFrame({ children }: { children: ReactNode }) {
   return (
     <div className="fh-connect-page">
@@ -295,8 +217,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
     ? (OAUTH_ERROR_MESSAGES[loaderData.error] ?? OAUTH_ERROR_FALLBACK)
     : null;
 
-  // No account yet: name it. Foxhound's own step (its account exists before
-  // the connection does); Recova made the account inside its callback.
+  // No account yet: name it. The account exists before the connection does.
   if (!loaderData.hasAccount) {
     return (
       <ConnectFrame>
@@ -334,7 +255,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
     );
   }
 
-  // Account exists, Stripe not yet connected: Recova's page.
+  // Account exists, Stripe not yet connected.
   return (
     <ConnectFrame>
       <ConnectHeading

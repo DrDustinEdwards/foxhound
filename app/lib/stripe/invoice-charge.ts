@@ -3,18 +3,12 @@ import type Stripe from "stripe";
 import { asId } from "./ids";
 import { collectPaginated } from "./reads";
 
-// The latest charge attempted on an invoice. On the pinned API version an
-// Invoice has no `charge` field, so the charge is reached through the
-// invoice's payments: the newest payment intent, retrieved with its latest
-// charge expanded. Read-only. Shared by the expired-card retry guard
-// (engine/card-change.ts), webhook intake and the recovered-fee read
-// (webhooks/lookups.ts).
+// The latest charge attempted on an invoice. Read-only.
 
-/** The newest payment intent on the invoice and its latest charge, or null
- *  when the invoice has no payment intent or the charge is missing. Stripe
- *  errors propagate; each caller decides what a failed read means. With
- *  `balanceTransaction`, the charge's balance transaction comes expanded too,
- *  in the same call. */
+/**
+ * The newest payment intent on the invoice and its latest charge, or null when the invoice has no
+ * payment intent or the charge is missing.
+ */
 export async function latestInvoiceCharge(
   stripe: Stripe,
   invoiceId: string,

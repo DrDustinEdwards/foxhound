@@ -14,36 +14,10 @@ import {
 
 import type { Route } from "./+types/callback";
 
-// Legacy's `app/audit/callback/route.ts` (blob `0cf90598`, 2,517 bytes), phase (f).
-//
-// WHAT THIS ROUTE WRITES: ONE COOKIE AND ONE DELAYED QUEUE MESSAGE. No account
-// row, no membership, no `stripe_connections` row, no billing surface, nothing
-// in D1 at all. Legacy is the same on D1: its callback touches no table, and the
-// whole anonymous grant lives in a five-minute HttpOnly cookie scoped to
-// /audit. That is why an anonymous audit of a Stripe account ALREADY CONNECTED
-// to some Foxhound account raises no conflict with `stripe_connections_live_stripe_account_uq` (356, DEFECT 4): the
-// global unique index is never engaged, because this path inserts no connection.
-//
-// THE STATE MUST SAY "audit". `verifyConnectState` returns the action, and
-// anything other than AUDIT_ACTION is refused here, exactly as
-// `/connect/callback` refuses AUDIT_ACTION on its side. An anonymous audit grant
-// and an onboarding grant can therefore never be spent on each other's branch,
-// which is what the third action in the shared state shape bought.
-//
-// THE GRANTED SCOPE IS CHECKED, NOT ASSUMED: the token response carries the
-// scope Stripe actually granted, and anything but STRIPE_AUDIT_SCOPE is refused.
-// 362 ruling 1 made that scope read_only; on 2026-10-29 Stripe's live authorize
-// page refused read_only with a 400 ("Please use the `read_write` scope"),
-// because only Extensions may use it, so the scope is read_write again and the
-// check now expects read_write (see STRIPE_AUDIT_SCOPE in constants.ts).
-//
-// FOXHOUND REVOKES THE GRANT ITSELF, where legacy never revoked anything. Right
-// after the exchange, before any check that could bounce, a revoke is queued
-// for when the cookie's window (AUDIT_TOKEN_TTL_SECONDS) ends; at delivery it is
-// skipped if any Foxhound account holds that Stripe account live
-// (app/lib/audit/grant-revoke.server.ts). If the queue send fails the grant is
-// revoked now, with the same live-connection check, and the run is refused,
-// because a grant nobody will revoke is the one outcome this must not allow.
+// WHAT THIS ROUTE WRITES: ONE COOKIE AND ONE DELAYED QUEUE MESSAGE. No account row, no membership, no `stripe_connections` row, nothing in D1 at all: the whole anonymous grant lives in a five-minute HttpOnly cookie scoped to /audit. So an anonymous audit of a Stripe account ALREADY CONNECTED to some Foxhound account raises no conflict with `stripe_connections_live_stripe_account_uq`: this path inserts no connection.
+// THE STATE MUST SAY "audit": `verifyConnectState` returns the action, and anything other than AUDIT_ACTION is refused here, as `/connect/callback` refuses AUDIT_ACTION on its side, so an audit grant and an onboarding grant can never be spent on each other's branch.
+// THE GRANTED SCOPE IS CHECKED, NOT ASSUMED: the token response carries the scope Stripe actually granted, and anything but STRIPE_AUDIT_SCOPE is refused (read_write, because Stripe's live authorize page refuses read_only outside Extensions; see STRIPE_AUDIT_SCOPE in constants.ts).
+// FOXHOUND REVOKES THE GRANT ITSELF. Right after the exchange, before any check that could bounce, a revoke is queued for when the cookie's window (AUDIT_TOKEN_TTL_SECONDS) ends; at delivery it is skipped if any Foxhound account holds that Stripe account live (app/lib/audit/grant-revoke.server.ts). If the queue send fails the grant is revoked now, with the same live-connection check, and the run is refused, because a grant nobody will revoke is the one outcome this must not allow.
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -56,7 +30,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       headers: { "Set-Cookie": clearAuditStateCookie() },
     });
 
-  // 311's limiter, used unchanged, at legacy's numbers on legacy's second key.
+  // The shared limiter, used unchanged, on its own second key.
   const allowed = await isIpWithinRateLimit(env, request, "audit-callback", RATE_LIMIT_AUDIT);
   if (!allowed) return bounce("rate_limited");
 
@@ -90,11 +64,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       return bounce("scope_refused");
     }
 
-    // Legacy's own comment, and its reasoning is right: the token must not travel
-    // in the URL (history, logs, referrer leakage). The account id stays in the
-    // query to keep legacy's URL, but it is NOT what the results page trusts:
-    // the id Stripe returned is sealed into the cookie with the token, and the
-    // page refuses a query that disagrees with it.
+    // The token must not travel in the URL (history, logs, referrer leakage). The account id stays in the query but is NOT what the results page trusts: the id Stripe returned is sealed into the cookie with the token, and the page refuses a query that disagrees with it.
     const target = new URL("/audit/results", url.origin);
     target.searchParams.set("account", oauth.stripeUserId);
 
@@ -105,9 +75,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         stripeAccountId: oauth.stripeUserId,
       });
     } catch {
-      // The only way sealing fails is a missing or malformed ENCRYPTION_KEY,
-      // which would end every audit here. One fixed line so it is visible; the
-      // error object is never logged, since the plaintext was a live token.
+      // The only way sealing fails is a missing or malformed ENCRYPTION_KEY, which would end every audit here. One fixed line so it is visible; the error object is never logged, since the plaintext was a live token.
       console.error("audit grant seal failed: check ENCRYPTION_KEY");
       return bounce("failed");
     }
@@ -119,11 +87,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
       ],
     });
   } catch {
-    // Never log the error object: a Stripe request error can carry the exchanged
-    // token. Legacy logs `err` here, which is the one line of its callback not
-    // ported. Its separate `oauth_failed` branch collapses into this one because
-    // `exchangeConnectCode` throws on a partial token response rather than
-    // returning one, so there is no second case left to distinguish.
+    // Never log the error object: a Stripe request error can carry the exchanged token. `exchangeConnectCode` throws on a partial token response rather than returning one, so there is no separate partial-token case.
     return bounce("failed");
   }
 }

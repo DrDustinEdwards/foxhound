@@ -1,21 +1,8 @@
-// The guard on an expired card's day 21 retry (Dustin, 2026-10-25, decision
-// card "Yes, all three", on research/dunning-wording-and-timing-2026-10-15.md).
-//
-// Recova retried an expired card on day 21 whatever had happened to it.
-// Mastercard forbids a further authorization on an expired-card decline "with
-// the same PAN and expiration date, at any time", and Visa expects updated
-// details first. So the retry is kept, but it charges only when the card the
-// invoice will be paid with differs from the card that was declined: a new
-// expiry on the same card (Stripe's card updater, which is what
-// payment_method.automatically_updated reports), a different card number (a new
-// fingerprint), or a customer update through Foxhound's hosted card page.
-// Otherwise the step is skipped. Anything that cannot be read is treated as
-// unchanged, because the safe failure is a skipped retry, never a charge the
-// network forbids.
-//
-// Read-only: this module makes no charge and writes nothing. The charge, when
-// there is one, is executeRetryStep's, with its idempotency key, and the
-// recovery is still recorded only by the webhook through the money DO.
+// Guard on an expired card's day 21 retry. Mastercard forbids another authorization on an expired-card decline
+// with the same PAN and expiry, and Visa expects updated details first, so the retry charges only when the
+// card differs from the declined one: a new expiry (Stripe's card updater), a new fingerprint, or a customer
+// update through the hosted card page. Anything unreadable is treated as unchanged: the safe failure is a
+// skipped retry, never a forbidden charge. Read-only; the charge is executeRetryStep's.
 
 import type Stripe from "stripe";
 
@@ -27,13 +14,11 @@ import { latestInvoiceCharge } from "~/lib/stripe/invoice-charge";
 import { decryptToken } from "~/lib/stripe/encryption";
 import type { RetryStepContext } from "./retry-step";
 
-/** The decline categories whose retry is guarded on a changed card. */
 export function retryNeedsChangedCard(declineCategory: string): boolean {
   return declineCategory === "expired";
 }
 
-/** What identifies a card for the network rule: its number (by Stripe's
- *  fingerprint) and its expiry. */
+/** What identifies a card for the network rule: its fingerprint and its expiry. */
 export interface CardSnapshot {
   fingerprint: string | null;
   expMonth: number | null;
@@ -42,11 +27,8 @@ export interface CardSnapshot {
 
 export type CardChangeVerdict = "changed" | "unchanged" | "unverified";
 
-/**
- * True only when the current card provably differs from the declined one in
- * number or expiry. A side that cannot be read, or a field missing on either
- * side, never counts as a change. Pure.
- */
+/** True only when the current card provably differs from the declined one in number or expiry; a missing or
+ *  unreadable side never counts as a change. Pure. */
 export function cardChangedSinceDecline(
   declined: CardSnapshot | null,
   current: CardSnapshot | null,
@@ -65,9 +47,8 @@ export function cardChangedSinceDecline(
   );
 }
 
-/** The card that was last declined on this invoice, from the charge's own
- *  record of it (payment_method_details is fixed at charge time, so a card the
- *  updater changed later still shows the old expiry here). */
+/** The card last declined on this invoice, from the charge's own record (payment_method_details is fixed at
+ *  charge time, so a card the updater changed later still shows the old expiry). */
 async function declinedCard(
   stripe: Stripe,
   invoiceId: string,
@@ -87,17 +68,14 @@ async function declinedCard(
   };
 }
 
-/** Where the charge's payment method can come from, each level as an id to
- *  retrieve or as the object a caller already holds. */
 export interface ChargeMethodSources {
   invoiceDefault: string | null;
   subscription: string | Pick<Stripe.Subscription, "default_payment_method"> | null;
   customer: string | Stripe.Customer | Stripe.DeletedCustomer | null;
 }
 
-/** The payment method Stripe will charge: the invoice's own default, else the
- *  subscription's, else the customer's. A level is read from Stripe only when
- *  every earlier one is empty. Null when none of them has one. */
+/** The payment method Stripe will charge: the invoice's default, else the subscription's, else the
+ *  customer's, each read from Stripe only when every earlier one is empty. */
 export async function chargePaymentMethodId(
   stripe: Stripe,
   sources: ChargeMethodSources,
@@ -124,8 +102,6 @@ export async function chargePaymentMethodId(
   return null;
 }
 
-/** The payment method invoices.pay will use, else the declined one (which the
- *  card updater may have changed in place). */
 async function currentPaymentMethodId(
   stripe: Stripe,
   invoiceId: string,
@@ -140,7 +116,6 @@ async function currentPaymentMethodId(
   return resolved ?? declinedPaymentMethodId;
 }
 
-/** Compare the declined card with the one the retry would charge. Read-only. */
 async function compareCardsWithClient(
   stripe: Stripe,
   invoiceId: string,
@@ -161,12 +136,8 @@ async function compareCardsWithClient(
   return cardChangedSinceDecline(declined.snapshot, current) ? "changed" : "unchanged";
 }
 
-/**
- * The live check. A customer update through the hosted card page is read from
- * Foxhound's own card_update signal first, which needs no Stripe call; Stripe
- * is read only when there is none. Any read failure is "unverified", so the
- * retry is skipped rather than risked.
- */
+/** The live check. A customer update through the hosted card page is read from Foxhound's own card_update
+ *  signal first (no Stripe call). Any read failure is "unverified", so the retry is skipped. */
 export async function checkCardChanged(
   env: Env,
   ctx: RetryStepContext,

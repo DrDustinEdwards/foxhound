@@ -20,38 +20,10 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// S30, /settings/audit. Legacy, read whole at HEAD: page.tsx (blob 18e6a384),
-// AuditForm.tsx (5bf81c10), settings/components/AuditSection.tsx (58c5abce),
-// components/Toggle.tsx (0ebdd395) and settings/SaveBar.tsx (f1d6eb23).
-//
-// J35 rebuilt the page on Capsomer 0.9.0's parts,
-// amber throughout. Recova is the spec for what is on
-// it and in what order: the phone-only Settings link, the head, one card with
-// the lookback period and then the monthly digest, and the save bar. The
-// settings layout gives the page Recova's 800px column and padding, so the
-// page adds no width of its own. No Foxhound class sits on a Capsomer element;
-// what Recova's look still needs is listed for Capsomer's per-site layer
-// in the J35 pull request.
-//
-// THE LOOKBACK HAS A READER: the monthly audit cron reads the
-// stored value through readAuditSettings and audits that window
-// (app/lib/audit/monthly.server.ts), and so does the signed-in results page.
-// test/audit-lookback-reader-j35.test.ts proves the window follows the setting.
-//
-// THE WRITE PATH. Legacy's form POSTs to a shared `/settings/update` handler.
-// This uses the route's own action instead, which writes through
-// applyAuditSettings, the same core the MCP `set_audit_settings` tool uses.
-// Class (a), invisible to the merchant.
-//
-// THE "written by AI" CLAUSE IS DROPPED from the digest description, ruled by
-// Dustin in 316's session. Class (c), a truthfulness fix: ANTHROPIC_API_KEY
-// still has no credit, so an unfunded key would serve the fallback paragraph
-// under a promise of AI, and naming the vendor in merchant copy is forbidden
-// regardless. The rest of the sentence is legacy's, unchanged.
-//
-// NULL IS OFF and legacy agrees: its own page reads `?? false` and `?? 90`, so
-// the defaulting lives in the READ and no column DEFAULT is added (RULES.md
-// 3.17). See app/lib/settings/audit-settings.ts.
+// /settings/audit: the phone-only Settings link, the head, one card with the lookback period and then the monthly digest, and the save bar. The settings layout gives the page its 800px column and padding. No Foxhound class sits on a Capsomer element.
+// THE LOOKBACK HAS A READER: the monthly audit cron reads the stored value through readAuditSettings and audits that window (app/lib/audit/monthly.server.ts), and so does the signed-in results page; test/audit-monthly.test.ts proves the window follows the setting.
+// The route's own action writes through applyAuditSettings, the same core the MCP `set_audit_settings` tool uses. The digest description does not say "written by AI": an unfunded key would serve the fallback paragraph under a promise of AI, and naming the vendor in merchant copy is forbidden regardless.
+// NULL IS OFF: the defaulting lives in the READ and no column DEFAULT is added (app/lib/settings/audit-settings.ts).
 
 export function meta() {
   return [{ title: "Audit settings - Foxhound" }, NOINDEX];
@@ -71,15 +43,8 @@ export async function action({ request, context }: Route.ActionArgs) {
   const db = getDb(env);
   const form = await readForm(request, BODY_MAX_BYTES);
 
-  // THE CORE MOVED TO apply.server.ts IN SESSION 79, so this action and the
-  // MCP `set_audit_settings` tool validate and write through one implementation.
-  // Clamping is still SERVER-SIDE inside it: legacy clamps on render and posts
-  // the clamped value, which is a client-side guarantee only.
-  //
-  // A FAILED WRITE THROWS rather than returning ok: false (the D1 batch either
-  // lands or throws), so it is caught here. The whole error is logged, and the
-  // page shows Recova's failure line, which Recova shows for exactly this case
-  // (its `error=update_failed` after the shared update handler's write fails).
+  // This action and the MCP `set_audit_settings` tool validate and write through one implementation (apply.server.ts). Clamping is SERVER-SIDE inside it.
+  // A FAILED WRITE THROWS rather than returning ok: false (the D1 batch either lands or throws), so it is caught here. The whole error is logged, and the page shows the failure line.
   try {
     const result = await applyAuditSettings(db, membership.accountId, {
       lookbackDays: form.get("audit_lookback_days"),

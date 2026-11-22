@@ -13,37 +13,17 @@ import { mcpCalls } from "~/db/schema";
 import { maskEmailsInText } from "./redact";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// THE CALL LOG (MCP ruling 2026-10-10, rule 12.4): one append-only row per tool
-// call, with the caller, the arguments and the result.
-//
-// WRITTEN AT THE DOOR, FROM THE REQUEST AND THE RESPONSE. ./handler.server.ts
-// reads the tools/call messages out of the request before the SDK sees it and
-// the answers out of the response after, so the log holds every call that got
-// past authentication: one that ran, one a tool refused, one the SDK refused at
-// its schema check, and one naming a tool that does not exist. Logging inside a
-// tool would miss the last two, which are exactly the probes worth seeing.
-//
-// THE RESULT IS AN OUTCOME, NEVER THE DATA. A read's answer is the merchant's
-// customers; copying it here would make this table a second, unredacted copy of
-// them. What is kept is whether the call worked and, if not, the error text the
-// agent was given, with email addresses masked.
-//
-// EACH ROW IS ALSO WRITTEN TO site-runtime's ./audit-log, the append-only,
-// hash-chained ToolCallLog Durable Object (TOOL_CALL_LOG) the other MCP servers
-// write, with the same redacted arguments and the same outcome: `finished` for
-// a call that ran, `refused` for one that never reached a tool. mcp_calls stays
-// as the table Foxhound's own pages read; the Durable Object is the record
-// nothing that reaches the Worker can rewrite. Its caller is the key, never
-// the token, and each row names the OAuth client the key was issued to.
-//
-// A `started` ROW GOES FIRST, AND A CALL THAT CANNOT LOG IS NOT RUN (area 11,
-// L1). startToolCalls writes it before the SDK sees the request and throws
-// when it cannot, so the door refuses the request: a call that left no trace
-// is not a state this path can reach. The finished rows are written after,
-// sharing each call's id and correlation id.
+// The call log: one append-only row per tool call with the caller, arguments and result, written at the door from the
+// request and response so it holds every call past authentication, including one the SDK refused at its schema check and
+// one naming a nonexistent tool (the probes worth seeing; logging inside a tool would miss them). The result is an
+// OUTCOME, never the data: a read's answer is the merchant's customers, so this table would become an unredacted copy;
+// what is kept is whether the call worked and the error text the agent got, emails masked. Each row is also written to
+// site-runtime's append-only, hash-chained ToolCallLog Durable Object (TOOL_CALL_LOG), with the same redacted arguments:
+// `finished` for a call that ran, `refused` for one that never reached a tool; mcp_calls stays as the table Foxhound's
+// pages read. The caller is the key, never the token, and each row names the OAuth client. A `started` row goes first
+// (startToolCalls throws when it cannot, so the door refuses): a call that left no trace is not reachable.
 
-/** Arguments that are credentials: kept as "[redacted]" wherever they appear.
- *  A confirm code approves one exact call (./confirm.server.ts), so it is one. */
+/** Arguments that are credentials: kept as "[redacted]". A confirm code approves one exact call (./confirm.server.ts). */
 const CREDENTIAL_ARGUMENTS = new Set(["slack_webhook_url", "confirm"]);
 
 type McpCallOutcome = "ok" | "tool_error" | "protocol_error";
@@ -52,18 +32,15 @@ export interface McpToolCallRequest {
   id: string | number;
   tool: string;
   arguments: Record<string, unknown>;
-  /** The request's `_meta`, whose traceparent becomes the correlation id. */
   meta?: Record<string, unknown>;
 }
 
-/** Who made the calls: the key, its account and the OAuth client it was issued to (null for a key made in Settings). */
 export interface McpCaller {
   accountId: string;
   apiKeyId: string;
   clientId: string | null;
 }
 
-/** One call's ids in the shared log, shared by its `started` and `finished` rows. */
 export interface StartedCall {
   callId: string;
   correlationId: string;
@@ -86,8 +63,7 @@ function messages(raw: unknown): JsonRpcMessage[] {
   return list.filter((m): m is JsonRpcMessage => !!m && typeof m === "object");
 }
 
-/** The tools/call requests in a request body. A notification (no id) is not a
- *  call: nothing answers it, so there is no result to log. */
+/** The tools/call requests in a request body. A notification (no id) is not a call: there is no result to log. */
 export function toolCallsIn(body: unknown): McpToolCallRequest[] {
   return messages(body).flatMap((m) => {
     if (m.method !== "tools/call" || m.id === undefined || m.id === null) return [];
@@ -109,7 +85,6 @@ export function toolCallsIn(body: unknown): McpToolCallRequest[] {
   });
 }
 
-/** The JSON-RPC messages in a response, whether it came as JSON or as SSE. */
 export function answersIn(text: string, contentType: string | null): JsonRpcMessage[] {
   const payloads = (contentType ?? "").includes("text/event-stream")
     ? text
@@ -143,7 +118,6 @@ function outcomeOf(answer: JsonRpcMessage | undefined): {
   return { outcome: "ok", error: null };
 }
 
-/** Replace every credential argument, at any depth. */
 function redactArguments(value: unknown): unknown {
   if (Array.isArray(value)) return value.map(redactArguments);
   if (!value || typeof value !== "object") return value;
@@ -155,15 +129,11 @@ function redactArguments(value: unknown): unknown {
   );
 }
 
-/** The shared log's name for the caller: the key, never the token ("agent:key_<id>", site-runtime's callerName). */
 function logName(caller: McpCaller): string {
   return callerName({ kind: "agent", principal: `key_${caller.apiKeyId}`, scopes: [] });
 }
 
-/**
- * Write each call's `started` row to the shared log before anything runs.
- * Throws when a row cannot be written, and the door then refuses the request.
- */
+/** Write each call's `started` row to the shared log before anything runs; throws when one cannot be written. */
 export async function startToolCalls(
   env: Env,
   server: { name: string; version: string },
@@ -187,13 +157,8 @@ export async function startToolCalls(
   return started;
 }
 
-/**
- * Append one row per call, after it ran. A failure to write here is REPORTED,
- * never swallowed, and never turns the call into a failure: the call has
- * already happened (its `started` row is in the shared log, and a write has
- * already committed with its own trace), and telling the agent it failed would
- * be the one false statement this path could make.
- */
+/** Append one row per call, after it ran. A failed write is REPORTED, never swallowed, and never turns the call into a
+ *  failure: it already happened, and telling the agent it failed would be false. */
 export async function recordToolCalls(
   env: Env,
   server: { name: string; version: string },
@@ -235,8 +200,7 @@ export async function recordToolCalls(
     });
   }
   try {
-    // Nine columns, so rowsPerInsert(9) rows a statement: a JSON-RPC batch can
-    // carry any number of tool calls. One db.batch keeps the log all-or-nothing.
+    // Nine columns, so rowsPerInsert(9) rows a statement; one db.batch keeps the log all-or-nothing.
     const [first, ...rest] = chunked(rows, rowsPerInsert(9)).map((part) =>
       db.insert(mcpCalls).values(part),
     );

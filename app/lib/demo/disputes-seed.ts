@@ -9,26 +9,10 @@ import type {
 } from "~/db";
 import { disputeFeeCents } from "~/lib/billing/fees";
 
-// Disputes seed (TASK-foxhound-demo-data-engine.md Phase 3): the legacy
-// 8-dispute Teamflow set and 3-dispute Bolt Analytics set (lib/demo-seeding/
-// seed-disputes.ts seedDisputes / seedBoltDisputes, blob `fd631d18`), ported near-verbatim, mapped onto Foxhound's dispute
-// state machine (draft|pending_review|submitted|resolved_won|resolved_lost)
-// and approval gate. Pure: returns plain insert rows; app/lib/demo/seed.ts
-// turns these into db.insert(...) batches.
-//
-// Legacy stamped its dispute #1 (originally a placeholder "Jane Kim" row) with
-// Harborline Group's identity in a second pass from the Intelligence seed
-// script, so the two module boundaries agreed on one shared UUID. Foxhound
-// builds it as Harborline's dispute directly: no placeholder, no second pass.
-//
-// Approval-gate fidelity (PRICING.md rev 3: "billable only if Foxhound drafted
-// AND submitted the evidence"): only the disputes Foxhound actually took
-// through approve-and-submit (see app/lib/disputes/approval.server.ts) get a
-// dispute_approvals row and a submitted_at. Dispute #5 (Sara Lin) is won but
-// was submitted by the merchant directly / resolved by Stripe without
-// Foxhound's evidence, so it carries NO approval row and NO resolved fee, even
-// though its state is resolved_won, exactly mirroring the real non-billable
-// case the billable.ts predicate exists to exclude.
+// Dispute #5 (Sara Lin) is won but was submitted by the merchant directly /
+// resolved by Stripe without Foxhound's evidence, so it carries NO approval row
+// and NO resolved fee, even though its state is resolved_won, exactly mirroring
+// the real non-billable case the billable.ts predicate exists to exclude.
 
 export type DisputeInsert = typeof disputes.$inferInsert;
 type DisputeEvidenceInsert = typeof disputeEvidence.$inferInsert;
@@ -53,7 +37,9 @@ export interface DisputeSpec {
   amountCents: number;
   reason: string;
   state: "pending_review" | "submitted" | "resolved_won" | "resolved_lost";
-  /** null = not yet Foxhound-submitted (still pending_review or merchant-won). */
+  /**
+   * null = not yet Foxhound-submitted (still pending_review or merchant-won).
+   */
   foxhoundSubmitted: boolean;
   triageRecommendation: "fight" | "accept";
   triageConfidence: number;
@@ -68,8 +54,10 @@ export interface DisputeSpec {
   createdDaysAgo: number;
   /** null = evidence deadline still in the future (open dispute). */
   resolvedDaysAgo: number | null;
-  /** Stripe's status, when it is not intake's needs_response: an inquiry
-   *  carries warning_needs_response. */
+  /**
+   * Stripe's status, when it is not intake's needs_response: an inquiry carries
+   * warning_needs_response.
+   */
   stripeStatus?: string;
 }
 
@@ -153,8 +141,8 @@ export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
     triageRecommendation: "fight",
     triageConfidence: 74,
     triageReasoning: "Subscription dispute with prior payment history.",
-    // The demo's inquiry: the issuer is asking before any chargeback, so
-    // Stripe has moved no money for it.
+    // The demo's inquiry: the issuer is asking before any chargeback, so Stripe
+    // has moved no money for it.
     stripeStatus: "warning_needs_response",
     priorChargesCount: 2,
     priorChargesTotal: 17800,
@@ -260,8 +248,7 @@ export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
 ];
 
 // Bolt Analytics' three: one won, one lost, one awaiting a response. All three
-// are $99 Pro charges. Legacy's customers here (Lane Owens, Sage Pulse, Drift
-// Logic) are not in the 200-customer Bolt base, so each is a net-new customer.
+// are $99 Pro charges.
 export const BOLT_DISPUTE_SPECS: DisputeSpec[] = [
   {
     id: "ddisp_bolt_1",
@@ -333,10 +320,12 @@ export const BOLT_DISPUTE_SPECS: DisputeSpec[] = [
   },
 ];
 
-/** Build a demo business's dispute set (Teamflow's eight unless `specs` names
- *  another). `memberEmail` is the demo account's
- *  single member, used as the approver on Foxhound-submitted disputes (the
- *  real flow stamps submitted_by with the approver's email, not a brand name). */
+/**
+ * Build a demo business's dispute set (Teamflow's eight unless `specs` names
+ * another). `memberEmail` is the demo account's single member, used as the
+ * approver on Foxhound-submitted disputes (the real flow stamps submitted_by
+ * with the approver's email, not a brand name).
+ */
 export function buildDisputesSeed(
   accountId: string,
   now: Date,
@@ -352,7 +341,8 @@ export function buildDisputesSeed(
     const createdAt = daysAgo(now, spec.createdDaysAgo);
     const resolvedAt = spec.resolvedDaysAgo !== null ? daysAgo(now, spec.resolvedDaysAgo) : null;
     const won = spec.state === "resolved_won";
-    // Approved a day or two after the dispute was created; submitted right after.
+    // Approved a day or two after the dispute was created; submitted right
+    // after.
     const approvedAt = spec.foxhoundSubmitted
       ? daysAgo(now, Math.max(0, spec.createdDaysAgo - 1))
       : null;
@@ -384,8 +374,9 @@ export function buildDisputesSeed(
         ? new Date(resolvedAt.getTime() - 7 * DAY_MS)
         : new Date(now.getTime() + 10 * DAY_MS),
       submittedAt: approvedAt,
-      // Real code only ever writes submittedBy from buildSubmissionConfirmationBatch,
-      // gated on a Foxhound submission; a merchant-fought win never sets it.
+      // Real code only ever writes submittedBy from
+      // buildSubmissionConfirmationBatch, gated on a Foxhound submission; a
+      // merchant-fought win never sets it.
       submittedBy: spec.foxhoundSubmitted ? memberEmail : null,
       createdAt,
       resolvedAt,
@@ -484,8 +475,10 @@ export function buildDisputesSeed(
 
 type EarlyFraudWarningInsert = typeof earlyFraudWarnings.$inferInsert;
 
-/** Four early fraud warnings on Teamflow customers: three still open, one the
- *  merchant refunded. No stripe connection is referenced, as with the disputes. */
+/**
+ * Four early fraud warnings on Teamflow customers: three still open, one the
+ * merchant refunded. No stripe connection is referenced, as with the disputes.
+ */
 export function buildEarlyFraudWarningsSeed(
   accountId: string,
   now: Date,

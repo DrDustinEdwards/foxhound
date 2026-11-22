@@ -32,45 +32,12 @@ import {
   recoveredPayments,
 } from "./schema";
 
-// THE single source of truth for the billable sets (PRICING.md maturity-window
-// billing + SCHEMA.md spine #3). No other module reimplements these predicates.
-// A recovery bills only when ALL hold:
-//   - attributed to a Foxhound action (attribution_kind is one of
-//     BILLABLE_ATTRIBUTION_KINDS, the same allow-list app/lib/recovery/attribution.ts's
-//     isBillableAttribution uses, consolidated here 2026-07-19 per Phase 5 review
-//     LOW/INFO finding: this used to be a deny-list, attribution_kind != 'stripe_baseline',
-//     which happened to be equivalent only because exactly four attribution kinds exist. A
-//     fifth kind added to the schema CHECK constraint in the future would have silently
-//     become billable by default under the old deny-list; the allow-list fails closed instead),
-//   - matured >= RECOVERY_MATURITY_DAYS (recovered_at <= asOf - maturity),
-//   - not refunded, not disputed, not soft-deleted,
-//   - not already billed (no billing_line_item references it),
-//   - the account is billing-eligible (not exempt, not paused, not a demo account),
-//   - and no billing exemption forgave it (exemptionForgaveRecovery below).
-// A won dispute bills only when Foxhound actually drafted AND submitted the
-// evidence (PRICING.md rev 3: "Billable only if Foxhound drafted AND submitted
-// the evidence. Merchant-fought disputes are never billed."). The proof of a
-// Foxhound submission is BOTH a dispute_approvals row (the merchant's explicit
-// sign-off) AND disputes.submitted_at set (written only after Stripe accepted
-// the submission; see app/lib/disputes/approval.ts buildSubmissionConfirmationBatch).
-// A merchant-fought or auto-resolved win has neither and yields ZERO fee, even
-// though its state is resolved_won. On top of that: resolved_won by asOf, not
-// previously billed, the account is billing-eligible, and no billing exemption
-// forgave it (exemptionForgaveDispute below).
-//
-// AN EXEMPTION FORGIVES (Dustin, 2026-10-25, "Forgive, like Recova"). Recova
-// billed only the prior calendar month and skipped exempt accounts, so a fee
-// that came due while an account was exempt was never billed. The run-time
-// billing_exempt gate alone only HELD such fees for the first run after the
-// exemption ended. A fee is forgiven when an exempt stretch
-// (billing_exemption_periods, [started_at, ended_at)) covered the moment it
-// was earned, or any moment it was due and unbilled: from maturity (a
-// recovery) or resolution (a dispute) up to asOf. Only stretches that had
-// started by asOf count, so a run never forgives on an exemption set after it.
+// The single source of truth for the billable sets (PRICING.md, SCHEMA.md spine #3); no other module reimplements these predicates.
+// A recovery bills only when ALL hold: attributed to a Foxhound action (attribution_kind is in BILLABLE_ATTRIBUTION_KINDS, the allow-list app/lib/recovery/attribution.ts's isBillableAttribution uses; an allow-list so a new kind fails closed); matured >= RECOVERY_MATURITY_DAYS (recovered_at <= asOf - maturity); not refunded, not disputed, not soft-deleted; not already billed (no billing_line_item references it); the account is billing-eligible (not exempt, not paused, not a demo account); and no billing exemption forgave it (exemptionForgaveRecovery below).
+// A won dispute bills only when Foxhound drafted AND submitted the evidence (PRICING.md rev 3): a dispute_approvals row (the merchant's sign-off) AND disputes.submitted_at set (written only after Stripe accepted the submission; app/lib/disputes/approval.ts buildSubmissionConfirmationBatch). A merchant-fought or auto-resolved win has neither and yields ZERO fee, even though its state is resolved_won. Also: resolved_won by asOf, not previously billed, the account billing-eligible, and no exemption forgave it (exemptionForgaveDispute below).
+// AN EXEMPTION FORGIVES. A fee is forgiven when an exempt stretch (billing_exemption_periods, [started_at, ended_at)) covered the moment it was earned, or any moment it was due and unbilled: from maturity (a recovery) or resolution (a dispute) up to asOf. Only stretches that had started by asOf count, so a run never forgives on an exemption set after it.
 
-/** Account-level billing gate (PRICING.md: billing_exempt / processing_paused
- *  honored in the billable query itself; demo accounts never bill). Applied via an
- *  inner join on accounts in every billable query below. */
+/** Account-level billing gate (PRICING.md: billing_exempt / processing_paused honored in the billable query itself; demo accounts never bill). Applied via an inner join on accounts in every billable query below. */
 export function accountBillingEligibleCondition(): SQL {
   return and(
     eq(accounts.billingExempt, false),
@@ -131,14 +98,7 @@ function exemptionForgaveDispute(asOfMs: number): SQL {
   );
 }
 
-/** Row-level billable conditions for recoveries (everything except the
- *  not-already-billed clause, which is a join and lives in the query below,
- *  and the exemption clause, exemptionForgaveRecovery). The exemption clause
- *  stays out because it only holds for a fee not yet billed: it asks whether
- *  an exemption covered any moment up to asOf, so an exemption set long after
- *  a fee was invoiced would match it too. Readers of what to bill next add it
- *  (getBillableRecoveries, buildGuardedRecoveryLineInsert); a reader that also
- *  keeps billed rows, like the ROI widget, keeps a billed row whatever it says. */
+/** Row-level billable conditions for recoveries (everything except the not-already-billed clause, which is a join in the query below, and the exemption clause, exemptionForgaveRecovery). The exemption clause stays out because it only holds for a fee not yet billed: it asks whether an exemption covered any moment up to asOf, so an exemption set long after a fee was invoiced would match it too. Readers of what to bill next add it (getBillableRecoveries, buildGuardedRecoveryLineInsert); a reader that also keeps billed rows, like the ROI widget, keeps a billed row whatever it says. */
 export function billableRecoveryRowConditions(accountId: string, asOfMs: number): SQL {
   const maturityCutoff = new Date(asOfMs - RECOVERY_MATURITY_MS);
   return and(
@@ -185,19 +145,10 @@ function wonFoxhoundDisputeConditions(asOfMs: number): SQL {
   ) as SQL;
 }
 
-/** Row-level billable conditions for disputes: resolved_won by asOf AND Foxhound
- *  actually submitted it (disputes.submitted_at set post-Stripe-acceptance). The
- *  dispute_approvals-row requirement is the inner join in getBillableDisputes.
- *  Disputes have no maturity window (PRICING.md: billed at the next run after
- *  resolution); the resolved fee snapshot on the row already carries the cap
- *  applied at resolution.
- *
- *  SKIP UNTIL PRICED (Dustin). A win whose cap could not be
- *  converted at resolution has no stored fee, and it is left out here rather
- *  than billed at the flat 50,000 in its own currency, which ruling 377(7) says
- *  is never used. Nothing marks it billed, so once the daily pricing retry
- *  (app/lib/disputes/fee-pricing.server.ts) stores its fee, the next run bills
- *  exactly that amount. */
+/**
+ * Row-level billable conditions for disputes: resolved_won by asOf AND Foxhound actually submitted it (disputes.submitted_at set post-Stripe-acceptance). The dispute_approvals-row requirement is the inner join in getBillableDisputes. Disputes have no maturity window (billed at the next run after resolution); the resolved fee snapshot on the row already carries the cap applied at resolution.
+ * SKIP UNTIL PRICED: a win whose cap could not be converted at resolution has no stored fee, and is left out rather than billed at the flat 50,000 in its own currency, which is never used. Nothing marks it billed, so once the daily pricing retry (app/lib/disputes/fee-pricing.server.ts) stores its fee, the next run bills exactly that amount.
+ */
 function billableDisputeRowConditions(accountId: string, asOfMs: number): SQL {
   return and(
     eq(disputes.accountId, accountId),
@@ -282,34 +233,14 @@ export interface GuardedRecoveryLineInput {
 }
 
 /**
- * A recovery-fee line item that RE-CHECKS THE BILLABLE PREDICATE AS IT WRITES.
- *
- * The billing run reads the billable set outside the Durable Object and then
- * inserted from that in-memory list. The per-account DO
- * serializes the WRITES, not the read, so a refund landing in the gap between
- * the two was invoiced: the row was billable when it was read and was not when
- * it was written, and nothing looked again.
- *
- * This is an INSERT ... SELECT, so the predicate is evaluated by the database
- * at write time, inside the batch, against the row as it exists at that moment.
- * A refunded, disputed, deleted, unmatured or no-longer-attributed recovery
- * selects zero rows and inserts zero lines; nothing else about the batch
- * changes, and the invoice total is derived from the lines that actually
- * landed rather than the ones that were hoped for.
- *
- * DISPUTES ARE THE SAME CLASS AND ARE DELIBERATELY NOT CONVERTED HERE. 377's
- * dispatch scopes 376(3) to the recovery predicate, a dispute's billable state
- * is a state-machine transition rather than a stamped column, and the unique
- * index on dispute_id already stops the double-bill that matters. Left as a
- * named gap rather than a silent one.
+ * A recovery-fee line item that RE-CHECKS THE BILLABLE PREDICATE AS IT WRITES. The per-account DO serializes the writes, not the read, so a refund landing between reading the billable set and inserting would otherwise be invoiced. This is an INSERT ... SELECT, so the database evaluates the predicate at write time, inside the batch: a refunded, disputed, deleted, unmatured or no-longer-attributed recovery selects zero rows and inserts zero lines, and the invoice total is derived from the lines that actually landed.
+ * Disputes are the same class and deliberately not converted: a dispute's billable state is a state-machine transition rather than a stamped column, and the unique index on dispute_id already stops the double-bill that matters. A named gap, not a silent one.
  */
 export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLineInput) {
   return db.insert(billingLineItems).select(
     db
       .select({
-        // Projected in the table's own column order. The `id` default is a
-        // JS-side $defaultFn and does NOT fire on an insert-select, so the
-        // caller supplies a deterministic id.
+        // Projected in the table's own column order. The `id` default is a JS-side $defaultFn and does NOT fire on an insert-select, so the caller supplies a deterministic id.
         id: sql<string>`${input.lineItemId}`.as("id"),
         invoiceId: sql<string>`${input.invoiceId}`.as("invoice_id"),
         accountId: sql<string>`${input.accountId}`.as("account_id"),
@@ -317,16 +248,13 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
         currency: sql<string>`${input.currency}`.as("currency"),
         amountCents: sql<number>`${input.feeCents}`.as("amount_cents"),
         feeCents: sql<number>`${input.feeCents}`.as("fee_cents"),
-        // Taken from the SELECTED row, not from the caller: if no row survives
-        // the predicate there is nothing to point the evidence FK at.
+        // Taken from the SELECTED row, not from the caller: if no row survives the predicate there is nothing to point the evidence FK at.
         recoveredPaymentId: recoveredPayments.id,
         disputeId: sql<string | null>`null`.as("dispute_id"),
         adminAuditLogId: sql<string | null>`null`.as("admin_audit_log_id"),
         description: sql<string>`${input.description}`.as("description"),
         createdAt: sql<number>`${input.createdAt.getTime()}`.as("created_at"),
-        // Added by ruling 377(5). A fee line is not a credit, so both are null,
-        // but drizzle's insert-select requires EVERY column in table order and
-        // an omission is a runtime error, not a type error.
+        // A fee line is not a credit, so both are null, but drizzle's insert-select requires EVERY column in table order; an omission is a runtime error, not a type error.
         stripeCreditNoteId: sql<string | null>`null`.as("stripe_credit_note_id"),
         creditsLineItemId: sql<string | null>`null`.as("credits_line_item_id"),
         refundedCents: recoveredPayments.refundedCents,
@@ -343,14 +271,7 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
   );
 }
 
-/**
- * Set an invoice's total from the line items that ACTUALLY COMMITTED.
- *
- * The companion to the guarded insert above and not optional beside it: if a
- * line can silently not land, a total computed in JS from the pre-write list
- * overstates the invoice by exactly the fee that was withdrawn. Derived in the
- * same batch so the invoice and its lines can never disagree.
- */
+/** Set an invoice's total from the line items that ACTUALLY COMMITTED. Required beside the guarded insert: a total computed in JS from the pre-write list would overstate the invoice by exactly the fee that was withdrawn. Derived in the same batch so the invoice and its lines can never disagree. */
 export function buildInvoiceTotalFromLines(db: Db, invoiceId: string) {
   return db
     .update(billingInvoices)

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { afterPermanentFailure, classifyRetryError } from "~/lib/recovery/step-state";
+import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
+import {
+  afterPermanentFailure,
+  afterTransientFailure,
+  classifyRetryError,
+} from "~/lib/recovery/step-state";
 
 const now = new Date("2026-07-03T00:00:00.000Z");
 
@@ -11,6 +16,28 @@ describe("send-attempt state machine", () => {
     expect(s.executedAt).toEqual(now);
     expect(s.nextRetryAt).toBeNull();
     expect(s.attemptCount).toBe(1);
+  });
+});
+
+// A value test on purpose: other tests use SEND_MAX_ATTEMPTS symbolically, so none
+// would notice the number changing. This walks the real transition function, so
+// it fails if the backoff table, the count or the clamp changes the lived cadence.
+describe("send-retry cadence", () => {
+  it("reschedules four times at 15, 60, 240 and 720 minutes, then goes terminal on the fifth", () => {
+    const t0 = new Date("2026-01-01T00:00:00.000Z");
+    const waitsMinutes: number[] = [];
+    let attemptCount = 0;
+    for (let guard = 0; guard < 50; guard += 1) {
+      const next = afterTransientFailure(attemptCount, "transient", t0);
+      if (next.result !== null) {
+        expect(next.attemptCount).toBe(SEND_MAX_ATTEMPTS);
+        expect(waitsMinutes).toEqual([15, 60, 240, 720]);
+        return;
+      }
+      waitsMinutes.push((next.nextRetryAt!.getTime() - t0.getTime()) / 60_000);
+      attemptCount = next.attemptCount;
+    }
+    throw new Error("send-retry walk did not terminate");
   });
 });
 

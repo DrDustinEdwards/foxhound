@@ -1,0 +1,525 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import { eq } from "drizzle-orm";
+import { describe, expect, it, vi } from "vitest";
+
+import { accounts, adminAuditLog, apiKeys, cronConfig, stripeConnections } from "~/db/schema";
+import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
+
+import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
+
+// The Admin MCP's Worker holds no Stripe key, no money binding and no database;
+// everything it does goes through this API, so the rules live here: two
+// credentials on every call (an admin-scope key and an acting admin re-checked
+// against ADMIN_EMAIL), reads, pause and staging only, and every call logged.
+
+const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
+vi.mock("~/db", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/db")>()),
+  getDb: () => harness.db,
+}));
+
+vi.mock("~/lib/backup/d1-backup", () => ({
+  backupStatus: async () => ({ last_ok: null, age_hours: null, files: {} }),
+}));
+
+const { handleAdminApiRequest } = await import("~/lib/admin-api/handler.server");
+const { sha256Hex } = await import("@dustinedwards/site-runtime/encoding");
+const { confirmStagedChange, rejectStagedChange } = await import("~/lib/admin/staged.server");
+
+const ROOT = new URL("../", import.meta.url);
+const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
+const code = (source: string) =>
+  source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .split("\n")
+    .filter((line) => !line.trim().startsWith("//"))
+    .join("\n");
+
+const ORIGIN = "https://foxhoundapp.test";
+const ADMIN = "dustin@foxhound.test";
+const NOT_ADMIN = "intruder@foxhound.test";
+const NOW = new Date("2026-10-10T12:00:00.000Z");
+const MERCHANT = "acct_alpha";
+const OTHER = "acct_beta";
+const ACCESS_TOKEN = "enc_ACCESS_TOKEN_quokka";
+const WEBHOOK = "https://hooks.slack.com/services/T0ADM/B0ADM/adminWombatSecret";
+
+function env(): Env {
+  return {
+    DB: {
+      prepare: () => ({
+        run: async () => ({ meta: { size_after: 4096 } }),
+        all: async () => ({ results: [] }),
+        bind: () => ({ all: async () => ({ results: [] }) }),
+      }),
+    },
+    ADMIN_EMAIL: ADMIN,
+    CO_OWNER_EMAILS: "second@foxhound.test",
+    RATE_LIMITER: {
+      idFromName: (n: string) => n,
+      get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 60 }) }),
+    },
+    MONEY_WRITER: inMemoryMoneyWriter(() => harness.sqlite as never).binding,
+  } as unknown as Env;
+}
+
+async function seed() {
+  const { db, sqlite } = createInMemoryDb();
+  harness.db = db;
+  harness.sqlite = sqlite;
+  for (const id of [MERCHANT, OTHER]) {
+    await db.insert(accounts).values({
+      id,
+      name: `Merchant ${id}`,
+      createdAt: NOW,
+      currency: "usd",
+      slackWebhookUrl: WEBHOOK,
+    });
+    await db.insert(stripeConnections).values({
+      id: `sc_${id}`,
+      accountId: id,
+      stripeUserId: `acct_stripe_${id}`,
+      stripeAccessToken: ACCESS_TOKEN,
+      isPrimary: true,
+      connectedAt: NOW,
+      createdAt: NOW,
+    });
+  }
+  const mint = async (token: string, scope: string, accountId: string | null, revoked = false) =>
+    db.insert(apiKeys).values({
+      id: `key_${token}`,
+      accountId,
+      keyHash: await sha256Hex(token),
+      label: "test",
+      scope,
+      createdAt: NOW,
+      revokedAt: revoked ? NOW : null,
+    });
+  const admin = `${MCP_TOKEN_PREFIX}admin`;
+  const merchant = `${MCP_TOKEN_PREFIX}merchant`;
+  const revoked = `${MCP_TOKEN_PREFIX}revoked`;
+  await mint(admin, MCP_TOKEN_SCOPE.ADMIN, null);
+  await mint(merchant, MCP_TOKEN_SCOPE.MERCHANT, MERCHANT);
+  await mint(revoked, MCP_TOKEN_SCOPE.ADMIN, null, true);
+  return { db, sqlite, keys: { admin, merchant, revoked } };
+}
+
+async function api(
+  path: string,
+  opts: { key?: string | null; actor?: string | null; method?: string; body?: unknown } = {},
+) {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (opts.key) headers.Authorization = `Bearer ${opts.key}`;
+  if (opts.actor) headers["Foxhound-Acting-Admin"] = opts.actor;
+  const res = (await handleAdminApiRequest(
+    new Request(`${ORIGIN}/api/admin/v1${path}`, {
+      method: opts.method ?? "GET",
+      headers,
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    }),
+    env(),
+  )) as Response;
+  const text = await res.text();
+  return {
+    status: res.status,
+    text,
+    json: (text ? JSON.parse(text) : null) as Record<string, unknown>,
+  };
+}
+
+const asAdmin = (key: string) => ({ key, actor: ADMIN });
+
+describe("two credentials on every call", () => {
+  it("only claims /api/admin/v1", async () => {
+    expect(await handleAdminApiRequest(new Request(`${ORIGIN}/api/carrel/v1/x`), env())).toBeNull();
+    expect(await handleAdminApiRequest(new Request(`${ORIGIN}/admin`), env())).toBeNull();
+  });
+
+  it("no key, a merchant key and a revoked key are one identical 401", async () => {
+    const { keys } = await seed();
+    const bodies = new Set<string>();
+    for (const key of [null, "not-a-key", keys.merchant, keys.revoked]) {
+      const { status, text } = await api("/platform", { key, actor: ADMIN });
+      expect(status, String(key)).toBe(401);
+      bodies.add(text);
+    }
+    expect(bodies.size).toBe(1);
+  });
+
+  it("a good key with no acting admin, or one who is not on ADMIN_EMAIL, is 403", async () => {
+    const { keys } = await seed();
+    for (const actor of [null, NOT_ADMIN, ""]) {
+      const { status, json } = await api("/platform", { key: keys.admin, actor });
+      expect(status, String(actor)).toBe(403);
+      expect(String(json.error)).toMatch(/acting admin/i);
+    }
+  });
+});
+
+describe("the reads", () => {
+  it("platform, merchants, health, whats-next and the audit log answer 200 with data", async () => {
+    const { keys } = await seed();
+    for (const path of [
+      "/platform",
+      "/merchants",
+      "/health",
+      "/whats-next",
+      "/audit-log",
+      "/staged",
+    ]) {
+      const { status, json } = await api(path, asAdmin(keys.admin));
+      expect(status, path).toBe(200);
+      expect(json.ok, path).toBe(true);
+    }
+  });
+
+  it("GET /me names the acting admin, so the MCP can ask at sign-in whether someone is an admin", async () => {
+    const { keys } = await seed();
+    const { status, json } = await api("/me", asAdmin(keys.admin));
+    expect(status).toBe(200);
+    expect(json.data).toEqual({ actor: ADMIN });
+    expect((await api("/me", { key: keys.admin, actor: NOT_ADMIN })).status).toBe(403);
+  });
+
+  it("merchant search finds by name or id, and pages with a cursor", async () => {
+    const { keys } = await seed();
+    const { json } = await api("/merchants?query=beta", asAdmin(keys.admin));
+    const data = json.data as {
+      merchants: { id: string }[];
+      has_more: boolean;
+      next_cursor: string | null;
+    };
+    expect(data.merchants.map((m) => m.id)).toEqual([OTHER]);
+    expect(data.has_more).toBe(false);
+    expect(data.next_cursor).toBeNull();
+  });
+
+  it("merchant search can narrow to the paused ones", async () => {
+    const { db, keys } = await seed();
+    await db.update(accounts).set({ processingPaused: true }).where(eq(accounts.id, MERCHANT));
+    const { json } = await api("/merchants?filter=paused", asAdmin(keys.admin));
+    expect((json.data as { merchants: { id: string }[] }).merchants.map((m) => m.id)).toEqual([
+      MERCHANT,
+    ]);
+    expect((await api("/merchants?filter=nope", asAdmin(keys.admin))).status).toBe(400);
+  });
+
+  it("one merchant's detail never carries a Stripe access token or the Slack webhook URL", async () => {
+    const { keys } = await seed();
+    const { status, text } = await api(`/merchants/${MERCHANT}`, asAdmin(keys.admin));
+    expect(status).toBe(200);
+    expect(text).toContain(MERCHANT);
+    expect(text).not.toContain(ACCESS_TOKEN);
+    expect(text).not.toContain("stripeAccessToken");
+    expect(text).not.toContain("adminWombatSecret");
+  });
+
+  it("view runs the merchant's own read tool for that merchant, audits it, and cannot name a write tool", async () => {
+    const { db, keys } = await seed();
+    const view = (account: string, body: unknown) =>
+      api(`/merchants/${account}/view`, { ...asAdmin(keys.admin), method: "POST", body });
+
+    const ok = await view(MERCHANT, { tool: "foxhound_list_disputes" });
+    expect(ok.status).toBe(200);
+    const data = ok.json.data as { tool: string; result: Record<string, unknown> };
+    expect(data.tool).toBe("foxhound_list_disputes");
+    // The merchant's own answer: its settings block is there, and the other merchant's account is not.
+    expect(data.result.auto_submit).toMatchObject({ enabled: false });
+    expect(ok.text).not.toContain(OTHER);
+    expect(ok.text).not.toContain(ACCESS_TOKEN);
+
+    const audit = await db.select().from(adminAuditLog);
+    expect(audit.map((a) => [a.actorEmail, a.action, a.metadata])).toContainEqual([
+      ADMIN,
+      "merchant.view_as_read",
+      { accountId: MERCHANT, tool: "foxhound_list_disputes" },
+    ]);
+
+    for (const tool of ["foxhound_update_settings", "foxhound_manage_alerts", "nope"]) {
+      const refused = await view(MERCHANT, { tool });
+      expect(refused.status, tool).toBe(400);
+    }
+    expect((await view("acct_nope", { tool: "foxhound_get_overview" })).status).toBe(404);
+  });
+
+  it("an unknown merchant is a 404 that says how to find one", async () => {
+    const { keys } = await seed();
+    const { status, json } = await api("/merchants/acct_nope", asAdmin(keys.admin));
+    expect(status).toBe(404);
+    expect(String(json.error)).toMatch(/merchants/);
+  });
+});
+
+describe("pause is a direct write, audited under the acting admin", () => {
+  it("pausing one merchant stops processing now and records who did it", async () => {
+    const { db, keys } = await seed();
+    const { status } = await api("/pause", {
+      ...asAdmin(keys.admin),
+      method: "POST",
+      body: { account_id: MERCHANT },
+    });
+    expect(status).toBe(200);
+    const [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
+    expect(row.processingPaused).toBe(true);
+    const [other] = await db.select().from(accounts).where(eq(accounts.id, OTHER));
+    expect(other.processingPaused).toBe(false);
+    const audit = await db.select().from(adminAuditLog);
+    expect(audit.map((a) => [a.actorEmail, a.action])).toContainEqual([
+      ADMIN,
+      "merchant.processing.pause",
+    ]);
+  });
+
+  it("pausing all engages the brake", async () => {
+    const { db, keys } = await seed();
+    const { status } = await api("/pause", {
+      ...asAdmin(keys.admin),
+      method: "POST",
+      body: { all: true },
+    });
+    expect(status).toBe(200);
+    const rows = await db.select().from(accounts);
+    expect(rows.every((r) => r.processingPaused)).toBe(true);
+  });
+
+  it("a pause naming nothing, or an unknown merchant, changes nothing and says why", async () => {
+    const { db, keys } = await seed();
+    for (const body of [{}, { account_id: "acct_nope" }]) {
+      const { status, json } = await api("/pause", {
+        ...asAdmin(keys.admin),
+        method: "POST",
+        body,
+      });
+      expect(status, JSON.stringify(body)).toBe(400);
+      expect(String(json.error).length).toBeGreaterThan(10);
+    }
+    expect((await db.select().from(accounts)).some((r) => r.processingPaused)).toBe(false);
+  });
+});
+
+describe("money starts only after a human confirms in /admin", () => {
+  it("staging a resume leaves the merchant paused and writes a pending row plus an audit entry", async () => {
+    const { db, keys } = await seed();
+    await db
+      .update(accounts)
+      .set({ processingPaused: true, pauseReason: "manual" })
+      .where(eq(accounts.id, MERCHANT));
+    const { status, json } = await api("/staged", {
+      ...asAdmin(keys.admin),
+      method: "POST",
+      body: { kind: "resume_account", account_id: MERCHANT },
+    });
+    expect(status).toBe(200);
+    const staged = (json.data as { staged: { id: string; status: string } }).staged;
+    expect(staged.status).toBe("pending");
+    const [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
+    expect(row.processingPaused).toBe(true);
+    const audit = await db.select().from(adminAuditLog);
+    expect(audit.map((a) => [a.actorEmail, a.action])).toContainEqual([ADMIN, "staged.create"]);
+
+    // Confirmed by a person in /admin: now, and only now, the merchant resumes.
+    const result = await confirmStagedChange(env(), {
+      id: staged.id,
+      actorEmail: "second@foxhound.test",
+      confirmPhrase: "",
+      now: NOW,
+    });
+    expect(result.ok).toBe(true);
+    const [after] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
+    expect(after.processingPaused).toBe(false);
+    const actions = (await db.select().from(adminAuditLog)).map((a) => [a.actorEmail, a.action]);
+    expect(actions).toContainEqual(["second@foxhound.test", "staged.confirm"]);
+
+    // A confirmed change cannot be applied twice.
+    const again = await confirmStagedChange(env(), {
+      id: staged.id,
+      actorEmail: ADMIN,
+      confirmPhrase: "",
+      now: NOW,
+    });
+    expect(again.ok).toBe(false);
+  });
+
+  it("a billing exemption is staged, then applied on confirm", async () => {
+    const { db, keys } = await seed();
+    const exempt = await api("/staged", {
+      ...asAdmin(keys.admin),
+      method: "POST",
+      body: { kind: "billing_exempt", account_id: MERCHANT, exempt: true },
+    });
+    expect(exempt.status).toBe(200);
+    let [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
+    expect(row.billingExempt).toBe(false);
+    const id = (exempt.json.data as { staged: { id: string } }).staged.id;
+    expect(
+      (await confirmStagedChange(env(), { id, actorEmail: ADMIN, confirmPhrase: "", now: NOW })).ok,
+    ).toBe(true);
+    [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
+    expect(row.billingExempt).toBe(true);
+  });
+
+  it("a staged cron enable needs the same typed phrase /admin/crons asks for", async () => {
+    const { db, keys } = await seed();
+    await db
+      .insert(cronConfig)
+      .values({ cronName: "recovery-tick", enabled: false, updatedAt: NOW });
+    const staged = await api("/staged", {
+      ...asAdmin(keys.admin),
+      method: "POST",
+      body: { kind: "cron_enable", cron_name: "recovery-tick" },
+    });
+    const id = (staged.json.data as { staged: { id: string } }).staged.id;
+    const wrong = await confirmStagedChange(env(), {
+      id,
+      actorEmail: ADMIN,
+      confirmPhrase: "yes",
+      now: NOW,
+    });
+    expect(wrong.ok).toBe(false);
+    const [still] = await db
+      .select()
+      .from(cronConfig)
+      .where(eq(cronConfig.cronName, "recovery-tick"));
+    expect(still.enabled).toBe(false);
+    const right = await confirmStagedChange(env(), {
+      id,
+      actorEmail: ADMIN,
+      confirmPhrase: "ENABLE recovery-tick",
+      now: NOW,
+    });
+    expect(right.ok).toBe(true);
+    const [now] = await db
+      .select()
+      .from(cronConfig)
+      .where(eq(cronConfig.cronName, "recovery-tick"));
+    expect(now.enabled).toBe(true);
+  });
+
+  it("a rejected change is never applied, and an expired one cannot be confirmed", async () => {
+    const { db, keys } = await seed();
+    await db.update(accounts).set({ processingPaused: true }).where(eq(accounts.id, MERCHANT));
+    const stage = async () =>
+      (
+        (
+          await api("/staged", {
+            ...asAdmin(keys.admin),
+            method: "POST",
+            body: { kind: "resume_account", account_id: MERCHANT },
+          })
+        ).json.data as { staged: { id: string } }
+      ).staged.id;
+    const rejected = await stage();
+    expect((await rejectStagedChange(db, { id: rejected, actorEmail: ADMIN, now: NOW })).ok).toBe(
+      true,
+    );
+    expect(
+      (
+        await confirmStagedChange(env(), {
+          id: rejected,
+          actorEmail: ADMIN,
+          confirmPhrase: "",
+          now: NOW,
+        })
+      ).ok,
+    ).toBe(false);
+    const stale = await stage();
+    const later = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    expect(
+      (
+        await confirmStagedChange(env(), {
+          id: stale,
+          actorEmail: ADMIN,
+          confirmPhrase: "",
+          now: later,
+        })
+      ).ok,
+    ).toBe(false);
+    const [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
+    expect(row.processingPaused).toBe(true);
+  });
+
+  it("an unknown kind, or a kind missing its target, is refused and stages nothing", async () => {
+    const { sqlite, keys } = await seed();
+    for (const body of [
+      { kind: "refund", account_id: MERCHANT },
+      { kind: "resume_account" },
+      { kind: "cron_enable", cron_name: "not-a-cron" },
+      { kind: "billing_exempt", account_id: MERCHANT },
+    ]) {
+      const { status } = await api("/staged", { ...asAdmin(keys.admin), method: "POST", body });
+      expect(status, JSON.stringify(body)).toBe(400);
+    }
+    expect(sqlite.prepare("SELECT count(*) AS n FROM staged_changes").get()).toEqual({ n: 0 });
+  });
+});
+
+describe("no money path exists on the API", () => {
+  it("refund, adjustment, cancel and disconnect paths are 404 with no write", async () => {
+    const { db, keys } = await seed();
+    for (const path of [
+      `/merchants/${MERCHANT}/refund`,
+      `/merchants/${MERCHANT}/adjustment`,
+      `/merchants/${MERCHANT}/cancel`,
+      `/merchants/${MERCHANT}/disconnect`,
+      "/refund",
+    ]) {
+      const { status } = await api(path, { ...asAdmin(keys.admin), method: "POST", body: {} });
+      expect(status, path).toBe(404);
+    }
+    const [row] = await db.select().from(accounts).where(eq(accounts.id, MERCHANT));
+    expect(row.cancelledAt).toBeNull();
+  });
+
+  it("the API and the staging module import no money writer, cancel or disconnect", () => {
+    for (const path of ["app/lib/admin-api/handler.server.ts", "app/lib/admin/staged.server.ts"]) {
+      const body = code(read(path));
+      for (const forbidden of [
+        "cancelMerchant",
+        "disconnectConnection",
+        "createAdjustment",
+        "executeMoneyWrite",
+        "recordOutcome",
+        "deauthorize",
+        "refund",
+      ]) {
+        expect(body, `${path} names ${forbidden}`).not.toContain(forbidden);
+      }
+    }
+  });
+});
+
+describe("every call is logged, append-only", () => {
+  it("a read and a write each leave one row naming the acting admin and the key", async () => {
+    const { sqlite, keys } = await seed();
+    await api("/platform", asAdmin(keys.admin));
+    await api("/pause", { ...asAdmin(keys.admin), method: "POST", body: { account_id: MERCHANT } });
+    const rows = sqlite.prepare("SELECT * FROM admin_api_calls ORDER BY rowid").all() as {
+      actor_email: string;
+      api_key_id: string;
+      method: string;
+      path: string;
+      status: number;
+    }[];
+    expect(rows.map((r) => [r.actor_email, r.method, r.path, r.status])).toEqual([
+      [ADMIN, "GET", "/platform", 200],
+      [ADMIN, "POST", "/pause", 200],
+    ]);
+    expect(rows[0].api_key_id).toBe(`key_${keys.admin}`);
+    expect(() => sqlite.prepare("DELETE FROM admin_api_calls").run()).toThrow(/append-only/);
+    expect(() => sqlite.prepare("UPDATE admin_api_calls SET path = 'x'").run()).toThrow(
+      /append-only/,
+    );
+  });
+});
+
+describe("the wiring", () => {
+  it("serves the admin API only on the AdminApi entrypoint, never the public fetch", () => {
+    // workers/ imports cloudflare:workers, which does not load in node, so this
+    // guards the one security line by its source.
+    expect(read("workers/app.ts")).not.toContain("handleAdminApiRequest");
+    expect(read("workers/app.ts")).toContain('export { AdminApi } from "./admin-api"');
+    expect(read("workers/admin-api.ts")).toContain("handleAdminApiRequest(request, this.env)");
+  });
+});

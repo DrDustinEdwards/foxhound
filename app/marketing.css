@@ -1,6 +1,4 @@
-/* The public pages' own parts: bands, columns, cards and their spacing, as Recova laid them out.
-   In the site layer (app.css). Loaded by the marketing layout; the blog post's are in
-   blog-prose.css, the parts the app pages share in app.css. */
+/* The public pages' own parts: bands, columns, cards and their spacing. In the site layer (app.css). Loaded by the marketing layout; the blog post's are in blog-prose.css, the parts the app pages share in app.css. */
 @layer site {
   /* The opacity fades (the color fades are in app.css). */
   .fh-mk-heading {
@@ -227,9 +225,7 @@
 /* The public pages' own looks (legal pages, heroes, closing bands), on Capsomer's legal page, hero and CTA band.
    Loaded by the marketing layout only, so the merchant app and admin do not carry them. */
 
-/* The legal pages (privacy, terms, security, accessibility): Capsomer's legal page at Recova's sizes
-   and colors. The 0.9375rem body, the 1.25rem section heads and the mono micro contents heading, as
-   Recova writes them. Links are the network's (capsomer/links.css, Foxhound's entry). */
+/* The legal pages (privacy, terms, security, accessibility): Capsomer's legal page at a 0.9375rem body, 1.25rem section heads and a mono micro contents heading. Links are the network's (capsomer/links.css). */
 .fh-legal {
   padding-block-start: var(--space-9);
 }
@@ -274,9 +270,7 @@
   font-size: var(--fs-detail);
 }
 
-/* Capsomer's hero at Foxhound's three heroes (home, product spokes, page heads): Recova's sizes
-   through the hero's tokens, and the staggered fade-up Recova puts on each line, on the text's
-   children (the keyframes are the ones above). */
+/* Capsomer's hero at Foxhound's three heroes (home, product spokes, page heads), sized through the hero's tokens, with a staggered fade-up on the text's children (the keyframes are the ones above). */
 .fh-home-hero,
 .fh-product-hero,
 .fh-page-hero {
@@ -397,8 +391,7 @@
   color: var(--muted);
 }
 
-/* Recova's hero fade, guarded so that under reduced motion the text renders in place
-   (a delay left unguarded would hold it at opacity 0). */
+/* The hero fade, guarded so that under reduced motion the text renders in place (an unguarded delay would hold it at opacity 0). */
 @media (prefers-reduced-motion: no-preference) {
   @keyframes fade-up {
     from {
@@ -445,8 +438,7 @@
   }
 }
 
-/* Capsomer's quiet CTA band as Foxhound's closing sections: a plain section with a rule above, the
-   words centered in a column, Recova's sizes. --fh-closing-w is the column. */
+/* Capsomer's quiet CTA band as Foxhound's closing sections: a plain section with a rule above, the words centered in a column. --fh-closing-w is the column. */
 .fh-closing-band {
   --fh-closing-w: 760px;
   gap: 0;

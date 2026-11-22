@@ -36,41 +36,10 @@ import { MCP_CALLS_SHOWN, outcomeWords } from "~/lib/admin/mcps";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// S29, /settings/api-keys. Legacy: api-keys/page.tsx (blob b50fb228, 624 bytes)
-// and api-keys/ApiKeysClient.tsx (blob 338db3db, 10,371 bytes), with its API at
-// app/api/settings/api-keys/route.ts (blob 81e694f5) and [id]/route.ts (blob
-// d0d306ba).
-//
-// J34 rebuilt it from Capsomer 0.9.0's parts under Dustin's
-// Q10 and Q11 answers of 2026-10-14: PageHead, Panel, Table, Field,
-// Button, Empty and Alert, amber throughout. Recova stays the spec for what is
-// here and in what order: the phone-only back link, the title and its line,
-// one card holding the count and Generate new key, the load failure, the empty
-// sentence, the four-column table, then the generate form or the one-time
-// reveal with Copy key and Done.
-//
-// THE BACKEND CAME FIRST HERE, like S28: `issueMcpToken`, `verifyMcpToken` and
-// `revokeMcpToken` have existed since Phase 3. This is the merchant-facing half.
-// Every key made here is a merchant key (`createAccountApiKey`): Recova's admin
-// scope picker is gone, because an Admin API key is the admin area's, behind
-// Access (Mythos billing review, finding 4). A revoke is pinned to the account
-// (`revokeAccountApiKey`), as legacy's handler is; both are pinned in
-// test/settings-api-keys-s29.test.ts.
-//
-// THE SAME RESULT THROUGH A DIFFERENT SHAPE: legacy opens the
-// form and reveals the key in client state over a JSON API; here the form opens
-// at ?new=1 and the key comes back once on the action's response, so both work
-// without script. Legacy's browser alert() on a failure is an inline Capsomer
-// alert, and legacy's revoke still has no confirm, because a revoked key is
-// recoverable by issuing another.
-//
-// OWNERS ONLY. A key can change the account's settings and brand voice, so
-// only the account's owner creates or revokes one, as only an owner invites
-// (/settings/team). Legacy let any member mint one; the August audit's S3.
-//
-// THE SECRET IS SHOWN ONCE. It lives only on the action's response and in the
-// one <pre>; it is never logged, never put in a URL, and never stored (only its
-// hash is, in issueMcpToken).
+// /settings/api-keys: the phone-only back link, the title and its line, one card holding the count and Generate new key, the load failure, the empty sentence, the four-column table, then the generate form or the one-time reveal with Copy key and Done.
+// Every key made here is a merchant key (`createAccountApiKey`); an Admin API key is the admin area's, behind Access. A revoke is pinned to the account (`revokeAccountApiKey`); both are pinned in test/settings-api-keys.test.ts. The form opens at ?new=1 and the key comes back once on the action's response, so both work without script. A failure is an inline Capsomer alert. Revoke has no confirm, because a revoked key is recoverable by issuing another.
+// OWNERS ONLY: a key can change the account's settings and brand voice, so only the account's owner creates or revokes one, as only an owner invites (/settings/team).
+// THE SECRET IS SHOWN ONCE. It lives only on the action's response and in the one <pre>; it is never logged, never put in a URL, and never stored (only its hash is, in issueMcpToken).
 
 export function meta() {
   return [{ title: "API keys - Foxhound" }, NOINDEX];
@@ -86,8 +55,7 @@ type CallLog =
   | { state: "failed" }
   | { state: "ok"; calls: AccountMcpCallRow[]; more: boolean; newer: boolean };
 
-// THE CALL LOG (area 11, A15 and L9). Beside the keys an owner can revoke, what their agents did with them: every call
-// the merchant /mcp logged for this account, newest first, a page at a time. Owners only, as creating and revoking are.
+// THE CALL LOG: beside the keys an owner can revoke, what their agents did with them: every call the merchant /mcp logged for this account, newest first, a page at a time. Owners only, as creating and revoking are.
 async function readCallLog(
   env: Env,
   accountId: string,
@@ -120,9 +88,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     const keys = await listAccountApiKeys(getDb(env), auth.membership.accountId);
     return { keys, loadError: false, isOwner: isOwner(auth), callLog };
   } catch (err) {
-    // Legacy's page shows "Couldn't load your API keys" when its read fails,
-    // rather than an error page; this is that state. The message names the
-    // failure only, never a key.
+    // The state shown when the read fails, rather than an error page. The message names the failure only, never a key.
     console.error("api keys read failed:", err instanceof Error ? err.message : "unknown error");
     return { keys: null, loadError: true, isOwner: isOwner(auth), callLog };
   }
@@ -134,8 +100,7 @@ interface ActionResult {
   action: string;
   ok: boolean;
   error?: string;
-  /** The plaintext token, returned ONCE and never stored. Only ever present on
-   *  the response to the request that created it. */
+  /** The plaintext token, returned ONCE and never stored. Only ever present on the response to the request that created it. */
   rawKey?: string;
 }
 
@@ -213,10 +178,7 @@ function dateOrNever(at: Date | null): string {
   return at ? (formatDate(new Date(at), { style: "medium" }) ?? "") : "Never";
 }
 
-/** Generate new key stays where it is while the form or the key is open, as
- *  legacy's does, but cannot be pressed. Capsomer's disabled button keeps focus
- *  and says why; the reason is read by a screen reader, not shown, because
- *  legacy shows none. */
+/** Generate new key stays where it is while the form or the key is open, but cannot be pressed. Capsomer's disabled button keeps focus and says why; the reason is read by a screen reader, not shown. */
 function GenerateDisabled() {
   const reason = useId();
   return (

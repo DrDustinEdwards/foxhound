@@ -1,5 +1,5 @@
-// /admin/platform/audit-log data layer: the operator audit trail (admin_audit_log,
-// global, permanent retention). READ only.
+// /admin/platform/audit-log data layer: the operator audit trail
+// (admin_audit_log, global, permanent retention). READ only.
 
 import { desc } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
@@ -13,8 +13,10 @@ export async function listAuditLog(db: Db, limit = 200) {
   return db.select().from(adminAuditLog).orderBy(desc(adminAuditLog.createdAt)).limit(limit);
 }
 
-/** The merchant names and post titles the log's targets name, in two queries
- *  for the whole page rather than one per row. */
+/**
+ * The merchant names and post titles the log's targets name, in two queries for
+ * the whole page rather than one per row.
+ */
 export async function loadAuditLookups(
   db: Db,
   entries: Parameters<typeof auditLookupIds>[0],

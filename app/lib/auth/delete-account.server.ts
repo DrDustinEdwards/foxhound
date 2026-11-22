@@ -28,21 +28,6 @@ import {
 import { MEMBER_ROLE, MEMBER_STATUS } from "./roles";
 import { buildAccountScrubStatements } from "./account-scrub.server";
 
-// ACCOUNT DELETION, the one approved difference from
-// Recova's delete.
-//
-// Recova's /api/auth/delete-account (blob 2136362a) calls delete_account_cascade,
-// which deletes every account the user OWNS and everything under it, including
-// recovered_payments, then the user's other memberships and the user. Foxhound
-// bills its fees on recovered_payments, so Dustin ruled (Q14 and Q16,
-// parity/ANSWERS-2026-10-14.md) that those records survive, keeping only what
-// proves the fee (amounts, currency, dates, Stripe ids and the attribution
-// chain), while the merchant's personal data and their end customers' names,
-// emails and other personal details are removed.
-//
-// SO EVERYTHING RECOVA DELETES IS DELETED HERE TOO, EXCEPT THE FEE EVIDENCE,
-// which is kept and stripped of personal fields:
-//
 //   - recovered_payments, billing_invoices, billing_line_items and outcomes are
 //     NOT WRITTEN AT ALL. None of them holds a personal field, and each keeps its
 //     one writer. The fee is recomputed from them unchanged.
@@ -53,33 +38,10 @@ import { buildAccountScrubStatements } from "./account-scrub.server";
 //     dispute that was billed or is billable with its approval, and the Stripe
 //     connection those rows reference. Their personal columns are cleared.
 //   - everything else under the account is deleted.
-//
-// ONE PLAIN ATOMIC BATCH, like cancelMerchant and for the same reason (RULES.md
-// 3.2): this is an account-state write, not outcome recording, attributed
-// billing or a webhook claim, and it never touches a fee row. The audit row is
-// the batch's first statement, so a deletion and its record commit together or
-// not at all, which is Recova's "no deletion without a record" made atomic.
-//
-// SET PREDICATES, NEVER ID LISTS. Each statement names its rows
-// by account and by a correlated EXISTS against the fee rows, so a merchant with
-// ten thousand payments costs the same number of bound parameters as one with
-// ten. EXISTS rather than NOT IN, because NOT IN against a nullable column
-// (recovered_by_step_id) matches nothing at all once one NULL is present.
-//
-// THE ORDER IS THE FOREIGN-KEY ORDER, children before parents, because D1
-// enforces foreign keys and the local harness does not. The
-// tests run with foreign_keys = ON and a foreign_key_check to hold it.
-//
-// NEVER AN AGENT TOOL: nothing under app/lib/mcp or the admin API
-// imports this module, and the tool registry refuses any name containing
-// "delete_account".
 
-/** The audit action, Recova's own name for it. */
 const ACCOUNT_DELETION_AUDIT_ACTION = "user_self_deleted_account";
 
-/** Who the audit row names as the actor. Recova writes the person's email here;
- *  Foxhound keeps the record and drops the address, because the address is the
- *  personal data being deleted. The user id stays as the target. */
+/** Who the audit row names as the actor. The user id stays as the target. */
 const ACCOUNT_DELETION_AUDIT_ACTOR = "account-owner";
 
 type DeletionBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
@@ -92,18 +54,18 @@ interface DeletedConnection {
 interface DeletionPlan {
   userId: string;
   email: string;
-  /** Every account the user actively OWNS. Recova's ownership query, the
-   *  owner-role memberships of the user, is the same set. */
+  /** Every account the user actively OWNS. */
   ownedAccountIds: string[];
-  /** Live Stripe connections on those accounts, whose grants are revoked after
-   *  the local commit. */
+  /**
+   * Live Stripe connections on those accounts, whose grants are revoked after
+   * the local commit.
+   */
   liveConnections: DeletedConnection[];
   /** Recovered payments kept as fee evidence, for the audit row. */
   keptRecoveredPayments: number;
 }
 
-/** Read what a deletion will act on. Null when the user no longer exists, which
- *  is what makes a second deletion a no-op. */
+/** Read what a deletion will act on. */
 async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | null> {
   const users = await db
     .select({ id: user.id, email: user.email })
@@ -159,9 +121,7 @@ async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | 
 /**
  * The statements that delete the person: their memberships elsewhere, their
  * notification preferences, their name on any approval they signed, then the
- * Better Auth rows that point at the user. Recova's cascade ends the same way,
- * with the residual memberships and the user; here Better Auth deletes the
- * user itself.
+ * Better Auth rows that point at the user.
  */
 function buildUserDeletionStatements(
   db: Db,
@@ -178,12 +138,8 @@ function buildUserDeletionStatements(
       .update(disputeApprovals)
       .set({ approvedByEmail: null, approvedByUserId: null })
       .where(eq(disputeApprovals.approvedByUserId, userId)),
-    // The agents this person connected to accounts they do not own. A
-    // grant is their delegation and ends with them. The access key goes first,
-    // revoked through the grant that names it (a grant points at its key, so
-    // the key cannot be deleted while the grant stands, and once the grant is
-    // gone nothing finds the key); then the grants and the codes go. The
-    // revoked key keeps no personal value and Settings never lists it.
+    // The agents this person connected to accounts they do not own. A grant is
+    // their delegation and ends with them.
     db
       .update(apiKeys)
       .set({ revokedAt: now })
@@ -207,8 +163,8 @@ function buildUserDeletionStatements(
     db
       .delete(verification)
       .where(or(eq(verification.identifier, email), eq(verification.value, userId))),
-    // NOT the user row, which Better Auth's deleteUser deletes after this
-    // batch (accountDeletionHooks), so its database hook runs: site-runtime's
+    // NOT the user row, which Better Auth's deleteUser deletes after this batch
+    // (accountDeletionHooks), so its database hook runs: site-runtime's
     // user_deleted line, the account-deleted notice and the person's
     // auth_events rows.
   ];
@@ -239,8 +195,10 @@ export type DeleteAccountLocalResult =
   | { status: "deleted"; accountIds: string[]; liveConnections: DeletedConnection[] }
   | { status: "not_found" };
 
-/** Read the plan and commit the batch, which leaves only the user row. Writes
- *  nothing when the user is gone. */
+/**
+ * Read the plan and commit the batch, which leaves only the user row. Writes
+ * nothing when the user is gone.
+ */
 export async function deleteUserAccountLocal(
   db: Db,
   userId: string,
@@ -268,9 +226,11 @@ export interface DeleteAccountDeps {
 
 const ACCOUNT_DELETION_DEAUTHORIZE_FAILED_ACTION = "user_self_deleted_account_deauthorize_failed";
 
-/** One durable admin_audit_log row for a Stripe grant that could not be revoked
- *  after a deletion, through the one audit writer. Ids and the error only: the
- *  person's email and name are already gone and are not written back here. */
+/**
+ * One durable admin_audit_log row for a Stripe grant that could not be revoked
+ * after a deletion, through the one audit writer. Ids and the error only: the
+ * person's email and name are already gone and are not written back here.
+ */
 async function recordDeauthorizeFailure(
   db: Db,
   userId: string,
@@ -292,15 +252,9 @@ async function recordDeauthorizeFailure(
  * Better Auth's deleteUser hooks (auth.server.ts), which are the account
  * deletion. Better Auth checks the sign-in is fresh, then runs beforeDelete
  * (Foxhound's local batch, everything but the user row), deletes the user and
- * its sessions, and runs afterDelete: each disconnected Stripe grant is
- * revoked there, best effort, cancelMerchant's posture, because a revoke that
- * fails is reported and never undoes the deletion. The connections to revoke
- * pass from one hook to the other by user id.
- *
- * Not one batch with the user row: should Better Auth's delete fail after the
- * local batch, the person is left with no sessions, memberships or personal
- * data, and deleting again from a new sign-in finishes it (the batch is set
- * predicates and repeats cleanly).
+ * its sessions, and runs afterDelete: each disconnected Stripe grant is revoked
+ * there, best effort, cancelMerchant's posture, because a revoke that fails is
+ * reported and never undoes the deletion.
  */
 export function accountDeletionHooks(env: Env, deps: Partial<DeleteAccountDeps> = {}) {
   const deleteLocal =
@@ -321,9 +275,9 @@ export function accountDeletionHooks(env: Env, deps: Partial<DeleteAccountDeps> 
       const failures = await revokeDisconnectedGrants(env, connections, new Date(), deauthorize);
       for (const failure of failures) {
         // Nobody is signed in to see this once the account is gone, so the
-        // failure is written where an operator finds it (/admin/platform/audit-log),
-        // beside the retry the revoke queued. A failed write is logged and never
-        // reports the deletion as failed.
+        // failure is written where an operator finds it, beside the retry the
+        // revoke queued. A failed write is logged and never reports the
+        // deletion as failed.
         try {
           await recordFailure(env, deleted.id, failure);
         } catch (err) {

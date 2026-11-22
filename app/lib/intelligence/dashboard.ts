@@ -4,17 +4,14 @@ import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { monthKey } from "@dustinedwards/site-runtime/time";
 
-// Pure helpers for the Intelligence dashboard, shared by the
-// page and its tests. No database, no AI, no server import: the page bundles
-// this for the browser.
+// Pure helpers for the Intelligence dashboard, shared by the page and its tests. No database, no AI, no server
+// import: the page bundles this for the browser.
 
-/** The month `delta` months from "YYYY-MM". Recova's shiftMonth. */
 export function shiftMonth(yyyymm: string, delta: number): string {
   const [y, m] = yyyymm.split("-");
   return monthKey(new Date(Date.UTC(Number(y), Number(m) - 1 + delta, 1)));
 }
 
-/** "October 2026". Recova's monthLabel. */
 export function monthLabel(yyyymm: string): string {
   const [y, m] = yyyymm.split("-");
   return new Date(Date.UTC(Number(y), Number(m) - 1, 1)).toLocaleDateString("en-US", {
@@ -24,12 +21,8 @@ export function monthLabel(yyyymm: string): string {
   });
 }
 
-/**
- * Recova's "The first snapshot runs tonight at 2:15am UTC. Check back
- * tomorrow.", with Foxhound's time: intelligence-sync runs daily on
- * CRON_SCHEDULE_DAILY, and the time is read from that schedule, so a change
- * to it cannot leave the sentence naming the wrong hour.
- */
+/** The first-snapshot sentence; the time is read from CRON_SCHEDULE_DAILY (when intelligence-sync runs), so a
+ *  schedule change cannot leave it naming the wrong hour. */
 export function firstSnapshotSentence(): string {
   const match = /^(\d+) (\d+) \* \* \*$/.exec(CRON_SCHEDULE_DAILY);
   if (!match) throw new Error(`not a daily schedule: ${CRON_SCHEDULE_DAILY}`);
@@ -37,8 +30,7 @@ export function firstSnapshotSentence(): string {
   return `The first snapshot runs tonight at ${time} UTC. Check back tomorrow.`;
 }
 
-/** Every `stride`th item plus the last: Recova's every-7th-row sampling on its
- *  NRR and churn charts, keeping the newest day. */
+/** Every `stride`th item plus the last, keeping the newest day (NRR and churn charts). */
 export function sampleEveryNth<T>(items: readonly T[], stride = 7): T[] {
   return items.filter((_, i) => i % stride === 0 || i === items.length - 1);
 }
@@ -49,27 +41,25 @@ interface DailyPoint {
   newMrrCents: number;
 }
 
-/** Recova's "Day-over-day": the latest snapshot's MRR less the one before it.
- *  null with fewer than two snapshots. */
+/** The latest snapshot's MRR less the one before it; null with fewer than two snapshots. */
 export function dayOverDayCents(points: readonly DailyPoint[]): number | null {
   const last = points[points.length - 1];
   const prior = points[points.length - 2];
   return last && prior ? last.totalMrrCents - prior.totalMrrCents : null;
 }
 
-/** Recova's "New MRR (MTD)": new MRR summed over this UTC month's snapshots. */
+/** New MRR summed over this UTC month's snapshots. */
 export function newMrrMonthToDateCents(points: readonly DailyPoint[], nowMs: number): number {
   const month = monthKey(new Date(nowMs));
   return points.filter((p) => monthKey(p.at) === month).reduce((sum, p) => sum + p.newMrrCents, 0);
 }
 
-/** "+$120" or "-$45": Recova printed only a plus, and a fall read as a rise. */
+/** "+$120" or "-$45": the sign is shown both ways so a fall does not read as a rise. */
 export function signedMoney(cents: number, currency: string): string {
   return `${cents < 0 ? "-" : "+"}${formatMoneyShort(Math.abs(cents), currency)}`;
 }
 
 export interface MovementWeek {
-  /** Monday 00:00 UTC of the week. */
   at: Date;
   newMrrCents: number;
   expansionMrrCents: number;
@@ -78,17 +68,12 @@ export interface MovementWeek {
   churnMrrCents: number;
 }
 
-/** Monday 00:00 UTC of the week holding `at` (Enarratio's week bucket). */
 function weekStart(at: Date): number {
   const day = Date.UTC(at.getUTCFullYear(), at.getUTCMonth(), at.getUTCDate());
   return day - ((at.getUTCDay() + 6) % 7) * 86_400_000;
 }
 
-/**
- * Each week's MRR movement, summed from its daily snapshots. Recova drew every
- * 7th day's movement and captioned it "by week", which dropped six days in
- * seven; the sum is what the caption says.
- */
+/** Each week's MRR movement, summed from its daily snapshots (sampling every 7th day would drop six in seven). */
 export function weeklyMovements(points: readonly MovementWeek[]): MovementWeek[] {
   const weeks = new Map<number, MovementWeek>();
   for (const p of points) {
@@ -116,16 +101,10 @@ export interface PlanRow {
   mrrCents: number;
 }
 
-/** buildPlanBreakdown's key for a customer whose plan has no name. */
 const UNNAMED_PLAN_KEY = "unknown";
 
-/**
- * The snapshot's per_plan_breakdown (plan name to MRR cents, written by
- * buildPlanBreakdown) as rows, largest first, as Recova sorts them. Plans with
- * no MRR are left out, and the engine's "unknown" key is shown as words rather
- * than a raw stored value. Anything not an object of numbers
- * reads as no plans.
- */
+/** The snapshot's per_plan_breakdown (written by buildPlanBreakdown) as rows, largest first. Plans with no MRR
+ *  are left out, the "unknown" key is shown as words, and anything not an object of numbers reads as no plans. */
 export function planBreakdownRows(raw: unknown): PlanRow[] {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return [];
   return Object.entries(raw as Record<string, unknown>)
@@ -137,7 +116,6 @@ export function planBreakdownRows(raw: unknown): PlanRow[] {
     .sort((a, b) => b.mrrCents - a.mrrCents);
 }
 
-/** What generating a report can come back with, besides a narrative. */
 export type GenerateReportError =
   | "invalid_month"
   | "not_current_month"
@@ -147,15 +125,12 @@ export type GenerateReportError =
   | "server_error";
 
 const ERROR_MESSAGES: Partial<Record<GenerateReportError, string>> = {
-  // Recova's words.
   rate_limited: "You hit the hourly generation limit. Try again later.",
   invalid_month: "Invalid month.",
-  // Recova's server-500 sentence.
   server_error: "Could not generate the report. Try again or contact support.",
   not_current_month: "Only this month's report can be generated.",
 };
 
-/** The HTTP status each refusal is answered with, so a 200 always means a report. */
 export const GENERATE_REPORT_ERROR_STATUS: Record<GenerateReportError, number> = {
   invalid_intent: 400,
   invalid_month: 400,
@@ -165,7 +140,7 @@ export const GENERATE_REPORT_ERROR_STATUS: Record<GenerateReportError, number> =
   server_error: 500,
 };
 
-/** The sentence the page shows for an error code. Recova's fallback for anything else. */
+/** The sentence the page shows for an error code. */
 export function narrativeErrorMessage(code: string | undefined): string {
   return (
     (code && ERROR_MESSAGES[code as GenerateReportError]) ||
@@ -190,7 +165,6 @@ export function mrrTrendAlt(points: readonly MrrPointLike[], currency: string): 
   });
 }
 
-/** "101.5%". */
 export function formatPct(value: number): string {
   return `${Math.round(value * 10) / 10}%`;
 }

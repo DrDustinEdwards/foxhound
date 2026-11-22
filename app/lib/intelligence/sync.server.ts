@@ -53,24 +53,14 @@ import {
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { stripeMs } from "~/lib/stripe/time";
 
-// The live Stripe + D1 seam for the Intelligence deterministic engine
-// (TASK-foxhound-intelligence-deterministic.md's "key architectural fact":
-// there is no subscription/customer store, so this is the ONE enumeration
-// that feeds both customer_context (universal per-customer signals) and
-// mrr_snapshots (the account-wide free MRR tier), read once per account per
-// run rather than hitting Stripe twice. Like card-update's
-// createCardUpdateSession, this typechecks and is built for real but needs a live Stripe test-mode
-// connected account to exercise; that is Phase 8, not this pass. The pure
-// math it calls into (signals.ts, mrr.ts) is what carries the unit-test load.
-//
-// customer_context / mrr_snapshots writes are operational, not money
-// (gotcha #25: only recovered_payments + outcomes ride the per-account
-// money-write DO), so everything here is a plain db.batch()/insert() via
-// getDb, never executeMoneyWrite.
+// The live Stripe + D1 seam for the deterministic Intelligence engine: one enumeration per account per run
+// feeds both customer_context (per-customer signals) and mrr_snapshots (the free MRR tier), so Stripe is read
+// once. Needs a live Stripe test-mode account to exercise; the pure math (signals.ts, mrr.ts) carries the unit
+// tests. These writes are operational, not money (only recovered_payments + outcomes ride the money DO), so
+// plain db.batch()/insert() via getDb.
 
 function priceInterval(price: Stripe.Price | null | undefined): BillingInterval {
-  // The SDK types Stripe's enums as open (`| OtherString`), so an equality
-  // check does not narrow them: each known value is returned by name.
+  // The SDK types Stripe's enums as open, so equality does not narrow them: each known value is returned by name.
   switch (price?.recurring?.interval) {
     case "day":
       return "day";
@@ -104,13 +94,11 @@ interface CustomerStripeSnapshot {
   refundCount: number;
   disputeCount: number;
   churnReason: ChurnReason;
-  /** The earliest planned change or cancellation across the customer's live
-   *  subscriptions; null when none is scheduled. */
+  /** The earliest planned change or cancellation across the customer's live subscriptions; null when none. */
   scheduledChange: ScheduledChange | null;
 }
 
-/** A subscription or item discount as read off Stripe: its coupon (an id,
- *  plus the object when Stripe embedded it) and when a repeating one ends. */
+/** A subscription or item discount as read off Stripe: its coupon and when a repeating one ends. */
 interface RawDiscount {
   couponId: string;
   embedded: Stripe.Coupon | null;
@@ -128,9 +116,8 @@ interface NarrowSubscriptionItem {
   discounts: RawDiscount[];
 }
 
-/** A subscription cut down to what the sync reads, as each page arrives, so a
- *  customer's expanded subscriptions are never held whole (reads.ts: the
- *  Worker's 128 MB). */
+/** A subscription cut down to what the sync reads, as each page arrives, so expanded subscriptions are
+ *  never held whole (the Worker's 128 MB). */
 interface NarrowSubscription {
   status: Stripe.Subscription.Status;
   createdMs: number;
@@ -159,8 +146,7 @@ function narrowDiscounts(
   return out;
 }
 
-/** A schedule phase's billing terms as one comparable key (subscription-terms.ts
- *  nextScheduledChange): its items' prices and quantities, then its discounts. */
+/** A schedule phase's billing terms as one comparable key (see subscription-terms.ts nextScheduledChange). */
 function phaseBillingKey(phase: Stripe.SubscriptionSchedule.Phase): string {
   const items = phase.items.map((i) => `${asId(i.price) ?? ""}x${i.quantity ?? 1}`).sort();
   const discounts = phase.discounts
@@ -204,12 +190,9 @@ function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription
   };
 }
 
-/** Coupons read once per sync run and shared across the account's customers:
- *  a merchant has a handful of coupons and many discounted subscriptions.
- *  Retrieved with applies_to and currency_options, which Stripe includes only
- *  on request and which decide whether and how much a coupon takes off. A
- *  coupon that cannot be retrieved (a deleted coupon still discounts the
- *  subscriptions that hold it) falls back to the embedded object. */
+/** Coupons read once per sync run and shared across customers. Retrieved with applies_to and
+ *  currency_options (Stripe includes them only on request). A coupon that cannot be retrieved (a deleted
+ *  coupon still discounts its subscriptions) falls back to the embedded object. */
 type CouponCache = Map<string, Promise<Stripe.Coupon | null>>;
 
 function couponTermsIn(coupon: Stripe.Coupon, currency: string): CouponTerms {
@@ -222,8 +205,7 @@ function couponTermsIn(coupon: Stripe.Coupon, currency: string): CouponTerms {
   return {
     percentOff: coupon.percent_off,
     amountOffCents,
-    // Anything but once or repeating counts as forever, as recurs() in
-    // subscription-terms.ts already reads it.
+    // Anything but once or repeating counts as forever, as recurs() in subscription-terms.ts reads it.
     duration:
       coupon.duration === "once"
         ? "once"
@@ -255,11 +237,8 @@ async function resolveDiscounts(
   return out;
 }
 
-/** Reads one customer's subscriptions, invoices, and charges from the
- *  connected account and normalizes them into the shapes signals.ts derives
- *  from. Bounded per customer (INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER /
- *  INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER), mirroring the audit's bounded-scan
- *  discipline. */
+/** Reads one customer's subscriptions, invoices and charges from the connected account into the shapes
+ *  signals.ts derives from. Bounded per customer (INTELLIGENCE_MAX_INVOICES/CHARGES_PER_CUSTOMER). */
 async function fetchCustomerStripeSnapshot(
   stripe: Stripe,
   stripeCustomerId: string,
@@ -267,18 +246,14 @@ async function fetchCustomerStripeSnapshot(
   nowMs: number,
 ): Promise<CustomerStripeSnapshot> {
   const activeSubscriptions: ActiveSubscriptionSnapshot[] = [];
-  // Raw, uncollapsed lines: a multi-item subscription or a multi-line invoice
-  // pushes more than one entry at the SAME timestamp here on purpose.
-  // buildCustomerContextFields (signals.ts) collapses same-instant lines down
-  // to one representative observation before diffing, so this seam only has
-  // to report every line honestly, not pre-guess which one "matters".
+  // Raw, uncollapsed lines: simultaneous lines are pushed on purpose; buildCustomerContextFields collapses
+  // same-instant lines before diffing.
   const billingHistory: RawBillingLineObservation[] = [];
   let churnReason: ChurnReason = null;
   const scheduled: (ScheduledChange | null)[] = [];
 
-  // Discounts and the schedule are expanded so MRR is what the customer pays
-  // after coupons and a planned change can be shown; each path stays within
-  // Stripe's four-level expansion limit.
+  // Discounts and the schedule are expanded so MRR is what the customer pays after coupons; each path stays
+  // within Stripe's four-level expansion limit.
   const subscriptions = await collectPaginated(
     stripe.subscriptions.list({
       customer: stripeCustomerId,
@@ -309,9 +284,7 @@ async function fetchCustomerStripeSnapshot(
     const periodCents = discountedItemCents(itemTerms, subDiscounts, nowMs);
 
     sub.items.forEach((item, i) => {
-      // What one unit costs per billing period after discounts;
-      // monthlyEquivalentCents (signals.ts) spreads it over the price's
-      // interval_count (a quarterly price bills three months at once).
+      // One unit's cost per billing period after discounts; monthlyEquivalentCents spreads it over interval_count.
       const unitAmountCents = item.quantity > 0 ? periodCents[i] / item.quantity : 0;
       if (active) {
         activeSubscriptions.push({
@@ -328,9 +301,7 @@ async function fetchCustomerStripeSnapshot(
         priceId: item.priceId,
         quantity: item.quantity,
         interval: item.interval,
-        // Ranking signal only (collapseBillingObservations): the item with
-        // the largest monthly-equivalent amount represents this instant, the
-        // same rule summarizeActiveSubscriptions uses for "current plan".
+        // Ranking signal only (collapseBillingObservations): the largest monthly-equivalent item represents this instant.
         valueCents: monthlyEquivalentCents(
           unitAmountCents,
           item.quantity,
@@ -371,9 +342,7 @@ async function fetchCustomerStripeSnapshot(
         priceId,
         quantity: line.quantity ?? 1,
         interval: priceInterval(price),
-        // The line's own signed amount (negative for a proration credit), so
-        // an upgrade invoice's real new-plan charge always outranks the
-        // credit line it arrives alongside.
+        // The line's own signed amount (negative for a proration credit), so an upgrade's new-plan charge outranks its credit.
         valueCents: line.amount,
       });
     }
@@ -400,10 +369,8 @@ async function fetchCustomerStripeSnapshot(
   };
 }
 
-/** Foxhound's own account-scoped recovery/dispute/engagement history, read
- *  once per run and grouped by stripeCustomerId in memory (avoids an N+1 query
- *  per Stripe customer). SCHEMA.md: "Engagement signals read from
- *  engagement_events aggregates, not denormalized counters." */
+/** Foxhound's own recovery/dispute/engagement history, read once per run and grouped by stripeCustomerId
+ *  in memory (avoids an N+1 query per customer). */
 async function fetchFoxhoundHistoryByCustomer(db: Db, accountId: string) {
   const [recoveryRows, disputeRows, engagementRows] = await Promise.all([
     db
@@ -490,13 +457,9 @@ function buildCustomerContextUpsert(
     scheduledChangeAt: input.scheduledChange ? new Date(input.scheduledChange.atMs) : null,
     updatedAt: input.now,
   };
-  // onConflictDoUpdate's `set` deliberately omits healthScore / healthFactors /
-  // aiAssessment / aiAssessmentGeneratedAt / aiRecommendedActions /
-  // currentPlanTier, so a re-run of this deterministic sync never clobbers
-  // whatever the separate AI half (or a future tier taxonomy) has written.
-  // currency and ltvCents are omitted too: honest unknowns this slice has no
-  // source for, not fields something else is expected to fill in later (see
-  // buildCustomerContextFields's doc comment in signals.ts).
+  // onConflictDoUpdate's `set` omits healthScore / healthFactors / aiAssessment / aiAssessmentGeneratedAt /
+  // aiRecommendedActions / currentPlanTier so a re-run never clobbers what the AI half wrote; currency and
+  // ltvCents are omitted because nothing sources them (see signals.ts buildCustomerContextFields).
   return db
     .insert(customerContext)
     .values({
@@ -515,22 +478,14 @@ export interface AccountSyncResult {
   accountId: string;
   customersProcessed: number;
   snapshotWritten: boolean;
-  /** True when this run hit INTELLIGENCE_MAX_CUSTOMERS_SCANNED and stopped
-   *  before the connected account's customer list was exhausted. There is no
-   *  cross-run resumption cursor (that would need persisted per-account state:
-   *  a schema column, out of scope for this slice, or a KV entry, a bigger
-   *  change than this pass warrants for a pre-launch account base). Stripe's
-   *  default list order is newest-first, so a truncated account rescans the
-   *  same customers every run; this flag is how that becomes visible in
-   *  cron_run_log instead of silently under-covering the account forever. */
+  /** True when this run hit INTELLIGENCE_MAX_CUSTOMERS_SCANNED before exhausting the customer list. There is no
+   *  resumption cursor and Stripe lists newest-first, so a truncated account rescans the same customers every
+   *  run; this flag makes that visible in cron_run_log instead of silently under-covering the account. */
   truncated: boolean;
 }
 
-/** Runs the deterministic Intelligence sync for one account: enumerates every
- *  Stripe customer, upserts its customer_context row, and writes one
- *  mrr_snapshots row for the run. A no-op (customersProcessed: 0,
- *  snapshotWritten: false) when the account has no active Stripe connection
- *  yet, never an error. */
+/** Runs the deterministic sync for one account: upserts every Stripe customer's customer_context row and
+ *  writes one mrr_snapshots row. A no-op when the account has no active Stripe connection, never an error. */
 export async function runIntelligenceSyncForAccount(
   env: Env,
   accountId: string,
@@ -628,14 +583,12 @@ export async function runIntelligenceSyncForAccount(
     await db.batch([upserts[0], ...upserts.slice(1)]);
   }
 
-  // Nothing to snapshot: no customers now and no prior snapshot to compare
-  // against would just record an all-zero row with no future trend value.
+  // Nothing to snapshot: no customers and no prior snapshot would just record an all-zero row.
   if (currentPoints.length === 0 && !hasPriorSnapshot) {
     return { accountId, customersProcessed: 0, snapshotWritten: false, truncated };
   }
-  // A scan cut off at the cap saw only part of the customers, so its MRR row
-  // would chart a drop that never happened. The run reports it truncated and
-  // the charts keep the last complete day.
+  // A scan cut off at the cap saw only part of the customers, so its MRR row would chart a drop that never
+  // happened. The run reports truncated and the charts keep the last complete day.
   if (truncated) {
     return {
       accountId,
@@ -646,9 +599,7 @@ export async function runIntelligenceSyncForAccount(
   }
 
   const snapshotFields = buildMrrSnapshotFields(priorByCustomer, currentPoints);
-  // One row per account per UTC day (mrr_snapshots_account_day_uq): a second
-  // sync the same day replaces the day's row, in one batch, so the day is never
-  // missing or counted twice.
+  // One row per account per UTC day (mrr_snapshots_account_day_uq): a same-day re-sync replaces the row in one batch.
   const replaceDay = db
     .delete(mrrSnapshots)
     .where(
@@ -681,9 +632,7 @@ export async function runIntelligenceSyncForAccount(
   });
   await db.batch([replaceDay, insertDay]);
 
-  // Recova's compute-daily-metrics wrote accounts.mrr_estimate nightly from the
-  // active subscriptions, normalized to a month; this total is the same
-  // measure (a truncated scan returned above, before understating it).
+  // accounts.mrr_estimate: the active subscriptions normalized to a month (a truncated scan returned above).
   await db
     .update(accounts)
     .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
@@ -692,13 +641,9 @@ export async function runIntelligenceSyncForAccount(
   return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
 }
 
-/** Account-level gate for Intelligence sync: respects processing_paused and
- *  cancelledAt (admin Pass 2), and excludes demo accounts (ARCHITECTURE.md
- *  non-negotiable #7: "demo accounts excluded from all processing"). Deliberately
- *  does not gate on billing_exempt: the free MRR tier is not a billing action,
- *  so a billing-exempt account still gets its own analytics. Exported so its SQL
- *  shape is directly testable, mirroring recovery-tick.ts's
- *  accountProcessingEligibleCondition. */
+/** Account-level gate for the sync: respects processing_paused and cancelledAt, excludes demo accounts
+ *  (demo accounts are excluded from all processing). Does not gate on billing_exempt: the free MRR tier is
+ *  not a billing action. Exported so its SQL shape is testable. */
 export function accountProcessingEligible() {
   return and(
     eq(accounts.processingPaused, false),
@@ -707,10 +652,7 @@ export function accountProcessingEligible() {
   );
 }
 
-/** The full sync run: every processing-eligible account. Mirrors
- *  runMonthlyBilling's per-account try/catch-continue (one account's failure
- *  never aborts the rest). This is the Phase-4e-style Cron Trigger entry point
- *  (app/lib/cron/registry.ts). */
+/** The full sync run: every processing-eligible account; one account's failure never aborts the rest. */
 export async function runIntelligenceSyncForAllAccounts(
   env: Env,
   nowMs: number,

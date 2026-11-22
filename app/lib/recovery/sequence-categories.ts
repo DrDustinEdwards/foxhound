@@ -3,15 +3,7 @@ import type { DeclineCategory } from "~/lib/constants";
 import { RECOVERY_SCHEDULES } from "./schedule";
 
 // The /recovery/sequence page's own words for each category.
-// Recova's page keeps its own category table (components/SequenceView.tsx at
-// blob 5507b89f, CATEGORIES): plural names, its own order, and one sentence
-// each. These follow it, on Foxhound's six categories and its silent-retry-
-// first schedules. The shared singular labels in labels.ts stay as
-// they are, because the payments list, the payment page, the dashboard and the
-// CSV export render them too.
 
-/** Recova's four in Recova's order (soft, expired, network, fraud), then
- *  Foxhound's two extra categories. */
 export const SEQUENCE_CATEGORY_ORDER: readonly DeclineCategory[] = [
   "soft",
   "expired",
@@ -21,7 +13,6 @@ export const SEQUENCE_CATEGORY_ORDER: readonly DeclineCategory[] = [
   "unknown",
 ];
 
-/** Recova's plural names; Foxhound's two extras follow the same pattern. */
 export const SEQUENCE_CATEGORY_NAMES: Record<DeclineCategory, string> = {
   soft: "Soft declines",
   expired: "Expired cards",
@@ -37,20 +28,10 @@ function offsetOf(category: DeclineCategory, stepType: string): number {
   return step.offsetHours;
 }
 
-/**
- * Recova's sentences, with Foxhound's name, true against RECOVERY_SCHEDULES
- * (test/recovery-sequences-j12.test.ts checks each against the schedule).
- * Recova's soft sentence ("sends an email then retries the payment after 48
- * hours") describes its email-first cadence; Foxhound's soft schedule leads
- * with a silent retry (APPROVED-DIFFERENCES, "Silent retry comes before the
- * first email"), so the sentence says so, and the later retry's hours are read
- * from the schedule.
- */
 export const SEQUENCE_CATEGORY_DESCRIPTIONS: Record<DeclineCategory, string> = {
   soft: `Insufficient funds and generic declines. Foxhound retries silently first, then sends an email and retries the payment again ${offsetOf("soft", "retry_day2")} hours after the failure.`,
-  // Recova's sentence said "emails only" while its schedule had a day 21 retry.
-  // Foxhound keeps that retry and charges only a card updated since the decline
-  // (Dustin), so the sentence says what the engine does.
+  // Foxhound keeps that retry and charges only a card updated since the decline (Dustin), so the
+  // sentence says what the engine does.
   expired: `Expired card declines. Foxhound sends emails, and retries on day ${offsetOf("expired", "retry_day21") / 24} only if the card has been updated. Retrying an unchanged expired card never succeeds.`,
   network:
     "Processing errors and issuer timeouts. Foxhound retries first, then emails if retries fail.",
@@ -64,9 +45,6 @@ export const SEQUENCE_CATEGORY_DESCRIPTIONS: Record<DeclineCategory, string> = {
 
 export type SequenceRateTone = "green" | "caution" | "red";
 
-/** Recova's rateColor (SequenceView.tsx): open rate green above 50, caution
- *  from 20, red below; click rate (and a retry's success rate) green above 20,
- *  caution from 5, red below. */
 export function sequenceRateTone(pct: number, kind: "open" | "click"): SequenceRateTone {
   const [green, caution] = kind === "open" ? [50, 20] : [20, 5];
   if (pct > green) return "green";
@@ -74,8 +52,6 @@ export function sequenceRateTone(pct: number, kind: "open" | "click"): SequenceR
   return "red";
 }
 
-// Recova drew the middle band in its accent color, amber: the caution token the
-// dashboard's rate bands use (app.css).
 const RATE_CLASS_NAME: Record<SequenceRateTone, string> = {
   green: "fh-success",
   caution: "fh-brand",

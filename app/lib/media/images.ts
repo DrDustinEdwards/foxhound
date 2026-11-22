@@ -1,13 +1,10 @@
 import { defineImages, imageVersion } from "@dustinedwards/site-runtime/image";
 
-// The blog's pictures, end to end through site-runtime ./image: the attributes a
-// post writes (markdown.server.ts) and the route that serves each size
-// (app/routes/files/media.ts) share this one closed set, so a width a page links
-// is never a 400, and a width no page links is never a billed transform.
+// The blog's pictures through site-runtime ./image: the post attributes (markdown.server.ts) and the serving route
+// (app/routes/files/media.ts) share one closed set of widths, so a linked width is never a 400 and an unlinked width is
+// never a billed transform.
 
-/** The post column is 680 CSS px wide (app/routes/blog/post.tsx); the blog's
- *  featured post fills its half of the 1280 px band, or the page under 1024 px
- *  (app/routes/blog/index.tsx). */
+/** The post column is 680 CSS px wide; the featured post fills half the 1280 px band, or the page under 1024 px. */
 export const images = defineImages({
   uses: {
     content: { layout: "constrained", width: 680 },
@@ -21,17 +18,12 @@ export const images = defineImages({
   shareImages: true,
 });
 
-/** Where the library's files are served. */
 const MEDIA_PATH = "/media/";
 
-/**
- * The keys an upload is stored under: `<year>/<month>/<name>-<8 hex>.<ext>`.
- * The route serves only these, so nothing else in the bucket (the earlier bytes
- * kept under revisions/) is ever public.
- */
+/** The keys an upload is stored under: `<year>/<month>/<name>-<8 hex>.<ext>`. The route serves only these, so nothing
+ *  else in the bucket (the earlier bytes under revisions/) is ever public. */
 export const UPLOAD_KEY = /^\d{4}\/\d{2}\/[a-z0-9]+(?:-[a-z0-9]+)*\.(?:jpg|png|webp|avif|gif)$/;
 
-/** The extension each accepted type is stored under. */
 export const EXTENSIONS: Readonly<Record<string, string>> = {
   "image/jpeg": "jpg",
   "image/png": "png",
@@ -40,18 +32,11 @@ export const EXTENSIONS: Readonly<Record<string, string>> = {
   "image/gif": "gif",
 };
 
-/**
- * A file's address. With the file's SHA-256, it names these bytes (`?v=`), and
- * the route serves it for a year, immutable: a replace, a turn or a revert is
- * a new address.
- */
+/** A file's address. With the SHA-256 it names these bytes (`?v=`), served for a year, immutable: a replace, turn or revert is a new address. */
 export const mediaUrl = (key: string, sha256?: string) =>
   `${MEDIA_PATH}${key}${sha256 ? `?v=${imageVersion(sha256)}` : ""}`;
 
-/**
- * Where a post names a library file: `/media/<key>` or this site's full URL to
- * it, for site-runtime ./image's keyOfAddress and keysAtAddresses.
- */
+/** Where a post names a library file: `/media/<key>` or this site's full URL to it (site-runtime ./image's keyOfAddress). */
 export const MEDIA_ADDRESSES = {
   origins: ["https://foxhoundapp.com", "https://www.foxhoundapp.com"],
 };

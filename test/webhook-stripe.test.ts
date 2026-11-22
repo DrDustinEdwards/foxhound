@@ -182,7 +182,7 @@ describe("webhook batch builders (compile against schema)", () => {
       declineCategory: "soft",
       detectedAt: now,
       // Stripe has given up, so this is the full sequence. The waiting arm has
-      // its own coverage in test/intake-split-377.test.ts.
+      // its own coverage in test/webhook-stripe-retry-window.test.ts.
       startSequence: true,
     });
     // claim + failed_payment + 8 soft-schedule steps

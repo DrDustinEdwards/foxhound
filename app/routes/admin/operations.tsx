@@ -74,9 +74,7 @@ export interface AdminKeyActionResult {
   rawKey?: string;
 }
 
-/** Issue and revoke the Admin API key, the admin area's alone (Mythos billing
- *  review, finding 4). The admin layout's middleware has already checked
- *  Access and the roster; each write commits with its audit row. */
+/** Issue and revoke the Admin API key, the admin area's alone. The admin layout's middleware has already checked Access and the roster; each write commits with its audit row. */
 export async function action({ context, request }: Route.ActionArgs) {
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
@@ -120,18 +118,7 @@ const GROWTH_HEADING_ID = "admin-operations-growth-heading";
 const MIGRATIONS_HEADING_ID = "admin-operations-migrations-heading";
 const SETTINGS_HEADING_ID = "admin-operations-settings-heading";
 
-// The family admin pattern (Capsomer patterns.md, Dustin's Q9 of 2026-10-14)
-// and his review of 2026-10-11: one page name (the shell's "Operations"),
-// Capsomer panels and tables with plain sentence-case words, relative times
-// with the exact time on hover, a pending state and an empty state on every
-// list. Recova's Operations page (app/admin/operations/OperationsClient.tsx,
-// blob 419a51ac) is the inventory: its queue depth and its cron-lock health are
-// here, read from Foxhound's own recovery queue and CronLock Durable Objects.
-// Its global pause is the Brake page and is not repeated;
-// its run-now panel stays out; its Vercel redeploy hook
-// has no Cloudflare counterpart. Foxhound's own four panels follow: database
-// size, table growth, migrations and settings, then the MCP servers (once
-// /admin/mcps). Read only.
+// One page name (the shell's "Operations"), Capsomer panels and tables with plain sentence-case words, relative times with the exact time on hover, a pending state and an empty state on every list: queue depth and cron-lock health (from Foxhound's own recovery queue and CronLock Durable Objects), then database size, table growth, migrations and settings, then the MCP servers. The global pause is the Brake page and is not repeated. Read only.
 export default function AdminOperations({ loaderData, actionData }: Route.ComponentProps) {
   const { queue, locks, sizeBytes, migrations, growthTables, envSanity, mcp } = loaderData;
   const pending = usePagePending(OPERATIONS_PATH);

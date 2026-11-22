@@ -20,46 +20,12 @@ import {
 
 import "capsomer/app-frame.css";
 
-// The home hero visual: a looping, self-running view of the recovery queue
-// working a batch of failed payments (ruling 6, adapted from legacy's animated
-// hero). It shows the thing the product actually does, which a static screen
-// cannot: a payment fails, a sequence runs, a retry lands, the money comes
-// back and the counters move.
-//
-// Adapted, not ported. Four things changed on the way over:
-//   - Foxhound tokens throughout. Legacy hardcoded sizes below the type scale
-//     (0.5rem, 0.5625rem); text-micro is the floor here, so the panel is a
-//     little taller than legacy's and the step chips a little wider.
-//   - drawn icons instead of literal glyph characters, per DESIGN.md.
-//   - It sizes to its OWN content. Legacy was h-full inside a fixed-height
-//     hero and would clip exactly the way the ledger mock did (commit
-//     1c98363). Nothing here may reintroduce a fixed height.
-//   - It honors prefers-reduced-motion by settling on the final frame and
-//     scheduling nothing. An indefinite auto-playing loop with no pause
-//     control is a WCAG 2.2.2 problem, and the canon target is 2.2 AA.
-//
-// The frames and their classes are lib/marketing/queue-demo-frames.ts. On a page
-// that does not hydrate, the queue-demo island (islands/queue-demo.ts) plays
-// them on this markup: every status icon is drawn, the ones not showing hidden,
-// and data-queue names each part it changes.
+// The home hero visual: a looping, self-running view of the recovery queue working a batch of failed payments: a payment fails, a sequence runs, a retry lands, the money comes back and the counters move.
+// It sizes to its own content; nothing here may reintroduce a fixed height (a fixed-height hero clipped the old ledger mock). Text-micro is the floor. It honors prefers-reduced-motion by settling on the final frame and scheduling nothing: an indefinite auto-playing loop with no pause control fails WCAG 2.2.2.
+// The frames and their classes are lib/marketing/queue-demo-frames.ts. On a page that does not hydrate, the queue-demo island (islands/queue-demo.ts) plays them on this markup: every status icon is drawn, the ones not showing hidden, and data-queue names each part it changes.
 
-// prefers-reduced-motion is an external store, so it is READ through
-// useSyncExternalStore rather than sampled into state inside the animation
-// effect. Two reasons, one per direction.
-//
-// The lint reason: settling the frame with setFrameIndex(FINAL_FRAME) in the
-// effect body is a synchronous setState in an effect
-// (react-hooks/set-state-in-effect). Hoisting it to a lazy useState initialiser
-// would not do, because this component server-renders: window does not exist
-// there, so the server and the first client render would disagree and hydration
-// would mismatch. useSyncExternalStore exists for exactly that shape, and takes
-// the server snapshot as its third argument.
-//
-// The correctness reason: the old read happened once on mount, so a visitor who
-// turned reduced motion ON while the page sat open kept the loop running. That
-// is the WCAG 2.2.2 case this behavior is here to serve.
-// All three icons, the one for `status` showing (the hidden attribute on the
-// others), so the island can switch them.
+// prefers-reduced-motion is an external store, so it is read through useSyncExternalStore, not sampled into state inside the animation effect. A synchronous setState in the effect fails react-hooks/set-state-in-effect, and a lazy useState initialiser would mismatch hydration (window does not exist on the server); useSyncExternalStore takes the server snapshot as its third argument. It also follows a visitor who turns reduced motion on while the page is open.
+// All three icons are drawn, the one for `status` showing (the hidden attribute on the others), so the island can switch them.
 function StatusIcons({ status }: { status: Status }) {
   return (
     <>

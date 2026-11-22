@@ -26,10 +26,7 @@ export const failedPayments = sqliteTable(
     cardBrand: text("card_brand"),
     cardCountry: text("card_country"),
     cardFunding: text("card_funding"),
-    /** The card network's advice and raw decline code from the declined
-     *  charge's outcome (migration 0049). The advice can override the decline
-     *  category (recovery/decline.ts applyNetworkAdvice), and a stored
-     *  "do_not_try_again" stops every silent retry (engine/retry-step.ts). */
+    /** The card network's advice and raw decline code from the declined charge's outcome. The advice can override the decline category (recovery/decline.ts applyNetworkAdvice), and a stored "do_not_try_again" stops every silent retry (engine/retry-step.ts). */
     networkAdviceCode: text("network_advice_code"),
     networkDeclineCode: text("network_decline_code"),
     customerLtvCents: integer("customer_ltv_cents"),
@@ -55,42 +52,17 @@ export const failedPayments = sqliteTable(
     accountId: accountRef(),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     isRenewalNoise: bool("is_renewal_noise").notNull().default(false),
-    /**
-     * When a charge.refunded arrived for this payment (migration 0011). The
-     * ORDER-INDEPENDENT half of refund handling: recovered_payments.refunded_at
-     * can only be stamped once that row exists, so a refund that is processed
-     * BEFORE invoice.payment_succeeded used to update zero rows, commit its
-     * claim anyway, and be lost forever, leaving a refunded recovery fully
-     * billable. This column is written on every refund regardless, and
-     * buildRecoveryBatch reads it so a recovery recorded afterwards is born with
-     * refunded_at already set. First refund wins, matching the recovered_payments
-     * guard. See app/lib/recovery/record-recovery.ts.
-     */
+    /** When a charge.refunded arrived for this payment: the ORDER-INDEPENDENT half of refund handling. recovered_payments.refunded_at can only be stamped once that row exists, so a refund processed BEFORE invoice.payment_succeeded would update zero rows, commit its claim anyway, and be lost, leaving a refunded recovery fully billable. This column is written on every refund regardless, and buildRecoveryBatch reads it so a recovery recorded afterwards is born with refunded_at already set. First refund wins (app/lib/recovery/record-recovery.ts). */
     refundSignalAt: ts("refund_signal_at"),
-    /**
-     * How much of the paying charge has been refunded, cumulative, as Stripe
-     * reports it (charge.amount_refunded), from the largest charge.refunded
-     * seen. The order-independent half of refunded_cents below, read by
-     * buildRecoveryBatch the same way refund_signal_at is. refund_signal_at
-     * is set only once the charge is FULLY refunded.
-     */
+    /** How much of the paying charge has been refunded, cumulative, as Stripe reports it (charge.amount_refunded), from the largest charge.refunded seen. The order-independent half of refunded_cents, read by buildRecoveryBatch like refund_signal_at, which is set only once the charge is FULLY refunded. */
     refundSignalCents: integer("refund_signal_cents"),
-    /**
-     * When a dispute arrived for this payment's charge. The dispute twin of
-     * refund_signal_at: recovered_payments.disputed_at can only be stamped once
-     * that row exists, so dispute intake also writes this, and buildRecoveryBatch
-     * reads it so a recovery recorded afterwards is born disputed. First
-     * dispute wins.
-     */
+    /** When a dispute arrived for this payment's charge: the dispute twin of refund_signal_at. recovered_payments.disputed_at can only be stamped once that row exists, so dispute intake also writes this and buildRecoveryBatch reads it so a recovery recorded afterwards is born disputed. First dispute wins. */
     disputeSignalAt: ts("dispute_signal_at"),
   },
   (t) => [
     index("failed_payments_account_idx").on(t.accountId),
     index("failed_payments_invoice_idx").on(t.stripeInvoiceId),
-    // At most one ACTIVE failed_payment per invoice (one recovery sequence per
-    // invoice; the invoice.payment_succeeded webhook flips it to 'recovered').
-    // Makes intake dedupe structural; the read-guard in webhooks/process.ts stays
-    // as a fast path, this is the backstop against a concurrent double-intake.
+    // At most one ACTIVE failed_payment per invoice (one recovery sequence per invoice; invoice.payment_succeeded flips it to 'recovered'). Makes intake dedupe structural; the read-guard in webhooks/process.ts is a fast path, this is the backstop against a concurrent double-intake.
     uniqueIndex("failed_payments_active_invoice_uq")
       .on(t.stripeInvoiceId)
       .where(sql`${t.status} = 'active'`),
@@ -122,9 +94,7 @@ export const recoverySteps = sqliteTable(
     deletedAt: ts("deleted_at"),
     emailOpenedCount: integer("email_opened_count"),
     emailClickedCount: integer("email_clicked_count"),
-    /** Why this step's click is not trusted as human engagement, or null when it
-     *  is. Nullable text rather than a boolean so the
-     *  ledger can say WHICH test the click failed. */
+    /** Why this step's click is not trusted as human engagement, or null when it is. Text rather than a boolean so the ledger can say WHICH test the click failed. */
     clickSuspectReason: text("click_suspect_reason"),
     lastOpenedAt: ts("last_opened_at"),
     lastClickedAt: ts("last_clicked_at"),
@@ -165,13 +135,9 @@ export const recoveredPayments = sqliteTable(
     accountId: accountRef(),
     /** Set when the charge is FULLY refunded: no fee is owed at all. */
     refundedAt: ts("refunded_at"),
-    /**
-     * How much of this recovery the merchant has refunded, cumulative. The fee
-     * is 20% of amount_cents minus this (Dustin, 2026-11-18: "reduce the fee
-     * by the refunded share. A full refund means no fee.").
-     */
+    /** How much of this recovery the merchant has refunded, cumulative. The fee is 20% of amount_cents minus this: a full refund means no fee. */
     refundedCents: integer("refunded_cents").notNull().default(0),
-    // Attribution spine (SCHEMA.md #1). CHECK enforces the four canon values.
+    // Attribution spine: CHECK enforces the four canon values.
     attributionKind: text("attribution_kind").notNull().default("stripe_baseline"),
     attributionRef: text("attribution_ref"),
     attributedAt: ts("attributed_at"),
@@ -214,31 +180,12 @@ export const expiringCardAlerts = sqliteTable(
     accountId: accountRef(),
     stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
     deletedAt: ts("deleted_at"),
-    // WHY THE ROW EXISTS (migration 0050). 'card_expiring' is every row the
-    // nightly scan and customer.updated write. 'no_payment_method' is a
-    // trialing customer with nothing to charge at conversion, recorded off
-    // customer.subscription.trial_will_end; its card columns are NULL and its
-    // expires_month/expires_year carry the TRIAL END month, which is when the
-    // missing card will be needed, so the unique tuple below dedupes it per
-    // trial-end month exactly as it dedupes a card per expiry month.
+    // 'card_expiring' is every row the nightly scan and customer.updated write. 'no_payment_method' is a trialing customer with nothing to charge at conversion, recorded off customer.subscription.trial_will_end; its card columns are NULL and expires_month/expires_year carry the TRIAL END month, so the unique tuple below dedupes it per trial-end month as it dedupes a card per expiry month.
     reason: text("reason").$type<ExpiringCardAlertReason>().notNull().default("card_expiring"),
   },
   (t) => [
     index("expiring_card_alerts_account_idx").on(t.accountId),
-    // ONE CANDIDATE PER CARD EXPIRY MONTH, enforced by the database (341
-    // binding 3, and 314's "dedupe at the database").
-    //
-    // Legacy's webhook writer upserts `onConflict:
-    // 'account_id,stripe_customer_id,expires_month,expires_year'`, which only
-    // works against a unique index, so legacy has this and Foxhound did not.
-    // Without it BOTH writers, the nightly scan and the customer.updated
-    // webhook, race to insert the same tuple and the merchant's customer gets
-    // two identical warnings.
-    //
-    // PLAIN, not partial on `deleted_at IS NULL`, because that is legacy's
-    // shape: a soft-deleted alert therefore blocks a fresh candidate for the
-    // same card and month, which is legacy's behavior and is recorded rather
-    // than improved.
+    // ONE CANDIDATE PER CARD EXPIRY MONTH, enforced by the database: the nightly scan and the customer.updated webhook would otherwise race to insert the same tuple and the merchant's customer would get two identical warnings. The webhook writer upserts against this unique index. PLAIN, not partial on `deleted_at IS NULL`, so a soft-deleted alert blocks a fresh candidate for the same card and month.
     uniqueIndex("expiring_card_alerts_card_month_uq").on(
       t.accountId,
       t.stripeCustomerId,

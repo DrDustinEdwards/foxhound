@@ -6,36 +6,13 @@ import {
   RECOVERY_SEQUENCE_DAYS,
 } from "~/lib/marketing/decline-categories";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
-//
 // SOURCING DISCIPLINE (TASK-foxhound-phase6.md): every Foxhound-side row is
-// stated plainly from PRICING.md/DESIGN.md canon. Every competitor-side
-// claim is reconciled against recova/phase6-content-comparisons.md (the
-// dedicated content pass's researched facts), or omitted outright rather
-// than invented. No competitor dollar amount or percentage appears here
-// unless corroborated confidently; rows below say "not published" or
-// "custom-quoted" rather than guess. Pricing rows were corrected once
-// against that doc after a Phase 6 review found several understated a
-// figure that was already known (treating a published rate as "not
-// published") and one, Paddle Retain, stated a current standalone price
-// with no support in the sourced facts; see recova/foxhound-phase6-review.md
-// finding 11.
+// stated plainly from PRICING.md/DESIGN.md canon. Every competitor-side claim
+// is reconciled against recova/phase6-content-comparisons.md (the dedicated
+// content pass's researched facts), or omitted outright rather than invented.
 //
-// EVERY COMPETITOR PRICE CARRIES ITS PAGE AND THE DAY IT WAS READ
-// (priceSource, shown under the table), as the marketing statistics do
-// (app/lib/marketing/statistics.ts). All four were re-read on 2026-10-30.
-// Two had drifted and were corrected to what the page said that day: Churn
-// Buster's "from $149/month" (the page now says $269/month for one product,
-// and states no ROI guarantee, so that claim came out) and Baremetrics'
-// "$499/month at $300,000 MRR" (the page now prices Recover as a $129/month
-// add-on). Stunning's "$120/month" example is now the page's own slider
-// reading, $60/month at $8k MRR. A price that cannot be re-read on the
-// vendor's page comes out rather than being guessed.
-//
-// Foxhound's real cons are included deliberately (task: "don't oversell"):
-// newer/less proven than every incumbent here, no prevention/pre-dispute
-// alerts layer yet (PRICING.md's stated V1 deferral). Foxhound's brand voice
-// is per decline category (brandVoiceSoft, brandVoiceExpired,
-// brandVoiceNetwork, brandVoiceFraud), so that is no longer listed as a con.
+// A price that cannot be re-read on the vendor's page comes out rather than
+// being guessed.
 
 interface ComparisonRow {
   dimension: string;
@@ -51,15 +28,21 @@ export interface CompetitorDef {
   rows: ComparisonRow[];
   /** Foxhound cons stated honestly against this specific competitor. */
   foxhoundCons: string[];
-  /** Any competitor-side claim deliberately omitted, and why (shown in copy). */
+  /**
+   * Any competitor-side claim deliberately omitted, and why (shown in copy).
+   */
   omittedNote?: string;
-  /** The vendor page a competitor price was read from, and the day it was
-   *  read. Required wherever the competitor's pricing row names a figure. */
+  /**
+   * The vendor page a competitor price was read from, and the day it was read.
+   * Required wherever the competitor's pricing row names a figure.
+   */
   priceSource?: { url: string; checked: string };
 }
 
-/** The day the competitor pricing pages were last read. One date for all of
- *  them: they are re-read together, as STAT_AS_OF is. */
+/**
+ * The day the competitor pricing pages were last read. One date for all of
+ * them: they are re-read together, as STAT_AS_OF is.
+ */
 const COMPETITOR_PRICES_CHECKED = "2026-10-30";
 
 const recoveryFee = `${RECOVERY_FEE_PERCENT}%`;

@@ -13,45 +13,15 @@ import {
 } from "~/lib/disputes/queries.server";
 import { recordOutcome } from "~/lib/engine/outcomes";
 
-// DISPUTE AUTO-SUBMIT, opt-in and off by default. Recova's spec is
-// app/api/cron/process-disputes/route.ts (blob 1cbd5bd0), "Thing 2": for an
-// account with dispute_auto_submit on and processing not paused, an unsubmitted
-// dispute in needs_response whose evidence deadline is inside the next 24
-// hours is submitted to Stripe with its staged evidence, marked as submitted
-// automatically, recorded as a dispute_auto_submitted outcome, and the merchant
-// is told by "Dispute response submitted". One dispute's failure never stops
-// the rest. It rides the dispute reminder's tick (app/lib/cron/registry.ts).
+// DISPUTE AUTO-SUBMIT, opt-in and off by default. One dispute's failure never
+// stops the rest.
 //
-// THE APPROVAL GATE HOLDS (PRICING.md: no approval row, no submission). Turning
-// auto-submit on is the merchant's standing approval, and the settings write
-// stores who did it and when (applyDisputeSettings). This job submits through
-// approveAndSubmitDispute, the same path the dispute page's Approve and submit
-// uses: Phase A writes the dispute_approvals row, naming that person, with
-// standing_opt_in_at set to when they opted in; Phase B submits to Stripe;
-// Phase C marks the dispute submitted (submitted_by foxhound_auto) only after
-// Stripe accepts. Billing reads submitted_at, so a won auto-submitted dispute is
-// billed as a Foxhound submission, as Recova billed `recova_auto`. No other
-// writer touches dispute_approvals or disputes' submission columns.
-//
-// WHO IS SUBMITTED, Recova's selection in Foxhound's vocabulary, plus Foxhound's
-// own gates:
-// - an open dispute nobody has submitted (submitted_at null, a state before
-//   submission) that Stripe still lists as needs_response;
-// - with an evidence deadline after now and no more than 24 hours away;
-// - on an account with auto-submit on AND an opt-in recorded (an account whose
-//   column was set any other way has no approval to stand on), Disputes on
-//   (accounts.disputes_enabled), and processing eligible: not paused, not
-//   canceled, never a demo account (accountProcessingEligibleCondition), so a
-//   demo never reaches Stripe;
-// - with a Stripe connection on the dispute;
-// - with NO dispute_approvals row yet. A merchant's own approval is theirs to
-//   finish from the dispute page, and an automatic attempt Stripe refused is
-//   tried once, not on every five-minute tick: its approval row stays, the
-//   dispute stays approvable, and the page offers Approve and submit again.
-// billing_exempt is not a gate here: it decides only whether a won fee is
-// invoiced, as on the manual path.
+// This job submits through approveAndSubmitDispute, the same path the dispute
+// page's Approve and submit uses: Phase A writes the dispute_approvals row,
+// naming that person, with standing_opt_in_at set to when they opted in; Phase
+// B submits to Stripe; Phase C marks the dispute submitted (submitted_by
+// foxhound_auto) only after Stripe accepts.
 
-/** Recova's CRON_BATCH_LIMIT for this query. */
 const DISPUTE_AUTO_SUBMIT_BATCH_LIMIT = 100;
 
 export interface DisputeAutoSubmitRun {
@@ -118,7 +88,6 @@ export async function runDisputeAutoSubmit(
       if (await autoSubmitOne(env, now, cronRunId, dispute)) result.submitted++;
       else result.failed++;
     } catch (err) {
-      // Recova's per-dispute catch: log, count, go on to the next.
       result.failed++;
       logEvent(
         "dispute_auto_submit_failed",
@@ -175,7 +144,6 @@ async function autoSubmitOne(
 
   const hoursLeft =
     ((dispute.evidenceDeadline?.getTime() ?? now.getTime()) - now.getTime()) / HOUR_MS;
-  // Recova's outcome, keyed so it is written once.
   await recordOutcome(env, {
     accountId: dispute.accountId,
     product: "disputes",

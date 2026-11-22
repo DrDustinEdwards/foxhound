@@ -31,24 +31,16 @@ import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 import { capitalize, plural } from "@drdustinedwards/site-helpers/text";
 import { listText } from "capsomer/behavior/hooks";
 
-// /features content. Recova's spec is
-// app/(marketing)/features/features-data.ts (blob a0a5dd20), read whole.
-//
-// RECOVA'S SECTIONS, IN RECOVA'S ORDER, WITH RECOVA'S IDS, AND RECOVA'S ENTRIES
-// IN RECOVA'S ORDER. Each Recova entry is kept where Foxhound ships it and the
-// words are true, rewritten to Foxhound's own fact where it ships the thing
-// differently, and left out where Foxhound has not built it.
-//
-// EVERY NUMBER IS READ FROM THE ENGINE, never typed: cadences
-// from the cron schedule constants, the fee and maturity from the pricing
-// constants, the bands from the functions that color them. Two counts live
-// only on the server (the cron registry and the MCP tool list); the route's
-// loader reads them and passes them in as FeatureFacts.
+// /features content. Each feature is kept where Foxhound ships it and the words are true, rewritten to Foxhound's own fact where
+// it ships the thing differently, and left out where it has not built it. Every number is read from the engine, never typed:
+// cadences from the cron schedule constants, the fee and maturity from the pricing constants, the bands from the functions that
+// color them. Two counts live only on the server (the cron registry and the MCP tool list); the route's loader passes them in
+// as FeatureFacts.
 
 const FEATURE_PRODUCTS = ["Platform", "Audit", "Recovery", "Disputes", "Intelligence"] as const;
 type FeatureProduct = (typeof FEATURE_PRODUCTS)[number];
 
-/** Recova's FeatureFilter order: All first, then the five products. */
+/** All first, then the five products. */
 export const FEATURE_FILTERS = ["All", ...FEATURE_PRODUCTS] as const;
 export type FeatureFilterValue = (typeof FEATURE_FILTERS)[number];
 
@@ -66,31 +58,26 @@ export interface FeatureSection {
   features: Feature[];
 }
 
-/** Counts that only the server can read (the cron registry and the merchant
- *  MCP tool list are server modules). */
+/** Counts that only the server can read (the cron registry and the merchant MCP tool list). */
 export interface FeatureFacts {
   cronJobCount: number;
   merchantMcpToolCount: number;
 }
 
-/** Recova's meta description without its "129 features" count (parity/M10-FEATURES.md). */
 export const FEATURES_META_DESCRIPTION =
   "Features across automation, intelligence, email, visibility, control, integration, and security. Built for Stripe subscription businesses.";
 
-/** "every 5 minutes" from a "*\/N * * * *" schedule. */
 function cronEveryMinutes(expr: string): number {
   const m = /^\*\/(\d+) \* \* \* \*$/.exec(expr);
   if (!m) throw new Error(`not an every-N-minutes schedule: ${expr}`);
   return Number(m[1]);
 }
 
-/** True for a once-a-day "M H * * *" schedule. */
 function cronIsDaily(expr: string): boolean {
   return /^\d+ \d+ \* \* \*$/.test(expr);
 }
 
-/** The cadence word for a schedule: "nightly" for a daily run (Foxhound's
- *  daily jobs run at night, UTC), "weekly", "monthly", or "every N minutes". */
+/** The cadence word for a schedule: "nightly" for a daily run (daily jobs run at night, UTC), "weekly", "monthly", or "every N minutes". */
 function cronCadence(expr: string): string {
   if (/^\*\/\d+ \* \* \* \*$/.test(expr)) return `every ${cronEveryMinutes(expr)} minutes`;
   if (cronIsDaily(expr)) return "nightly";
@@ -99,8 +86,7 @@ function cronCadence(expr: string): string {
   throw new Error(`no cadence word for schedule: ${expr}`);
 }
 
-/** When in its period a schedule runs: "the 1st of each month" for a monthly
- *  run, "each Tuesday" for a weekly one, "each night" for a daily one. */
+/** When in its period a schedule runs: "the 1st of each month", "each Tuesday", "each night". */
 function cronWhen(expr: string): string {
   const cadence = cronCadence(expr);
   if (cadence === "monthly") return `the ${ordinal(cronMonthDay(expr))} of each month`;
@@ -109,7 +95,6 @@ function cronWhen(expr: string): string {
   return cadence;
 }
 
-/** The day of the month of a monthly "M H D * *" schedule. */
 function cronMonthDay(expr: string): number {
   const m = /^\d+ \d+ (\d+) \* \*$/.exec(expr);
   if (!m) throw new Error(`not a monthly schedule: ${expr}`);
@@ -118,7 +103,6 @@ function cronMonthDay(expr: string): number {
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-/** The weekday of a weekly "M H * * D" schedule. */
 function cronWeekday(expr: string): string {
   const m = /^\d+ \d+ \* \* (\w+)$/.exec(expr);
   const day = m ? cronWeekdayIndex(m[1]) : null;
@@ -126,17 +110,14 @@ function cronWeekday(expr: string): string {
   return WEEKDAYS[day];
 }
 
-/** 15 -> "15 minutes", 60 -> "1 hour", 720 -> "12 hours". */
 function minutesText(minutes: number): string {
   return minutes % 60 === 0 ? plural(minutes / 60, "hour") : plural(minutes, "minute");
 }
 
-/** 1 -> "1 hour", 96 -> "4 days". */
 function hoursText(hours: number): string {
   return hours >= 24 && hours % 24 === 0 ? plural(hours / 24, "day") : plural(hours, "hour");
 }
 
-/** The recovery-rate bands, found by asking recoveryRateTone itself. */
 function recoveryRateBands(): { redMax: number; cautionMax: number } {
   let redMax = -1;
   let cautionMax = -1;
@@ -148,10 +129,8 @@ function recoveryRateBands(): { redMax: number; cautionMax: number } {
   return { redMax, cautionMax };
 }
 
-/** The three example scores beside the health-band sentence, one per band.
- *  Recova shows 20, 50 and 82; each is kept while it lands in its band under
- *  Foxhound's thresholds, and becomes the band's midpoint if a threshold moves
- *  past it, so a badge never shows a score in the wrong band. */
+/** The three example scores beside the health-band sentence, one per band. Each default (20, 50, 82) is kept while it lands in
+ *  its band under Foxhound's thresholds, else becomes the band's midpoint, so a badge never shows a score in the wrong band. */
 export function healthBandExampleScores(): [number, number, number] {
   const bands: [number, number, number][] = [
     [20, 0, HEALTH_SCORE_AT_RISK_THRESHOLD - 1],
@@ -174,11 +153,10 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
   const billingWhen = cronWhen(CRON_SCHEDULE_MONTHLY);
   const auditWhen = cronWhen(CRON_SCHEDULE_MONTHLY_AUDIT);
   const digestDay = cronWeekday(CRON_SCHEDULE_WEEKLY);
-  // Each cadence word is read from the schedule its job runs on (the cron
-  // registry pairs job and schedule).
+  // Each cadence word is read from the schedule its job runs on (the cron registry pairs job and schedule).
   const nightly = cronCadence(CRON_SCHEDULE_DAILY);
   const Nightly = capitalize(nightly);
-  // Expiring cards run on their own schedule, Recova's 09:00 UTC.
+  // Expiring cards run on their own schedule.
   const CardsCadence = capitalize(
     cronIsDaily(CRON_SCHEDULE_EXPIRING_CARDS) ? "daily" : cronCadence(CRON_SCHEDULE_EXPIRING_CARDS),
   );
@@ -207,10 +185,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Recovery",
         },
         {
-          // Recova's "Hourly dispute processing" (checks deadlines, fires
-          // reminders, auto-submits, cleans up). Foxhound's dispute-reminders
-          // job rides the tick and runs auto-submit for accounts that turned it
-          // on; Recova's clean-up has no counterpart.
+          // Foxhound's dispute-reminders job rides the tick and runs auto-submit for accounts that turned it on; there is no clean-up job.
           name: `Dispute processing every ${tick} minutes`,
           description: `Checks dispute deadlines, fires reminders, and auto-submits evidence when you have turned it on, every ${tick} minutes.`,
           product: "Disputes",
@@ -292,9 +267,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Intelligence",
         },
         {
-          // Recova's "7 recommendation types". The nightly scoring batch writes
-          // one per customer (ai-run.server.ts) from Recova's rules, which
-          // produce four of the seven (recommend.ts).
+          // The nightly scoring batch writes one per customer (ai-run.server.ts) from rules that produce four actions (recommend.ts).
           name: "4 recommendation types",
           description:
             "Every customer gets one: personal outreach, continue automated, continue automated (priority), or continue automated (deprioritize).",
@@ -405,7 +378,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Platform",
         },
         {
-          // Recova's words: REMINDER_BANDS in app/lib/disputes/notices.ts.
+          // REMINDER_BANDS in app/lib/disputes/notices.ts.
           name: "Dispute deadline reminders",
           description: "Reminder emails at 3 days and 1 day before the dispute evidence deadline.",
           product: "Disputes",
@@ -590,7 +563,6 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
           product: "Disputes",
         },
         {
-          // Recova's words, with Foxhound's name.
           name: "Accept dispute",
           description:
             "Close a dispute without submitting evidence. No Foxhound fee on accepted disputes.",
@@ -619,9 +591,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Email settings",
-          // Recova's "Sender name, reply-to address, and notification email
-          // per Stripe account"; Foxhound's notification email is the
-          // account's, on the notifications page, not the connection's.
+          // The notification email is the account's, on the notifications page, not the connection's.
           description:
             "Sender name and reply-to address per Stripe connection, and a test email to your own address.",
           product: "Platform",
@@ -633,10 +603,7 @@ export function featureSections(facts: FeatureFacts): FeatureSection[] {
         },
         {
           name: "Merchant context",
-          // Recova's "Product description and ships-physical-goods flag. Used in
-          // email copy and dispute evidence." Foxhound keeps those two in
-          // Dispute settings, for evidence and triage, and its recovery email
-          // context is industry, customer type and MRR.
+          // Those two are kept in Dispute settings for evidence and triage; the recovery email context is industry, customer type and MRR.
           description:
             "Industry, customer type, and MRR, used in recovery email copy. Product description and ships-physical-goods flag, used in dispute evidence.",
           product: "Recovery",

@@ -9,24 +9,16 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 // (not appended to a monthly-run invoice, which may already be finalized or
 // Stripe-charged): one billing_invoices row + one billing_line_items row
 // (type='adjustment', signed amountCents), committed atomically through the
-// per-account money-write DO like every other billing write (run.ts). It NEVER
-// touches Stripe (stripe-invoice.ts's STRIPE_CHARGEABLE_TYPES excludes
-// 'adjustment'), so it can never create a charge or a refund on a customer's
-// card - corrections are entirely on Foxhound's own fee ledger.
-//
-// The admin_audit_log row is written FIRST, as its own plain insert (mirrors
-// every other admin action's audit write, audit.server.ts), and its id is
-// threaded into the DO batch as adminAuditLogId. This satisfies the DB-enforced
-// invariant (schema.ts billing_line_items_adjustment_audit_ck: an adjustment
-// line item without an admin_audit_log_id is a constraint violation, not just
-// an app-level convention) without needing the audit write itself inside the
-// DO batch.
+// per-account money-write DO like every other billing write (run.ts).
 
 interface AdjustmentInvoiceInput {
   invoiceId: string;
   accountId: string;
   currency: string;
-  /** Signed minor units: negative credits the merchant, positive corrects a fee upward. */
+  /**
+   * Signed minor units: negative credits the merchant, positive corrects a fee
+   * upward.
+   */
   amountCents: number;
   description: string;
   adminAuditLogId: string;
@@ -73,11 +65,12 @@ export interface CreateAdjustmentInput {
   amountCents: number;
   description: string;
   actorEmail: string;
-  /** Stable client-supplied token (a hidden form field minted at form render,
-   *  rotated by the post-submit loader revalidation). It is the idempotency
-   *  anchor: a double-submitted or retried POST carries the SAME token, so the
-   *  derived key collides and the write no-ops instead of double-crediting. A
-   *  deliberate second adjustment comes from a fresh render with a fresh token. */
+  /**
+   * Stable client-supplied token (a hidden form field minted at form render,
+   * rotated by the post-submit loader revalidation). It is the idempotency
+   * anchor: a double-submitted or retried POST carries the SAME token, so the
+   * derived key collides and the write no-ops instead of double-crediting.
+   */
   idempotencyToken: string;
   now: Date;
 }
@@ -87,21 +80,20 @@ export interface CreateAdjustmentResult {
   applied: boolean;
 }
 
-/** Injected IO, so the DO-routed money-write can be driven through the real
- *  SerialMoneyCommitter + an in-memory sqlite in tests (mirrors cancelMerchant's
- *  deps in merchants.server.ts). Both default to the real bindings. */
+/**
+ * Injected IO, so the DO-routed money-write can be driven through the real
+ * SerialMoneyCommitter + an in-memory sqlite in tests (mirrors cancelMerchant's
+ * deps in merchants.server.ts). Both default to the real bindings.
+ */
 export interface CreateAdjustmentDeps {
   db: Db;
   execute: typeof executeMoneyWrite;
 }
 
-/** Operator entry point: audit-log first (plain insert), then the invoice +
- *  line item as one atomic DO-routed batch. Never a raw money-write outside
- *  the DO. Idempotent on `idempotencyToken`: the key is derived from it (not a
- *  fresh per-call id), matching the billing run's stable
- *  `billing:${account}:${currency}:${period}` key (billing/run.ts), so a
- *  duplicate submit is deduped by the DO seen-set and, as the exactly-once
- *  backstop, the billing_invoices idempotency unique index. */
+/**
+ * Operator entry point: audit-log first (plain insert), then the invoice + line
+ * item as one atomic DO-routed batch. Never a raw money-write outside the DO.
+ */
 export async function createAdjustment(
   env: Env,
   input: CreateAdjustmentInput,

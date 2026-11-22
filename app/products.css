@@ -1,5 +1,4 @@
-/* The parts only the product pages, their hub and the demos page use, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the product pages, their hub and the demos page use. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-auditprev-block {
     padding: var(--space-5-5);
@@ -76,7 +75,7 @@
   .fh-product-band {
     border-bottom: var(--line-w) solid var(--line);
     padding: var(--space-9-5) var(--space-5-5);
-    /* Recova's 96px between feature blocks. */
+    /* 96px between feature blocks. */
     --cap-features-gap: var(--space-10);
   }
   @media (width >= 40rem) {
@@ -99,7 +98,7 @@
     border-bottom: var(--line-w) solid var(--line);
     padding: var(--space-9) var(--space-5-5);
   }
-  /* How it works: Capsomer's process steps at Recova's sizes, the step name 0.9375rem and its text 0.875rem. */
+  /* How it works: Capsomer's process steps, the step name 0.9375rem and its text 0.875rem. */
   .fh-product-band-2 .cap-process {
     --fs-h3: 0.9375rem;
     --text-size: var(--fs-body);
@@ -119,8 +118,7 @@
     border-bottom: var(--line-w) solid var(--line);
     background-color: var(--surface);
     padding: var(--space-9) var(--space-5-5);
-    /* Recova's price card: the page ground on the surface band, p-8, a 48px price in the text
-       color at medium weight, green checks. */
+    /* The price card: the page ground on the surface band, p-8, a 48px price in the text color at medium weight, green checks. */
     --pad-card: var(--space-7);
     --cap-price-size: var(--display-3);
     --cap-price-weight: var(--weight-medium);

@@ -2,15 +2,7 @@ import { ApiLegError, callApi } from "@dustinedwards/site-runtime/mcp-server";
 
 import type { AdminMcpEnv } from "./env";
 
-// The one way into Foxhound: the admin API at /api/admin/v1 on the foxhound
-// Worker, over the FOXHOUND service binding, through site-runtime's callApi.
-//
-// EVERY CALL CARRIES TWO CREDENTIALS. The admin key says the caller is this
-// Worker; the acting admin's email says which person it is acting for. The API
-// re-checks that email against ADMIN_EMAIL on every call, so a grant this Worker
-// still holds stops working the moment the person stops being an admin. All the
-// rules (what may be read, that pause is the only direct write, that money is
-// staged) are the API's. This file holds none of them.
+// The one way into Foxhound: the admin API at /api/admin/v1 on the foxhound Worker, over the FOXHOUND service binding, through site-runtime's callApi. EVERY CALL CARRIES TWO CREDENTIALS: the admin key says the caller is this Worker; the acting admin's email says which person it is acting for. The API re-checks that email against ADMIN_EMAIL on every call, so a grant this Worker still holds stops working the moment the person stops being an admin. All the rules (what may be read, that pause is the only direct write, that money is staged) are the API's. This file holds none of them.
 
 const ADMIN_API_PREFIX = "/api/admin/v1";
 
@@ -33,7 +25,7 @@ export interface ApiCall {
   path: string;
   query?: Record<string, string | undefined>;
   body?: Record<string, unknown>;
-  /** The tool call's abort signal: callApi stops the request when the client leaves (P11). */
+  /** The tool call's abort signal: callApi stops the request when the client leaves. */
   signal?: AbortSignal;
 }
 

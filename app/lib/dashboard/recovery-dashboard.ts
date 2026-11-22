@@ -14,10 +14,8 @@ import { dayKey } from "@dustinedwards/site-runtime/time";
 import type { RecoveryTimingBucket } from "./recovery-window";
 import { percent } from "capsomer/behavior/meter";
 
-// The /recovery/dashboard page's display arithmetic: pure, no
-// database, safe in the browser bundle. Recova is the spec for what each panel
-// shows (app/(app)/recovery/dashboard at the blob shas named in the route);
-// every number here is computed from Foxhound's own read model and constants.
+// The /recovery/dashboard page's display arithmetic: pure, no database, safe in
+// the browser bundle.
 
 /** The recovery fee as Foxhound's pricing constant prints it ("20%"). */
 export const RECOVERY_FEE_LABEL = `${RECOVERY_FEE_BPS / 100}%`;
@@ -28,24 +26,11 @@ export interface RoiColumn {
   kept: CurrencyAmount[];
 }
 
-/**
- * One column of Recova's ROI widget. All time takes the rows Foxhound's
- * billing run would invoice (billableRecoveryRowConditions in
- * app/db/billable.ts: a billable attribution kind, held for the maturity, not
- * refunded, disputed or deleted); This month takes the same attributed rows
- * recovered since the 1st without the maturity, whose fee is billed once they
- * have held (listAttributedRecoveredSince). The fee is computed per
- * recovery with the billing run's own function and then summed, the way
- * getRecoveryStats sums feeOwed, so the panel and the invoice cannot round
- * differently. Recova's ROIWidget took 20% of every retry, email click and
- * manual recovery; Foxhound never bills a manual or Stripe-baseline recovery,
- * so those claims are not copied (ROWS-S S5, 181).
- */
 export function roiColumn(
   rows: readonly { amountCents: number; refundedCents: number; currency: string }[],
 ): RoiColumn {
-  // A partly refunded recovery counts for what the merchant kept of it, and
-  // its fee is taken on that, as the billing run takes it.
+  // A partly refunded recovery counts for what the merchant kept of it, and its
+  // fee is taken on that, as the billing run takes it.
   const net = rows.map((r) => ({
     currency: r.currency,
     cents: unrefundedCents(r.amountCents, r.refundedCents),
@@ -67,12 +52,6 @@ export function formatCurrencyTotals(rows: readonly CurrencyAmount[]): string {
   return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");
 }
 
-/**
- * Recova's "N% of MRR" under Currently at risk: one decimal, shown only when
- * the account has an MRR figure. Only an at-risk total in a single currency is
- * divided, because an MRR estimate is one number in one currency and a sum
- * across currencies is meaningless.
- */
 export function atRiskPctOfMrr(
   atRisk: readonly CurrencyAmount[],
   mrrEstimateCents: number | null,
@@ -81,8 +60,10 @@ export function atRiskPctOfMrr(
   return Math.round((atRisk[0]!.cents / mrrEstimateCents) * 1000) / 10;
 }
 
-/** "Oct 3" for a YYYY-MM-DD day key or a Date, in UTC so the server and the
- *  browser print the same day. */
+/**
+ * "Oct 3" for a YYYY-MM-DD day key or a Date, in UTC so the server and the
+ * browser print the same day.
+ */
 export function formatShortDate(day: string | Date): string {
   const date = typeof day === "string" ? new Date(`${day}T00:00:00Z`) : day;
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
@@ -106,9 +87,7 @@ export interface DailyRecoveredRow {
 
 /**
  * Recovered amounts per UTC day over the last `days` days (oldest first),
- * zero-filled, one row per day per currency. Recova's buildDailyChart summed
- * amount_cents across currencies; a cross-currency sum is meaningless,
- * so each currency keeps its own bars.
+ * zero-filled, one row per day per currency.
  */
 export function dailyRecoveredRows(
   payments: readonly { recoveredAt: Date; amountCents: number; currency: string }[],
@@ -164,11 +143,6 @@ export interface EmailCategoryRow {
   rate: number;
 }
 
-/**
- * Recova draws every decline category it has, a zero bar included, rather than
- * only the ones with sends; Foxhound's categories are its engine's
- * (DECLINE_CATEGORIES), labeled by its own names, never the raw value.
- */
 export function emailCategoryRows(
   performance: readonly {
     category: DeclineCategory;
@@ -230,14 +204,12 @@ export function declineRows(input: {
       label: DECLINE_CATEGORY_LABELS[category],
       count,
       pct: percent(count, input.totalFailedCount),
-      // Recova's own rule: a rate only once a category has two failures.
       recoveredPct: stats && stats.total >= 2 ? percent(stats.recovered, stats.total) : null,
       spark: (input.categorySparkline[category] ?? []).map((p) => p.count),
     };
   });
 }
 
-/** Recova's text beside each bar: "3 · 50% · 33% recovered". */
 export function declineRowText(row: DeclineRow): string {
   return `${row.count} · ${row.pct}%${row.recoveredPct !== null ? ` · ${row.recoveredPct}% recovered` : ""}`;
 }
@@ -249,8 +221,6 @@ export interface OnboardingInput {
   onboardingCompleted: boolean;
 }
 
-/** Recova's gate, read from its page.tsx: the checklist shows until onboarding
- *  is marked complete or all three steps are done. */
 export function onboardingNeeded(o: OnboardingInput): boolean {
   return !o.onboardingCompleted && !(o.connected && !!o.senderName && !!o.notificationEmail);
 }
@@ -267,12 +237,6 @@ export interface PaymentStepSummary {
   next: string | null;
 }
 
-/**
- * Recova's Steps cell (components/recovery/PaymentRow.tsx, blob 0d2e1f52):
- * executed steps over all steps, and the first step, in sequence order, that
- * has neither run nor been given a result (a canceled step has a result and
- * is never "next").
- */
 export function paymentStepSummary(
   steps: readonly {
     stepNumber: number | null;
@@ -291,15 +255,14 @@ export function paymentStepSummary(
   };
 }
 
-/** A decline category's label, or the stored value when it is not one of the
- *  engine's categories (never blank). */
+/**
+ * A decline category's label, or the stored value when it is not one of the
+ * engine's categories (never blank).
+ */
 export function declineLabel(category: string): string {
   return (DECLINE_CATEGORY_LABELS as Record<string, string>)[category] ?? category;
 }
 
-/** What the getting-started checklist shows: which of Recova's three steps
- *  are done, and whether the checklist shows at all. Only whether each field
- *  is set crosses to the page, never the address itself. */
 export interface OnboardingChecklistState {
   needed: boolean;
   connected: boolean;
@@ -332,13 +295,6 @@ export interface DeliverabilityFigures {
   spamRatePct: number | null;
 }
 
-/**
- * Recova's deliverability panel on what Foxhound records: null (the empty
- * state) until a bounce or a spam complaint has been recorded in the range,
- * then bounce and spam rates over the range's sent emails, rounded as Recova
- * rounded them. There is no delivered rate: Foxhound stores no delivered
- * event (app/lib/email/events.ts ignores it).
- */
 export function deliverabilityFigures(c: {
   sent: number;
   bounced: number;

@@ -5,12 +5,8 @@ import type { HealthFactor } from "~/lib/intelligence/risk";
 // Narratives seed (TASK-foxhound-demo-data-engine.md Phase 3): the demo
 // business's Intelligence report and its at-risk customers' assessments,
 // written by the same template real merchants get (narrative.ts) from the
-// seeded scores and the latest seeded MRR snapshot. Legacy seeded a
-// hand-written AI-style paragraph (lib/demo-seeding/seed-narratives.ts, blob
-// `d9655be0`); Foxhound's narrative is a template with no model call, so the
-// demo shows exactly what a merchant would see. The demo account is
+// seeded scores and the latest seeded MRR snapshot. The demo account is
 // firewalled out of the nightly run, so this is the only narrative it gets.
-// Pure: no AI call, no DB access.
 
 type IntelligenceReportInsert = typeof intelligenceReports.$inferInsert;
 type CustomerContextInsert = typeof customerContext.$inferInsert;
@@ -18,7 +14,10 @@ type MrrSnapshotInsert = typeof mrrSnapshots.$inferInsert;
 
 export interface NarrativeSeed {
   report: IntelligenceReportInsert;
-  /** The assessment for each at-risk customer the narrative names, by customer_context id. */
+  /**
+   * The assessment for each at-risk customer the narrative names, by
+   * customer_context id.
+   */
   assessments: Map<string, string>;
 }
 

@@ -39,15 +39,7 @@ const HEADING_ID = "admin-merchants-heading";
 
 type Figures = NonNullable<Route.ComponentProps["loaderData"]["figures"]>;
 
-/** What each list says above its table, and on an empty list. Recova's lists
- *  said the count ("2 merchants paused."); these say it as a sentence, with
- *  what the flag does in Foxhound's engine: billing_exempt and
- *  processing_paused both leave a merchant out of the billing run
- *  (app/db/billable.ts, accountBillingEligibleCondition), and only a pause
- *  stops processing. A pause defers fees: the first run after it clears bills
- *  what matured meanwhile. An exemption forgives them, as
- *  Recova's did (Dustin): a fee earned or due while exempt is never
- *  billed (billing_exemption_periods, read by app/db/billable.ts). */
+/** What each list says above its table, and on an empty list: billing_exempt and processing_paused both leave a merchant out of the billing run (app/db/billable.ts, accountBillingEligibleCondition), and only a pause stops processing. A pause defers fees: the first run after it clears bills what matured meanwhile. An exemption forgives them: a fee earned or due while exempt is never billed (billing_exemption_periods). */
 const VIEW_WORDS: Record<MerchantView, { caption: string; empty: string; rule?: string }> = {
   all: {
     caption: "Every merchant account, newest first, with its actions",
@@ -353,9 +345,7 @@ function MerchantRow({
   );
 }
 
-/** Recova's row action "Impersonate", as Foxhound's read-only "View as
- *  merchant" (app/lib/admin/impersonation.server.ts). A full document post,
- *  because it leaves /admin for the merchant's app. */
+/** Foxhound's read-only "View as merchant" (app/lib/admin/impersonation.server.ts). A full document post, because it leaves /admin for the merchant's app. */
 export function ViewAsForm({ accountId, who }: { accountId: string; who: string }) {
   return (
     <Form method="post" action="/admin/view-as" reloadDocument>

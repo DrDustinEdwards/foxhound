@@ -7,12 +7,7 @@ import { verifyEngagementToken } from "~/lib/engagement/token";
 
 import type { Route } from "./+types/engagement-open";
 
-// Engagement open pixel (ROUTES.md: /e/o/:token). A verified token from a person
-// records the open (feeds Intelligence only, never billing): one idempotent
-// engagement_events row per step, and on the step Recova's per-open counters
-// (buildOpenStamp). We ALWAYS return the
-// 1x1 pixel, even on a bad/missing token, so nothing about validity leaks and the
-// email renders cleanly.
+// Engagement open pixel (/e/o/:token). A verified token from a person records the open (feeds Intelligence only, never billing): one idempotent engagement_events row per step, and the step's per-open counters (buildOpenStamp). The 1x1 pixel is ALWAYS returned, even on a bad or missing token, so nothing about validity leaks and the email renders cleanly.
 
 // 1x1 fully transparent GIF89a.
 const PIXEL = Uint8Array.from([
@@ -32,9 +27,7 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       const result = await recordOpen(env, payload, source);
       if (!result.recorded) console.debug("engagement open skipped:", result.reason);
     } catch (err) {
-      // Still best-effort for the customer, who gets the same response, but a
-      // failed write loses an open from Intelligence, so it must be seen, not
-      // swallowed. The step id is enough to trace it; the token stays out.
+      // Still best-effort for the customer, who gets the same response, but a failed write loses an open from Intelligence, so it must be seen, not swallowed. The step id is enough to trace it; the token stays out.
       logEvent(
         "engagement_open_failed",
         { stepId: payload.stepId, error: err },

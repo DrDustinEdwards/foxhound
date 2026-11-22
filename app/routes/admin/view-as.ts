@@ -1,7 +1,4 @@
-// POST /admin/view-as: start a read-only "View as merchant" (Recova's
-// Impersonate) and land in that merchant's app. Behind Access via the admin
-// shell; the row, the audit entry and the cookie come from
-// app/lib/admin/impersonation.server.ts.
+// POST /admin/view-as: start a read-only "View as merchant" and land in that merchant's app. Behind Access via the admin shell; the row, the audit entry and the cookie come from app/lib/admin/impersonation.server.ts.
 import { data, redirect } from "react-router";
 
 import { getDb } from "~/db";

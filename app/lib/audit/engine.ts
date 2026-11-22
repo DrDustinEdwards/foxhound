@@ -14,52 +14,33 @@ import { classifyDecline } from "~/lib/recovery/decline";
 import { monthKey } from "@dustinedwards/site-runtime/time";
 import { stripeMs } from "~/lib/stripe/time";
 
-// The audit engine, phase (a) of the port ruled by 362. Legacy's
-// `lib/audit-engine.ts` (blob `040912f895b556163d1a08d8af1974bd6af9b2ed`,
-// 24,280 bytes), walked whole in parity/ENGINE-AUDIT.md, which is this module's
-// spec.
+// The audit engine, phase (a) of the port ruled by 362.
 //
-// PURE. No Stripe client, no database, no AI, no clock of its own. Every read is
-// an INJECTED INPUT and every derived number is returned. That is 337 binding 4's
-// seam: a plant drives the real assembly rather than a reproduction of it, and
-// the Stripe half is phase (b)'s to fail on its own.
+// No Stripe client, no database, no AI, no clock of its own. That is 337
+// binding 4's seam: a plant drives the real assembly rather than a reproduction
+// of it, and the Stripe half is phase (b)'s to fail on its own.
 //
-// PER-SCOPE STATUS, WHICH IS 362 RULING 2 AND THE ONE DELIBERATE DIVERGENCE.
-// Legacy wraps its five reads in `Promise.allSettled` and each compute section in
-// a `try` that degrades to ZEROES. A merchant then cannot tell "no open disputes"
-// from "the disputes call failed", because both render as 0. Every scope here
-// answers `{ ok: true, data }` or `{ ok: false, reason }`, so a zero always means
-// zero. A zero that means unknown is a lie with digits.
-//
-// EVERY MONEY FIGURE IS KEPT PER CURRENCY. Legacy adds every
-// amount into one number and labels it with whichever currency it met first, so
-// $1,240 and EUR 310 read "$1,550". Each figure here carries its totals per
-// currency through groupSumByCurrency, ordered by currency
-// code as /intelligence orders its totals (byCurrencyCode), and the surfaces
-// show one line per currency (Dustin, 2026-10-25,
-// parity/APPROVED-DIFFERENCES.md). The plain `...Cents` numbers beside them are
-// the figure IN THE RUN'S CURRENCY only (meta.currency), never a sum across
-// currencies: they fill the single-number columns, which a run stored before
-// money_by_currency falls back to. A single-currency account gets the same
-// number either way.
+// A merchant then cannot tell "no open disputes" from "the disputes call
+// failed", because both render as 0.
 
-/** One scope's answer. Never a bare value, so a caller cannot read a failure as
- *  data (one subsystem over). */
+/**
+ * One scope's answer. Never a bare value, so a caller cannot read a failure as
+ * data (one subsystem over).
+ */
 export type ScopeOutcome<T> = { ok: true; data: T } | { ok: false; reason: string };
 
 /** A read that phase (b) performs, in the shape this module consumes. */
 export type ReadOutcome<T> = ScopeOutcome<T[]>;
 
 // THE ROWS THE ENGINE READS, AND NOTHING ELSE. reads.ts narrows each Stripe row
-// to these as it pages (so a large merchant's audit fits the Worker), and a full
-// Stripe object is assignable to each, so a test or caller holding the whole
-// object passes it unchanged. Naming them keeps a partial row from posing as a
-// complete Stripe type.
+// to these as it pages, and a full Stripe object is assignable to each, so a
+// test or caller holding the whole object passes it unchanged. Naming them
+// keeps a partial row from posing as a complete Stripe type.
 
-/** An invoice as the engine reads it: amount, currency, dates and the three
- *  places a decline code can sit (extractDeclineCode). Stripe's Invoice type
- *  dropped `charge` at 2026-03-25.dahlia while the JSON still carries it, and
- *  `last_payment_error` likewise; legacy shims the same way. */
+/**
+ * An invoice as the engine reads it: amount, currency, dates and the three
+ * places a decline code can sit (extractDeclineCode).
+ */
 export interface AuditInvoice {
   id?: string;
   amount_due: number;
@@ -71,8 +52,10 @@ export interface AuditInvoice {
   charge?: string | { failure_code: string | null } | null;
 }
 
-/** A subscription as the engine reads it: status, currency, customer id, the
- *  card's expiry, the first item's price, and the cancellation. */
+/**
+ * A subscription as the engine reads it: status, currency, customer id, the
+ * card's expiry, the first item's price, and the cancellation.
+ */
 export interface AuditSubscription {
   status: Stripe.Subscription.Status;
   currency: string;
@@ -109,22 +92,22 @@ export interface AuditInputs {
   cardUpdaterEvents: ReadOutcome<AuditEvent>;
 }
 
-/** Per-currency totals from groupSumByCurrency, in currency-code order, zeroes left out.
- *  Empty when there is no money at all. */
+/**
+ * Per-currency totals from groupSumByCurrency, in currency-code order, zeroes
+ * left out. Empty when there is no money at all.
+ */
 export type MoneyTotals = CurrencyAmount[];
 
-export interface FailedInvoicesScope {
+interface FailedInvoicesScope {
   count: number;
   /** In the run's currency only. */
   totalCents: number;
   totals: MoneyTotals;
-  /** Keyed by Foxhound's SIX categories, not legacy's four. In the run's
-   *  currency only. */
   byCategory: Record<DeclineCategory, number>;
   byCategoryTotals: Record<DeclineCategory, MoneyTotals>;
 }
 
-export interface ExpiringCardsScope {
+interface ExpiringCardsScope {
   count: number;
   /** In the run's currency only. */
   mrrAtRiskCents: number;
@@ -134,28 +117,28 @@ export interface ExpiringCardsScope {
 }
 
 /** A count with its money: `totalCents` in the run's currency only. */
-export interface CountedMoney {
+interface CountedMoney {
   count: number;
   totalCents: number;
   totals: MoneyTotals;
 }
 
-export type PastDueScope = CountedMoney;
+type PastDueScope = CountedMoney;
 
-export interface CardUpdaterScope {
+interface CardUpdaterScope {
   eventsInWindow: number;
   expiredCardDeclinesInWindow: number;
   advisory: string | null;
   windowDays: number;
 }
 
-export interface DisputesScope {
+interface DisputesScope {
   open: CountedMoney;
   acceptedWithoutFighting: CountedMoney;
   historical: { won: number; lost: number };
 }
 
-export interface HealthScope {
+interface HealthScope {
   /** In the run's currency only, as is arrCents. */
   mrrCents: number;
   arrCents: number;
@@ -181,11 +164,6 @@ export interface AuditResult {
   };
 }
 
-/**
- * Legacy's fallback chain, in legacy's order (`audit-engine.ts` extractDeclineCode).
- * The finalization error first, then the last payment error, then the charge's
- * own failure code.
- */
 export function extractDeclineCode(invoice: AuditInvoice): string | null {
   const fromFinalization = invoice.last_finalization_error?.decline_code;
   const fromLastPayment = invoice.last_payment_error?.code;
@@ -197,9 +175,7 @@ export function extractDeclineCode(invoice: AuditInvoice): string | null {
 /**
  * A subscription's recurring amount normalized to monthly cents, through the
  * same conversion Intelligence uses (signals.ts monthlyEquivalentCents), so the
- * audit's MRR and the dashboard's agree. Recova's `monthlyPlanCents` counted a
- * week as 4; a month holds 52/12 weeks, so that under-counted weekly plans by
- * about 8%. Like Recova, it reads the first item's price at quantity one.
+ * audit's MRR and the dashboard's agree.
  */
 export function monthlyPlanCents(subscription: AuditSubscription): number {
   const item = subscription.items?.data?.[0];
@@ -221,11 +197,9 @@ export function monthlyPlanCents(subscription: AuditSubscription): number {
 }
 
 /**
- * The Card Updater advisory, at legacy's three gates.
- *
  * THE WINDOW IS 30 DAYS AND NOT THE LOOKBACK, deliberately: Stripe's events API
- * retains 30 days regardless, so a 90-day denominator against a 30-day numerator
- * would inflate the trigger. Legacy documents the asymmetry and it is kept.
+ * retains 30 days regardless, so a 90-day denominator against a 30-day
+ * numerator would inflate the trigger.
  */
 export function buildCardUpdaterAdvisory(
   eventsInWindow: number,
@@ -236,8 +210,10 @@ export function buildCardUpdaterAdvisory(
   return `Stripe Account Updater is not firing for your cards. ${plural(expiredCardDeclinesInWindow, "expired-card decline")} hit your account in the last ${CAU_EVENT_RETENTION_DAYS} days, and Stripe updated none of them automatically. Common causes: cards held as raw numbers rather than attached to Stripe Customers, issuers that do not participate, and regional limits.`;
 }
 
-/** An empty bucket per category, so a category with no failures reads 0 rather
- *  than being absent. */
+/**
+ * An empty bucket per category, so a category with no failures reads 0 rather
+ * than being absent.
+ */
 function zeroByCategory(): Record<DeclineCategory, number> {
   return { soft: 0, network: 0, expired: 0, fraud: 0, revoked: 0, unknown: 0 };
 }
@@ -245,14 +221,14 @@ function zeroByCategory(): Record<DeclineCategory, number> {
 /** One amount in its own currency. */
 type Amount = CurrencyAmount;
 
-/** A row Stripe sent without a currency is taken to be in the run's, which is
- *  legacy's assumption for every row. */
 function amountOf(cents: number, currency: string | null | undefined, runCurrency: string): Amount {
   return { currency: (currency ?? runCurrency).toLowerCase(), cents };
 }
 
-/** Totals per currency, through the one money-total path, in
- *  currency-code order. A currency whose total is zero adds no line. */
+/**
+ * Totals per currency, through the one money-total path, in currency-code
+ * order. A currency whose total is zero adds no line.
+ */
 function totalsOf(amounts: Amount[]): MoneyTotals {
   return groupSumByCurrency(amounts)
     .filter((t) => t.cents !== 0)
@@ -269,11 +245,6 @@ function counted(count: number, amounts: Amount[], runCurrency: string): Counted
   return { count, totalCents: inCurrency(totals, runCurrency), totals };
 }
 
-/**
- * The failed set legacy builds: everything uncollectible in the window, plus the
- * open invoices whose due date has passed. Both reads are required, so a failure
- * in either fails the scope rather than halving it silently.
- */
 function resolveFailedInvoices(inputs: AuditInputs, nowMs: number): ScopeOutcome<AuditInvoice[]> {
   if (!inputs.uncollectibleInvoices.ok) {
     return { ok: false, reason: inputs.uncollectibleInvoices.reason };
@@ -299,10 +270,6 @@ function computeFailedInvoices(failed: AuditInvoice[], runCurrency: string): Fai
     const amount = amountOf(invoice.amount_due ?? 0, invoice.currency, runCurrency);
     amounts.push(amount);
     // SIX CATEGORIES, and the reshape is a DELETION rather than an addition.
-    // Legacy buckets four and pushes everything else into `soft`, which
-    // misattributes a revoked mandate as a retryable decline. Foxhound's
-    // classifier already returns `revoked` and `unknown`, so every code lands in
-    // its own bucket and legacy's catch-all has nothing left to catch.
     byCategoryAmounts[classifyDecline(extractDeclineCode(invoice))].push(amount);
   }
   const byCategory = zeroByCategory();
@@ -322,8 +289,6 @@ function computeExpiringCards(
 ): ExpiringCardsScope {
   const currentYear = ranAt.getUTCFullYear();
   const currentMonth = ranAt.getUTCMonth() + 1;
-  // Legacy's explicit December boundary: month 13 does not exist, so next month
-  // rolls the year.
   const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1;
   const nextMonthYear = currentMonth === 12 ? currentYear + 1 : currentYear;
 
@@ -344,9 +309,9 @@ function computeExpiringCards(
       typeof subscription.customer === "string" ? subscription.customer : subscription.customer?.id;
     if (!customerId) continue;
 
-    // ALREADY-EXPIRED CARDS COUNT HERE, which is the opposite of the expiring-card
-    // CRON, and both are right. The cron skips them because an alert about a card
-    // that has already failed is late; the audit counts them
+    // ALREADY-EXPIRED CARDS COUNT HERE, which is the opposite of the
+    // expiring-card CRON, and both are right. The cron skips them because an
+    // alert about a card that has already failed is late; the audit counts them
     // because a diagnostic of what is wrong right now must include them.
     const isExpiring =
       expYear < currentYear ||
@@ -392,9 +357,6 @@ function computePastDue(subscriptions: AuditSubscription[], runCurrency: string)
   for (const subscription of subscriptions) {
     if (subscription.status !== "past_due") continue;
     count += 1;
-    // RAW `unit_amount`, NOT normalized to monthly, which is legacy's own choice
-    // and its own comment: this is the next cycle's value, so a render calls it
-    // subscription value and never MRR.
     amounts.push(
       amountOf(
         subscription.items?.data?.[0]?.price?.unit_amount ?? 0,
@@ -417,8 +379,9 @@ function computeDisputes(disputes: AuditDispute[], runCurrency: string): Dispute
       open.push(amount);
     }
     // ACCEPTED WITHOUT FIGHTING is lost AND never submitted. The submission
-    // count is what separates a dispute somebody fought and lost from one nobody
-    // answered, and only the second is a process failure worth reporting.
+    // count is what separates a dispute somebody fought and lost from one
+    // nobody answered, and only the second is a process failure worth
+    // reporting.
     if (dispute.status === "lost" && dispute.evidence_details?.submission_count === 0) {
       accepted.push(amount);
     }
@@ -451,8 +414,8 @@ function computeHealth(
     } else if (subscription.status === "canceled") {
       const canceledAt = subscription.canceled_at ?? 0;
       if (canceledAt >= lookbackStartSeconds) {
-        // A cancellation Stripe attributes to a failed payment is INVOLUNTARY and
-        // is not voluntary churn. Everything else in the window is.
+        // A cancellation Stripe attributes to a failed payment is INVOLUNTARY
+        // and is not voluntary churn. Everything else in the window is.
         if (subscription.cancellation_details?.reason !== "payment_failed") {
           voluntaryCanceled += 1;
         }
@@ -460,9 +423,6 @@ function computeHealth(
     }
   }
 
-  // Legacy's denominator is every subscription the read returned, not just the
-  // active ones, and the divide-by-zero guard is its own. Ported as found: a
-  // different denominator would silently move every merchant's churn figure.
   const denominator = subscriptions.length > 0 ? subscriptions.length : 1;
   const mrrTotals = totalsOf(mrr);
   const arrTotals = mrrTotals.map((t) => ({ currency: t.currency, cents: t.cents * 12 }));
@@ -478,7 +438,6 @@ function computeHealth(
   };
 }
 
-/** Legacy takes the currency from whichever list answered first, in this order. */
 function resolveCurrency(inputs: AuditInputs): string {
   const first =
     (inputs.subscriptions.ok ? inputs.subscriptions.data[0]?.currency : null) ??
@@ -496,11 +455,6 @@ export interface RunAuditInput {
   reads: AuditInputs;
 }
 
-/**
- * The audit's two windows, in Stripe's Unix seconds: the lookback, and the card updater's, which is the shorter of the
- * lookback and Stripe's 30-day event retention (legacy's asymmetry). collectAuditInputs reads over them and runAudit
- * computes over the same ones.
- */
 export function auditWindows(ranAt: Date, lookbackDays: number) {
   const nowMs = ranAt.getTime();
   const cauWindowDays = Math.min(lookbackDays, CAU_EVENT_RETENTION_DAYS);
@@ -512,11 +466,8 @@ export function auditWindows(ranAt: Date, lookbackDays: number) {
 }
 
 /**
- * The whole audit, from injected reads. Pure: same inputs, same output, no clock
- * and no network.
- *
- * SIX SCOPES, EACH WITH ITS OWN STATUS. A scope fails only when a read it needs
- * failed, and it says which read. Nothing here throws, and nothing here writes.
+ * The whole audit, from injected reads. Pure: same inputs, same output, no
+ * clock and no network.
  */
 export function runAudit(input: RunAuditInput): AuditResult {
   const { stripeAccountId, lookbackDays, ranAt, reads } = input;
@@ -540,11 +491,9 @@ export function runAudit(input: RunAuditInput): AuditResult {
     ? { ok: true, data: computePastDue(reads.subscriptions.data, currency) }
     : { ok: false, reason: reads.subscriptions.reason };
 
-  // THE ADVISORY NEEDS BOTH READS, and the denominator is counted inside the CAU
-  // window rather than the lookback, so numerator and denominator cover the same
-  // days. Either read failing fails the scope; legacy answers a null event count
-  // and then advises on nothing, which reads as "no advisory" rather than "not
-  // measured".
+  // THE ADVISORY NEEDS BOTH READS, and the denominator is counted inside the
+  // CAU window rather than the lookback, so numerator and denominator cover the
+  // same days.
   let cardUpdater: ScopeOutcome<CardUpdaterScope>;
   if (!reads.cardUpdaterEvents.ok) {
     cardUpdater = { ok: false, reason: reads.cardUpdaterEvents.reason };

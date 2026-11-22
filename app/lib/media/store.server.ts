@@ -3,9 +3,8 @@ import { inList } from "@dustinedwards/site-runtime/d1";
 
 import { media, type Db } from "~/db";
 
-// The blog's reads of the media index (app/db/schema/media.ts, site-api's
-// standard tables, which only its d1MediaStore writes: app/lib/carrel/media-adapter.server.ts).
-// The page and the media route read rows through mediaRow and mediaRowsByKey.
+// The blog's reads of the media index (site-api's standard tables, written only by d1MediaStore in
+// app/lib/carrel/media-adapter.server.ts), through mediaRow and mediaRowsByKey.
 
 export type MediaRow = typeof media.$inferSelect;
 

@@ -6,11 +6,7 @@ import "~/site-header.css";
 import { PLATFORM_LINKS } from "~/lib/nav/manifest";
 import { THEME_COOKIE, type Theme } from "~/lib/theme";
 
-// What the public site, the merchant app and the admin share in Capsomer's site
-// header (capsomer/react/site-header; docs/design/design-site-header.md in
-// capsomer, Dustin's answers of 2026-10-13, recorded in
-// parity/APPROVED-DIFFERENCES.md): the wordmark, the link renderer, the avatar
-// menu that replaced the gear, and where the theme button saves a choice.
+// What the public site, the merchant app and the admin share in Capsomer's site header (capsomer/react/site-header): the wordmark, the link renderer, the avatar menu, and where the theme button saves a choice.
 
 /** Where Capsomer's theme button remembers the choice in this browser. */
 export const THEME_PREF_KEY = "fh-theme";
@@ -44,13 +40,8 @@ function isOn(pathname: string, to: string, end = false): boolean {
   return pathname === to || (!end && pathname.startsWith(`${to}/`));
 }
 
-/** The business's rows in the avatar menu, under its name: the design's list
- *  (Dustin's answer 3), each on the route the gear linked to. The gear's other
- *  rows (Notifications, Features, Stripe connections, My account) are each one
- *  row of the Settings hub, so no page loses its way in. */
-// Recova's GearMenu rows. Every settings page is in the settings sidebar, so
-// the avatar menu stays short (Dustin 2026-10-29: "why is the drop down menu
-// so huge").
+/** The business's rows in the avatar menu, under its name, each on the route the old gear linked to. The gear's other rows (Notifications, Features, Stripe connections, My account) are each one row of the Settings hub, so no page loses its way in. */
+// Every settings page is in the settings sidebar, so the avatar menu stays short.
 const BUSINESS_ROW_LABELS = ["Settings", "Billing"] as const;
 
 export function businessRows(hasAccount: boolean) {
@@ -70,9 +61,7 @@ export function currentRow<T extends { to: string; end?: boolean }>(
     .sort((a, b) => b.to.length - a.to.length)[0];
 }
 
-/** The avatar menu, last in the header, in place of the gear (Dustin's answer
- *  3): who you are; the business's rows under its name (Billing only with an
- *  account, as legacy gated it); then Help, Admin for an admin; Sign out last. */
+/** The avatar menu, last in the header: who you are; the business's rows under its name (Billing only with an account); then Help, Admin for an admin; Sign out last. */
 export function merchantAccountMenu({
   name,
   email,
@@ -112,15 +101,7 @@ export function merchantAccountMenu({
   };
 }
 
-/** The theme as Foxhound keeps it. The server resolves it (an account's stored
- *  choice, else this device's cookie; ruling 59) and <html data-theme> carries
- *  it from the first byte. Capsomer's theme button copies that answer into this
- *  browser's memory before it reads it, and saves every switch where Foxhound
- *  keeps it: an authenticated merchant's to accounts.theme through /api/theme,
- *  so it follows them across devices, anyone else's to the fh_theme cookie.
- *  Exclusive, as in legacy's NavThemeToggle. Fire and forget: the page has
- *  already switched, so a failed write must not switch it back; the next
- *  request reconciles. Spread onto SiteHeader or AdminShell. */
+/** The theme as Foxhound keeps it. The server resolves it (an account's stored choice, else this device's cookie) and <html data-theme> carries it from the first byte. Capsomer's theme button copies that answer into this browser's memory before it reads it, and saves every switch where Foxhound keeps it: an authenticated merchant's to accounts.theme through /api/theme, so it follows them across devices, anyone else's to the fh_theme cookie. Fire and forget: the page has already switched, so a failed write must not switch it back; the next request reconciles. Spread onto SiteHeader or AdminShell. */
 export function themeMemory(save: "account" | "cookie", initial: Theme) {
   return save === "account"
     ? { themeInitial: initial, onThemeSave: saveAccountTheme }

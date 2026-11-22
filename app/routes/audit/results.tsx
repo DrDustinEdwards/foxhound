@@ -31,32 +31,9 @@ import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 import type { Route } from "./+types/results";
 import "~/audit-tool.css";
 
-// Legacy's `app/audit/results/page.tsx` (blob `9aad7745`, 8,818 bytes), phase (f).
-// The live run: the door phase (e) built two rooms behind.
-//
-// THE ENGINE RUNS AT RENDER, WHICH IS LEGACY'S SHAPE AND NOT AN OVERSIGHT.
-// Legacy's page is `force-dynamic` and calls `runAudit` on EVERY load from the
-// OAuth cookie, never reading back the row it may have just written
-// (ENGINE-AUDIT binding 3). A loader is the same thing, so a reload inside the
-// cookie's five minutes re-runs five Stripe reads and one AI call. Recorded
-// rather than optimized: treating `audit_runs` as a cache would change behavior,
-// and the shareable-by-id page is the only reader of a stored run on either side.
-//
-// WHAT AN ANONYMOUS RUN LEAVES BEHIND: NOTHING. No account, no membership, no
-// connection row, no outcome, no billing line. Legacy is identical; its only
-// anonymous write is an AI-cost row with a null account id, which Foxhound's
-// gateway factory already records the same way. PRICING rev 3 keeps the audit
-// free and this route creates no billable path.
-//
-// PERSISTENCE IS LEGACY'S CONDITION PLUS ONE CHECK. Legacy stores a run whenever
-// a signed-in account resolves, without ever asking whether the Stripe account
-// in the cookie belongs to that Foxhound account. A merchant who audits somebody
-// else's Stripe account therefore gets that account's MRR, disputes and failed
-// invoices filed permanently into their own history, with nothing on either
-// surface saying so. Foxhound stores the run only when the audited Stripe
-// account is live on the caller's ACTIVE account, and says plainly when it did
-// not. Same class as 356 binding 2 and 330 binding 2, both of which refuse
-// rather than mis-file, and ruled for this case by Dustin in session 71.
+// The live run. THE ENGINE RUNS AT RENDER: the loader calls `runAudit` on EVERY load from the OAuth cookie, never reading back a stored row, so a reload inside the cookie's five minutes re-runs five Stripe reads and one AI call. Treating `audit_runs` as a cache would change behavior; the shareable-by-id page is the only reader of a stored run.
+// AN ANONYMOUS RUN LEAVES BEHIND NOTHING: no account, no membership, no connection row, no outcome, no billing line; its only anonymous write is an AI-cost row with a null account id. This route creates no billable path (PRICING rev 3 keeps the audit free).
+// PERSISTENCE NEEDS ONE CHECK: a run is stored only when a signed-in account resolves AND the audited Stripe account is live on the caller's ACTIVE account, so a merchant auditing somebody else's Stripe account never files that account's MRR, disputes and failed invoices into their own history; the page says plainly when it did not store.
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -78,17 +55,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const grant = await readAuditGrantCookie(env, request);
   const queryAccountId = url.searchParams.get("account");
-  // Legacy's guard, verbatim in effect: no cookie or no account id means the
-  // five-minute grant is gone, and the only way back is a fresh authorization.
+  // No cookie or no account id means the five-minute grant is gone, and the only way back is a fresh authorization.
   if (!grant || !queryAccountId) {
     throw redirect("/audit/connect?error=session_expired");
   }
-  // THE ACCOUNT IS THE ONE STRIPE NAMED, NEVER THE QUERY'S. Legacy trusts
-  // `?account=`, which the visitor can edit, while the token reads whichever
-  // account granted it; editing the id would file one account's numbers under
-  // another's id in the caller's history. The query is kept for
-  // legacy's URL and checked against the sealed id. A mismatch is refused like
-  // a stale link, naming no account and no holder.
+  // THE ACCOUNT IS THE ONE STRIPE NAMED, NEVER THE QUERY'S. The visitor can edit `?account=`, while the token reads whichever account granted it; editing the id would file one account's numbers under another's id in the caller's history. The query is checked against the sealed id. A mismatch is refused like a stale link, naming no account and no holder.
   if (queryAccountId !== grant.stripeAccountId) {
     throw redirect("/audit/connect?error=invalid_state");
   }
@@ -100,10 +71,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     ? await resolveActiveMembership(db, session.user.id, session.session.activeAccountId ?? null)
     : null;
 
-  // Legacy reads `accounts.audit_lookback_days` for a signed-in visitor and
-  // falls back to 90 for everyone else. THE COLUMN HAD NO READER IN FOXHOUND
-  // before this route, which is what the walk recorded; it has one now, and it
-  // goes through readAuditSettings rather than a second inline `?? 90`.
+  // The lookback is `accounts.audit_lookback_days` for a signed-in visitor, 90 for everyone else, read through readAuditSettings rather than a second inline `?? 90`.
   const lookbackDays = membership
     ? (await readAccountAuditSettings(db, membership.accountId)).lookbackDays
     : AUDIT_LOOKBACK_DAYS;
@@ -120,10 +88,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   let notSaved: NotSavedReason | null = "anonymous";
 
   if (membership) {
-    // Is the audited Stripe account the one this account actually holds? Asked
-    // through the SAME predicate both connect branches use, with
-    // the caller's held set narrowed to the active account, so "held by caller"
-    // here means "live on the account this run would be filed under".
+    // Is the audited Stripe account the one this account actually holds? Asked through the SAME predicate both connect branches use, with the caller's held set narrowed to the active account, so "held by caller" means "live on the account this run would be filed under".
     const attachment = await findLiveAttachment(db, stripeAccountId, [membership.accountId]);
     if (attachment.status === "held_by_caller") {
       await saveAuditRun(env, result, {
@@ -154,8 +119,7 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
             <ButtonLink to="/audit/dashboard">View audit history</ButtonLink>
           </>
         ) : (
-          // The refusal, said out loud. A run that quietly did
-          // not save is the same shape of lie as a zero that means unknown.
+          // The refusal, said out loud: a run that quietly did not save is the same shape of lie as a zero that means unknown.
           <p className="fh-small fh-soft">
             This run was not saved to your audit history, because the Stripe account you just
             authorized is not the one connected to your Foxhound account. The numbers above are
@@ -166,9 +130,7 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
     );
   }
 
-  // Recova's unauthenticated branch, its copy and its order. The target is
-  // /signup, Recova's own, and the only anonymous entrance to the onboarding
-  // grant that stays. The fee is Foxhound's constant.
+  // The unauthenticated branch. The target is /signup, the only anonymous entrance to the onboarding grant that stays. The fee is Foxhound's constant.
   return (
     <Panel title="What's next">
       <div className="fh-center">
@@ -194,9 +156,7 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
   const { run, notSaved, signedIn } = loaderData;
   const ctaState: CtaState = signedIn ? "active" : "unauthenticated";
 
-  // Capsomer's page class sets the width and gutters; the text stays Foxhound's 16px
-  // (--fs-page, app.css). The page sits under the marketing shell, which is not a
-  // Capsomer family, so it names the amber family itself, as the legal pages do.
+  // Capsomer's page class sets the width and gutters; the text stays Foxhound's 16px (--fs-page, app.css). The page sits under the marketing shell, which is not a Capsomer family, so it names the amber family itself, as the legal pages do.
   return (
     <div className="fh-results-block fh-cap cap-page" data-cap-site="foxhound" data-family="amber">
       <div className="fh-results-block-2">

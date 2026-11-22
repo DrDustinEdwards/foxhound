@@ -13,10 +13,7 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// badge, the field, the select, the alert, the button and the focus ring read.
-// The site header loads the same file; importing it here keeps the page whole
-// under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the badge, the field, the select, the alert, the button and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { getDb } from "~/db";
@@ -36,25 +33,7 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import "~/audit-tool.css";
 
-// Real no-auth estimator + audit marketing page (Phase 6 Pass 3). Ported the
-// legacy app/audit/page.tsx marketing structure (Capsid read_repo_file,
-// namespace recova, repo legacy), replacing the earlier Pass-1 RouteStub.
-// Corrections vs legacy, matching this repo's established audit copy
-// discipline (products/audit.tsx): no fabricated recovery-rate stat, and no
-// bare "2 to 3% of MRR fails every month" marketing figure. The estimator's
-// rate is the seeded benchmark_data median (drizzle/seed/benchmark_data.sql),
-// a rounded interpolation and not a study, so the result card names it as an
-// assumption applied to the visitor's MRR. It never claims to describe other
-// accounts, and the seed's percentile spread is not shown.
-//
-// J18, the visual walk: Recova's app/audit/page.tsx (blob 054edf70)
-// and app/audit/layout.tsx (blob 0544e53b), read whole, stay the spec for the
-// content, order and width. The look is Capsomer's: the
-// pill is its badge, every card its panel, the form its field, select and
-// button, the unavailable notice its alert, each call to action its primary
-// button. Amber throughout, text at Recova's sizes: the hero h1 clamp, the
-// tinted mono pill and the covers card's 40px padding are set through the
-// parts' own variables.
+// The real no-auth estimator and audit marketing page. No fabricated recovery-rate stat and no bare "2 to 3% of MRR fails every month" figure: the estimator's rate is the seeded benchmark_data median (drizzle/seed/benchmark_data.sql), a rounded interpolation and not a study, so the result card names it as an assumption applied to the visitor's MRR. It never claims to describe other accounts, and the seed's percentile spread is not shown. The pill is Capsomer's badge, every card its panel, the form its field, select and button, the unavailable notice its alert, each call to action its primary button; the hero h1 clamp, the tinted mono pill and the covers card's 40px padding are set through the parts' own variables.
 
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
@@ -79,12 +58,7 @@ export function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   return {
     siteUrl: siteUrl(env),
-    // Both vars are required for a working form: TURNSTILE_SECRET_KEY gates
-    // the action's server-side verify call, TURNSTILE_SITE_KEY is what the
-    // client widget actually renders with. Gating on the secret alone
-    // (Phase 6 review finding) could report "available" while the widget
-    // had no sitekey to produce a token, landing on a stuck challenge
-    // instead of the intended clean "temporarily unavailable" state.
+    // Both vars are required for a working form: TURNSTILE_SECRET_KEY gates the action's server-side verify call, TURNSTILE_SITE_KEY is what the client widget renders with. Gating on the secret alone could report "available" while the widget had no sitekey, landing on a stuck challenge instead of the clean "temporarily unavailable" state.
     turnstileAvailable: Boolean(env.TURNSTILE_SECRET_KEY) && Boolean(env.TURNSTILE_SITE_KEY),
     turnstileSiteKey: env.TURNSTILE_SITE_KEY ?? "",
   };
@@ -93,10 +67,7 @@ export function loader({ context }: Route.LoaderArgs) {
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
 
-  // Hard requirement: while TURNSTILE_SECRET_KEY is unset, the estimator
-  // never accepts a submission, silently or otherwise, no matter what a
-  // direct POST to this action carries. This check runs before anything
-  // else, including reading the form body.
+  // Hard requirement: while TURNSTILE_SECRET_KEY is unset, the estimator never accepts a submission, no matter what a direct POST carries. This check runs before anything else, including reading the form body.
   if (!env.TURNSTILE_SECRET_KEY) {
     return data<ActionResult>(
       { ok: false, error: "The estimator is temporarily unavailable. Please check back soon." },
@@ -129,8 +100,7 @@ export async function action({ request, context }: Route.ActionArgs) {
     );
   }
 
-  // site-runtime's verifyTurnstile fails closed and never throws: an
-  // unreachable siteverify is a refusal here, not a 500.
+  // site-runtime's verifyTurnstile fails closed and never throws: an unreachable siteverify is a refusal here, not a 500.
   const verification = await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET_KEY, {
     remoteIp: request.headers.get("CF-Connecting-IP"),
   });
@@ -159,19 +129,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   return data<ActionResult>({ ok: true, result, mrrCents, currency });
 }
 
-// The four lines of Recova's covers card.
-//
-// One clause of Recova's own copy is NOT restored, because it names a render
-// Foxhound does not have: its dispute "historical win rate" is a platform
-// figure, NOT PORTED at 365 binding 31. The "estimated recoverable amount" is
-// back with the results page's Recoverable estimate (Dustin). The expiring-cards line
-// says what the engine's predicate actually does, which includes
-// already-expired cards; Recova says "next 30 days" and counts them too.
-//
-// FOUR LINES, NOT SIX, and that is Recova's editorial call matched rather than
-// an omission. Both engines compute six scopes; Recova's card lists four and
-// folds past-due subscriptions and the Card Updater advisory into the run
-// itself. Both render on the results page.
+// The covers card's four lines. The expiring-cards line says what the engine's predicate actually does, which includes already-expired cards. Four lines, not six: both engines compute six scopes; past-due subscriptions and the Card Updater advisory are folded into the run itself and render on the results page. There is no "historical win rate" line: it is a platform figure Foxhound does not render.
 const COVERS: ReadonlyArray<readonly [string, string]> = [
   [
     "Failed invoices",
@@ -193,10 +151,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
   const busy = useNavigation().state !== "idle";
 
   return (
-    // Recova's column: 680px, centered, px-4 md:px-8, py-10 md:py-20. In
-    // Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /demos
-    // and /pricing), comfortable density so each panel takes Capsomer's roomier
-    // padding.
+    // A 680px column, centered, px-4 md:px-8, py-10 md:py-20, in Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /demos and /pricing), comfortable density so each panel takes Capsomer's roomier padding.
     <div
       className="fh-audit-wrap fh-cap fh-center"
       data-cap-site="foxhound"
@@ -350,9 +305,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
   );
 }
 
-/** The estimator's form: Capsomer's field, select and primary button. The
- *  Turnstile widget is site-runtime's, drawn again after each answer from the
- *  action because a token is good for one verify. */
+/** The estimator's form: Capsomer's field, select and primary button. The Turnstile widget is site-runtime's, drawn again after each answer from the action because a token is good for one verify. */
 function EstimatorForm({
   busy,
   siteKey,

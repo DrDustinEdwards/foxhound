@@ -1,0 +1,247 @@
+import { describe, expect, it } from "vitest";
+
+import { listPlatformUsers } from "~/lib/admin/users.server";
+import { accountMembers, accounts, session, user } from "~/db";
+
+import { createInMemoryDb } from "./helpers/inmemory-db";
+
+const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
+const DAY = 24 * 60 * 60 * 1000;
+const at = (msAgo: number) => new Date(NOW - msAgo);
+const ENV = { ADMIN_EMAIL: "admin@example.com" } as unknown as Env;
+
+interface Membership {
+  accountId: string;
+  accountName: string | null;
+  role: string;
+  status: string;
+  inviteExpired: boolean;
+}
+interface UserRow {
+  id: string;
+  name: string;
+  email: string;
+  createdAt: Date;
+  isAdmin: boolean;
+  lastSignInAt: Date | null;
+  memberships: Membership[];
+}
+
+const list = (db: unknown) =>
+  listPlatformUsers(db as never, ENV, NOW) as unknown as Promise<UserRow[]>;
+
+async function seed() {
+  const { db } = createInMemoryDb();
+  await db.insert(user).values([
+    // Invites are matched only to a verified email, so both people with one
+    // are verified.
+    {
+      id: "u_rosa",
+      name: "Rosa Park",
+      email: "rosa@example.com",
+      emailVerified: true,
+      createdAt: at(30 * DAY),
+      updatedAt: at(30 * DAY),
+    },
+    {
+      id: "u_sam",
+      name: "Sam Ortiz",
+      email: "sam@example.com",
+      emailVerified: true,
+      createdAt: at(10 * DAY),
+      updatedAt: at(10 * DAY),
+    },
+    {
+      id: "u_admin",
+      name: "Admin Person",
+      email: "admin@example.com",
+      createdAt: at(60 * DAY),
+      updatedAt: at(60 * DAY),
+    },
+  ]);
+  await db.insert(accounts).values([
+    { id: "acct_north", name: "Northwind Coffee", createdAt: at(40 * DAY) },
+    { id: "acct_lumen", name: "Lumen Studio", createdAt: at(20 * DAY) },
+    { id: "acct_harbor", name: "Harbor Yoga", createdAt: at(20 * DAY) },
+  ]);
+  await db.insert(accountMembers).values([
+    {
+      id: "m1",
+      accountId: "acct_north",
+      userId: "u_rosa",
+      role: "owner",
+      status: "active",
+      createdAt: at(30 * DAY),
+    },
+    {
+      id: "m2",
+      accountId: "acct_lumen",
+      userId: "u_rosa",
+      role: "member",
+      status: "active",
+      createdAt: at(20 * DAY),
+    },
+    // A pending invite has no user id yet: it is matched by the invited email.
+    {
+      id: "m3",
+      accountId: "acct_harbor",
+      userId: null,
+      role: "member",
+      invitedEmail: "rosa@example.com",
+      status: "pending",
+      inviteToken: "tok_1",
+      inviteExpiresAt: at(-3 * DAY),
+      createdAt: at(4 * DAY),
+    },
+    // An invite past its expiry, and one to an email with no user.
+    {
+      id: "m4",
+      accountId: "acct_north",
+      userId: null,
+      role: "member",
+      invitedEmail: "sam@example.com",
+      status: "pending",
+      inviteToken: "tok_2",
+      inviteExpiresAt: at(2 * DAY),
+      createdAt: at(9 * DAY),
+    },
+    {
+      id: "m5",
+      accountId: "acct_north",
+      userId: null,
+      role: "member",
+      invitedEmail: "nobody@example.com",
+      status: "pending",
+      inviteToken: "tok_3",
+      inviteExpiresAt: at(-3 * DAY),
+      createdAt: at(1 * DAY),
+    },
+  ]);
+  const sess = (id: string, userId: string, createdAt: Date) => ({
+    id,
+    userId,
+    token: `token_${id}`,
+    expiresAt: new Date(createdAt.getTime() + 7 * DAY),
+    createdAt,
+    updatedAt: createdAt,
+  });
+  await db
+    .insert(session)
+    .values([
+      sess("s1", "u_rosa", at(5 * DAY)),
+      sess("s2", "u_rosa", at(2 * 60 * 60 * 1000)),
+      sess("s3", "u_rosa", at(3 * DAY)),
+      sess("s4", "u_admin", at(1 * DAY)),
+    ]);
+  return db;
+}
+
+describe("listPlatformUsers", () => {
+  it("reads last sign-in as the newest session", async () => {
+    const rows = await list(await seed());
+    const rosa = rows.find((r) => r.id === "u_rosa");
+    expect(rosa?.lastSignInAt?.getTime()).toBe(at(2 * 60 * 60 * 1000).getTime());
+  });
+
+  it("returns every account a user belongs to, active first, pending invites after", async () => {
+    const rows = await list(await seed());
+    const rosa = rows.find((r) => r.id === "u_rosa")!;
+    expect(rosa.memberships.map((m) => [m.accountId, m.accountName, m.role, m.status])).toEqual([
+      ["acct_lumen", "Lumen Studio", "member", "active"],
+      ["acct_north", "Northwind Coffee", "owner", "active"],
+      ["acct_harbor", "Harbor Yoga", "member", "pending"],
+    ]);
+    const sam = rows.find((r) => r.id === "u_sam")!;
+    expect(sam.memberships).toEqual([
+      {
+        accountId: "acct_north",
+        accountName: "Northwind Coffee",
+        role: "member",
+        status: "pending",
+        inviteExpired: true,
+      },
+    ]);
+    expect(rows.find((r) => r.id === "u_admin")!.memberships).toEqual([]);
+  });
+});
+
+const invite = (id: string, accountId: string, email: string, expiresAt: Date) => ({
+  id,
+  accountId,
+  userId: null,
+  role: "member",
+  invitedEmail: email,
+  status: "pending",
+  inviteToken: `tok_${id}`,
+  inviteExpiresAt: expiresAt,
+  createdAt: at(5 * DAY),
+});
+
+describe("listPlatformUsers, invites", () => {
+  async function seedInvites() {
+    const { db } = createInMemoryDb();
+    await db.insert(user).values([
+      {
+        id: "u_rosa",
+        name: "Rosa Park",
+        email: "rosa@example.com",
+        emailVerified: true,
+        createdAt: at(30 * DAY),
+        updatedAt: at(30 * DAY),
+      },
+      {
+        id: "u_eve",
+        name: "Eve Unverified",
+        email: "eve@example.com",
+        emailVerified: false,
+        createdAt: at(20 * DAY),
+        updatedAt: at(20 * DAY),
+      },
+    ]);
+    await db.insert(accounts).values([
+      { id: "acct_north", name: "Northwind Coffee", createdAt: at(40 * DAY) },
+      { id: "acct_harbor", name: "Harbor Yoga", createdAt: at(20 * DAY) },
+    ]);
+    await db.insert(accountMembers).values([
+      {
+        id: "m1",
+        accountId: "acct_north",
+        userId: "u_rosa",
+        role: "owner",
+        status: "active",
+        createdAt: at(30 * DAY),
+      },
+      // Already an active member here: the invite says nothing more.
+      invite("i1", "acct_north", "rosa@example.com", at(-3 * DAY)),
+      // Two invites to one account: one row, the one that can still be accepted.
+      invite("i2", "acct_harbor", "rosa@example.com", at(2 * DAY)),
+      invite("i3", "acct_harbor", "rosa@example.com", at(-3 * DAY)),
+      invite("i4", "acct_harbor", "rosa@example.com", at(1 * DAY)),
+      // An unverified email is never matched to an invite.
+      invite("i5", "acct_harbor", "eve@example.com", at(-3 * DAY)),
+    ]);
+    return db;
+  }
+
+  it("lists each account once per person, drops an invite to an account they are already in, and matches invites only to a verified email", async () => {
+    const rows = await list(await seedInvites());
+    expect(rows.find((r) => r.id === "u_eve")!.memberships).toEqual([]);
+    const rosa = rows.find((r) => r.id === "u_rosa")!;
+    expect(rosa.memberships).toEqual([
+      {
+        accountId: "acct_north",
+        accountName: "Northwind Coffee",
+        role: "owner",
+        status: "active",
+        inviteExpired: false,
+      },
+      {
+        accountId: "acct_harbor",
+        accountName: "Harbor Yoga",
+        role: "member",
+        status: "pending",
+        inviteExpired: false,
+      },
+    ]);
+  });
+});

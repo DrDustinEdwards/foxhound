@@ -13,8 +13,6 @@ import { id, ts, bool, json } from "./columns";
 import { failedPayments } from "./recovery";
 import { stripeConnections, accountRef } from "./tenancy";
 
-// Disputes (rebuilt as a state machine with an approval gate)
-
 export const disputes = sqliteTable(
   "disputes",
   {
@@ -28,7 +26,6 @@ export const disputes = sqliteTable(
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull(),
     reason: text("reason").notNull(),
-    // legacy provenance columns (unprobed value sets -> plain text, no CHECK)
     status: text("status").notNull(),
     outcome: text("outcome"),
     outcomeAmountCents: integer("outcome_amount_cents"),
@@ -63,21 +60,14 @@ export const disputes = sqliteTable(
     shippingTrackingNumber: text("shipping_tracking_number"),
     shippingCarrier: text("shipping_carrier"),
     shippingDate: ts("shipping_date"),
-    // Foxhound state machine + resolved fee snapshot (SCHEMA.md).
     state: text("state").notNull().default("draft"),
     resolvedFeeCents: integer("resolved_fee_cents"),
     resolvedFeeCurrency: text("resolved_fee_currency"),
-    /** The USD-to-dispute-currency rate the $500 cap was converted at, with the
-     *  quote that produced it and when (PRICING rev 5 item 2).
-     *  Null on a USD dispute, where nothing is converted. Stored so the ledger
-     *  line can show the merchant the rate they were capped at rather than
-     *  asking them to take the number on trust. */
+    /** The USD-to-dispute-currency rate the $500 cap was converted at, with its quote and when. Null on a USD dispute. Stored so the ledger line can show the merchant the rate they were capped at. */
     resolvedFeeRate: real("resolved_fee_rate"),
     resolvedFeeQuoteId: text("resolved_fee_quote_id"),
     resolvedFeeRateAt: ts("resolved_fee_rate_at"),
-    /** Why the fee could NOT be snapshotted. Set when the FX quote failed, in
-     *  which case resolved_fee_cents stays null and the dispute is not billable
-     *  until it is resolved again. Fail closed, never a flat-cap fallback. */
+    /** Why the fee could NOT be snapshotted. Set when the FX quote failed: resolved_fee_cents stays null and the dispute is not billable until resolved again. Fail closed, never a flat-cap fallback. */
     resolvedFeeError: text("resolved_fee_error"),
     /** Stripe's evidence_details.has_evidence and submission_count, kept
      *  current by charge.dispute.updated. Null until the first update. */
@@ -161,9 +151,7 @@ export const disputeApprovals = sqliteTable(
     // hash of the evidence version approved (submission requires this row)
     evidenceVersionHash: text("evidence_version_hash").notNull(),
     approvedAt: ts("approved_at").notNull(),
-    // Set only on an approval the auto-submit job wrote: when the approver
-    // (approved_by_*) turned auto-submit on, the standing opt-in this approval
-    // stands on. Null on a merchant's own Approve and submit.
+    // Set only on an approval the auto-submit job wrote: the standing opt-in (when the approver turned auto-submit on) this approval stands on. Null on a merchant's own Approve and submit.
     standingOptInAt: ts("standing_opt_in_at"),
   },
   (t) => [
@@ -172,15 +160,7 @@ export const disputeApprovals = sqliteTable(
   ],
 );
 
-/**
- * One row per Stripe early fraud warning on a connected account. A card network
- * sends one days or weeks before a fraud chargeback, and refunding the charge
- * first avoids the dispute fee and keeps the dispute off the merchant's ratio.
- *
- * Written by the connected-account webhook (radar.early_fraud_warning.created
- * and .updated) and by the merchant's Refund or Dismiss on the disputes page.
- * Nothing here is billable: a refund is not a won dispute.
- */
+/** One row per Stripe early fraud warning on a connected account. A card network sends one days or weeks before a fraud chargeback, and refunding the charge first avoids the dispute fee and keeps the dispute off the merchant's ratio. Written by the connected-account webhook (radar.early_fraud_warning.created and .updated) and by the merchant's Refund or Dismiss. Nothing here is billable: a refund is not a won dispute. */
 export const earlyFraudWarnings = sqliteTable(
   "early_fraud_warnings",
   {

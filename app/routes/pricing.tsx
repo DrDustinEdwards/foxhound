@@ -22,45 +22,17 @@ import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import "capsomer/panel.css";
 import "capsomer/button.css";
 import "capsomer/price-card.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// button, the accent text and the focus ring read. The site header loads the
-// same file; importing it here keeps the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the button, the accent text and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import type { Route } from "./+types/pricing";
 import { faqPage, jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/pricing.css";
 
-// /pricing. Recova's spec is app/(marketing)/pricing/page.tsx
-// (blob 8e91e160), read whole.
-//
-// Layout is Recova's: the shared page header, the 1200px card container on a
-// 1/2/4 column grid with gap-4, each card's order (name, price, price label or
-// a blank line, description, check list, Learn more), the 760px FAQ under its
-// "Questions" h2, and the 760px closing block with its 560px line. Look is
-// Capsomer's: the page sits in Capsomer's amber family with
-// Foxhound's own neutrals (.fh-cap, as the site header, the legal pages and the
-// /products hub), each card and FAQ item is Capsomer's panel, and the closing
-// link is Capsomer's primary button.
-//
-// Text is at Recova's sizes: card name 1.125rem, price 2.5rem, price label and
-// closing microcopy 0.75rem, description, bullets and Learn more 0.8125rem, the
-// h2s 1.5rem to 1.75rem and 1.75rem to 2rem, FAQ question and closing line
-// 0.9375rem, FAQ answer 0.875rem.
-//
-// Headings: Recova draws the card names and the FAQ questions as plain divs.
-// Here they are h2 and h3, so a screen reader can move between the plans and
-// the questions (RULES.md 1.5 allows an accessibility improvement); the page
-// keeps one h1 and never skips a level. The look is unchanged.
-//
-// Copy, frozen for the claims pass, and every number in it, read from the
-// engine constants, are in lib/marketing/pricing-copy.ts.
+// /pricing: the shared page header, the 1200px card container on a 1/2/4 column grid with gap-4, each card's order (name, price, price label or a blank line, description, check list, Learn more), the 760px FAQ under its "Questions" h2, and the 760px closing block with its 560px line. The page sits in Capsomer's amber family with Foxhound's own neutrals (.fh-cap), each card and FAQ item is Capsomer's panel, and the closing link is Capsomer's primary button. Text: card name 1.125rem, price 2.5rem, price label and closing microcopy 0.75rem, description, bullets and Learn more 0.8125rem, the h2s 1.5rem to 1.75rem and 1.75rem to 2rem, FAQ question and closing line 0.9375rem, FAQ answer 0.875rem. Card names and FAQ questions are h2 and h3 (not plain divs), so a screen reader can move between the plans and the questions; the page keeps one h1 and never skips a level. Copy, and every number in it, read from the engine constants, are in lib/marketing/pricing-copy.ts.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // JSON-LD, as Recova emits it: an array of the FAQPage, sourced from the
-  // exact list rendered above, and a WebPage whose SpeakableSpecification
-  // points at the cards and FAQ sections by the classes on them. Every URL
-  // comes from the loader's siteUrl.
+  // JSON-LD: an array of the FAQPage, sourced from the exact list rendered above, and a WebPage whose SpeakableSpecification points at the cards and FAQ sections by the classes on them. Every URL comes from the loader's siteUrl.
   return [
     ...marketingMeta({
       title: "Pricing",
@@ -112,10 +84,7 @@ export default function PricingPage() {
                 text={card.description}
                 points={card.features}
                 action={
-                  // The destination is products.ts's, the one place J09 moves
-                  // the spokes to Recova's /product/*. The hidden words give
-                  // each of the four links its own name; the visible "Learn
-                  // more" leads it, so label-in-name holds.
+                  // The destination is products.ts's. The hidden words give each of the four links its own name; the visible "Learn more" leads it, so label-in-name holds.
                   <Link
                     to={PRODUCTS[card.id].href}
                     className="fh-pricing-link fh-hover-group fh-small fh-accent"

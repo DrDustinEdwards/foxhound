@@ -55,10 +55,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const db = getDb(env);
   const detail = await getMerchantDetail(db, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
-  // Idempotency anchor for the adjustment form: minted per render, carried as a
-  // hidden field, and rotated by the post-submit loader revalidation. A double-
-  // submit of one rendered form reuses it (deduped in createAdjustment); a
-  // deliberate new adjustment comes from a fresh render with a fresh token.
+  // Idempotency anchor for the adjustment form: minted per render, carried as a hidden field, and rotated by the post-submit loader revalidation. A double-submit of one rendered form reuses it (deduped in createAdjustment); a deliberate new adjustment comes from a fresh render with a fresh token.
   return { ...detail, adjustmentToken: crypto.randomUUID() };
 }
 
@@ -71,9 +68,7 @@ interface ActionResult {
   adjustmentInvoiceId?: string;
 }
 
-// Every action here is money-adjacent (admin Pass 2). Each is operator-guarded
-// by the admin-guard layout (app/layouts/admin-guard.tsx, nested under the
-// app-shell session guard), and each writes an admin_audit_log row.
+// Every action here is money-adjacent. Each is operator-guarded by the admin-guard layout (app/layouts/admin-guard.tsx, nested under the app-shell session guard), and each writes an admin_audit_log row.
 export async function action({ context, request, params }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(adminContext);
@@ -83,8 +78,7 @@ export async function action({ context, request, params }: Route.ActionArgs) {
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
 
-  // Each change and its audit row commit as one batch, so a change never
-  // stands without its record (Mythos billing review, finding 7).
+  // Each change and its audit row commit as one batch, so a change never stands without its record.
   if (intent === "toggle-billing-exempt") {
     const nextExempt = String(form.get("nextExempt") ?? "") === "true";
     await setBillingExempt(env, accountId, nextExempt, new Date(), {

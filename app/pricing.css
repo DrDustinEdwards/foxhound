@@ -1,5 +1,4 @@
-/* The parts only the pricing page uses, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the pricing page uses. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-pricing-link {
     transition-property: opacity;
@@ -9,7 +8,7 @@
   .fh-pricing-band {
     padding-inline: var(--space-5-5);
     padding-bottom: var(--space-8);
-    /* Capsomer's price cards at Recova's p-6, 40px price at medium weight and 12px price label. */
+    /* Capsomer's price cards at p-6, 40px price at medium weight and 12px price label. */
     --pad-card: var(--space-6);
     --cap-price-size: var(--display-5);
     --cap-price-weight: var(--weight-medium);

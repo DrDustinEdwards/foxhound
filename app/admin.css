@@ -1,12 +1,4 @@
-/* The admin's design system, loaded only with the admin routes (imported by
-   app/layouts/admin-shell.tsx), so no customer or marketing page downloads it.
-   Capsomer: layers, tokens, both themes, the base rules, the pieces
-   AdminShell and its time and tooltip use, and the Overview's parts (panels,
-   the attention list and the row list under it, empty states, the spinner), and
-   the Users page's table. The layer order is declared at the top
-   of app.css, so Capsomer sits above Foxhound's base and below its site layer.
-   Foxhound's family is amber (Dustin's answer 1 of 2026-10-13): its tokens come
-   after the themes, so the accents are amber in both. */
+/* The admin's design system, loaded only with the admin routes, so no customer or marketing page downloads it. Capsomer sits above Foxhound's base and below its site layer; Foxhound's amber tokens come after the themes, so the accents are amber in both. */
 @import "capsomer/tokens.css";
 @import "capsomer/themes.css" layer(cap.tokens);
 @import "capsomer/family-amber.css" layer(cap.tokens);
@@ -42,10 +34,7 @@
   font-family: var(--ui);
 }
 
-/* The page bar's left side: the page's one heading, then how fresh its data is
-   ("Updated 6 minutes ago", AdminShell's own line). AdminShell 0.9.0 names the
-   page in its trail only below the top level, so the heading rides in the
-   bar's status slot and is put first. */
+/* The page bar's left side: the page's one heading, then how fresh its data is. AdminShell names the page in its trail only below the top level, so the heading rides in the bar's status slot, first. */
 .fh-admin .cap-admin-bar-status {
   order: -1;
 }
@@ -69,13 +58,7 @@
   scroll-margin-block-start: 30vh;
 }
 
-/* A time in a row is Capsomer's Time with its tip, a focusable trigger, because Dustin's
-   review (2026-10-11) asks for the exact time on hover. Row-list raises the
-   links and buttons in a row's time above the row's stretched link; the
-   trigger is neither, so it is raised the same way or a pointer could never
-   reach it. Capsomer's time keeps the exact time out of rows for the sake of
-   the row's single tab stop; the review's hover wins here, at the cost of one
-   more stop per row. */
+/* A time in a row is Capsomer's Time with its tip, a focusable trigger, so the exact time shows on hover. Row-list raises the links and buttons in a row's time above the row's stretched link; the trigger is raised the same way or a pointer could never reach it. Cost: one more tab stop per row. */
 .fh-admin .cap-row .cap-row-meta [tabindex] {
   position: relative;
   z-index: 1;
@@ -90,9 +73,7 @@
   line-height: var(--line-box-6);
 }
 
-/* Capsomer's table writes its column names in upper case with wide spacing
-   (the Portal's look). The admin writes them in sentence case (Dustin's
-   review, 2026-10-11; J45), so its tables set the header back to normal case. */
+/* Capsomer's table writes column names in upper case with wide spacing; the admin sets them back to sentence case. */
 .fh-admin .cap-table thead th {
   letter-spacing: normal;
   text-transform: none;

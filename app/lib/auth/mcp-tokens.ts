@@ -7,9 +7,6 @@ import { keyScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
 // MCP token model (Phase 3 designs it; Phase 7's Foxhound MCP consumes it).
 //
-// Storage: the existing `api_keys` table (SCHEMA.md: "api_keys -> carry (merchant
-// API/MCP)"; the legacy oauth_clients/codes/tokens do NOT migrate). No new table.
-//
 // Model:
 //   - A token is a high-entropy secret shown to the operator exactly once. Only
 //     its SHA-256 hash is stored (api_keys.key_hash); the plaintext is never
@@ -36,11 +33,15 @@ export const MCP_TOKEN_SCOPE = {
 } as const;
 type McpTokenScope = (typeof MCP_TOKEN_SCOPE)[keyof typeof MCP_TOKEN_SCOPE];
 
-/** Identifying prefix so a leaked token is recognizable and greppable in scans. */
+/**
+ * Identifying prefix so a leaked token is recognizable and greppable in scans.
+ */
 export const MCP_TOKEN_PREFIX = "fox_mcp_";
 
-/** A fresh 32-byte secret, base64url without padding (43 characters). The
- *  OAuth provider mints its codes and refresh tokens the same way. */
+/**
+ * A fresh 32-byte secret, base64url without padding (43 characters). The OAuth
+ * provider mints its codes and refresh tokens the same way.
+ */
 export function generateSecret(): string {
   return base64url(crypto.getRandomValues(new Uint8Array(32)));
 }
@@ -54,21 +55,25 @@ export interface IssueMcpTokenInput {
 
 export interface IssuedMcpToken {
   keyId: string;
-  /** Plaintext token, returned once. Never stored; show to the operator once. */
+  /**
+   * Plaintext token, returned once. Never stored; show to the operator once.
+   */
   token: string;
   scope: McpTokenScope;
 }
 
-/** A new plaintext MCP token: the prefix and a fresh secret. Only its hash
- *  is ever stored. */
+/**
+ * A new plaintext MCP token: the prefix and a fresh secret. Only its hash is
+ * ever stored.
+ */
 export function mintMcpTokenValue(): string {
   return `${MCP_TOKEN_PREFIX}${generateSecret()}`;
 }
 
 /**
  * Issue an MCP token: generate the secret, store only its hash + scope, return
- * the plaintext once. This is the C6 issuance helper; Phase 7 calls it behind an
- * authenticated, role-checked endpoint.
+ * the plaintext once. This is the C6 issuance helper; Phase 7 calls it behind
+ * an authenticated, role-checked endpoint.
  */
 export async function issueMcpToken(db: Db, input: IssueMcpTokenInput): Promise<IssuedMcpToken> {
   const { issued, statement } = await buildMcpTokenInsert(db, input);
@@ -76,8 +81,10 @@ export async function issueMcpToken(db: Db, input: IssueMcpTokenInput): Promise<
   return issued;
 }
 
-/** The token and its insert, NOT executed, so a caller can commit the key in
- *  one batch with its audit row (the admin area's Admin API keys). */
+/**
+ * The token and its insert, NOT executed, so a caller can commit the key in one
+ * batch with its audit row (the admin area's Admin API keys).
+ */
 export async function buildMcpTokenInsert(db: Db, input: IssueMcpTokenInput) {
   const token = mintMcpTokenValue();
   const keyHash = await sha256Hex(token);
@@ -105,14 +112,17 @@ export interface VerifiedMcpToken {
   scope: McpTokenScope;
   /** The merchant MCP scopes the key holds (keyScopes). */
   scopes: string[];
-  /** The OAuth client this key is the access token of; null for a key made in Settings. */
+  /**
+   * The OAuth client this key is the access token of; null for a key made in
+   * Settings.
+   */
   clientId: string | null;
 }
 
 /**
- * Resolve a presented token to its scope + account, or null if unknown, revoked,
- * or not an MCP token. Stamps last_used_at. Phase 7's MCP request handler calls
- * this; Phase 3 defines it as part of the model.
+ * Resolve a presented token to its scope + account, or null if unknown,
+ * revoked, or not an MCP token. Stamps last_used_at. Phase 7's MCP request
+ * handler calls this; Phase 3 defines it as part of the model.
  */
 export async function verifyMcpToken(db: Db, presented: string): Promise<VerifiedMcpToken | null> {
   if (!presented.startsWith(MCP_TOKEN_PREFIX)) return null;
@@ -142,8 +152,8 @@ export async function verifyMcpToken(db: Db, presented: string): Promise<Verifie
   if (!row || row.revokedAt) return null;
   // An account's keys and OAuth access tokens stop working once it is closed.
   if (row.accountId && row.accountCancelledAt) return null;
-  // An OAuth access token carries an expiry; a key made in Settings does
-  // not, and lives until it is revoked.
+  // An OAuth access token carries an expiry; a key made in Settings does not,
+  // and lives until it is revoked.
   if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) return null;
   if (row.scope !== MCP_TOKEN_SCOPE.MERCHANT && row.scope !== MCP_TOKEN_SCOPE.ADMIN) {
     return null;

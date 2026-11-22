@@ -1,13 +1,7 @@
-// Pure per-customer signal derivation (SCHEMA.md customer_context; PRICING.md
-// universal-coverage precondition: every customer on the connected account gets
-// a row, not just failed-payment ones). healthScore / aiAssessment /
-// aiRecommendedActions are the separate AI half's job and are never touched
-// here (TASK-foxhound-intelligence-deterministic.md).
-//
-// Everything below takes a normalized shape, not raw Stripe.* objects, so
-// derivation is pure and unit-testable without a live connected account. The
-// live Stripe enumeration seam (app/lib/intelligence/sync.server.ts) builds
-// these shapes from real API responses.
+// Pure per-customer signal derivation: every customer on the connected account gets a customer_context row, not
+// just failed-payment ones. healthScore / aiAssessment / aiRecommendedActions belong to the AI half and are
+// never touched here. Everything takes a normalized shape (not raw Stripe.* objects) so it is unit-testable;
+// sync.server.ts builds the shapes from real API responses.
 
 import { DAY_MS } from "~/lib/constants";
 
@@ -18,18 +12,12 @@ export interface ActiveSubscriptionSnapshot {
   productName: string | null;
   quantity: number;
   interval: BillingInterval;
-  /** Stripe's recurring.interval_count: 3 with interval month is quarterly. */
   intervalCount: number;
   unitAmountCents: number;
 }
 
-/** One historical billing-terms observation (order is the caller's responsibility;
- *  countBillingChanges sorts by `at` itself). Reconstructed from a subscription's
- *  creation state plus each invoice line item since (SCHEMA.md: Stripe has no
- *  single "plan change log" API; invoice lines are the closest first-class record
- *  of what a customer was actually billed at each point in time). Exactly one
- *  observation per distinct instant: collapseBillingObservations is what
- *  guarantees that before this shape ever reaches countBillingChanges. */
+/** One historical billing-terms observation, reconstructed from a subscription's creation state plus each invoice
+ *  line since. Exactly one per distinct instant (collapseBillingObservations guarantees it). */
 export interface BillingObservation {
   at: number; // unix ms
   priceId: string;
@@ -37,30 +25,17 @@ export interface BillingObservation {
   interval: BillingInterval;
 }
 
-/** A single raw billing line as read off Stripe (one subscription item, or one
- *  invoice line), before collapsing. `valueCents` is only a ranking signal for
- *  collapseBillingObservations (a subscription item's monthly-equivalent
- *  amount, or an invoice line's own signed amount, e.g. negative for a
- *  proration credit); it never appears in the collapsed BillingObservation. */
+/** A raw billing line before collapsing. `valueCents` is only a ranking signal for collapseBillingObservations
+ *  (a subscription item's monthly-equivalent amount or an invoice line's signed amount); never in the collapsed shape. */
 export interface RawBillingLineObservation extends BillingObservation {
   valueCents: number;
 }
 
 /**
- * Collapses every raw line observed at the SAME instant into ONE
- * representative BillingObservation: the highest-`valueCents` line. Without
- * this, a multi-item subscription (a base plan + an addon, both created at
- * the same `sub.created`) or a multi-line invoice (a proration credit plus
- * the new-plan charge on an upgrade, both at the same `invoice.created`)
- * pushes several simultaneous, unrelated lines into the history.
- * countBillingChanges only compares CONSECUTIVE entries after sorting by
- * time, so simultaneous lines with different price ids would be misread as
- * sequential plan/seat/interval changes, and worse, their relative order
- * among ties is insertion order, so the same instant could register as
- * MULTIPLE spurious changes depending on which line happened to be pushed
- * first. Picking the highest-value line per instant also does the right
- * thing on an upgrade invoice for free: a proration credit is a negative
- * amount, so the new (positive) charge line always wins the tie-break.
+ * Collapses every raw line at the SAME instant into one BillingObservation: the highest-`valueCents` line.
+ * Otherwise a multi-item subscription or a multi-line invoice would push simultaneous unrelated lines that
+ * countBillingChanges (which compares consecutive entries) would misread as sequential changes, with tie
+ * order depending on insertion order. On an upgrade invoice a proration credit is negative, so the new charge wins.
  */
 export function collapseBillingObservations(
   raw: RawBillingLineObservation[],
@@ -90,10 +65,8 @@ const INTERVAL_MONTHLY_FACTOR: Record<BillingInterval, number> = {
   year: 1 / 12,
 };
 
-/** Normalizes one subscription item's price to a monthly-equivalent amount:
- *  the amount billed every `intervalCount` intervals, so a quarterly price
- *  (month, 3) counts a third a month. The ONE conversion: the audit, the daily
- *  sync and the downgrade check all read MRR through it, so they agree. */
+/** One subscription item's price as a monthly-equivalent amount (a quarterly price counts a third a month). The one
+ *  conversion: the audit, the daily sync and the downgrade check all read MRR through it. */
 export function monthlyEquivalentCents(
   unitAmountCents: number,
   quantity: number,
@@ -107,13 +80,11 @@ export function monthlyEquivalentCents(
 export interface ActiveSubscriptionSummary {
   mrrContributionCents: number;
   activeSubscriptionsCount: number;
-  /** The plan with the largest MRR contribution; null when there is none. */
   currentPlanName: string | null;
 }
 
-/** Sums a customer's active subscriptions into an MRR contribution + a current
- *  plan label. An empty list is a real, honest zero state (no subscription),
- *  not an unknown. */
+/** Sums a customer's active subscriptions into an MRR contribution and a current plan label. An empty list is a
+ *  real zero (no subscription), not an unknown. */
 export function summarizeActiveSubscriptions(
   subs: ActiveSubscriptionSnapshot[],
 ): ActiveSubscriptionSummary {
@@ -139,8 +110,7 @@ export function summarizeActiveSubscriptions(
   };
 }
 
-/** Days since the customer's Stripe `created` timestamp. Clamped to >= 0 so a
- *  clock-skewed or synthetic future `customerSince` never produces a negative age. */
+/** Days since the customer's Stripe `created`, clamped to >= 0 against clock skew. */
 export function computeSubscriptionAgeDays(customerSinceMs: number, nowMs: number): number {
   return Math.max(0, Math.floor((nowMs - customerSinceMs) / DAY_MS));
 }
@@ -151,11 +121,8 @@ export interface BillingChangeCounts {
   intervalSwitchCount: number;
 }
 
-/** Counts transitions across a customer's billing-terms history, sorted
- *  chronologically first. The earliest observation is a baseline, not a change,
- *  so a customer with one observation (or none) has all-zero counts. Plan
- *  identity is the Stripe price id: what actually changes on an upgrade,
- *  downgrade, or interval switch. */
+/** Counts transitions across a customer's billing-terms history, sorted chronologically. The earliest observation
+ *  is a baseline, not a change. Plan identity is the Stripe price id. */
 export function countBillingChanges(observations: BillingObservation[]): BillingChangeCounts {
   const sorted = [...observations].sort((a, b) => a.at - b.at);
   let planChangeCount = 0;
@@ -171,11 +138,8 @@ export function countBillingChanges(observations: BillingObservation[]): Billing
   return { planChangeCount, seatChangeCount, intervalSwitchCount };
 }
 
-/** Average days late (paid - due) for the more recent half of a customer's
- *  datable invoice history minus the older half: positive means payments are
- *  trending later, a risk signal. Null (not zero) with fewer than two datable
- *  invoices: an honest "not enough history" state, distinct from a genuine
- *  zero-drift customer. */
+/** Average days late (paid - due) of the recent half of datable invoices minus the older half; positive means
+ *  trending later. Null (not zero) with fewer than two datable invoices: "not enough history". */
 export function computePaymentLatencyDriftDays(
   invoices: InvoicePaymentObservation[],
 ): number | null {
@@ -191,10 +155,8 @@ export function computePaymentLatencyDriftDays(
   return Math.round((newer - older) * 10) / 10;
 }
 
-// Foxhound's own account-scoped history for this customer, not Stripe data.
-// Most customers (never having had a failed payment, dispute, or dunning email)
-// score an honest all-zero/null aggregate here; that is the correct universal
-// baseline, not a gap.
+// Foxhound's own history for this customer. An all-zero/null aggregate (no failed payment, dispute or dunning
+// email) is the correct universal baseline, not a gap.
 
 export interface RecoverySignalRow {
   status: string;
@@ -257,8 +219,7 @@ export interface CustomerContextInput {
   customerSinceMs: number;
   nowMs: number;
   activeSubscriptions: ActiveSubscriptionSnapshot[];
-  /** Raw, uncollapsed lines; buildCustomerContextFields collapses same-instant
-   *  lines before diffing (see collapseBillingObservations). */
+  /** Raw, uncollapsed lines; collapsed before diffing (see collapseBillingObservations). */
   billingHistory: RawBillingLineObservation[];
   invoiceHistory: InvoicePaymentObservation[];
   refundCount: number;
@@ -284,18 +245,9 @@ export interface CustomerContextFields {
   engagementSignals: EngagementSignals;
 }
 
-/** The one function that turns a customer's normalized Stripe + Foxhound
- *  history into every deterministic customer_context field this slice owns.
- *  Deliberately does not touch healthScore / healthFactors / aiAssessment /
- *  aiAssessmentGeneratedAt / aiRecommendedActions / currentPlanTier: the first
- *  five are the AI half's job (left NULL); currentPlanTier has no reliable
- *  source yet (no tier taxonomy anywhere in the schema), so it is left NULL
- *  rather than guessed from a plan name string. customer_context.currency and
- *  .ltvCents are left NULL too, for the same "honest unknown, not a guess"
- *  reason: currency would need a per-customer Stripe currency threaded through
- *  this whole pipeline (today only the account's home currency is used, for
- *  mrr_snapshots reporting, a known simplification), and ltvCents has no
- *  source anywhere in Foxhound yet (no lifetime-value computation exists). */
+/** Turns a customer's normalized Stripe + Foxhound history into every deterministic customer_context field. Leaves
+ *  healthScore / healthFactors / aiAssessment* / aiRecommendedActions to the AI half, and currentPlanTier,
+ *  currency and ltvCents NULL: no source exists, so unknown beats a guess. */
 export function buildCustomerContextFields(input: CustomerContextInput): CustomerContextFields {
   const { mrrContributionCents, activeSubscriptionsCount, currentPlanName } =
     summarizeActiveSubscriptions(input.activeSubscriptions);

@@ -4,17 +4,13 @@ import { EMAIL_ENGAGEMENT_WINDOW_DAYS } from "~/lib/constants";
 
 import type { StepPerformancePoint } from "./sequence-performance";
 
-// The step performance chart's data and text equivalent, drawn by
-// Enarratio on /recovery/sequence in place of Recova's Recharts BarChart
-// (StepPerformanceChart.tsx edf8f83c). Pure, so the route draws and the tests
-// read the same rows.
+// Pure, so the route draws and the tests read the same rows.
 
 /** Beside the chart's title. Foxhound credits an email step only through
  *  findAttributionSignals (attribution.ts): a click not flagged as suspect,
  *  before the payment and inside the engagement window. */
 export const STEP_PERFORMANCE_NOTE = `Recovery counts a payment only when the customer clicked the email's link within ${EMAIL_ENGAGEMENT_WINDOW_DAYS} days before paying. Clicks flagged as automated do not count.`;
 
-/** Recova's series, in its funnel order: each depends on the one before. */
 const STEP_PERFORMANCE_SERIES = ["Open rate", "Click rate", "Recovery rate"] as const;
 
 interface StepPerformanceRow {
@@ -40,7 +36,6 @@ function stepPerformanceAlt(chart: readonly StepPerformancePoint[]): string {
   return `Open, click and recovery rate for each recovery email step: ${parts.join("; ")}.`;
 }
 
-// Recova's plot is 220px high (StepPerformanceChart.tsx, h-[220px]).
 const CHART_HEIGHT = 220;
 // About the width of the longest step name ("Revocation email") at the axis's text size.
 const X_LABEL_WIDTH = 110;
@@ -59,8 +54,6 @@ export function drawStepPerformance(
     y: "rate",
     series: "series",
     layout: "grouped",
-    // Recova's funnel order, Open then Click then Recovery, in its
-    // colors, except that Recovery rate takes Foxhound's amber.
     seriesDomain: STEP_PERFORMANCE_SERIES,
     colors: {
       "Open rate": "var(--green)",
@@ -70,8 +63,6 @@ export function drawStepPerformance(
     xLabel: null,
     yLabel: "Rate (%)",
     formatValue: (v) => `${v}%`,
-    // Recharts, which drew Recova's chart, skips x labels that would
-    // overlap; this prints every nth label once the steps no longer fit.
     maxXTicks: Math.max(2, Math.floor(width / X_LABEL_WIDTH)),
     alt: stepPerformanceAlt(chart),
     hoverTitles: false,

@@ -7,13 +7,7 @@ import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
 // AI dispute-evidence drafting (TASK-foxhound-dispute-intake.md deliverable 1).
 // This is the liability core: evidence must be grounded ONLY in real records,
-// never fabricated. The design makes fabrication structurally impossible for
-// the deterministic fields (they are read straight off our own rows, never
-// phrased by the model) and, for the one AI-composed field, impossible when
-// there is nothing to ground it in: draftDisputeEvidence returns an empty
-// array WITHOUT calling the model at all when there are no facts, so an empty
-// input can never produce invented content, not merely a prompt asking the
-// model not to invent it.
+// never fabricated.
 
 export interface CommunicationRecord {
   stepType: string;
@@ -24,8 +18,10 @@ export interface CommunicationRecord {
 
 export interface EvidenceFacts {
   productName: string | null;
-  /** The merchant's own description of what they sell, from /settings/disputes
-   *  (S32). A fact the merchant stated, not one Foxhound inferred. */
+  /**
+   * The merchant's own description of what they sell, from /settings/disputes.
+   * A fact the merchant stated, not one Foxhound inferred.
+   */
   merchantProductDescription?: string | null;
   serviceDate: Date | null;
   communications: CommunicationRecord[];
@@ -44,10 +40,12 @@ export interface RecoveryStepFacts {
   clickedAt: Date | null;
 }
 
-/** Assemble grounding facts from real records only: the failed payment this
- *  charge recovered from (if any) and the recovery_steps that were actually
- *  executed. Pure. No record, no fact: a dispute on a charge with no matching
- *  recovery yields an empty EvidenceFacts. */
+/**
+ * Assemble grounding facts from real records only: the failed payment this
+ * charge recovered from (if any) and the recovery_steps that were actually
+ * executed. Pure. No record, no fact: a dispute on a charge with no matching
+ * recovery yields an empty EvidenceFacts.
+ */
 export function buildEvidenceFacts(
   failedPayment: FailedPaymentFacts | null,
   steps: RecoveryStepFacts[],
@@ -77,8 +75,10 @@ export function hasGroundingFacts(facts: EvidenceFacts): boolean {
   );
 }
 
-/** Deterministic (non-AI) evidence text built directly from real records. This
- *  is never phrased by the model, so it cannot be embellished or invented. */
+/**
+ * Deterministic (non-AI) evidence text built directly from real records. This
+ * is never phrased by the model, so it cannot be embellished or invented.
+ */
 export function formatCommunicationLog(communications: CommunicationRecord[]): string | null {
   if (communications.length === 0) return null;
   const lines = communications.map((c) => {
@@ -140,11 +140,8 @@ function buildUserPrompt(facts: EvidenceFacts): string {
  * Structurally never fabricates: with no grounding facts at all, this returns
  * [] WITHOUT ever calling the model (not merely a prompt instruction). The
  * deterministic fields (product_description, service_date,
- * customer_communication) are read straight off the facts, never phrased by
- * the model. The model is used only to compose `uncategorized_text`, a short
- * narrative built strictly from the same facts, and only when there is at
- * least one fact to ground it in. A missing ANTHROPIC_API_KEY or a model-call
- * failure never blocks intake: the deterministic fields still land.
+ * customer_communication) are read straight off the facts, never phrased by the
+ * model.
  */
 export async function draftDisputeEvidence(
   env: Env,
@@ -154,9 +151,6 @@ export async function draftDisputeEvidence(
   if (!hasGroundingFacts(facts)) return [];
 
   const fields: EvidenceField[] = [];
-  // Recova's buildEvidenceFields (lib/disputes-evidence.ts): the merchant's own
-  // description, when set, is the product_description of every response. The
-  // plan name stands in only when the merchant has not written one.
   const productDescription = facts.merchantProductDescription ?? facts.productName;
   if (productDescription) {
     fields.push({ fieldName: "product_description", fieldValue: productDescription });

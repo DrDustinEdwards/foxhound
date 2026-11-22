@@ -8,9 +8,7 @@ import { StatTile, StatTiles } from "capsomer/react/stat-tile";
 import "capsomer/page-head.css";
 import "capsomer/row-list.css";
 import "capsomer/stat-tile.css";
-// Capsomer's tokens and the amber family, which the components above read. The
-// shell loads the same file through its header; importing it here keeps the
-// page whole under any layout, as /settings/email does.
+// Capsomer's tokens and the amber family, which the components above read. The shell loads the same file through its header; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { disputes, failedPayments, getDb, stripeConnections } from "~/db";
@@ -22,38 +20,9 @@ import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 import type { Route } from "./+types/hub";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// S24, the settings hub. Ported from Recova's settings/page.tsx (blob
-// `55b1445a`, 6,911 bytes).
-//
-// 336 BINDING 2 IS WHY THIS EXISTS. Foxhound's /settings was a stack of inline
-// cards; Recova's is a hub of twelve links over a sub-nav layout, and the prime
-// directive makes that the spec. Ruling 57's deferral of the split is
-// superseded.
-//
-// NINE ENTRIES: Recova's twelve less three combined into others (see
-// SETTINGS_HUB_ENTRIES). `/settings/disputes` (S32) arrived with J06, with
-// Recova's description "Auto-submit, product description".
-//
-// TWO DESCRIPTIONS ARE NOT RECOVA'S, because Recova's were untrue (RULES.md
-// 1.2). Email's "Sender name, reply-to, domain" promises a sender domain, which
-// is deliberately not built; My account's "Profile, appearance,
-// sign out" promises an appearance control neither Recova's account page nor
-// Foxhound's has (parity/S-CLOSEOUT.md, reversal 5).
-//
-// THE STAT CARDS' QUERIES ARE FOXHOUND'S OWN VOCABULARY, not Recova's strings.
-// Recova counts `failed_payments.status = 'pending'` and disputes
-// `status NOT IN (won,lost,accepted)`; Foxhound's equivalents are `status =
-// 'active'` and `state NOT IN RESOLVED_DISPUTE_STATES`. The COUNTS mean the same
-// thing, which is what the card promises; copying Recova's literals would count
-// zero forever.
-//
-// LOOK FROM CAPSOMER (2026-10-14). The title and its line are
-// Capsomer's PageHead, the three figures its StatTiles, and every entry its
-// Row, so the sizes are Capsomer's five and the accent amber. Recova's content,
-// order and arrangement stay: the phone's one list, the desktop's three
-// figures over a two-column grid. Capsomer's RowList is one column, so the
-// desktop grid is Recova's two columns of one-row lists; the per-site layer
-// (or a RowList column count) is where that belongs, named in the J40 PR.
+// The settings hub: nine entries over a sub-nav layout (see SETTINGS_HUB_ENTRIES). The title and its line are Capsomer's PageHead, the three figures its StatTiles, and every entry its Row. The phone shows one list, the desktop three figures over a two-column grid (Capsomer's RowList is one column, so the grid is two columns of one-row lists).
+// Two descriptions are deliberately not the obvious ones, because the obvious ones would be untrue: Email's does not promise a sender domain (not built) and My account's does not promise an appearance control.
+// THE STAT CARDS' QUERIES USE FOXHOUND'S OWN VOCABULARY: `failed_payments.status = 'active'` and disputes `state NOT IN RESOLVED_DISPUTE_STATES`; copying another schema's literals would count zero forever.
 
 export function meta() {
   return [{ title: "Settings - Foxhound" }, NOINDEX];
@@ -64,9 +33,7 @@ export interface SettingsHubEntry {
   label: string;
 }
 
-/** Recova's twelve, in Recova's order, less three combined into others
- *  (Dustin): Features into Email, Alerts into Notifications, and
- *  Intelligence, which had no working control, removed. */
+/** The entries, in order: Features is combined into Email, Alerts into Notifications, and Intelligence (no working control) is removed. */
 export const SETTINGS_HUB_ENTRIES: SettingsHubEntry[] = [
   { to: "/settings/stripe", label: "Stripe connections" },
   {
@@ -125,8 +92,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
-/** One entry as a Capsomer row: the label is the row's one link, with Recova's
- *  chevron in the meta column. */
+/** One entry as a Capsomer row: the label is the row's one link, with a chevron in the meta column. */
 function EntryRow({ entry }: { entry: SettingsHubEntry }) {
   return (
     <Row

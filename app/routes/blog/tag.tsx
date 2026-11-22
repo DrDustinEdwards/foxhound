@@ -10,40 +10,14 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
 import "capsomer/status.css";
-// Capsomer's tokens and the amber family (capbase layer), which the cards, the
-// pills and the focus ring read. The site header loads the same file;
-// importing it here keeps the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the cards, the pills and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import type { Route } from "./+types/tag";
 import { SectionTrail } from "~/components/section-trail";
 import "~/blog-index.css";
 
-// Ported from legacy app/(marketing)/blog/tag/[tag]/page.tsx (Phase 6 Pass
-// 2), rebuilt against the 8 canonical tags (tags.ts), not legacy's 5.
-//
-// An UNKNOWN tag 404s (Dustin). This diverges from legacy, whose
-// tag route has no notFound() and renders "No articles tagged X yet." for any
-// string at all. That soft-404 is a ruling 39 legacy defect in the
-// false-machine-readable-data family rulings 89 and 96 already govern: a
-// not-found URL answering 200 asserts the page exists, which is the same shape
-// as legacy's always-now lastModified and lastBuildDate, and the family
-// attaches to the DEFECT rather than to the file it was first found in.
-// Measured before ruling: this was the ONLY one of Foxhound's six
-// unknown-slug surfaces that did not 404 (posts, decline codes, competitors,
-// docs guides and unknown paths all did), so preserving legacy's leniency made
-// Foxhound internally inconsistent as well as wrong. It also closes ruling
-// 88's recorded harm, that an empty archive was indistinguishable from a
-// garbage URL to a crawler following llms.txt.
-//
-// The gate is the published tag set (J19, DO step 4): getPublishedTagSet, the
-// one derivation llms.txt, llms-full.txt and the archive pills read, so a tag
-// page exists exactly when a published post carries the tag. It was
-// CANONICAL_TAGS membership, which served a 200 empty page for a canonical tag
-// no post carries and a 404 for a tag a published post does carry. Recova
-// builds its tag pages from its published posts' tags too (generateStaticParams
-// in tag/[tag]/page.tsx, blob 3f6aa696); the 404 for any other tag is the
-// approved difference above.
+// An UNKNOWN tag 404s: a not-found URL answering 200 asserts the page exists, and the other unknown-slug surfaces (posts, decline codes, competitors, docs guides, unknown paths) all 404, and an empty archive must not look like a garbage URL to a crawler following llms.txt. The gate is the published tag set (getPublishedTagSet, the one derivation llms.txt, llms-full.txt and the archive pills read), so a tag page exists exactly when a published post carries the tag.
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
@@ -71,14 +45,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
-// J19. Recova's layout, read from tag/[tag]/page.tsx: one
-// left-aligned column at 1100px (px-5, sm:px-8, py-16), the "All posts" back
-// link (mb-8), the tag's label as the h1 (mb-2), the "N articles" count line
-// (mb-10), then the card grid (1, 2, 3 columns, gap-6). Recova's empty line is
-// kept only for a post unpublished between the loader's two reads; the gate
-// above otherwise 404s a tag no published post carries.
-// Recova's sizes: the 1.75rem h1, the 0.8125rem back link and count line. Cards are Capsomer's panel (BlogPostCard),
-// the color amber, and the back link a 24px target.
+// Layout: one left-aligned column at 1100px (px-5, sm:px-8, py-16), the "All posts" back link (mb-8), the tag's label as the h1 (mb-2), the "N articles" count line (mb-10), then the card grid (1, 2, 3 columns, gap-6). The empty line is kept only for a post unpublished between the loader's two reads. Sizes: the 1.75rem h1, the 0.8125rem back link and count line. Cards are Capsomer's panel (BlogPostCard), the color amber, and the back link a 24px target.
 export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
   const { tag, posts } = loaderData;
   const label = labelForTag(tag);

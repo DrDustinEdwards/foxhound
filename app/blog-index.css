@@ -1,5 +1,4 @@
-/* The parts only the blog's lists (index, archive, tag) use, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the blog's lists (index, archive, tag) use. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-blog-post-card-link {
     --card-lift: 0px;

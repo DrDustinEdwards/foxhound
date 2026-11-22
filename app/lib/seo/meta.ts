@@ -1,14 +1,11 @@
 import { defineHead, type HeadImage } from "@drdustinedwards/site-helpers/head";
 import type { MiddlewareFunction } from "react-router";
 
-// Shared meta-tag builder (TASK-foxhound-seo-remediation.md, fixing
-// foxhound-audit-seo.md H1/M1/L1): every marketing route now emits the same
-// tag set instead of each route hand-rolling a subset (title/description
-// only, no canonical, no OG, no Twitter Card, everywhere except /blog/:slug).
-//
-// /og/default (app/routes/files/og.ts) is the shared fallback card image, a
-// real 1200x630; callers with per-entity art (blog posts) pass `image` with
-// that picture's own size, or none where it is not known.
+// Shared meta-tag builder: every marketing route now emits the same tag set instead of each route
+// hand-rolling a subset (title/description only, no canonical, no OG, no Twitter Card, everywhere
+// except /blog/:slug). /og/default (app/routes/files/og.ts) is the shared fallback card image, a
+// real 1200x630; callers with per-entity art (blog posts) pass `image` with that picture's own
+// size, or none where it is not known.
 /** For pages a search engine has no business indexing: the sign-in pages, the
  *  signed-in app and the admin. Their layouts also send `X-Robots-Tag`. */
 export const NOINDEX = { name: "robots", content: "noindex" } as const;

@@ -1,13 +1,6 @@
 // What the admin Overview's Needs attention list holds, and when its lists are
 // being read again. Pure display helpers (not a .server module: the page
 // renders them), tested without a database.
-//
-// Recova's overview (app/admin/page.tsx, blob acb4ccbe) listed paused
-// merchants, open disputes a week old with no response and failed billing
-// charges under "Needs attention". Foxhound keeps those three, computed by its
-// own engine (overview.server.ts), and adds its failed cron runs, so the one
-// worst-first list (Capsomer's attention list, the family overview pattern)
-// never says "All clear" while a cron is failing.
 
 import type { AttentionGroupInfo, AttentionItem } from "capsomer/react/attention-list";
 import { relative } from "capsomer/behavior/time";
@@ -21,10 +14,12 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { DAY_MS } from "~/lib/constants";
 import { plural } from "@drdustinedwards/site-helpers/text";
 
-/** A row's time in words, by UTC's calendar ("yesterday" means the UTC day
- *  before). The words are worked out from the loader's clock in the server
- *  render and again in the browser, so they must not depend on the browser's
- *  zone, or the hydrated text would differ from the delivered HTML. */
+/**
+ * A row's time in words, by UTC's calendar ("yesterday" means the UTC day
+ * before). The words are worked out from the loader's clock in the server
+ * render and again in the browser, so they must not depend on the browser's
+ * zone, or the hydrated text would differ from the delivered HTML.
+ */
 function when(at: Date, nowMs: number): AttentionItem["when"] {
   return { text: relative(at.getTime(), nowMs, "UTC"), datetime: at.toISOString() };
 }
@@ -33,9 +28,10 @@ function when(at: Date, nowMs: number): AttentionItem["when"] {
  * One row per thing that needs a person, each linked to the page where it is
  * dealt with: a paused merchant to its page (Resume is there), a dispute and a
  * failed fee charge to their merchant's page (the admin has no dispute or
- * invoice page of its own), a failed cron run to that run on /admin/platform/crons.
- * Every row is a warning: none is an outage of the platform, and Capsomer
- * folds warnings of one kind into one row while it never folds a critical one.
+ * invoice page of its own), a failed cron run to that run on
+ * /admin/platform/crons. Every row is a warning: none is an outage of the
+ * platform, and Capsomer folds warnings of one kind into one row while it never
+ * folds a critical one.
  */
 export function overviewAttention(overview: AdminOverview, nowMs: number): AttentionItem[] {
   const { pausedMerchants, staleDisputes, failedFeeInvoices } = overview.attention;
@@ -104,12 +100,11 @@ export function overviewAttention(overview: AdminOverview, nowMs: number): Atten
   return items;
 }
 
-/** How a group of like rows is named and where it links on to. The counts are
- *  the engine's own, not the number of rows read, so a group past the read's
- *  ceiling still says how many there are. A group links on only to a page that
- *  lists its rows: /admin/merchants shows a Paused badge and /admin/platform/crons
- *  every failed run; no admin page lists disputes or fee invoices, so those
- *  groups have no link, and each row still links to its merchant. */
+/**
+ * How a group of like rows is named and where it links on to. The counts are
+ * the engine's own, not the number of rows read, so a group past the read's
+ * ceiling still says how many there are.
+ */
 export function overviewAttentionGroups(
   overview: AdminOverview,
 ): Record<string, AttentionGroupInfo> {

@@ -29,7 +29,7 @@ import { markup } from "capsomer/behavior/trusted-html";
 // (the payments list loads it) does not pull in chart-frame.
 /** The sentence a reader without the chart gets: the running rate over the
  *  range, its latest value, its spread and where it peaked. */
-export function recoveryRateAlt(points: readonly DailyRatePoint[], rangeLabel: string): string {
+function recoveryRateAlt(points: readonly DailyRatePoint[], rangeLabel: string): string {
   const present = points.filter((p): p is { date: string; rate: number } => p.rate !== null);
   if (!present.length) return `Recovery rate, ${rangeLabel}: no failed payments in this range yet.`;
   return describeSeries({
@@ -42,13 +42,10 @@ export function recoveryRateAlt(points: readonly DailyRatePoint[], rangeLabel: s
   });
 }
 
-// The drawing's width before its container is measured, and on the server:
-// about each panel's body in Recova's 1280px column.
+// The drawing's width before its container is measured, and on the server: about each panel's body in a 1280px column.
 const HALF_WIDTH = 560;
 const SIDE_WIDTH = 440;
-// Recova's charts are 180px (rate, timing), 160px (email) and 120px (revenue)
-// tall with their axes inside; Enarratio keeps part of the height for its
-// axes, so each is drawn a little taller.
+// Charts are 180px (rate, timing), 160px (email) and 120px (revenue) tall with their axes inside; Enarratio keeps part of the height for its axes, so each is drawn a little taller.
 const RATE_HEIGHT = 220;
 const TIMING_HEIGHT = 220;
 const EMAIL_HEIGHT = 240;
@@ -80,7 +77,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
         data: rows,
         x: "Day" as const,
         y: "rate" as const,
-        // Recova's green line and fill.
+        // The green line and fill.
         colors: { "Recovery rate (%)": "var(--green)" },
         xLabel: null,
         yLabel: "Recovery rate (%)",
@@ -95,7 +92,7 @@ export function RecoveryRateChart({ w }: { w: RecoveryDashboardWindow }) {
 }
 
 export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: number }) {
-  // Recova's buildDailyChart: 7, 30 or 90 days, and 90 for all time.
+  // 7, 30 or 90 days, and 90 for all time.
   const days = w.rangeDays;
   const { rows, currencies } = dailyRecoveredRows(w.recoveredPayments, days, nowMs);
   const single = currencies.length === 1 ? currencies[0]! : null;
@@ -241,7 +238,7 @@ export function EmailCategoryChart({ w }: { w: RecoveryDashboardWindow }) {
         series: "series" as const,
         layout: "grouped" as const,
         orientation: "horizontal" as const,
-        // Recova's legend order and colors: Open rate green, Click rate blue.
+        // Legend order and colors: Open rate green, Click rate blue.
         seriesDomain: ["Open rate", "Click rate"],
         colors: { "Open rate": "var(--green)", "Click rate": "var(--blue)" },
         xLabel: null,
@@ -261,8 +258,7 @@ export function RecoveryTimingChart({ w }: { w: RecoveryDashboardWindow }) {
   if (total === 0) {
     return <ChartPanel title={title} empty={{ reason: "No recoveries yet." }} />;
   }
-  // Recova draws the counts and prints each bar's share on top of it; the
-  // share has the same shape, so it is what is drawn, against a % axis.
+  // The counts are not drawn; each bar's share is, against a % axis.
   const rows = w.recoveryTimingBuckets.map((b) => ({ Bucket: b.dayBucket, share: b.percentage }));
   return (
     <ChartPanel

@@ -1,32 +1,9 @@
-// Responsive verification harness (ruling 129).
-//
-// Ruling 119 recorded "nothing pinned to the viewport bottom" from a
-// measurement taken at 1280px, which is exactly the width at which the control
-// under test is hidden. The conclusion was refuted; the debt that caused it is
-// what this script exists to pay.
-//
-// WHY NOT THE BROWSER EXTENSION. Measured 2026-08-05: its resize_window reports
-// "Successfully resized" and the viewport does not move. The MCP tab is a
-// background tab (document.visibilityState === "hidden", zero resize events
-// fired), so the window resize never reaches its layout. A harness built on
-// that tool's success message would report "measured at 375px" while measuring
-// at 1280px, which is 119's failure with more confidence behind it. The success
-// message is not evidence the width applied.
-//
-// WHY NOT AN IFRAME. foxhoundapp.com sends X-Frame-Options: DENY and CSP
-// frame-ancestors 'none'. That is ruling 93's security posture and is not
-// weakened to make a test easier.
-//
-// THE ONE RULE THIS SCRIPT ENFORCES: every measurement asserts the width it
-// claims. assertViewport() re-reads innerWidth and the governing media query
-// from inside the page and THROWS on mismatch. A run that cannot reach a width
-// fails loudly rather than silently measuring at another one, per ruling 122:
-// a gate that cannot handle an input must fail on it, never skip it.
+// Responsive verification harness. A measurement taken at the width where the control under test is hidden proves nothing, so every measurement asserts the width it claims: assertViewport() re-reads innerWidth and the governing media query from inside the page and THROWS on mismatch. A run that cannot reach a width fails loudly rather than silently measuring at another one.
+// Not the browser extension: its resize_window reports success while the viewport does not move (the MCP tab is a background tab, document.visibilityState "hidden", zero resize events), so its success message is not evidence the width applied. Not an iframe: foxhoundapp.com sends X-Frame-Options: DENY and CSP frame-ancestors 'none', and that posture is not weakened to make a test easier.
 
 import { chromium } from "playwright";
 
-// Named widths. The layout's breakpoints are the boundaries that matter here:
-// 40rem = 640 (legacy's tab-bar cutoff), 48rem = 768 (Foxhound's).
+// Named widths. The layout's breakpoints are the boundaries that matter: 40rem = 640, 48rem = 768.
 export const WIDTHS = {
   "mobile-320": 320,
   "mobile-375": 375,

@@ -1,33 +1,13 @@
-// How the Recova -> Foxhound redirect map is made (CUTOVER-PLAN.md step 2,
-// RULES.md 7.3: "The redirect map is regenerated, never hand-edited").
-//
-// app/lib/redirects/recova-map.ts is GENERATED from three inputs:
-//   1. Recova's public routes, the snapshot in
-//      test/fixtures/legacy-marketing-routes.ts (walked from Recova's own app/
-//      tree; see that file's header for what was walked and its scope).
-//   2. The paths Foxhound serves, read from app/routes.ts by the test.
-//   3. Recova's seven config-level redirects from its next.config.ts, in
-//      app/lib/redirects/recova-config-redirects.ts (J23, ledger row F17).
-//      Each path rule maps straight to Recova's own destination, so a visitor
-//      makes one hop and never lands on Foxhound's copy of the same redirect.
-//      The host rule (app.recovamrr.com to the apex, path kept) becomes a
-//      second host the whole map answers on.
-//
-// The rule is "same path, new domain": a Recova path
-// Foxhound serves maps to itself. Only a Recova path Foxhound does NOT serve
-// needs a named target, and each of those is listed below with its reason. An
-// entry here for a path Foxhound now serves is stale and fails the build, so a
-// rename on either side can never leave a detour in the map.
-//
-// test/redirect-map.test.ts renders the map with renderRecovaMapSource and
-// compares it with the committed file byte for byte. `npm run gen:recova-map`
-// rewrites the file from these inputs.
+// The paths Foxhound serves, read from app/routes.ts by the test. 3. An entry here for a path
+// Foxhound now serves is stale and fails the build, so a rename on either side can never leave a
+// detour in the map. test/redirect-map.test.ts renders the map with renderRecovaMapSource and
+// compares it with the committed file byte for byte.
 
 export interface RedirectMapEntry {
-  /** Recova (recovamrr.com) path. A leading-colon segment (":slug", ":tag")
-   *  is a dynamic route, mapped verbatim by segment, not a literal path. A
-   *  trailing "/:path*" (Recova's next.config.ts form) matches the bare prefix
-   *  and everything under it, carried over to the target's "/:path*". */
+  /**
+   * A leading-colon segment (":slug", ":tag") is a dynamic route, mapped verbatim by segment, not a
+   * literal path.
+   */
   from: string;
   /** Foxhound (foxhoundapp.com) path. */
   to: string;
@@ -45,7 +25,6 @@ export interface LegacyRoute {
 const DEMO_NOTE =
   "Recova's separate per-product demo pages collapse onto Foxhound's single /demos entry point; the per-product /demos/* links set a cookie and redirect again, which would make a chain.";
 
-/** Recova paths with no page at the same Foxhound path, and where each goes. */
 const NOT_SERVED_AT_SAME_PATH: Readonly<Record<string, { to: string; note: string }>> = {
   "/blog/rss.xml": {
     to: "/feed.rss",
@@ -110,8 +89,8 @@ export function deriveRecovaMap(
     if (!rule.destination.startsWith("/") || rule.destination.startsWith("//")) {
       throw new Error(`${where} does not target a fixed path on the site.`);
     }
-    // Ruling 408 binding 4: no many-to-one dumps onto the home page. Not
-    // decided here; a rule like this is for Dustin.
+    // No many-to-one dumps onto the home page. Not decided here; a rule like
+    // this is for Dustin.
     if (rule.destination === "/")
       throw new Error(`${where} redirects onto the home page (ruling 408 binding 4).`);
     if (rule.source.endsWith(PATH_SPLAT) !== rule.destination.endsWith(PATH_SPLAT)) {

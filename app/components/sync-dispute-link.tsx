@@ -7,49 +7,16 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 
-// Legacy's SyncDisputeLink (app/(app)/disputes/dashboard/SyncDisputeLink.tsx),
-// ported. It renders directly below DisputesDashboardView on legacy's
-// authenticated dashboard page and is NOT inside that shared view, so it shows
-// on the empty state as well as the populated one, which is the state a
-// merchant importing a pre-connection dispute is most likely to be looking at.
-//
-// Legacy's shape kept: a quiet text link that swaps itself for a bordered card
-// with the "Stripe dispute ID" label, one input, the submit and a Cancel in a
-// row, the result, and the explanatory line underneath. Since J66 the parts are
-// Capsomer's: a link button, the card as a body-only panel, Capsomer's
-// field label and input, a primary button (amber) and a quiet Cancel, and
-// the result as a Capsomer status in a live region, so it is announced and is
-// never color alone. Like legacy, Cancel clears the result and a successful
-// import clears the input.
-//
-// THE TRANSPORT IS FOXHOUND'S, class (a) internals. Legacy is a client
-// component that fetches JSON at /api/disputes/sync and then calls
-// router.refresh(). Here it is a real form posting to the disputes route's own
-// action, which is the pattern rulings 315 and 355 already established for this
-// repo (S30's write path is its own route action; S38 records the whole shared
-// legacy POST replaced by per-route actions). Three things follow from it that
-// the fetch version does not get: the control works with JavaScript disabled,
-// React Router revalidates the list on its own so there is no refresh call to
-// forget, and the action sits INSIDE the app-shell tree, so the existing demo
-// firewall (appShellMiddleware's demoBlocksMethod) refuses it with no new rule
-// written here.
-//
-// IT IS NOT WRAPPED IN ReadOnlyForm, and the reason is that it never renders
-// for a demo visitor at all: the disputes route withholds it (see that file),
-// matching legacy, whose demo twin renders DisputesDashboardView alone and no
-// import control. ReadOnlyForm exists to intercept a click that would
-// otherwise leave the browser, and there is no click to intercept here. The
-// boundary is unchanged either way: a hand-crafted POST still meets
-// appShellMiddleware's demoBlocksMethod.
+// Renders below the disputes dashboard view, not inside it, so it shows on the empty state as well as the populated one (where a merchant importing a pre-connection dispute is most likely to be looking). A quiet text link that swaps itself for a bordered card: the "Stripe dispute ID" label, one input, the submit and a Cancel, the result as a Capsomer status in a live region (announced, never color alone), and an explanatory line. Cancel clears the result and a successful import clears the input.
+// It is a real form posting to the disputes route's own action, so it works with JavaScript disabled, React Router revalidates the list on its own, and the action sits inside the app-shell tree, so the demo firewall (appShellMiddleware's demoBlocksMethod) refuses it with no new rule.
+// It is not wrapped in ReadOnlyForm because it never renders for a demo visitor: the disputes route withholds it. A hand-crafted POST still meets demoBlocksMethod.
 
 export interface SyncDisputeResult {
   ok: boolean;
   message: string;
 }
 
-/** The import's outcomes in words, shared by the two routes that host the
- *  control (/disputes and /disputes/:id). Recova's own success line is
- *  "Dispute imported." on both. */
+/** The import's outcomes in words, shared by the two routes that host the control (/disputes and /disputes/:id). */
 export const SYNC_RESULT_MESSAGES: Record<string, SyncDisputeResult> = {
   imported: { ok: true, message: "Dispute imported." },
   // Not an error. Either this import already ran or the webhook got there
@@ -64,10 +31,7 @@ export const SYNC_RESULT_MESSAGES: Record<string, SyncDisputeResult> = {
   not_found: { ok: false, message: "No dispute with that ID on your Stripe account." },
 };
 
-/** Recova has two of these: SyncDisputeLink under the disputes list, and
- *  DisputeSyncForm (blob f0f1ee7d) on the dispute page, which reads "Sync a
- *  different dispute from Stripe" and has no explanatory line. The words are
- *  props; the control is one. */
+/** Two routes host this control (under the disputes list, and on the dispute page, where the words differ and there is no explanatory line). The words are props; the control is one. */
 const SYNC_LIST_COPY = {
   linkLabel: "Sync dispute from Stripe",
 };
@@ -83,8 +47,7 @@ export function SyncDisputeLink({
   // Reopened when the last submit came back with something to say, so an error
   // is never reported behind a collapsed link.
   const [open, setOpen] = useState(Boolean(result));
-  // The result being shown; Cancel clears it, as legacy's Cancel resets its
-  // status, and the next submit's result replaces it.
+  // The result being shown; Cancel clears it, and the next submit's result replaces it.
   const [shown, setShown] = useState<SyncDisputeResult | undefined>(result);
   const [disputeId, setDisputeId] = useState("");
   const navigation = useNavigation();

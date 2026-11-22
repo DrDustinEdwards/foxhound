@@ -8,49 +8,29 @@ import { linkKeys } from "~/lib/http/signed-token";
 
 import type { McpToolContext } from "./registry";
 
-// THE CONFIRMATION STEP FOR A DESTRUCTIVE TOOL CALL (area 11, T11).
-//
-// A call that would overwrite settings or delete an alert does nothing the
-// first time. It answers what it would change and a `confirm` code, and the
-// tool's description tells the agent to show that to the merchant and call
-// again, with the same arguments and the code, only after they say yes.
-//
-// THE CODE IS TIED TO THAT EXACT ACTION: the account, the key, the tool and its
-// arguments, signed with the link keys by site-runtime ./confirm-token and
-// good for its ten minutes. A code for one change cannot
-// approve another, another key's code is refused, and changing any argument
-// needs a new code. Stateless: nothing is stored, so there is no table to
-// clean and nothing a lost request leaves behind.
-//
-// WHAT IT IS NOT: proof the merchant read it. The agent carries the question;
-// a client that asks its person before a destructiveHint tool (Claude does)
-// asks twice. An approval link in the Foxhound app would tie it to the owner
-// themselves; that is a change merchants see, so it waits for its own ruling.
+// Confirmation step for a destructive tool call. A call that would overwrite settings or delete an alert does nothing the
+// first time: it answers what it would change and a `confirm` code, and the agent shows that to the merchant and calls
+// again with the same arguments and the code. The code is tied to that exact action (account, key, tool, arguments),
+// signed with the link keys by site-runtime ./confirm-token, good for ten minutes, so a code cannot approve another change
+// and any changed argument needs a new one. Stateless: nothing is stored. It is not proof the merchant read it.
 
-/** The argument a destructive tool reads its confirm code from. */
 export const CONFIRM_ARGUMENT = "confirm";
 
-/** The inputSchema property every confirming tool declares. */
 export const CONFIRM_PROPERTY = {
   type: "string",
   description:
     "Leave out at first. The call then changes nothing and answers what it would change and a confirm code. Show that to the merchant; only if they say yes, call again with the same arguments and this code.",
 } as const;
 
-/** The outputSchema fields a confirming tool's first answer carries. */
 export const CONFIRM_RESULT_FIELDS = ["confirmation_required", "would", "confirm", "expires_at"];
 
-/** The claims a code is bound to: the account, the key, the tool and its arguments (`confirm` aside). */
 function bound(ctx: McpToolContext, tool: string, args: Record<string, unknown>) {
   const { [CONFIRM_ARGUMENT]: _code, ...rest } = args;
   return { k: "mcp-confirm", a: ctx.accountId, key: ctx.trace.apiKeyId, tool, args: rest };
 }
 
-/**
- * Null when `args` carries a good code for exactly this call, so the write may
- * run; otherwise the answer to send instead, with a fresh code. A code that is
- * present but wrong or expired says so.
- */
+/** Null when `args` carries a good code for exactly this call, so the write may run; otherwise the answer to send instead,
+ *  with a fresh code. A present but wrong or expired code says so. */
 export async function confirmationNeeded(
   ctx: McpToolContext,
   tool: string,

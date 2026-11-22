@@ -10,32 +10,13 @@ import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// accent text and the focus ring read. The site header loads the same file;
-// importing it here keeps the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the accent text and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
 import "~/products.css";
 
-// The /products hub. Recova's spec is app/(marketing)/products/page.tsx
-// (blob 1349c46e) and lib/products.ts (blob 6be24574), read whole.
-//
-// Layout is Recova's: the shared page header, the 720px column, the two-column
-// grid at sm, and the four cards in Recova's order. Look is Capsomer's:
-// each card is Capsomer's linked panel in the amber family at Recova's sizes
-// (p-5, 8px corners, the 4px lift and amber edge under the pointer), amber
-// throughout.
-//
-// Copy is Recova's word for word, with every number read from Foxhound's
-// pricing constants and one truthfulness fix; both are in
-// lib/marketing/products-hub.ts. The copy was frozen here for ruling 20d (now
-// RULES.md 2.2); the October build plan lists M5's card copy as J16's open
-// work, no longer as frozen, so this job carries it and the seat's read of the
-// diff decides whether it stands.
-//
-// Spoke hrefs come from lib/marketing/products.ts and are Recova's /product/*
-// since J09.
+// The /products hub: the shared page header, the 720px column, the two-column grid at sm, and the four cards. Each card is Capsomer's linked panel in the amber family (p-5, 8px corners, the 4px lift and amber edge under the pointer). Every number is read from Foxhound's pricing constants (lib/marketing/products-hub.ts). Spoke hrefs come from lib/marketing/products.ts (/product/*).
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -66,8 +47,7 @@ export default function ProductsIndexPage() {
             const copy = HUB_COPY[key];
             const icon = PRODUCT_ICONS[key];
             return (
-              // Capsomer's linked panel, the whole-card link Recova draws. "group"
-              // carries no style; it drives the arrow's nudge below.
+              // Capsomer's linked panel, the whole-card link. "group" carries no style; it drives the arrow's nudge below.
               <Link key={key} to={p.href} className="fh-mk-card cap-panel fh-hover-group">
                 <div className="cap-panel-body">
                   {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}

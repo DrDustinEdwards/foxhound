@@ -3,11 +3,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/google-callback";
 
-// Canonical Google OAuth callback (ROUTES.md: /auth/google/callback). Google
-// redirects here with ?code&state; we forward the request into the Better Auth
-// handler under its internal callback path, preserving query + the CSRF state
-// cookie. Better Auth validates state, exchanges the code, upserts the user +
-// session, and returns a redirect carrying the session Set-Cookie.
+// Google OAuth callback. Google redirects here with ?code&state; the request is forwarded into the Better Auth handler under its internal callback path, preserving the query and the CSRF state cookie. Better Auth validates state, exchanges the code, upserts the user and session, and returns a redirect carrying the session Set-Cookie.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = new URL(request.url);

@@ -9,30 +9,17 @@ import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the
-// accent text and the focus ring read. The site header loads the same file;
-// importing it here keeps the page whole under any layout.
+// Capsomer's tokens and the amber family (capbase layer), which the panel, the accent text and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import type { Route } from "./+types/index";
 import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/docs.css";
 
-// The /docs index. Recova's spec is app/(marketing)/docs/page.tsx
-// (blob 4562a1ed) and components/MarketingPageHeader.tsx (blob 118a5104), read
-// whole.
-//
-// Layout is Recova's: the shared page header, the 720px column with px-6 and
-// pb-16, Platform as a full-width card above a two-column grid at sm, the four
-// product guides in Recova's order (Audit, Recovery, Disputes, Intelligence),
-// then the two cross-links. Look is Capsomer's: each card is Capsomer's
-// panel in the amber family at Recova's sizes, amber throughout. Guide titles and descriptions come from
-// app/lib/marketing/docs-content.ts and stay 20d-frozen.
+// The /docs index: the shared page header, the 720px column with px-6 and pb-16, Platform as a full-width card above a two-column grid at sm, the four product guides (Audit, Recovery, Disputes, Intelligence), then the two cross-links. Each card is Capsomer's panel in the amber family. Guide titles and descriptions come from app/lib/marketing/docs-content.ts.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // The hub as a LIST, so a crawler reading /docs gets the set rather than
-  // five pages it has to discover by link-following. Derived from
-  // DOC_GUIDES in render order, so a sixth guide joins it by construction.
+  // The hub as a LIST, so a crawler reading /docs gets the set rather than five pages it has to discover by link-following. Derived from DOC_GUIDES in render order, so a sixth guide joins it by construction.
   return [
     ...marketingMeta({
       title: "Docs",
@@ -99,17 +86,12 @@ export default function DocsIndexPage() {
 
 const CROSS_LINK = "fh-hover-group fh-docs-cross fh-accent";
 
-/** Recova's 13px arrow, nudged on the link's hover. Decorative. */
+/** The 13px arrow, nudged on the link's hover. Decorative. */
 function Arrow() {
   return <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />;
 }
 
-/**
- * One guide card: Capsomer's linked panel, the whole-card link Recova draws,
- * at its p-5 and 8px corners. Recova's guide cards take the amber edge under
- * the pointer without the lift, so the lift is off here. "group" carries no
- * style; it drives the arrow's nudge.
- */
+/** One guide card: Capsomer's linked panel, the whole-card link, at its p-5 and 8px corners. The card takes the amber edge under the pointer without the lift, so the lift is off. "group" carries no style; it drives the arrow's nudge. */
 function GuideCard({ guide }: { guide: DocGuide }) {
   return (
     <Link to={`/docs/${guide.slug}`} className="fh-docs-link cap-panel fh-hover-group">

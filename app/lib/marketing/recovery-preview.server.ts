@@ -18,34 +18,18 @@ import { hourlyPreview } from "./hourly-preview";
 import type { PreviewPaymentRow, RecoveryPreview, RoiColumn } from "./recovery-preview";
 import { percent } from "capsomer/behavior/meter";
 
-// The data behind the /product/recovery previews: the demo account's
-// seed, never a merchant's rows. Recova draws these from hardcoded Teamflow
-// numbers (RecoveryDashboardPreview.tsx, blob 565b772c) and a hand-written
-// eight-payment array (RecoveryPaymentsPreview.tsx, blob da19edf0). Foxhound
-// builds the same Teamflow account its demo runs on (app/lib/demo/, the pure
-// builders, no database and no Stripe), then reads it the way the merchant
-// dashboard reads its own rows:
-//
-// - Recovered (30d): recoveries in the last 30 days, renewal noise left out,
-//   as listRecoveredWithFailureContext.
-// - Currently at risk: every active failure, as listActiveFailedPayments.
-// - Recovery rate: the 30-day cohort of failures by the date they failed, as
-//   getRecoveryDashboardWindow, with recoveryRateBand's word.
-// - ROI: recoveryFeeCents on Foxhound-attributed recoveries: all time, the
-//   billable ones (isBillableRecoveryRow) as the dashboard's RoiWidget; this
-//   month, every attributed recovery since the 1st (see below).
-// - Payments: the eight most recent failures, as listRecentFailedPayments,
-//   with each one's steps and the customer's failure count.
-//
-// Strings are formatted here, on the server, so the page renders the same
-// text on the server and in the browser.
+// The data behind the /product/recovery previews: the demo account's seed, never a merchant's rows. Foxhound builds the Teamflow
+// account its demo runs on (app/lib/demo/, pure builders, no database or Stripe) and reads it the way the merchant dashboard
+// reads its own rows: Recovered (30d) as listRecoveredWithFailureContext (renewal noise left out); Currently at risk as
+// listActiveFailedPayments; Recovery rate as getRecoveryDashboardWindow with recoveryRateBand's word; ROI as recoveryFeeCents on
+// Foxhound-attributed recoveries (all time: the billable ones, as the dashboard's RoiWidget; this month: every attributed
+// recovery since the 1st); Payments as the eight most recent failures (listRecentFailedPayments) with their steps. Strings are
+// formatted here, on the server, so the page renders the same text on the server and in the browser.
 
-/** Recova's preview lists eight payments; so does the dashboard's own list. */
 const PREVIEW_PAYMENT_ROWS = 8;
 
 function money(rows: { amountCents: number; currency: string }[]): string {
-  // One computation for a money total. The demo bills in one
-  // currency; a second one would be a seed change, and this shows the first.
+  // One computation for a money total. The demo bills in one currency; a second would be a seed change.
   const [first] = groupSumByCurrency(
     rows.map((r) => ({ currency: r.currency, cents: r.amountCents })),
   );
@@ -66,7 +50,6 @@ function roiColumn(rows: { amountCents: number; currency: string }[]): RoiColumn
   };
 }
 
-/** Build the preview as of `now`. Pure: the same instant gives the same preview. */
 function buildRecoveryPreview(now: Date): RecoveryPreview {
   const nowMs = now.getTime();
   const seed = buildRecoverySeed(DEMO_ACCOUNT_ID, buildTeamflowBase(now), now);
@@ -80,8 +63,7 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       status: f.status as string,
     }))
     .sort((a, b) => b.detectedAt.getTime() - a.detectedAt.getTime());
-  // listRecoveredWithFailureContext joins on renewal noise only, not on a
-  // soft-deleted failure, so the recovered total does the same.
+  // listRecoveredWithFailureContext joins on renewal noise only, not on a soft-deleted failure, so the recovered total does the same.
   const noiseIds = new Set(seed.failedPayments.filter((f) => f.isRenewalNoise).map((f) => f.id));
   const recoveredIds = new Set(seed.recoveredPayments.map((r) => r.failedPaymentId));
 
@@ -98,12 +80,9 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
 
   const billable = seed.recoveredPayments.filter((r) => isBillableRecoveryRow(r, nowMs));
   const firstOfMonth = startOfUtcMonthMs(nowMs);
-  // This month: Foxhound-attributed recoveries since the 1st, matured or not.
-  // Asking isBillableRecoveryRow as of each row's own maturity date keeps the
-  // engine's attribution allow-list and its refund, dispute and delete checks
-  // while setting the 30-day wait aside: a recovery made this month cannot
-  // have matured yet, so the dashboard's billable-and-this-month filter is
-  // always empty (reported as its own job in the J56 notes).
+  // This month: Foxhound-attributed recoveries since the 1st, matured or not. Asking isBillableRecoveryRow as of each row's own
+  // maturity date keeps the attribution allow-list and the refund, dispute and delete checks while setting the 30-day wait aside:
+  // a recovery made this month cannot have matured, so the dashboard's billable-and-this-month filter is always empty.
   const thisMonth = seed.recoveredPayments.filter(
     (r) =>
       r.recoveredAt.getTime() >= firstOfMonth &&
@@ -138,9 +117,8 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
       category,
       declineCode: f.declineCode ?? null,
       stepsDone: summary.completedCount,
-      // Real intake writes the category's whole schedule up front
-      // (planRecoverySteps); the demo seed writes only the steps a recovered
-      // payment reached, so the total is the schedule's, not the rows'.
+      // Real intake writes the category's whole schedule up front; the demo seed writes only the steps a recovered payment reached, so
+      // the total is the schedule's, not the rows'.
       stepsTotal: RECOVERY_SCHEDULES[category].length,
       nextStep: summary.nextStep ? formatStepType(summary.nextStep.stepType) : null,
       status: f.status,
@@ -173,7 +151,6 @@ function buildRecoveryPreview(now: Date): RecoveryPreview {
   };
 }
 
-// The seed walks ninety days of a 200-customer account, which is real work, so
-// one preview serves every request in the same hour. Its relative times ("2d
-// ago") are read at the hour too, which keeps them right to the day.
+// The seed walks ninety days of a 200-customer account, so one preview serves every request in the same hour; relative times
+// ("2d ago") are read at the hour too, which keeps them right to the day.
 export const recoveryPreviewFor = hourlyPreview(buildRecoveryPreview);

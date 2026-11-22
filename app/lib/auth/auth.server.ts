@@ -1,6 +1,7 @@
 import { signInOptions } from "@dustinedwards/site-runtime/sign-in";
-// The minimal build: the database is the Drizzle adapter, so Kysely and the schema-migration code the full build
-// bundles never run here (Better Auth: "For minimal mode (without Kysely), import from better-auth/minimal").
+// The minimal build: the database is the Drizzle adapter, so Kysely and the
+// schema-migration code the full build bundles never run here (Better Auth:
+// "For minimal mode (without Kysely), import from better-auth/minimal").
 import { betterAuth } from "better-auth/minimal";
 import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -20,12 +21,9 @@ import {
 } from "./send-auth-email";
 
 // Runtime Better Auth factory, with the family's one sign-in (site-runtime
-// ./sign-in): a passkey first, an emailed link and code before one exists (Turnstile on
-// it), Google and Apple, no passwords. Accounts are joined
-// only by a signed-in person. Built from the Cloudflare `env` so it binds the
-// D1-backed Drizzle adapter (binding `DB`) and offers only the providers whose
-// settings are present. The CLI schema generator uses a separate static instance
-// (generate.config.ts); this file is the one application code imports.
+// ./sign-in): a passkey first, an emailed link and code before one exists
+// (Turnstile on it), Google and Apple, no passwords. Accounts are joined only
+// by a signed-in person.
 //
 // Env inputs (see env.d.ts / docs/auth/README.md):
 //   BETTER_AUTH_SECRET   secret  - signing key (required in real environments)
@@ -58,10 +56,10 @@ async function buildAuth(env: Env) {
     // security history on /settings/account, /health's spike check and the
     // new-device and recovery notices read it.
     eventsDb: env.DB,
-    // Each session keeps its rough place and a device id (site-runtime's
-    // device cookie; migrations 0069 and 0070), and a read moves its
-    // updatedAt, so the signed-in devices list shows where and when each was
-    // last used, and the new-device notice tells two browsers of one make apart.
+    // Each session keeps its rough place and a device id (site-runtime's device
+    // cookie; migrations 0069 and 0070), and a read moves its updatedAt, so the
+    // signed-in devices list shows where and when each was last used, and the
+    // new-device notice tells two browsers of one make apart.
     sessionDetails: true,
     // A passkey added or removed, Google or Apple joined or left, sessions
     // ended, the account deleted, a new device, a recovery: mailed to the
@@ -86,10 +84,10 @@ async function buildAuth(env: Env) {
       "/delete-user/callback",
     ],
     // E1: an email change is confirmed from the CURRENT address first, then
-    // from the new one (Better Auth's change-email-confirmation flow), and
-    // only from a sign-in in the last 10 minutes (site-runtime holds
-    // /change-email to that). Once the new address is confirmed, site-runtime
-    // tells both addresses and ends every other session (D7).
+    // from the new one (Better Auth's change-email-confirmation flow), and only
+    // from a sign-in in the last 10 minutes (site-runtime holds /change-email
+    // to that). Once the new address is confirmed, site-runtime tells both
+    // addresses and ends every other session (D7).
     emailVerification: {
       expiresIn: EMAIL_CHANGE_EXPIRES_IN_SECONDS,
       sendVerificationEmail: async ({ user, url, token }) => {
@@ -111,9 +109,10 @@ async function buildAuth(env: Env) {
           await sendEmailChangeConfirmation(env, { to: user.email, newEmail, url, token });
         },
       },
-      // E2: Better Auth's own delete, called from the app's route only, so site-runtime's log line, notice and
-      // history clean-up run, with Foxhound's deletion (the fee evidence kept,
-      // the rest scrubbed, then the Stripe grants revoked) in its hooks.
+      // E2: Better Auth's own delete, called from the app's route only, so
+      // site-runtime's log line, notice and history clean-up run, with
+      // Foxhound's deletion (the fee evidence kept, the rest scrubbed, then the
+      // Stripe grants revoked) in its hooks.
       deleteUser: { enabled: true, ...accountDeletionHooks(env) },
     },
     baseURL: env.BETTER_AUTH_URL,
@@ -125,7 +124,7 @@ async function buildAuth(env: Env) {
       // instead of Better Auth's default /api/auth/callback/google. That route
       // forwards into the Better Auth handler, so the redirect_uri sent to
       // Google, the token exchange, and the CSRF state cookie validation all
-      // agree. This is the URI registered on the Google OAuth client.
+      // agree.
       ...(google
         ? { google: { ...google, redirectURI: `${env.BETTER_AUTH_URL}/auth/google/callback` } }
         : {}),

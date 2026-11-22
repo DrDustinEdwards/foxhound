@@ -36,26 +36,11 @@ import {
 } from "~/lib/constants";
 import { formatMoney, formatMoneyShort } from "@dustinedwards/site-runtime/money";
 
-// /billing's five sections, in Recova's order and with Recova's
-// content (app/(app)/billing/page.tsx at blob 34e56833, components/
-// RecoverySection.tsx 047467ef, DisputeFeesSection.tsx 03d26710,
-// SubscriptionsSection.tsx d87f5221, PaymentMethodSection.tsx 0c07cb69). Look is
-// Capsomer's: each section is a Panel, each list a row list, each status a
-// Pill, each button Capsomer's Button. Every number is Foxhound's own engine:
-// rates from the fee constants, the day from the run's cron fields, amounts
-// from the billing preview and the stored invoices. Read-only, apart from the
-// one existing action the payment method button posts to.
-//
-// Recova lines that would be false of Foxhound are rewritten, each named where
-// it sits. Text is on the five sizes: Recova's 0.8125rem is
-// label, 0.6875rem is micro, and its 0.9375rem amounts are body.
+// /billing's five sections: each a Panel, each list a row list, each status a Pill. Every number is Foxhound's own engine: rates from the fee constants, the day from the run's cron fields, amounts from the billing preview and the stored invoices. Read-only, apart from the one existing action the payment method button posts to. Text is on the five sizes (0.8125rem is label, 0.6875rem micro, 0.9375rem body).
 
 const INVOICE_DAY = ordinal(BILLING_RUN_DAY_OF_MONTH);
 
-/** Recova's amounts are whole currency units (formatAmountShort), and recovered
- *  amounts stay so. FEES show cents (review F2, a truthfulness fix): rounded to
- *  whole units, a fee under 50 cents read $0 while Stripe charges it. Foxhound
- *  bills per currency, so a total is one line per currency; with none, $0. */
+/** Recovered amounts are whole currency units. FEES show cents: rounded to whole units, a fee under 50 cents read $0 while Stripe charges it. Foxhound bills per currency, so a total is one line per currency; with none, $0. */
 function fmt(cents: number, currency: string, fee: boolean): string {
   return fee ? formatMoney(cents, currency) : formatMoneyShort(cents, currency);
 }
@@ -81,15 +66,12 @@ function Amounts({
   );
 }
 
-/** A credit note issued since against the fee (PRICING.md rev 5), shown on the
- *  row so a credited fee never reads as simply charged (review F1). */
+/** A credit note issued since against the fee (PRICING.md rev 5), shown on the row so a credited fee never reads as simply charged. */
 function creditSuffix(creditedCents: number, currency: string): string {
   return creditedCents > 0 ? ` · Credited: ${formatMoney(creditedCents, currency)}` : "";
 }
 
-/** Recova's inset summary box (bg-bg, bordered, rounded) inside a section.
- *  Capsomer has no key-value block for a panel body; this composes one from
- *  Foxhound's tokens and is listed in the PR as a Capsomer gap. */
+/** An inset summary box (bordered, rounded) inside a section. Capsomer has no key-value block for a panel body; this composes one from Foxhound's tokens. */
 function SummaryBox({ children }: { children: ReactNode }) {
   return <div className="fh-billing-box">{children}</div>;
 }
@@ -125,8 +107,7 @@ function StatusPill({ label, tone }: { label: string; tone: FeeStatusTone }) {
   );
 }
 
-/** Recova's "View invoice" (Stripe's hosted invoice, new tab), or the bare
- *  invoice id in mono when there is no hosted page. */
+/** "View invoice" (Stripe's hosted invoice, new tab), or the bare invoice id in mono when there is no hosted page. */
 function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | null }) {
   if (url) {
     return (
@@ -139,8 +120,7 @@ function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | 
   return null;
 }
 
-/** Where Recova's "Next invoice" line would be false: an exempt account is never
- *  invoiced, and a paused one is not invoiced while paused. */
+/** Where a "Next invoice" line would be false: an exempt account is never invoiced, and a paused one is not invoiced while paused. */
 function billingStateNote(state: AccountBillingState): string | null {
   if (state.billingExempt) {
     return "Billing exempt. Foxhound does not invoice this account, so no fee is building up.";
@@ -197,8 +177,7 @@ export function RecoverySection({
       </SummaryBox>
 
       {rows.length === 0 ? (
-        // Truthfulness fix: Recova promised the first invoice "on the 1st of next
-        // month", which maturity makes false for a recovery made after the 1st.
+        // The first invoice is not promised "on the 1st of next month": maturity makes that false for a recovery made after the 1st.
         <p className="fh-small fh-faint">
           No billing history yet. Your first invoice comes on the {INVOICE_DAY} of a month, once a
           recovery Foxhound earned is {RECOVERY_MATURITY_DAYS} days old.
@@ -239,8 +218,7 @@ export function DisputeFeesSection({
   rows: DisputeFeeRow[];
 }) {
   const stateNote = billingStateNote(accountBillingState);
-  // Disputes needs no enabling in Foxhound (every account has it, app/lib/nav/
-  // manifest.ts), so Recova's disputesActive branch is always the one shown.
+  // Disputes needs no enabling in Foxhound (every account has it, app/lib/nav/manifest.ts), so the active branch is always the one shown.
   return (
     <Panel
       title="Dispute Fees"
@@ -286,22 +264,17 @@ export function DisputeFeesSection({
   );
 }
 
-/** Each product's own page. A product with none gets a plain title, never a
- *  link back to this section (review F5). */
+/** Each product's own page. A product with none gets a plain title, never a link back to this section. */
 const PRODUCT_HREF: Record<string, string> = {
   intelligence: "/intelligence/dashboard",
   disputes: "/disputes/dashboard",
   recovery: "/recovery/dashboard",
 };
 
-/** The row list needs a link or a button title; with nowhere to go, the title is
- *  plain text, which is neither (Capsomer gap 1 in the J65 pull request). */
+/** The row list needs a link or a button title; with nowhere to go, the title is plain text, which is neither. */
 const plainTitle = ({ children }: RowLinkProps) => <span>{children}</span>;
 
-/** Recova's Subscriptions section; nothing at all when there are none. Recova's
- *  Cancel and Keep subscription buttons, and its past-due banner, are left out:
- *  Foxhound has no merchant cancel or reactivate writer, and nothing writes
- *  past_due. */
+/** The Subscriptions section; nothing at all when there are none. No Cancel, Keep subscription or past-due banner: Foxhound has no merchant cancel or reactivate writer, and nothing writes past_due. */
 export function SubscriptionsSection({ subscriptions }: { subscriptions: SubscriptionView[] }) {
   if (subscriptions.length === 0) return null;
   return (

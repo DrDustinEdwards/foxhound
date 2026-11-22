@@ -10,25 +10,8 @@ import { themeAction } from "capsomer/theme-server";
 
 import type { Route } from "./+types/theme";
 
-// Persist an authenticated merchant's theme to accounts.theme so it follows
-// them across devices. Legacy's equivalent is
-// app/api/account/theme/route.ts, a POST that updates the account row.
-//
-// ACTION ONLY, deliberately: this route exports no loader. Loaders must not
-// mutate, and the write helper it calls is documented action-only for the same
-// reason.
-//
-// A GET is rejected by React Router itself with 400 before the action runs,
-// because the route has no loader; verified against the deployed endpoint. The
-// method check below therefore never sees a GET, and exists for the other
-// non-POST verbs (PUT, PATCH, DELETE) that DO route to the action.
-//
-// Capsomer's themeAction reads the choice (JSON from the header's button, a
-// form field otherwise, at most 1 KB), answers 204 to a fetch and 303 to a
-// form, and writes no cookie: a signed-in merchant's choice lives on the
-// account. The toggle calls this fire-and-forget: the DOM already flipped optimistically,
-// so a failed write must not roll back what the merchant is looking at. The
-// next request reconciles from the DB.
+// Persist an authenticated merchant's theme to accounts.theme so it follows them across devices. ACTION ONLY: this route exports no loader, because loaders must not mutate. React Router rejects a GET with 400 before the action runs, so the method check below is for the other non-POST verbs (PUT, PATCH, DELETE).
+// Capsomer's themeAction reads the choice (JSON from the header's button, a form field otherwise, at most 1 KB), answers 204 to a fetch and 303 to a form, and writes no cookie: a signed-in merchant's choice lives on the account. The toggle calls this fire-and-forget: the DOM already flipped, so a failed write must not roll back what the merchant is looking at. The next request reconciles from the DB.
 export async function action({ request, context }: Route.ActionArgs) {
   const refused = refuseCrossSite(request);
   if (refused) return refused;
@@ -49,11 +32,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   const db = getDb(env);
-  // THE ACTIVE ACCOUNT, not the earliest, and it has to move with the read in
-  // lib/theme.server.ts or the pair disagrees: a merchant who had switched
-  // would toggle, watch the row they are not looking at change, and see the
-  // color snap back on the next request. Legacy resolves both halves the same
-  // way (app/api/account/theme/route.ts, blob `968ba672`). Session 61, phase (c).
+  // THE ACTIVE ACCOUNT, not the earliest, and it has to move with the read in lib/theme.server.ts or the pair disagrees: a merchant who had switched would toggle, watch the row they are not looking at change, and see the color snap back on the next request.
   const membership = await resolveActiveMembership(
     db,
     session.user.id,

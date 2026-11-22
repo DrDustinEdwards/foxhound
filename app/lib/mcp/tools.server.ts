@@ -76,50 +76,22 @@ import {
 } from "./registry";
 import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding";
 
-// THE MERCHANT TOOLS, REGROUPED TO THE 2026-10-10 MCP RULING.
-//
-// Twenty-three one-endpoint tools became twelve whole-job ones (rule 3: 5 to 15
-// per server; rule 4: outcomes, not API mirrors), each named
-// foxhound_{action}_{resource} (rule 5) and carrying all four behavior hints
-// set honestly (rule 6). Ten read and two write. Read and write are never
-// merged into one tool, so a read never carries a write's hints and a client
-// never has to confirm a read. The design is capsid/research/design-mcp-servers.md
-// section 5; its optional twelfth, foxhound_stage_recovery_action, is left out
-// because no pending-actions table exists, and foxhound_get_settings takes its
-// place so every writer still has a reader (375's argument, below).
-//
-// THE ACCOUNT COMES FROM THE KEY AND NOWHERE ELSE. Each executor receives the
-// account the bearer token resolved to and passes it to the helper. No tool
-// takes an account id as an argument.
-//
-// EVERY ID AN AGENT PASSES IS PROVED TO BE THIS ACCOUNT'S (rule 12.1). The
-// helpers each pin the account in their own predicate (payment, customer, audit
-// run, connection, alert), so another merchant's id reads as "not found" rather
-// than as their row. test/mcp-ownership-rule12.test.ts plants another
-// merchant's real row behind every id-taking argument and fails if any tool
-// returns or changes it. Recova's trigger_immediate_retry, which inserted a
-// retry for any failed_payment_id it was handed, is the hole that test exists
-// to keep out.
-//
-// NO MONEY TOOL EXISTS HERE, and none will: the HUMAN-FOREVER denylist in
-// ./registry.ts refuses one at construction. Every helper below is a SELECT or
-// one of the settings writers the app's own forms call; nothing imports
-// `executeMoneyWrite`, `recordOutcome`, a billing writer or a dispute writer.
-//
-// REDACTION IS DEFAULT-ON FOR EVERY TOOL, AND NOT ONE LINE OF IT IS IN THIS
-// FILE. Registering a tool is what redacts it; see ./redact.ts. A
-// tool's job is to choose WHICH fields to return, never to disguise one.
+// The merchant tools: twelve whole-job tools named foxhound_{action}_{resource}, ten read and two write, each with all
+// four behavior hints set honestly. Read and write are never one tool. Design: capsid/research/design-mcp-servers.md
+// section 5; foxhound_get_settings gives every writer a reader.
+// The account comes from the key and nowhere else: each executor receives the account the bearer token resolved to,
+// and no tool takes an account id as an argument. Every id an agent passes is proved to be this account's (rule 12.1):
+// the helpers pin the account in their own predicate, so another merchant's id reads as "not found";
+// test/mcp-ownership.test.ts plants another merchant's row behind every id-taking argument.
+// No money tool exists here and none will: the HUMAN-FOREVER denylist in ./registry.ts refuses one at construction;
+// nothing imports `executeMoneyWrite`, `recordOutcome`, a billing writer or a dispute writer.
+// Redaction is default-on and not in this file: registering a tool redacts it (./redact.ts). A tool chooses WHICH
+// fields to return, never disguises one.
 
 type ToolArgs = Record<string, unknown>;
 
-/**
- * A tool's outputSchema (area 11, T3): an object naming its top-level fields,
- * with `required` only those that are always present (a lookup that may come
- * back empty is not required, since a missing required field would turn a
- * good answer into an error). The fields themselves are left open, so the
- * schema says what an answer holds without pinning every nested shape.
- * The SDK checks each successful result against it.
- */
+/** A tool's outputSchema: an object naming its top-level fields, `required` only those always present (a lookup that
+ *  may come back empty is not required). Nested shapes are left open; the SDK checks each successful result against it. */
 function result(fields: string[], required: string[] = fields) {
   return {
     type: "object" as const,
@@ -128,7 +100,6 @@ function result(fields: string[], required: string[] = fields) {
   };
 }
 
-/** Every read: changes nothing, safe to repeat, touches nothing outside Foxhound. */
 const READ: McpToolAnnotations = {
   readOnlyHint: true,
   destructiveHint: false,
@@ -148,19 +119,15 @@ function required(args: ToolArgs, name: string, from: string): string {
 }
 
 //
-// ONE SHAPE EVERYWHERE: a list takes an optional `cursor` and answers with
-// `has_more` and `next_cursor` (null on the last page). The cursor is opaque to
-// the agent and names the tool it came from, so a cursor from one list handed
-// to another is refused with a sentence rather than read as a page number.
-// It carries a position and nothing else: the account still comes from the key
-// on every page, so a cursor cannot widen what a page may read.
+// One shape everywhere: a list takes an optional `cursor` and answers `has_more` and `next_cursor` (null on the last
+// page). The cursor is opaque, names its tool (a cursor from another list is refused with a sentence), and carries a
+// position only: the account still comes from the key on every page.
 
 const CURSOR_PROPERTY = {
   type: "string",
   description: "Omit for the first page. To read on, pass next_cursor from the previous answer.",
 } as const;
 
-/** The 1-based page a cursor names, or 1 when there is none. */
 function decodeOffsetCursor(tool: string, args: ToolArgs): number {
   const raw = args["cursor"];
   if (raw === undefined || raw === null || raw === "") return 1;
@@ -177,15 +144,13 @@ function pageInfo(tool: string, page: number, totalPages: number) {
   return { has_more: hasMore, next_cursor: hasMore ? pageCursor(tool, page + 1) : null };
 }
 
-/** One page of an in-memory list the helper already scoped to the account. */
 function slicePage<T>(tool: string, rows: T[], page: number, pageSize: number) {
   const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
   const items = rows.slice((page - 1) * pageSize, page * pageSize);
   return { items, total: rows.length, ...pageInfo(tool, page, totalPages) };
 }
 
-/** One billing line as an agent sees it: a PICK, because the enriched line
- *  carries the whole dispute row and the admin audit entry (an admin's address). */
+/** One billing line as an agent sees it: a PICK, because the enriched line carries the whole dispute row and the admin audit entry (an admin's address). */
 function lineItemForAgent(l: EnrichedLineItem) {
   return {
     id: l.lineItem.id,
@@ -220,42 +185,13 @@ function lineItemForAgent(l: EnrichedLineItem) {
   };
 }
 
-/**
- * What a dispute looks like on the wire, and why it is a PICK rather than a row.
- *
- * `listDisputesPage` is `db.select()` over a 60-column table, and that table holds
- * far more about a customer than the two fields 370 ruled on: `customerIp`,
- * `billingAddress`, the model-written `aiResponseText` and `triageReasoning`,
- * and four JSON blobs including `priorChargesJson` and `recoveryEmailsJson`,
- * which carry the customer's purchase history and the text of mail Foxhound
- * sent them.
- *
- * 383 SPLIT THAT LIST, and this comment is corrected rather than left standing.
- * `customerIp` and `billingAddress` ARE redacted at the boundary now, so the
- * sentence that used to sit here, that the redactor could not help with any of
- * it, was true when written and is false today. The projection stays as DEFENSE
- * IN DEPTH on those two and remains the ONLY cover for the rest, because 383
- * deliberately declined to redact purchase history and Foxhound's own generated
- * text: those are facts about the merchant's relationship with a customer rather
- * than about the person, and nulling them would be deciding what a merchant may
- * read about their own business.
- *
- * SO THE FIX IS AT THE OTHER END. The tool returns the fields an agent needs to
- * reason about a dispute (what it is, what it is worth, where it stands, when it
- * is due, what it will cost) and the raw row never reaches the boundary at all.
- * The customer id comes through whole, as everywhere else on this endpoint, so a
- * follow-up question is still possible.
- *
- * THIS IS AN ALLOWLIST AND IT IS MEANT TO BE. A new column added to `disputes`
- * next year does not appear here, which is the correct default for a table this
- * one is a window onto: a new column reaches an agent when somebody decides it
- * should, not because it was added.
- *
- * `customerEmail` IS LISTED, deliberately, and arrives masked from the boundary.
- * Dropping it instead would be this file quietly deciding a field 370 ruled
- * VISIBLE-BUT-MASKED should be invisible, and would leave the endpoint with no
- * way to correlate a dispute to a customer an agent has already seen elsewhere.
- */
+/** A dispute on the wire is a PICK, not a row: the 60-column `disputes` table holds `customerIp`, `billingAddress`,
+ *  model-written `aiResponseText` and `triageReasoning`, and JSON blobs of purchase history and sent mail.
+ *  `customerIp` and `billingAddress` are redacted at the boundary too (defense in depth); the projection is the
+ *  ONLY cover for the rest, since purchase history and Foxhound's own text are facts about the merchant's
+ *  relationship with a customer and are deliberately not redacted. This is an allowlist: a new column reaches an
+ *  agent when someone decides it should. `customerEmail` is listed and arrives masked, so a dispute can still be
+ *  correlated to a customer seen elsewhere. */
 function disputeForAgent(row: DisputeRow) {
   return {
     id: row.id,
@@ -283,15 +219,9 @@ function disputeForAgent(row: DisputeRow) {
   };
 }
 
-/**
- * A recovery step on the wire, as a PICK for the same reason disputes are one.
- * The row carries the email Foxhound wrote to the customer (`aiSubject`,
- * `aiBodyHtml`, `customBody`), which greets them by name, and the send error
- * text, which can carry their address. 383 keeps Foxhound's generated text off
- * the wire at the tool rather than in the redactor, so the tool returns what an
- * agent needs to reason about the sequence (what ran, when, what happened, how
- * the customer engaged) and never the letter itself.
- */
+/** A recovery step on the wire, a PICK for the same reason: the row carries the email Foxhound wrote (`aiSubject`,
+ *  `aiBodyHtml`, `customBody`, greeting the customer by name) and send error text that can carry their address.
+ *  Returns what ran, when, what happened and how the customer engaged, never the letter itself. */
 function stepForAgent(row: RecoveryStepRow) {
   return {
     id: row.id,
@@ -315,8 +245,7 @@ const PAYMENT_PAGE_SIZES = [10, 25, 50, 100] as const;
 const DISPUTE_PAGE_SIZE = 25;
 const AUDIT_RUN_PAGE_SIZE = 12;
 const RECOVERY_LIST_PAGE_SIZE = 25;
-/** The audit-run history the helper is asked for. It takes a limit, not an
- *  offset, so pages are cut from this many of the newest runs. */
+/** The audit-run history window; the helper takes a limit, not an offset, so pages are cut from this many newest runs. */
 const AUDIT_RUN_HISTORY_LIMIT = 120;
 
 function paymentPageSize(args: ToolArgs): FailedPaymentPageSize {
@@ -396,8 +325,7 @@ const READ_TOOLS: McpTool[] = [
         page,
         pageSize,
       });
-      // The helper clamps a page past the end back to the last page, which is
-      // right for a screen and wrong for a cursor: past the end is empty.
+      // The helper clamps a page past the end to the last page, right for a screen and wrong for a cursor: past the end is empty.
       const payments = page > result.totalPages ? [] : result.payments;
       return { payments, total: result.totalCount, ...pageInfo(tool, page, result.totalPages) };
     },
@@ -459,9 +387,8 @@ const READ_TOOLS: McpTool[] = [
       const tool = "foxhound_list_customers";
       const page = decodeOffsetCursor(tool, args);
       const [result, tiers] = await Promise.all([
-        // NO SEARCH, on purpose: the directory's search matches customer names,
-        // so a search argument would let an agent confirm a guessed name the
-        // redactor never sends. A customer is found by tier or by paging.
+        // No search, on purpose: the directory's search matches customer names, so it would let an agent confirm a guessed
+        // name. A customer is found by tier or by paging.
         listCustomerDirectory(ctx.db, ctx.accountId, {
           search: null,
           tier: stringArg(args, "tier"),
@@ -560,7 +487,6 @@ const READ_TOOLS: McpTool[] = [
         );
         const totalPages = Math.max(1, Math.ceil(totalCount / RECOMMENDATIONS_PAGE_SIZE));
         return {
-          // A PICK: the name is left out here and again by the redactor.
           recommendations: rows.map((r) => ({
             stripeCustomerId: r.stripeCustomerId,
             planName: r.planName,
@@ -625,7 +551,6 @@ const READ_TOOLS: McpTool[] = [
       if (view === "winback") {
         const rows = await listWinbackSequences(ctx.db, ctx.accountId);
         const { items, ...rest } = slicePage(tool, rows, page, RECOVERY_LIST_PAGE_SIZE);
-        // A PICK: cancelReason is the customer's free text, left out.
         return {
           sequences: items.map((r) => ({
             id: r.id,
@@ -698,7 +623,6 @@ const READ_TOOLS: McpTool[] = [
       ]);
       const autoSubmitState = {
         enabled: autoSubmit.enabled,
-        // The merchant's own sign-in turned it on; the address comes back masked.
         turned_on_by: maskEmail(autoSubmit.optedInByEmail),
         turned_on_at: autoSubmit.optedInAt,
         submits_hours_before_deadline: DISPUTE_AUTO_SUBMIT_HOURS,
@@ -717,9 +641,8 @@ const READ_TOOLS: McpTool[] = [
         return {
           dispute: {
             ...disputeForAgent(dispute),
-            // The evidence is a PICK of its shape: the text can name the
-            // customer, so an agent sees which fields are filled and how long
-            // they are, and the merchant reads the words in the app.
+            // The evidence is a PICK of its shape: the text can name the customer, so an agent sees which fields are filled and
+            // how long, and the merchant reads the words in the app.
             evidence: evidence.map((e) => ({
               field: e.fieldName,
               characters: e.fieldValue.length,
@@ -832,9 +755,7 @@ const READ_TOOLS: McpTool[] = [
             `No invoice ${invoiceId} on this account. Omit invoice_id to list this account's invoices.`,
           );
         }
-        // A PICK, like disputes and steps: the enriched line carries the whole
-        // dispute row and the admin audit entry (an admin's address), neither of
-        // which belongs on this wire.
+        // A PICK, like disputes and steps: the enriched line carries the whole dispute row and the admin audit entry.
         const { invoice } = detail;
         return {
           invoice: {
@@ -856,8 +777,7 @@ const READ_TOOLS: McpTool[] = [
         listBillingInvoices(ctx.db, ctx.accountId),
         getBillingPreview(ctx.db, ctx.accountId, ctx.now.getTime()),
       ]);
-      // The ledger is a PICK too: its enriched lines carry the whole dispute row
-      // and the admin audit entry, the same two things the invoice view cuts.
+      // The ledger is a PICK too, for the same reason as the invoice view.
       return {
         ledger: {
           lineItems: ledger.lineItems.map(lineItemForAgent),
@@ -875,10 +795,8 @@ const READ_TOOLS: McpTool[] = [
       };
     },
   },
-  // THE READER FOR EVERY SETTING foxhound_update_settings WRITES (375's
-  // argument, kept): a writer an agent cannot read first forces it to guess or
-  // to ask the merchant to paste the current value in. Each section returns
-  // the fields its writer section takes, so read-then-write round-trips.
+  // The reader for every setting foxhound_update_settings writes: a writer an agent cannot read first forces it to guess.
+  // Each section returns the fields its writer takes, so read-then-write round-trips.
   {
     name: "foxhound_get_settings",
     title: "Read settings",
@@ -910,9 +828,8 @@ const READ_TOOLS: McpTool[] = [
           getMerchantContext(ctx.db, ctx.accountId),
         ],
       );
-      // The voice samples are left out: they are the merchant's past emails to
-      // customers, greeting them by name, kept as one JSON string the field
-      // redactor cannot see into, and no writer here takes them back.
+      // Voice samples are left out: the merchant's past emails name customers, are one JSON string the field redactor cannot
+      // see into, and no writer here takes them back.
       const brand_voice =
         voices === null
           ? null
@@ -923,8 +840,7 @@ const READ_TOOLS: McpTool[] = [
               expired: voices.expired,
               network: voices.network,
               fraud: voices.fraud,
-              // Counts only: the samples are the merchant's past emails to
-              // customers and greet them by name, so the text stays in the app.
+              // Counts only: the samples name customers, so the text stays in the app.
               sample_count: readVoiceSamples(voices.samples).length,
               sample_characters: readVoiceSamples(voices.samples).map((x) => x.length),
             };
@@ -952,23 +868,11 @@ const READ_TOOLS: McpTool[] = [
   },
 ];
 
-// The two writes (372's item-4 ruling, eight writers folded into two tools)
-//
-// EVERY WRITE GOES THROUGH THE FORM'S OWN CODE PATH. Each section calls the same
-// `applyX` the route action calls: same bounds, same allowlist, same refusal
-// STRING, one implementation.
-//
-// EVERY WRITE LEAVES A TRACE. The tool passes a `WriteTrace` carrying the api
-// key id and this tool's name, and the trace row goes in the SAME batch as the
-// write, so a change without its trace is not a state the database can reach.
-//
-// ONE SECTION PER CALL. Each section is one form's batch, so a call that named
-// two would be two commits, and a refusal in the second would leave the first
-// applied with no way for the agent to tell from one answer. Requiring exactly
-// one keeps every call all-or-nothing.
+// The two writes. Every write goes through the form's own code path (the same `applyX` the route action calls: same
+// bounds, allowlist and refusal string). Every write leaves a trace: a `WriteTrace` with the api key id and tool name goes
+// in the SAME batch as the write. One section per call, so each call is one form's batch and all-or-nothing.
 
-/** Turn an apply result into a tool response, or a tool error carrying the
- *  form's own refusal string. */
+/** Turn an apply result into a tool response, or a tool error carrying the form's own refusal string. */
 function applied<T>(
   result: { ok: true; fields: string[]; state: T } | { ok: false; error: string },
 ): { updated: string[]; state: T } {
@@ -976,10 +880,8 @@ function applied<T>(
   return { updated: result.fields, state: result.state };
 }
 
-/** Copy only the keys the agent sent, renamed, so an omitted key stays
- *  omitted. Writing `{ general: args.general ?? "" }` would clear the column on
- *  every call that left it out, which for a voice set once and never touched
- *  again would be silent and unrecoverable. */
+/** Copy only the keys the agent sent, renamed, so an omitted key stays omitted: `{ general: args.general ?? "" }` would
+ *  silently and unrecoverably clear the column on every call that left it out. */
 function sentOnly(section: ToolArgs, names: Record<string, string>): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [from, to] of Object.entries(names)) {
@@ -994,17 +896,9 @@ function withoutWebhookUrl(result: Parameters<typeof applied<NotificationSetting
   return { updated, state: { ...rest, slackWebhookConfigured: Boolean(slackWebhookUrl) } };
 }
 
-/**
- * Refuse a connection id that is not this account's, in words an agent can act
- * on, before the writer runs.
- *
- * The writers prove ownership themselves (rule 12.1) and refuse a foreign id
- * with the settings form's sentence, "Connect Stripe before setting a sender
- * name.", which is right for a person with no connection and misleading for an
- * agent that sent an id it should not have. This check says what is wrong and
- * where a good id comes from. It is the second check, not the only one: the
- * writer's own predicate still stands behind it.
- */
+/** Refuse a connection id that is not this account's, in words an agent can act on, before the writer runs. The writers
+ *  prove ownership too, but refuse with the settings form's "Connect Stripe before setting a sender name.", which
+ *  misleads an agent that sent a bad id. A second check, not the only one. */
 async function requireOwnConnection(ctx: McpToolContext, section: ToolArgs): Promise<void> {
   const connectionId = section.connection_id;
   if (typeof connectionId !== "string" || connectionId.length === 0) return;
@@ -1040,8 +934,7 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
         ctx.trace,
       ),
     ),
-  // The webhook URL is a credential for the merchant's Slack, so the answer
-  // says whether one is set, as foxhound_get_settings does, and never echoes it.
+  // The webhook URL is a credential for the merchant's Slack, so the answer says whether one is set and never echoes it.
   notifications: async (ctx, s) =>
     withoutWebhookUrl(
       await applyNotificationSettings(
@@ -1070,9 +963,8 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
       ),
     );
   },
-  // This text lands in the system prompt that writes the merchant's recovery
-  // emails. It is not sanitized on the way in, exactly as the form does not
-  // sanitize it: `sanitizeCopy` and `passesQualityGate` run on what comes out.
+  // This text lands in the system prompt that writes recovery emails. Not sanitized on the way in, as the form does not:
+  // `sanitizeCopy` and `passesQualityGate` run on what comes out.
   brand_voice: async (ctx, s) => {
     await requireOwnConnection(ctx, s);
     const done = applied(
@@ -1093,8 +985,7 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
         ctx.trace,
       ),
     );
-    // The samples were written but are not echoed: they are the merchant's past
-    // emails and name their customers, so the answer carries counts only.
+    // The samples were written but are not echoed: they name customers, so the answer carries counts only.
     const { samples, ...state } = done.state;
     return {
       ...done,
@@ -1122,8 +1013,7 @@ const SETTINGS_SECTIONS: Record<string, SettingsSection> = {
 
 const SECTION_NAMES = Object.keys(SETTINGS_SECTIONS);
 
-/** What a settings call would do, in words the merchant can approve. A Slack
- *  webhook URL is a credential, so it is named, never shown. */
+/** What a settings call would do, in words the merchant can approve. A Slack webhook URL is a credential: named, never shown. */
 function describeSettingsChange(name: string, section: ToolArgs): string {
   const shown = Object.entries(section).map(([field, value]) =>
     field === "slack_webhook_url"
@@ -1253,10 +1143,8 @@ const WRITE_TOOLS: McpTool[] = [
       },
       required: [],
     },
-    // Destructive because a value is overwritten, and clearing the notification
-    // email silences every notification, so it is confirmed first
-    // (./confirm.server.ts). Idempotent because the same call twice leaves the
-    // same settings.
+    // Destructive because a value is overwritten and clearing the notification email silences every notification, so it is
+    // confirmed first (./confirm.server.ts). Idempotent: the same call twice leaves the same settings.
     outputSchema: result(["section", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
     annotations: {
       readOnlyHint: false,
@@ -1293,8 +1181,7 @@ const WRITE_TOOLS: McpTool[] = [
   {
     name: "foxhound_manage_alerts",
     title: "Manage alerts",
-    // DELETION IS NAMED rather than left to be discovered, because it takes the
-    // alert's firing history with it and that is not recoverable.
+    // Deletion is named because it takes the alert's firing history with it, unrecoverably.
     description:
       "Create, enable, disable or delete one of this account's metric alerts. action create takes metric, direction and threshold (dollars for amount metrics, a percent for the recovery rate, a plain count otherwise), an optional label and an optional channel (email, the default, or slack); enable, disable and delete take alert_id from foxhound_get_intelligence, which must belong to this account. Deleting also removes that alert's recorded breaches. A breach is recorded in the app and sent to the alert's channel at most once a day. delete is confirmed first: the first call deletes nothing and answers what it would delete and a confirm code; show that to the merchant and call again with the same arguments and confirm only if they say yes.",
     inputSchema: {
@@ -1331,9 +1218,7 @@ const WRITE_TOOLS: McpTool[] = [
       },
       required: ["action"],
     },
-    // Destructive because delete is, so delete is confirmed first
-    // (./confirm.server.ts); not idempotent because create makes a new alert
-    // each time.
+    // Destructive because delete is, so confirmed first (./confirm.server.ts); not idempotent because create makes a new alert each time.
     outputSchema: result(["action", "updated", "state", ...CONFIRM_RESULT_FIELDS, "note"], []),
     annotations: {
       readOnlyHint: false,
@@ -1401,12 +1286,9 @@ const WRITE_TOOLS: McpTool[] = [
   },
 ];
 
-/** The live registry. Built through `defineToolRegistry`, so the HUMAN-FOREVER
- *  denylist and the name rule run over every name at module load, and every
- *  executor is wrapped in the redactor at the same moment. */
+/** The live registry. `defineToolRegistry` runs the HUMAN-FOREVER denylist and name rule over every name at module load
+ *  and wraps every executor in the redactor. */
 export const MERCHANT_TOOLS: McpToolRegistry = defineToolRegistry([...READ_TOOLS, ...WRITE_TOOLS]);
 
-/** The tool names, exported so a plant can assert the set without re-listing it. */
 export const MERCHANT_TOOL_NAMES = [...READ_TOOLS, ...WRITE_TOOLS].map((t) => t.name);
-/** The write half, named so a plant can assert exactly these carry a trace. */
 export const MERCHANT_WRITE_TOOL_NAMES = WRITE_TOOLS.map((t) => t.name);

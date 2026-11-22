@@ -10,31 +10,12 @@ import { feeForCurrency, recoveryFeeCents, unrefundedCents } from "./fees";
 import { createCreditNote, creditNoteIdempotencyKey } from "./stripe-invoice";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// POST-BILLING CLAWBACK (ruling 377(5), PRICING.md rev 5 item 1, reversing rev
-// 2's "no automatic credit after billing").
-//
 // Rev 2 replaced credit notes with maturity-window billing and was RIGHT about
 // refunds: a recovery is not billed until it is 30 to 60 days settled, and the
 // billable predicate excludes anything stamped refunded or disputed at run
 // time, so the ordinary refund never reaches an invoice at all. That is why the
 // "refund before the invoice" case below credits NOTHING and is a control
 // rather than a gap.
-//
-// It was wrong about chargebacks. A dispute can land roughly 120 days out, long
-// after the fee was invoiced and charged, and at that point maturity has
-// already done all it can. Foxhound kept 20% of money the merchant no longer
-// has, and the only lever was a manual adjustment nobody was going to remember
-// to pull.
-//
-// WHAT THIS DOES NOT DO: move cash. `credit_amount` puts the money on the
-// merchant's Stripe balance in that currency, and Stripe draws it down on their
-// next finalized invoice. A cash refund is Dustin's call, only when no future
-// invoice is expected, and is not built here.
-//
-// createAdjustment REMAINS THE INTERNAL MIRROR AND IS NOT THIS PATH. It writes
-// its own standalone invoice, never touches Stripe, and requires an
-// admin_audit_log row, all of which are right for discretionary goodwill and
-// wrong for an automatic reversal driven by a Stripe event.
 
 /** A fee line that has been charged and can still be credited. */
 export interface CreditableFeeLine {
@@ -52,8 +33,10 @@ export interface CreditableFeeLine {
   creditedCents: number;
   /** Its credit line, when there is one. */
   creditLineItemId: string | null;
-  /** recovery_fee only: the recovery's refunded_cents now, recorded on the fee
-   *  line once settled so the sweep stops finding it. */
+  /**
+   * recovery_fee only: the recovery's refunded_cents now, recorded on the fee
+   * line once settled so the sweep stops finding it.
+   */
   recoveryRefundedCents: number | null;
 }
 
@@ -73,11 +56,9 @@ interface CreditFacts {
 /**
  * What a charged fee line's credit should come to in all. Pure.
  *
- * A dispute fee is credited whole (the callers ask only once it is lost). A
- * recovery fee is credited whole when the charge was fully refunded or charged
- * back, and otherwise by the refunded share: the fee as billed, less the fee
- * on what is still unrefunded (Dustin, 2026-11-18: "reduce the fee by the
- * refunded share. A full refund means no fee."). Never below 0 or above the fee.
+ * A recovery fee is credited whole when the charge was fully refunded or
+ * charged back, and otherwise by the refunded share: the fee as billed, less
+ * the fee on what is still unrefunded. Never below 0 or above the fee.
  */
 function owedCreditCents(facts: CreditFacts): number {
   if (facts.type !== "recovery_fee") return facts.feeCents;
@@ -165,9 +146,9 @@ function feeLineQuery(db: Db) {
 /**
  * The invoiced fee line for one piece of evidence, with what is owed on it.
  *
- * Returns null when no fee line exists (the recovery was never billable) or
- * its invoice never reached Stripe, so there is nothing to credit against and
- * the billing run's own predicate settles it instead.
+ * Returns null when no fee line exists (the recovery was never billable) or its
+ * invoice never reached Stripe, so there is nothing to credit against and the
+ * billing run's own predicate settles it instead.
  *
  * The `stripe_invoice_id is not null` test is what "already on a finalized
  * platform invoice" means in this schema: it is written only after
@@ -205,20 +186,9 @@ interface CreditLineInput {
  * The credit line, written against the SAME invoice the fee is on and carrying
  * the SAME evidence FK, for the line's owed total.
  *
- * NEGATIVE minor units, matching how `adjustment` already signs a credit. The
- * invoice's own `total_cents` is deliberately NOT recomputed: that number is
- * what the merchant was invoiced and what Stripe finalized, and a credit note
- * does not rewrite history, it offsets it. Stripe models it the same way.
- *
- * ONE CREDIT LINE PER FEE LINE (`billing_line_items_credits_line_uq`), so a
- * later partial refund RAISES that line to the new total, guarded on the total
- * it was read at, rather than adding a second; Stripe keeps each note. Two
- * racing refund events cannot both land: the second violates the index or
- * matches no row.
- *
- * The fee line then records the refunded amount it now accounts for, joined to
- * the credit actually holding the new total (hard rule 3), which is what takes
- * it out of the retry sweep.
+ * The invoice's own `total_cents` is deliberately NOT recomputed: that number
+ * is what the merchant was invoiced and what Stripe finalized, and a credit
+ * note does not rewrite history, it offsets it. Stripe models it the same way.
  */
 function buildCreditLineBatch(db: Db, input: CreditLineInput): MoneyWriteBatch {
   const { line } = input;
@@ -276,8 +246,10 @@ function buildCreditLineBatch(db: Db, input: CreditLineInput): MoneyWriteBatch {
   ];
 }
 
-/** A refund too small to move the fee (or none) still settles the fee line, so
- *  the sweep stops finding it. */
+/**
+ * A refund too small to move the fee (or none) still settles the fee line, so
+ * the sweep stops finding it.
+ */
 function buildSettledMarker(db: Db, line: CreditableFeeLine): MoneyWriteBatch {
   return [
     db
@@ -300,9 +272,7 @@ export interface CreditNoteOutcome {
  *
  * It never throws into the caller. The refund stamp and the dispute resolution
  * have already committed by the time this runs, and a Stripe outage must not
- * unwind a ledger fact that is true. A failure here is not lost either: the
- * fee is still owed by the ledger's own facts, and creditOwedFeeLines (the
- * daily credit-note-retry cron) finds it and tries again.
+ * unwind a ledger fact that is true.
  */
 export async function issueCreditNoteForEvidence(
   env: Env,
@@ -332,20 +302,17 @@ export async function issueCreditNoteForEvidence(
  * ORDER: STRIPE FIRST, THEN THE LEDGER, and it is deliberate rather than
  * incidental. A ledger row written before the note would claim a credit the
  * merchant does not have if the Stripe call then failed, which is the worse of
- * the two failures: they would see the credit and never receive it. This way a
- * failure between the two leaves the note issued and the row behind, and the
- * retry finds that note on the invoice (createCreditNote) and issues nothing
- * new.
+ * the two failures: they would see the credit and never receive it.
  */
 async function creditFeeLine(
   env: Env,
   line: CreditableFeeLine,
   opts: { now: Date; description: string },
 ): Promise<CreditNoteOutcome> {
-  // Keyed on the FEE LINE and its total, not on the event: two different
-  // Stripe events can both mean "this fee is owed back" (a refund and a later
-  // dispute on the same payment), and keyed on the event they would each try
-  // to credit it.
+  // Keyed on the FEE LINE and its total, not on the event: two different Stripe
+  // events can both mean "this fee is owed back" (a refund and a later dispute
+  // on the same payment), and keyed on the event they would each try to credit
+  // it.
   const idempotencyKey = creditNoteIdempotencyKey(line.lineItemId, line.owedCents);
   if (line.owedCents <= line.creditedCents) {
     if (line.recoveryRefundedCents !== null) {
@@ -386,22 +353,20 @@ export const REFUND_CREDIT_DESCRIPTION = "Refunded recovery: fee credited";
 export const DISPUTE_CREDIT_DESCRIPTION = "Dispute lost after billing: fee credited";
 export const CHARGEBACK_CREDIT_DESCRIPTION = "Disputed recovery: fee credited";
 
-/** Fee lines handled per sweep. Each costs a Stripe list and a create, so this
- *  keeps one run well inside a Worker's subrequest budget; anything past it is
- *  still owed tomorrow, and the run's message says so. */
+/**
+ * Fee lines handled per sweep. Each costs a Stripe list and a create, so this
+ * keeps one run well inside a Worker's subrequest budget; anything past it is
+ * still owed tomorrow, and the run's message says so.
+ */
 const CREDIT_SWEEP_LIMIT = 50;
 
 /**
- * Every charged fee line the ledger says is owed a credit it does not have
- * yet. THE OWED STATE IS DERIVED, NOT STORED: a recovery fee whose recovery is
+ * Every charged fee line the ledger says is owed a credit it does not have yet.
+ * THE OWED STATE IS DERIVED, NOT STORED: a recovery fee whose recovery is
  * stamped refunded or disputed and is not yet credited in full, a recovery fee
  * whose recovery has been refunded more than the fee line accounts for, or a
  * dispute fee whose dispute resolved lost with no credit, on an invoice that
- * reached Stripe. Those are the same facts the webhook path acts on, so a
- * failed Stripe call, a Worker that died between the stamp and the note, and a
- * redelivery that skipped the clawback all leave the line here until it is
- * settled. No second table can drift from the ledger, because there is no
- * second table.
+ * reached Stripe.
  */
 async function findOwedFeeLines(
   env: Env,
@@ -459,8 +424,10 @@ export interface CreditSweepResult {
   full: boolean;
 }
 
-/** The credit-note retry sweep: credit every owed fee line it finds, one at a
- *  time, recording each failure rather than stopping on it. */
+/**
+ * The credit-note retry sweep: credit every owed fee line it finds, one at a
+ * time, recording each failure rather than stopping on it.
+ */
 export async function creditOwedFeeLines(env: Env, now: Date): Promise<CreditSweepResult> {
   const owed = await findOwedFeeLines(env);
   const result: CreditSweepResult = {
@@ -499,9 +466,11 @@ export function creditSweepFailureError(result: CreditSweepResult): string | nul
   return `${result.failed.length} fee credit note(s) still owed after retry: ${detail}`;
 }
 
-/** Every live recovery under one failed payment that carries `stamp`. The
- *  dispute stamp is per failed payment; the fee lines hang off the recoveries
- *  under it. */
+/**
+ * Every live recovery under one failed payment that carries `stamp`. The
+ * dispute stamp is per failed payment; the fee lines hang off the recoveries
+ * under it.
+ */
 async function stampedRecoveryIdsFor(
   env: Env,
   failedPaymentId: string,
@@ -524,7 +493,10 @@ async function stampedRecoveryIdsFor(
 export const disputedRecoveryIdsFor = (env: Env, failedPaymentId: string) =>
   stampedRecoveryIdsFor(env, failedPaymentId, recoveredPayments.disputedAt);
 
-/** Every live recovery under one failed payment with any refund, full or partial. */
+/**
+ * Every live recovery under one failed payment with any refund, full or
+ * partial.
+ */
 export async function refundedRecoveryIdsFor(env: Env, failedPaymentId: string): Promise<string[]> {
   const rows = await getDb(env)
     .select({ id: recoveredPayments.id })

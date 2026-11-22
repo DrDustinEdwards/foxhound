@@ -26,20 +26,7 @@ const CALLS_HEADING_ID = "admin-mcps-calls-heading";
 // A link in a table cell is given a 24 px target (WCAG 2.2, 2.5.8).
 const LINK = "fh-row-link";
 
-// The MCP part of /admin/operations. It was its own page, /admin/mcps,
-// with no row in the admin menu; Dustin had it folded into Operations on
-// 2026-10-29. The family admin pattern (Capsomer patterns.md, Dustin's Q9 of
-// 2026-10-14) and his review of 2026-10-11: the figures first, then Capsomer tables with plain sentence-case words, relative
-// times with the exact time on hover, and a pending and an empty state on
-// every list. Recova's page (app/admin/mcps/page.tsx, blob d0381e5f) is the
-// inventory: the API keys table with its total and active count, and the tool
-// coverage. Its hard-coded server status, tool counts and list of workspace
-// connectors are not copied: the tools here are read
-// from the merchant MCP's live registry, and the merchant MCP call log is
-// Foxhound's own. The Admin API key is issued and revoked here and nowhere
-// else, behind Access (Mythos billing review, finding 4); merchant keys are
-// the merchants', in Settings. No stored key material is read
-// (app/lib/admin/mcps.server.ts).
+// The MCP part of /admin/operations: the figures first, then Capsomer tables with sentence-case words, relative times with the exact time on hover, and a pending and an empty state on every list. Tools are read from the merchant MCP's live registry. The Admin API key is issued and revoked here and nowhere else, behind Access; merchant keys are the merchants', in Settings. No stored key material is read (app/lib/admin/mcps.server.ts).
 export function AdminMcpPanels({
   data: { summary, keys, calls, tools },
   reading,

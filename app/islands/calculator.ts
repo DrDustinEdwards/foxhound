@@ -1,9 +1,7 @@
 import { rangeFill } from "capsomer/behavior/range-slider";
 import { calculatorFigures, fmt } from "../lib/marketing/calculator-math";
 
-// An island (devkit ./islands): the home page's recovery calculator (components/recovery-calculator.tsx) on a
-// page that does not hydrate. Each slider moves its figure and every row under it, with the same math and the
-// same words as the React one; the sliders keep Capsomer's fill and their spoken values.
+// An island (devkit ./islands): the home page's recovery calculator (components/recovery-calculator.tsx) on a page that does not hydrate, with the same math and words as the React one.
 export default function start(
   el: HTMLElement,
   props: { stripeRecoveryRatePercent: number; recoveryFeeBps: number },

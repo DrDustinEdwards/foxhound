@@ -25,33 +25,10 @@ import { siteUrl } from "~/lib/seo/jsonld";
 import type { Route } from "./+types/run";
 import { NOINDEX } from "~/lib/seo/meta";
 
-// J63, row U4: Recova's saved run, app/audit/results/[id]/
-// page.tsx (blob a0dbf6ef, 11,127 bytes), at Recova's own path,
-// /audit/results/:id. Read whole at HEAD with
-// components/audit/AuditResultsReveal.tsx (7ebadf8c).
-//
-// RECOVA IS THE SPEC for what is on the page and in what order: the banner
-// (when the run was taken, what the data reflects, Back to history, Run new
-// audit), then the AI summary, Revenue leaking now, Disputes unmanaged when
-// there is a dispute signal, and Business snapshot, fading in one after
-// another. The sections are the live page's (app/components/audit/
-// sections.tsx), and the look is Capsomer 0.9.0's (Q10 to Q12).
-//
-// PRIVATE. The run is read through getAuditRun, which pins
-// the account in the predicate, so another account's id is a 404. Recova's
-// page is the same (`.eq('account_id', accountId)`). Recova's "Copy link"
-// sits between Back to history and Run new audit, as there; the link opens
-// only for members of the same account, so it is for sharing within a team.
-//
-// THE LIVE FIGURES ARE RECOVA'S THREE: failed payments in active recovery,
-// the lifetime recovery rate, and the win rate on disputes Foxhound submitted,
-// each read for this account now (app/lib/audit/live-figures.server.ts). The
-// calls to action reflect today's account, as Recova's do, and every
-// Foxhound account has Recovery and Disputes, so they are the signed-in ones.
-//
-// EVERY FIGURE IS number OR null, NEVER COALESCED. Recova maps this row with
-// `?? 0` on every column, so a run whose disputes call failed renders as a
-// merchant with no open disputes.
+// /audit/results/:id, a saved run. The page: the banner (when the run was taken, what the data reflects, Back to history, Run new audit), then the AI summary, Revenue leaking now, Disputes unmanaged when there is a dispute signal, and Business snapshot, fading in one after another. The sections are the live page's (app/components/audit/sections.tsx).
+// PRIVATE: the run is read through getAuditRun, which pins the account in the predicate, so another account's id is a 404. "Copy link" opens only for members of the same account, so it is for sharing within a team.
+// THE LIVE FIGURES are failed payments in active recovery, the lifetime recovery rate, and the win rate on disputes Foxhound submitted, each read for this account now (app/lib/audit/live-figures.server.ts); every Foxhound account has Recovery and Disputes, so the calls to action are the signed-in ones.
+// EVERY FIGURE IS number OR null, NEVER COALESCED: `?? 0` would render a run whose disputes call failed as a merchant with no open disputes.
 
 export function meta() {
   return [{ title: "Audit run - Foxhound" }, NOINDEX];
@@ -64,9 +41,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const row = await getAuditRun(db, accountId, params.id);
   if (!row) throw new Response("Not Found", { status: 404 });
-  // THE RUN IS THE PAGE; THE LIVE FIGURES ARE EXTRAS. A failed read of
-  // them is logged whole and the run renders without them, rather than a
-  // saved run the merchant cannot open.
+  // THE RUN IS THE PAGE; THE LIVE FIGURES ARE EXTRAS. A failed read of them is logged whole and the run renders without them, rather than a saved run the merchant cannot open.
   let live: {
     activeSequences: number | null;
     recoveryRatePct: number | null;
@@ -84,8 +59,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return { run: toStoredAuditRun(row), url: `${siteUrl(env)}/audit/results/${row.id}`, ...live };
 }
 
-/** Recova's AuditResultsReveal: each section fades in as it scrolls into view, Capsomer's reveal
- *  (capsomer/reveal.css, CSS only), so the page reads whole without scripts. */
+/** Each section fades in as it scrolls into view, Capsomer's reveal (capsomer/reveal.css, CSS only), so the page reads whole without scripts. */
 function Reveal({ children }: { children: ReactNode[] }) {
   return (
     <>
@@ -121,8 +95,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
     <AuditHealthSection key="health" run={run} recoveryRatePct={recoveryRatePct} />,
   ].filter(Boolean);
 
-  // Recova's column: max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns
-  // the page's one <main>.
+  // max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns the page's one <main>.
   return (
     <div className="fh-auditd-page cap-admin-page" data-width="page">
       <div className="fh-auditd-block">

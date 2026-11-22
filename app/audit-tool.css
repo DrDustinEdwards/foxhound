@@ -1,5 +1,4 @@
-/* The parts only the free audit's pages (/audit, its connect step and results) use, as Recova laid them out. In the site layer
-   (app.css), after the public pages' shared parts (marketing.css). */
+/* The parts only the free audit's pages (/audit, its connect step and results) use. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
   .fh-audit-link-2 {
     transition-property: opacity;
