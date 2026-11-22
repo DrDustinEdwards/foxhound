@@ -8,10 +8,16 @@ import {
   cronRunId,
   describeCronSchedule,
 } from "~/lib/admin/crons";
-import { listCronRows } from "~/lib/admin/crons.server";
+import { listCronRows, setCronEnabled } from "~/lib/admin/crons.server";
+import { cronEnableConfirmPhrase, isCronEnableConfirmValid } from "~/lib/admin/brake";
+import { adminContext } from "~/lib/admin/context";
+import * as schema from "~/db/schema";
+import { isCronEnabled } from "~/lib/cron/gating";
+import { CRON_JOBS } from "~/lib/cron/registry";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import * as route from "~/routes/admin/crons";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accounts, cronConfig } from "~/db";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -185,5 +191,112 @@ describe("a failed run is linked from the Overview and shown on its cron", () =>
       `/admin/platform/crons#${cronRunAnchor(failedId(now))}`,
     );
     expect(cronAnchor("weekly-digest")).toBe("cron-weekly-digest");
+  });
+});
+
+// Enable is gated on typing the exact phrase for every registered cron (billing-monthly
+// moves money on its first run); disable is one click for every one of them.
+
+const ACTOR = "admin@foxhoundapp.com";
+
+/** The two context keys the action reads, and nothing else. */
+const fakeContext = {
+  get(key: unknown) {
+    if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
+    if (key === adminContext) return { email: ACTOR };
+    throw new Error("unexpected context key");
+  },
+} as unknown as Parameters<typeof route.action>[0]["context"];
+
+function post(fields: Record<string, string>) {
+  const body = new FormData();
+  for (const [k, v] of Object.entries(fields)) body.append(k, v);
+  return new Request("http://localhost/admin/crons", { method: "POST", body });
+}
+
+async function run(fields: Record<string, string>) {
+  const { db } = createInMemoryDb();
+  harness.db = db;
+  const result = await route.action({
+    context: fakeContext,
+    request: post(fields),
+    params: {},
+  } as never);
+  return {
+    db,
+    result: result as unknown as { data: { error?: string; ok?: boolean }; init?: ResponseInit },
+  };
+}
+
+async function stateOf(db: Awaited<ReturnType<typeof run>>["db"], cronName: string) {
+  const rows = await db.select().from(schema.cronConfig);
+  const row = rows.find((r) => r.cronName === cronName) ?? null;
+  return { rowExists: row !== null, enabled: isCronEnabled(row) };
+}
+
+async function auditRows(db: Awaited<ReturnType<typeof run>>["db"]) {
+  return db.select().from(schema.adminAuditLog);
+}
+
+describe("the phrase itself", () => {
+  it("is case-sensitive, exact, and tolerates surrounding whitespace only", () => {
+    const p = cronEnableConfirmPhrase("recovery-tick");
+    expect(isCronEnableConfirmValid("recovery-tick", `  ${p}  `)).toBe(true);
+    expect(isCronEnableConfirmValid("recovery-tick", p.toLowerCase())).toBe(false);
+    expect(isCronEnableConfirmValid("recovery-tick", "ENABLE")).toBe(false);
+    expect(isCronEnableConfirmValid("recovery-tick", "")).toBe(false);
+    expect(isCronEnableConfirmValid("recovery-tick", "ENABLE  recovery-tick")).toBe(false);
+  });
+});
+
+describe("the /admin/crons action enforces the asymmetry", () => {
+  it("allows an enable with the exact phrase", async () => {
+    const { db, result } = await run({
+      cronName: RECOVERY_TICK_CRON_NAME,
+      nextEnabled: "true",
+      confirm: cronEnableConfirmPhrase(RECOVERY_TICK_CRON_NAME),
+    });
+
+    expect(result.data.ok).toBe(true);
+    expect(await stateOf(db, RECOVERY_TICK_CRON_NAME)).toEqual({ rowExists: true, enabled: true });
+    expect((await auditRows(db)).map((r) => r.action)).toEqual(["cron.enable"]);
+  });
+
+  it("gates ENABLE for every registered cron, not only the recovery tick", async () => {
+    // billing-monthly moves money on its first ever run; a rule that only
+    // covered the tick would leave the more consequential one one click away.
+    for (const job of CRON_JOBS) {
+      const { db, result } = await run({ cronName: job.name, nextEnabled: "true" });
+      expect(result.data.error, job.name).toMatch(/exactly to enable/);
+      expect(await auditRows(db), job.name).toEqual([]);
+    }
+    // 10s for the same reason as the DISABLE case above: 13 fresh databases,
+    // each with the full migration set applied.
+  }, 10_000);
+
+  it("still rejects an unknown cron name before the confirmation is even considered", async () => {
+    const { db, result } = await run({
+      cronName: "recovery_tick",
+      nextEnabled: "true",
+      confirm: "ENABLE recovery_tick",
+    });
+
+    expect(result.data.error).toMatch(/Unknown cron/);
+    expect(await auditRows(db)).toEqual([]);
+  });
+});
+
+describe("setCronEnabled refuses an unknown name", () => {
+  async function db() {
+    const { db } = createInMemoryDb();
+    await db.insert(accounts).values({ id: "acct_1", name: "A", createdAt: new Date() });
+    return db;
+  }
+
+  it("writes no row for a mistyped name", async () => {
+    const d = await db();
+    await expect(setCronEnabled(d, "demo_reset", false)).rejects.toThrow(/unknown cron name/);
+    const rows = await d.select().from(cronConfig);
+    expect(rows).toEqual([]);
   });
 });
