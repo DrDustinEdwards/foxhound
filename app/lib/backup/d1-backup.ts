@@ -40,7 +40,7 @@ const BACKUP_EXCLUDED_TABLES = [
  */
 const BACKUP_CREDENTIAL_ALLOW: Record<string, string> = {
   "stripe_connections.stripe_access_token": "AES-256-GCM ciphertext; the keys are Worker secrets",
-  "account_members.invite_token": "a pending invite, expiring; the table is membership data",
+  "account_members.invite_token": "SHA-256 of a pending invite's token, expiring in 7 days",
   "email_suppressions.token": "the unsubscribe link's token; it only unsubscribes",
   "admin_impersonations.token_hash":
     "SHA-256 of a view-as session that expires in hours; the row is the audit of who viewed which merchant",
