@@ -301,7 +301,9 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
         result.skipped += 1;
         continue;
       }
-      if (outcome.status !== "sent") {
+      // A duplicate is a claim row an earlier run left (it sent, or may have, and died before the stamp),
+      // so it is stamped like a send; leaving it due would re-select it every tick and block the sequence.
+      if (outcome.status !== "sent" && outcome.status !== "duplicate") {
         // NOT STAMPED, and this is where the win-back deliberately differs from
         // the expiring-card alert. That alert stamps a blocked send because
         // leaving it unstamped burns a Stripe call every night forever; a

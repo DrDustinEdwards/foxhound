@@ -264,6 +264,16 @@ describe("PLANT 4: the refusals, each with legacy's result string", () => {
     expect(outcomeRows()).toEqual([]);
   });
 
+  it("a DUPLICATE (an earlier run sent, then died before the claim) is stamped, not retried forever", async () => {
+    seedSequence();
+    seedStep();
+    harness.outcome = { status: "duplicate" };
+
+    await runWinbackSends(env, NOW);
+
+    expect(stepRows()[0].executedAt).toBe(NOW.getTime());
+  });
+
   it("A BLOCKED SEND IS NOT STAMPED, so it sends once live sends are enabled", async () => {
     seedSequence();
     seedStep();
