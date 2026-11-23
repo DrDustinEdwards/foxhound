@@ -70,7 +70,7 @@ The signed-in app has one local way in: the demo. `GET /demos/dashboard` (also
 product screen. Every non-GET is refused with 405 there, so a write flow is proved by
 its test file, not here. Do not invent another sign-in.
 
-Resolve the repo's `playwright` devDependency with `createRequire` as below. Write the script in the session's scratchpad, never in
+Resolve the sandbox's global `playwright` with `createRequire` as below. Write the script in the session's scratchpad, never in
 the repo. Name each step the way a person would say it, act through roles and labels,
 and assert what the person should see afterward. Collect console errors and page
 errors, and keep a screenshot of the end state.
@@ -78,7 +78,7 @@ errors, and keep a screenshot of the end state.
 ```js
 // <scratchpad>/drive.mjs: REPO=<repo> PW_CHROMIUM=... node drive.mjs http://localhost:5174
 import { createRequire } from "node:module";
-const { chromium } = createRequire(`${process.env.REPO}/package.json`)("playwright");
+const { chromium } = createRequire(import.meta.url)("playwright");
 const origin = process.argv[2];
 const browser = await chromium.launch(
   process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {},

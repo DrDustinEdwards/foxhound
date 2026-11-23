@@ -167,7 +167,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   // The status counts respect every filter but status itself.
   const pillCounts = tallyStatusCounts(summaryRows.map((r) => r.status));
-  // Recovered share of every failed payment, the dashboard's "All" range; an account with none has no rate.
   const globalRecoveryRatePct =
     globalCounts.all > 0 ? percent(globalCounts.recovered, globalCounts.all) : null;
 
