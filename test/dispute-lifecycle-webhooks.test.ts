@@ -206,6 +206,17 @@ describe("charge.dispute.funds_withdrawn and funds_reinstated", () => {
   });
 });
 
+describe("charge.dispute.closed before the dispute row exists", () => {
+  it("is not claimed, so the retry after the created event resolves it", async () => {
+    const db = await seed({ withDispute: false });
+    const closed = disputeEvent("evt_early_close", "charge.dispute.closed", NOW, { status: "won" });
+    expect(await processConnectedWebhook({} as Env, closed, NOW)).toMatchObject({
+      status: "error",
+    });
+    expect(await db.select().from(schema.webhookEvents)).toEqual([]);
+  });
+});
+
 describe("charge.dispute.closed as warning_closed", () => {
   it("closes the inquiry with no ruling and nothing billable", async () => {
     const db = await seed({ withDispute: true, status: "warning_needs_response" });
