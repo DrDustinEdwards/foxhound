@@ -1,4 +1,7 @@
+import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
+
+import { failedPayments, recoverySteps } from "~/db/schema";
 
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
@@ -6,6 +9,7 @@ import { listExecutedRecoverySteps } from "~/lib/recovery/queries.server";
 import {
   getMostRecentRecoveryAt,
   listBillableRecoveredForRoi,
+  listUpcomingSteps,
   listRecoveredWithFailureContext,
   listReactivatedWinbacks,
 } from "~/lib/recovery/dashboard-queries.server";
@@ -72,5 +76,27 @@ describe("listBillableRecoveredForRoi", () => {
     // Billable is strictly a subset: every recovered payment exists in the
     // unfiltered set, but not every recovered payment clears the billable bar.
     expect(billable.length).toBeLessThan(allRecovered.length);
+  });
+});
+
+describe("listUpcomingSteps", () => {
+  it("lists only what the cron would send: a recovered payment's step or a resulted one drops out", async () => {
+    const db = await seededDb();
+    const WIDE = 365 * DAY_MS;
+    const before = await listUpcomingSteps(db, DEMO_ACCOUNT_ID, now.getTime(), WIDE);
+    expect(before.length).toBeGreaterThan(1);
+    const [first, second] = before;
+    await db.update(recoverySteps).set({ result: "skipped" }).where(eq(recoverySteps.id, first.id));
+    const owner = await db
+      .select({ id: recoverySteps.failedPaymentId })
+      .from(recoverySteps)
+      .where(eq(recoverySteps.id, second.id));
+    await db
+      .update(failedPayments)
+      .set({ status: "recovered" })
+      .where(eq(failedPayments.id, owner[0].id));
+    const after = await listUpcomingSteps(db, DEMO_ACCOUNT_ID, now.getTime(), WIDE);
+    expect(after.map((r) => r.id)).not.toContain(first.id);
+    expect(after.map((r) => r.id)).not.toContain(second.id);
   });
 });

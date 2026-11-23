@@ -90,7 +90,7 @@ export function stepDueCondition(now: Date): SQL {
  * (executed_at and result both null, next_retry_at set), so a sequence waiting
  * on a backoff is NOT exhausted.
  */
-function stepPendingCondition(): SQL {
+export function stepPendingCondition(): SQL {
   return and(
     isNull(recoverySteps.executedAt),
     isNull(recoverySteps.result),

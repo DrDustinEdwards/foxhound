@@ -122,10 +122,13 @@ function applyFailedPaymentFilters(conditions: unknown[], filters: FailedPayment
     conditions.push(lte(failedPayments.amountCents, filters.amountMaxCents));
 }
 
+/** The most rows the "all" page size returns, so one request cannot load a whole large account. */
+const ALL_ROWS_CAP = 5000;
+
 /** The filtered, sorted, paginated /recovery/payments list. Every filter and
  *  the sort run in SQL, never a client-side pass over the full account.
  *  `pageSize: "all"` (the "rows per page" control's all-in-one option)
- *  returns every matching row on page 1, no limit/offset. */
+ *  returns the first ALL_ROWS_CAP matching rows on page 1. */
 export async function listFilteredFailedPayments(
   db: Db,
   accountId: string,
@@ -144,7 +147,9 @@ export async function listFilteredFailedPayments(
   const isAll = filters.pageSize === "all";
   const totalCountNum = Number(totalCount);
   const pageSize: number =
-    filters.pageSize === "all" ? Math.max(1, totalCountNum) : filters.pageSize;
+    filters.pageSize === "all"
+      ? Math.min(ALL_ROWS_CAP, Math.max(1, totalCountNum))
+      : filters.pageSize;
   const totalPages = isAll ? 1 : Math.max(1, Math.ceil(totalCountNum / pageSize));
   const page = isAll ? 1 : Math.min(Math.max(1, filters.page), totalPages);
 
@@ -157,19 +162,13 @@ export async function listFilteredFailedPayments(
           ? [asc(failedPayments.amountCents)]
           : [desc(failedPayments.detectedAt)];
 
-  const payments = isAll
-    ? await db
-        .select()
-        .from(failedPayments)
-        .where(where)
-        .orderBy(...orderBy)
-    : await db
-        .select()
-        .from(failedPayments)
-        .where(where)
-        .orderBy(...orderBy)
-        .limit(pageSize)
-        .offset((page - 1) * pageSize);
+  const payments = await db
+    .select()
+    .from(failedPayments)
+    .where(where)
+    .orderBy(...orderBy)
+    .limit(pageSize)
+    .offset((page - 1) * pageSize);
 
   return { payments, totalCount: Number(totalCount), page, totalPages, pageSize: filters.pageSize };
 }
@@ -482,6 +481,7 @@ export async function listStepsForFailedPayments(
     .where(
       and(
         eq(recoverySteps.accountId, accountId),
+        isNull(recoverySteps.deletedAt),
         inList(recoverySteps.failedPaymentId, failedPaymentIds),
       ),
     );

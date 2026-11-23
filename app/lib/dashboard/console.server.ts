@@ -278,9 +278,7 @@ export async function getConsoleView(
     list.push(s);
     stepsByPayment.set(s.failedPaymentId, list);
   }
-  const exhausted = activeFailed.filter((p) =>
-    isSequenceExhausted(stepsByPayment.get(p.id) ?? [], nowMs),
-  );
+  const exhausted = activeFailed.filter((p) => isSequenceExhausted(stepsByPayment.get(p.id) ?? []));
 
   const attention: AttentionRow[] = [];
 

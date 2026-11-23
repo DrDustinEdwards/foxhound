@@ -83,10 +83,13 @@ describe("isSequenceExhausted", () => {
     ...o,
   });
 
-  // A step scheduled in the past that never executed will not fire on its own, so
-  // the sequence is done in practice even though the step is unexecuted.
-  it("is exhausted when the only unexecuted step is already overdue", () => {
-    expect(isSequenceExhausted([step({ scheduledAt: new Date(NOW - DAY) })], NOW)).toBe(true);
+  // The cron sends a due or overdue step on its next tick, so it is still pending.
+  it("is not exhausted while a step is overdue and waiting for the tick", () => {
+    expect(isSequenceExhausted([step({ scheduledAt: new Date(NOW - DAY) })])).toBe(false);
+  });
+
+  it("is exhausted once every step has run", () => {
+    expect(isSequenceExhausted([step({ executedAt: new Date(NOW) })])).toBe(true);
   });
 });
 
