@@ -70,8 +70,7 @@ function fundsLabel(f: DisputeFundsEntry): string {
 
 /**
  * The ordered event list for one dispute. Events with a timestamp sort by it;
- * an event whose timestamp is null keeps its position relative to the events
- * around it rather than collapsing to the top.
+ * an event whose timestamp is null follows the event built just before it.
  */
 export function buildDisputeTimeline(d: DisputeTimelineInput): DisputeTimelineItem[] {
   const inquiry = d.state === "inquiry_closed" || isInquiryStatus(d.status);
@@ -111,16 +110,12 @@ export function buildDisputeTimeline(d: DisputeTimelineInput): DisputeTimelineIt
     items.push({ at: d.resolvedAt, label: "Inquiry closed with no chargeback ruling." });
   }
 
-  // Stable sort on the timestamp, leaving null-timestamped events where they
-  // were. Array.prototype.sort is stable in every runtime this ships to.
-  return items
-    .map((item, index) => ({ item, index }))
-    .sort((a, b) => {
-      const at = a.item.at?.getTime();
-      const bt = b.item.at?.getTime();
-      if (at === undefined || bt === undefined) return a.index - b.index;
-      if (at === bt) return a.index - b.index;
-      return at - bt;
-    })
-    .map((x) => x.item);
+  // Dated events sort by time (stable); an undated one is placed after the event that preceded it in the
+  // order built above, so a null timestamp never makes the comparator inconsistent.
+  const out = items.filter((i) => i.at).sort((a, b) => a.at!.getTime() - b.at!.getTime());
+  items.forEach((item, index) => {
+    if (item.at) return;
+    out.splice(out.indexOf(items[index - 1]) + 1, 0, item);
+  });
+  return out;
 }

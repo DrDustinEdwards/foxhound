@@ -236,3 +236,25 @@ describe("charge.dispute.closed as warning_closed", () => {
     expect((await readDispute(db)).state).toBe("inquiry_closed");
   });
 });
+
+describe("a ruling with no timestamp", () => {
+  it("follows the event built before it instead of landing among dated ones by chance", () => {
+    const day = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
+    const labels = buildDisputeTimeline({
+      createdAt: day(0),
+      amountCents: 5000,
+      currency: "usd",
+      reason: "general",
+      aiGeneratedAt: day(2),
+      stagedAt: day(1),
+      submittedAt: day(3),
+      submittedBy: null,
+      outcomeNotifiedAt: null,
+      resolvedAt: null,
+      state: "resolved_won",
+      funds: [],
+    }).map((i) => i.label);
+    expect(labels.at(-1)).toBe("Bank ruled: WON. Funds retained.");
+    expect(labels[1]).toBe("Evidence staged for your review.");
+  });
+});
