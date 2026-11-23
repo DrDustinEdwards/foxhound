@@ -17,6 +17,7 @@ import "~/site-header.css";
 
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { RECOVERY_RATE_CAUTION_MAX, RECOVERY_RATE_RED_MAX } from "~/lib/dashboard/recovery-rate";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import {
@@ -46,7 +47,7 @@ export const QUICK_ANSWERS = [
   },
   {
     q: "What does the recovery rate percentage mean?",
-    a: "Recovery rate is the percentage of failed payments that were successfully recovered during the selected period. Below 21% is low (shown in red), 21-35% is typical (orange), and above 36% is strong (green). Early accounts with few data points will see more variance.",
+    a: `Recovery rate is the percentage of failed payments that were successfully recovered during the selected period. Up to ${RECOVERY_RATE_RED_MAX}% is low (shown in red), ${RECOVERY_RATE_RED_MAX + 1}-${RECOVERY_RATE_CAUTION_MAX}% is typical (amber), and above ${RECOVERY_RATE_CAUTION_MAX}% is strong (green). Early accounts with few data points will see more variance.`,
   },
   {
     q: "Why did a sequence stop before all steps ran?",
@@ -81,25 +82,26 @@ const PRODUCT_GUIDES = [
   },
 ];
 
-/** Foxhound's real MCP surface is ONE endpoint: workers/app.ts matches the single pathname `/mcp` and no `/mcp/admin` exists, so a second row would name an endpoint that is not there. The tool count is 23 (15 reads, 8 writes). The note says what the endpoint is for, never an AI vendor's name (capsid/conventions.md). */
-const MCP_CONNECTORS = [
-  {
-    name: "Foxhound Merchant",
-    url: "foxhoundapp.com/mcp",
-    note: "23 tools, 15 read and 8 write",
-  },
-];
+/** Foxhound's real MCP surface is ONE endpoint: workers/app.ts matches the single pathname `/mcp` and no `/mcp/admin` exists, so a second row would name an endpoint that is not there. The tool counts come from the registry in the loader. The note says what the endpoint is for, never an AI vendor's name (capsid/conventions.md). */
+const MCP_CONNECTOR = { name: "Foxhound Merchant", url: "foxhoundapp.com/mcp" };
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const nowMs = Date.now();
   // Cron status is platform-wide, not per-account, so no account scope filter.
   const crons = await getVisibleCronStatus(getDb(env), nowMs);
-  return { crons, nowMs };
+  // Imported here, as /features does, so the MCP graph stays off every other page.
+  const { MERCHANT_TOOL_NAMES, MERCHANT_WRITE_TOOL_NAMES } = await import("~/lib/mcp/tools.server");
+  const writes = MERCHANT_WRITE_TOOL_NAMES.length;
+  return {
+    crons,
+    nowMs,
+    mcpNote: `${MERCHANT_TOOL_NAMES.length} tools, ${MERCHANT_TOOL_NAMES.length - writes} read and ${writes} write`,
+  };
 }
 
 export default function Help({ loaderData }: Route.ComponentProps) {
-  const { crons, nowMs } = loaderData;
+  const { crons, nowMs, mcpNote } = loaderData;
 
   // A div, not a main: AdminShell owns the page's one main landmark. The 720px column and its padding are the page layout.
   return (
@@ -173,13 +175,13 @@ export default function Help({ loaderData }: Route.ComponentProps) {
           headingId="help-mcp-connectors"
           columns={["Connector", "Tools", "Status"]}
         >
-          {MCP_CONNECTORS.map((c) => (
+          {[MCP_CONNECTOR].map((c) => (
             <tr key={c.url}>
               <th scope="row">
                 {c.name}
                 <span className="cap-table-aside">{c.url}</span>
               </th>
-              <td data-label="Tools">{c.note}</td>
+              <td data-label="Tools">{mcpNote}</td>
               <td data-label="Status">
                 {/* Legacy's green dot says nothing a reader needs (the row
                     existing is the news), so it stays decorative: Capsomer's
@@ -193,12 +195,11 @@ export default function Help({ loaderData }: Route.ComponentProps) {
         </StatusTable>
       </section>
 
-      {/* Section 4: Contact. A Capsomer panel titled by the mailto link, the
-          sentence in its body. */}
+      {/* Section 4: Contact. A Capsomer panel with the mailto link in its body. */}
       <section>
         <h2 className={SECTION_LABEL}>Contact</h2>
-        <Panel title={<a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>} level={3}>
-          Replies within 24 hours on business days.
+        <Panel title="Support" level={3}>
+          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>
         </Panel>
       </section>
     </div>

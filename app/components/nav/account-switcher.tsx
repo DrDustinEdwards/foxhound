@@ -35,14 +35,16 @@ async function switchAccount(
   if (switching) return;
   switching = true;
   try {
-    await fetch(switchAccountUrl, {
+    const res = await fetch(switchAccountUrl, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accountId }),
     });
-  } catch (error) {
+    if (!res.ok) throw new Error(String(res.status));
+  } catch {
     switching = false;
-    throw error;
+    window.alert("Could not switch account. Reload the page and try again.");
+    return;
   }
   window.location.assign(window.location.pathname + window.location.search);
 }

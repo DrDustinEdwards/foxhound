@@ -18,7 +18,7 @@
     "legacy": {},
     "size": {
       "app/app-pages.css": 1718,
-      "app/app.css": 907,
+      "app/app.css": 887,
       "app/components/audit/sections.tsx": 523,
       "app/components/recovery-dashboard-panels.tsx": 547,
       "app/lib/admin-api/handler.server.ts": 681,
@@ -48,12 +48,12 @@
       "app/lib/webhooks/lookups.ts": 649,
       "app/marketing.css": 518,
       "app/routes/admin/merchants/detail.tsx": 514,
-      "app/routes/app/disputes/detail.tsx": 720,
+      "app/routes/app/disputes/detail.tsx": 713,
       "app/routes/app/recovery/payments/detail.tsx": 885,
       "app/routes/app/recovery/payments/index.tsx": 1037,
       "app/routes/app/settings/account.tsx": 771,
       "app/routes/home.tsx": 522,
-      "app/routes/privacy.tsx": 956,
+      "app/routes/privacy.tsx": 947,
       "app/routes/terms.tsx": 789
     },
     "tests": {

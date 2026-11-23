@@ -86,11 +86,6 @@
   .fh-product-block {
     margin-bottom: var(--space-6);
   }
-  .fh-product-icon {
-    inline-size: 0.75rem;
-    block-size: 0.75rem;
-    flex-shrink: 0;
-  }
   .fh-product-text {
     margin-bottom: var(--space-7);
   }

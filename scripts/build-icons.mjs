@@ -9,7 +9,7 @@ const pub = new URL("../public/", import.meta.url);
 const bin = new URL("../node_modules/@drdustinedwards/site-helpers/bin/icons.mjs", import.meta.url);
 
 // The band's colors (app/app.css: --bg in the dark theme, --header-brand). This
-// script is outside app/, where the raw-hex rule (scripts/check-tokens.mjs)
+// script is outside app/, where the raw-hex rule (devkit-tokens)
 // does not reach, because an SVG favicon cannot read CSS custom properties.
 const SQUARE = "#111210";
 const AMBER = "#f0b429";

@@ -78,7 +78,7 @@ import {
 } from "~/lib/recovery/payments-list";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { showingCountFor } from "~/lib/recovery/payments-stats";
-import { recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
+import { recoveryRateClassNameOrNull } from "~/lib/dashboard/recovery-rate";
 import {
   allVisibleSelected,
   toggleAllVisible,
@@ -167,8 +167,8 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
   // The status counts respect every filter but status itself.
   const pillCounts = tallyStatusCounts(summaryRows.map((r) => r.status));
-  // An account with no failed payments reads 0.
-  const globalRecoveryRatePct = percent(globalCounts.recovered, globalCounts.all);
+  const globalRecoveryRatePct =
+    globalCounts.all > 0 ? percent(globalCounts.recovered, globalCounts.all) : null;
 
   return {
     result: {
@@ -487,8 +487,8 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     { label: "Canceled", value: String(globalCounts.cancelled), className: "fh-faint" },
     {
       label: "Recovery rate",
-      value: `${globalRecoveryRatePct}%`,
-      className: recoveryRateClassName(globalRecoveryRatePct),
+      value: globalRecoveryRatePct === null ? "-" : `${globalRecoveryRatePct}%`,
+      className: recoveryRateClassNameOrNull(globalRecoveryRatePct),
     },
   ];
 

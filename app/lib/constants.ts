@@ -365,7 +365,6 @@ export const CRON_LOCK_LEASE_MS = 16 * 60 * 1000;
  * showing "Could not read", so one hung Durable Object cannot stall the loader.
  */
 export const CRON_LOCK_PEEK_TIMEOUT_MS = 2000;
-/** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 /**
  * How far ahead the expiring-card alert looks, in days. A card expiring further
  * out is too early to warn about, and one already expired is not warned about:
@@ -373,6 +372,7 @@ export const CRON_LOCK_PEEK_TIMEOUT_MS = 2000;
  */
 export const EXPIRING_CARD_DAYS_AHEAD = 30;
 
+/** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
 export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
 // Monday 08:00 UTC. MON, not 1: Cloudflare numbers weekdays 1 = Sunday to 7 =

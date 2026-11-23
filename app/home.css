@@ -369,21 +369,6 @@
   .fh-home-label-2 {
     margin-top: auto;
   }
-  .fh-home-block-15 {
-    margin-top: var(--space-5-5);
-  }
-  .fh-home-block-16 {
-    margin-top: var(--space-3);
-  }
-  .fh-home-row-4 {
-    margin-top: var(--space-7);
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
-    gap: var(--space-5);
-    border-top: var(--line-w) solid var(--border-sub);
-    padding-top: var(--space-6);
-  }
   .fh-home-h2 {
     margin-bottom: var(--space-4);
     letter-spacing: var(--tracking-tight);

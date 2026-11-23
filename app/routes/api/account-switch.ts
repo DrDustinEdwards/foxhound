@@ -48,7 +48,12 @@ export async function action({ request, context }: Route.ActionArgs) {
 
   await setSessionActiveAccount(db, session.session.id, accountId);
 
-  // The redirect IS the re-read: every loader under the app shell runs again and resolves through the new marker.
+  // A fetch caller reloads the page itself; following a redirect would render the whole page for nothing.
+  if (request.headers.get("content-type")?.includes("application/json")) {
+    return new Response(null, { status: 204 });
+  }
+
+  // The redirect (or the caller's reload) IS the re-read: every loader under the app shell runs again and resolves through the new marker.
   return redirect(safeReturnPath(request.headers.get("referer"), request.url));
 }
 
