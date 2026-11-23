@@ -30,7 +30,7 @@ export const customerContext = sqliteTable(
     aiAssessment: text("ai_assessment"),
     aiAssessmentGeneratedAt: ts("ai_assessment_generated_at"),
     aiRecommendedActions: json("ai_recommended_actions"),
-    // The recommendation rules' action for this customer (app/lib/intelligence/recommend.ts), written by the nightly scoring batch. Its own column, because health_factors is a HealthFactor[] array and cannot carry a { recommended_action } key. Read by /intelligence/recommendations only: nothing on a money path reads it.
+    // The recommendation rules' action for this customer (app/lib/intelligence/recommend.ts), written by the nightly scoring batch. Its own column, because health_factors is a HealthFactor[] array and cannot carry a { recommended_action } key. Read by /intelligence/recommendations, the customers page and the digest: nothing on a money path reads it.
     recommendedAction: text("recommended_action"),
     createdAt: ts("created_at").notNull(),
     updatedAt: ts("updated_at").notNull(),

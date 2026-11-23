@@ -67,7 +67,7 @@ interface ActionResult {
   adjustmentInvoiceId?: string;
 }
 
-// Every action here is money-adjacent. Each is operator-guarded by the admin-guard layout (app/layouts/admin-guard.tsx, nested under the app-shell session guard), and each writes an admin_audit_log row.
+// Every action here is money-adjacent. Each is operator-guarded by the admin-shell layout (app/layouts/admin-shell.tsx, whose middleware checks the Access JWT and roster), and each writes an admin_audit_log row.
 export async function action({ context, request, params }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(adminContext);

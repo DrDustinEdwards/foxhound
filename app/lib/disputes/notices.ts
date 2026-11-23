@@ -1,6 +1,7 @@
 import { plural, titleCase } from "@drdustinedwards/site-helpers/text";
 import { isoDay } from "@drdustinedwards/site-helpers/xml";
 
+import { DISPUTE_AUTO_SUBMIT_HOURS } from "~/lib/disputes/approval";
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { CRON_SCHEDULE_MONTHLY, DISPUTE_FEE_BPS, DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import { recoveryFooterNote, type EmailNotice } from "~/lib/email/templates";
@@ -125,8 +126,8 @@ export function createdNotice(input: CreatedNoticeInput): NoticeMail {
         deadlineLine,
         ...(triageLine(input.triage) ? [triageLine(input.triage) as string] : []),
         input.autoSubmit
-          ? "Auto-submit is on. We will submit the response 24 hours before the deadline unless you change it."
-          : "Auto-submit is off. We will remind you 3 days before the deadline.",
+          ? `Auto-submit is on. We will submit the response ${DISPUTE_AUTO_SUBMIT_HOURS} hours before the deadline unless you change it.`
+          : `Auto-submit is off. We will remind you ${REMINDER_BANDS[0].daysLeft} days before the deadline.`,
       ],
       action: { label: "Review dispute", url: input.disputeUrl },
     },

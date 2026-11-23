@@ -40,7 +40,7 @@ function isOn(pathname: string, to: string, end = false): boolean {
   return pathname === to || (!end && pathname.startsWith(`${to}/`));
 }
 
-/** The business's rows in the avatar menu, under its name, each on the route the old gear linked to. The gear's other rows (Notifications, Features, Stripe connections, My account) are each one row of the Settings hub, so no page loses its way in. */
+/** The business's rows in the avatar menu, under its name, Notifications, Features, Stripe connections and My account are each one row of the Settings hub. */
 // Every settings page is in the settings sidebar, so the avatar menu stays short.
 const BUSINESS_ROW_LABELS = ["Settings", "Billing"] as const;
 

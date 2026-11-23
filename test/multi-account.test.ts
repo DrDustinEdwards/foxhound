@@ -192,11 +192,11 @@ describe("the switch action", () => {
     expect(markerOf("sess_1")).toBeNull();
   });
 
-  it("accepts a JSON body too", async () => {
+  it("accepts a JSON body too, and answers a fetch with 204 instead of a redirect", async () => {
     seedTwoAccounts();
     signIn("sess_1");
     const res = await run({ accountId: "acct_b", json: true });
-    expect(res.status).toBe(302);
+    expect(res.status).toBe(204);
     expect(markerOf("sess_1")).toBe("acct_b");
   });
 });

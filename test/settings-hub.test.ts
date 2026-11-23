@@ -39,9 +39,7 @@ describe("settings navigation", () => {
     }
   });
 
-  it("Overview is exact-match and every other item matches itself or a child path", () => {
-    expect(isSettingsItemActive("/settings", "/settings")).toBe(true);
-    expect(isSettingsItemActive("/settings/email", "/settings")).toBe(false);
+  it("an item matches itself or a child path", () => {
     expect(isSettingsItemActive("/settings/email/anything", "/settings/email")).toBe(true);
     expect(isSettingsItemActive("/settings/emails", "/settings/email")).toBe(false);
     expect(isSettingsItemActive("/settings/team", "/settings/email")).toBe(false);

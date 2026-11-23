@@ -664,9 +664,6 @@ body {
     align-items: center;
     gap: var(--space-3);
   }
-  .fh-health-score-badge-label {
-    --_line: var(--_fg);
-  }
   .fh-error-view-row {
     display: flex;
     height: 3.5rem;
@@ -874,18 +871,6 @@ body {
     line-height: var(--leading-tight-5);
     letter-spacing: var(--tracking-tight);
   }
-  .fh-pill-edge {
-    --_line: var(--_fg);
-  }
-  .fh-pill-accent {
-    --_bg: var(--accent-soft);
-    --_fg: var(--accent-text);
-  }
-  .fh-pill-plain {
-    --_bg: var(--raised);
-    --_fg: var(--dim);
-    --_line: var(--line);
-  }
   .fh-chrome-text {
     color: var(--chrome-text);
   }
@@ -898,10 +883,5 @@ body {
   }
   .fh-chrome-brand {
     color: var(--header-brand);
-  }
-  .fh-post-preview {
-    margin-inline: auto;
-    max-width: 680px;
-    padding: var(--space-8) var(--space-6);
   }
 }

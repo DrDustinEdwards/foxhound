@@ -8,7 +8,7 @@ import "capsomer/select.css";
 import "capsomer/status.css";
 // Capsomer's tokens and the amber family, which the components above read, as the disputes list and the payment pages load them.
 import "~/site-header.css";
-import { DISPUTE_FEE_CAP_CENTS, type DisputeState } from "~/lib/constants";
+import { type DisputeState } from "~/lib/constants";
 import { useDraftDirty } from "capsomer/react/form-hooks";
 import { Form, useFetcher, useNavigation, useSearchParams } from "react-router";
 import { InlineConfirm } from "capsomer/react/inline-confirm";
@@ -22,7 +22,6 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
-import { disputeFeeCents } from "~/lib/billing/fees";
 import { canApprove } from "~/lib/disputes/approval";
 import {
   ACCEPT_UNAVAILABLE_APPROVED_LINE,
@@ -173,7 +172,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   } = useDraftDirty(savedOk ? saveFetcher.data : undefined);
   const resolved = isDisputeResolved(state);
   const outcome = outcomeWord(state);
-  const fee = disputeFeeCents(dispute.amountCents, DISPUTE_FEE_CAP_CENTS);
   const days = daysUntilDeadline(dispute.evidenceDeadline, nowMs);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
   const shippingEditable = draftEditable && shipsPhysical;
@@ -641,10 +639,9 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           <Panel title="Approve and submit">
             <div className="fh-small">
               <p className="fh-soft">
-                Submitting this evidence to Stripe approves a fee of{" "}
-                <span className="fh-mono fh-text">{formatMoney(fee, dispute.currency)}</span> (
-                {disputeFeeTerms()}) if Foxhound wins this dispute. Merchant-fought or lost disputes
-                are never billed.
+                Submitting this evidence to Stripe approves a fee ({disputeFeeTerms()}, converted at
+                Stripe's rate) if Foxhound wins this dispute. Merchant-fought or lost disputes are
+                never billed.
               </p>
               {approveError ? (
                 <div className="fh-dispute-gap">
@@ -659,11 +656,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                 <div className="cap-cluster fh-dispute-more" data-gap="4">
                   <Form method="post">
                     <input type="hidden" name="intent" value="approve" />
-                    <ApproveButton
-                      label={`Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
-                      approving={approving}
-                      dirty={dirty}
-                    />
+                    <ApproveButton label="Approve and submit" approving={approving} dirty={dirty} />
                   </Form>
                   {approval ? (
                     <p className="fh-soft">{ACCEPT_UNAVAILABLE_APPROVED_LINE}</p>
