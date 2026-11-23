@@ -2,11 +2,18 @@ import { reactRouter } from "@react-router/dev/vite";
 import { cloudflare } from "@cloudflare/vite-plugin";
 import { nativeBuiltins } from "@dustinedwards/devkit/vite/native-builtins";
 import { siteScript } from "@dustinedwards/devkit/vite/site-script";
+import { fileURLToPath } from "node:url";
+
 import { defineConfig } from "vite";
 
 export default defineConfig({
   resolve: {
     tsconfigPaths: true,
+    // sanitize-html requires postcss only to parse style attributes, which email-preview.server.ts
+    // turns off (parseStyleAttributes: false); the stub keeps postcss and its parser out of the Worker.
+    alias: {
+      postcss: fileURLToPath(new URL("./app/lib/recovery/postcss-stub.ts", import.meta.url)),
+    },
   },
   // The Worker bundle (wrangler deploys it unbundled, so wrangler's own minify
   // does not apply): minified, names kept for stack traces and

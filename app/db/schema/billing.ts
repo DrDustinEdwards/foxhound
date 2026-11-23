@@ -41,7 +41,7 @@ export const billingLineItems = sqliteTable(
       .notNull()
       .references(() => billingInvoices.id),
     accountId: accountRef(),
-    // recovery_fee | dispute_fee | subscription | adjustment (PRICING.md)
+    // recovery_fee | dispute_fee | subscription | adjustment | credit (PRICING.md)
     type: text("type").notNull(),
     currency: text("currency").notNull(),
     // signed for adjustment; otherwise the billed amount in cents

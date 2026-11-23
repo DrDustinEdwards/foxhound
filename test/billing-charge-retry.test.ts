@@ -160,19 +160,26 @@ async function seed(opts: SeedOpts = {}) {
  *  It now models Stripe's actual rule: an invoice must be finalized before it
  *  can be paid, and paying a draft is an error. */
 function stripeDeps(
-  existing: { id: string; status: string; hosted_invoice_url?: string | null } | null,
+  existing: {
+    id: string;
+    status: string;
+    total?: number;
+    hosted_invoice_url?: string | null;
+  } | null,
   overrides: Record<string, unknown> = {},
 ) {
   const calls: string[] = [];
   // Mutable so `finalize` can move it out of draft, exactly as Stripe would.
   const state = { status: existing?.status ?? null };
+  // The seeded invoice holds one 2,000-cent line; a draft's total defaults to it.
+  const total = existing?.total ?? 2_000;
   return {
     calls,
     state,
     deps: {
       findExisting: async () => {
         calls.push("findExisting");
-        return (existing ? { ...existing, status: state.status as string } : null) as never;
+        return (existing ? { ...existing, total, status: state.status as string } : null) as never;
       },
       create: async () => {
         calls.push("create");
@@ -324,6 +331,17 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     expect(row.chargeAttemptCount).toBe(1);
     // And it leaves the sweep's set for good.
     expect(await queryStrandedInvoices({} as Env, 100)).toEqual([]);
+  });
+
+  it("leaves a draft whose attached items do not add up to the invoice untouched", async () => {
+    const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
+    const { calls, deps } = stripeDeps({ id: "in_platform_draft", status: "draft", total: 0 });
+    const [invoice] = await queryStrandedInvoices({} as Env, 100);
+
+    const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
+    expect(result).toMatchObject({ outcome: "skipped", reason: "draft_lines_incomplete" });
+    expect(calls).toEqual(["findExisting"]);
+    expect((await db.select().from(schema.billingInvoices))[0].status).toBe("draft");
   });
 
   it("counts the attempt when finalize fails, so the cap can bind", async () => {

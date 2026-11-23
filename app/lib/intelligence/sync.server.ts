@@ -2,18 +2,7 @@ import type Stripe from "stripe";
 import type { BatchItem } from "drizzle-orm/batch";
 import { and, eq, isNull, notLike, sql } from "drizzle-orm";
 
-import {
-  accounts,
-  customerContext,
-  disputes,
-  engagementEvents,
-  failedPayments,
-  getDb,
-  mrrSnapshots,
-  recoveredPayments,
-  recoverySteps,
-  type Db,
-} from "~/db";
+import { accounts, customerContext, getDb, mrrSnapshots } from "~/db";
 import {
   DAY_MS,
   DEMO_ACCOUNT_ID_PREFIX,
@@ -32,14 +21,15 @@ import {
   monthlyEquivalentCents,
   type ActiveSubscriptionSnapshot,
   type BillingInterval,
-  type CustomerContextFields,
-  type DisputeSignalRow,
-  type EngagementSignalRow,
   type InvoicePaymentObservation,
   type RawBillingLineObservation,
-  type RecoverySignalRow,
 } from "./signals";
-import { buildMrrSnapshotFields, type ChurnReason, type CustomerMrrPoint } from "./mrr";
+import {
+  buildMrrSnapshotFields,
+  churnReasonOf,
+  type ChurnReason,
+  type CustomerMrrPoint,
+} from "./mrr";
 import {
   discountedItemCents,
   earliestScheduledChange,
@@ -50,8 +40,10 @@ import {
   type ScheduledChange,
   type ScheduleTerms,
 } from "./subscription-terms";
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { stripeMs } from "~/lib/stripe/time";
+import { buildCustomerContextUpsert, fetchFoxhoundHistoryByCustomer } from "./sync-writes.server";
 
 // The live Stripe + D1 seam for the deterministic Intelligence engine: one enumeration per account per run
 // feeds both customer_context (per-customer signals) and mrr_snapshots (the free MRR tier), so Stripe is read
@@ -77,12 +69,6 @@ function productName(product: Stripe.Price["product"] | undefined): string | nul
   if (!product || typeof product === "string") return null;
   if ("deleted" in product && product.deleted) return null;
   return (product as Stripe.Product).name ?? null;
-}
-
-function subscriptionCancellationChurnReason(sub: Stripe.Subscription): ChurnReason {
-  const reason = sub.cancellation_details?.reason;
-  if (!reason) return null;
-  return reason === "payment_failed" || reason === "payment_disputed" ? "involuntary" : "voluntary";
 }
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -173,7 +159,7 @@ function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription
     status: sub.status,
     createdMs: stripeMs(sub.created),
     currency: sub.currency,
-    churnReason: sub.status === "canceled" ? subscriptionCancellationChurnReason(sub) : null,
+    churnReason: sub.status === "canceled" ? churnReasonOf(sub.cancellation_details?.reason) : null,
     cancelAtMs: stripeMs(sub.cancel_at),
     items: sub.items.data.map((item) => ({
       priceId: item.price.id,
@@ -369,110 +355,8 @@ async function fetchCustomerStripeSnapshot(
   };
 }
 
-/** Foxhound's own recovery/dispute/engagement history, read once per run and grouped by stripeCustomerId
- *  in memory (avoids an N+1 query per customer). */
-async function fetchFoxhoundHistoryByCustomer(db: Db, accountId: string) {
-  const [recoveryRows, disputeRows, engagementRows] = await Promise.all([
-    db
-      .select({
-        stripeCustomerId: failedPayments.stripeCustomerId,
-        status: failedPayments.status,
-        daysToRecover: recoveredPayments.daysToRecover,
-      })
-      .from(failedPayments)
-      .leftJoin(recoveredPayments, eq(recoveredPayments.failedPaymentId, failedPayments.id))
-      .where(and(eq(failedPayments.accountId, accountId), isNull(failedPayments.deletedAt))),
-    db
-      .select({ stripeCustomerId: disputes.stripeCustomerId, state: disputes.state })
-      .from(disputes)
-      .where(eq(disputes.accountId, accountId)),
-    db
-      .select({
-        stripeCustomerId: failedPayments.stripeCustomerId,
-        eventType: engagementEvents.eventType,
-        occurredAt: engagementEvents.occurredAt,
-      })
-      .from(engagementEvents)
-      .innerJoin(recoverySteps, eq(recoverySteps.id, engagementEvents.recoveryStepId))
-      .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
-      .where(eq(engagementEvents.accountId, accountId)),
-  ]);
-
-  const byCustomer = <T>(): Map<string, T[]> => new Map<string, T[]>();
-  const recovery = byCustomer<RecoverySignalRow>();
-  for (const r of recoveryRows) {
-    const list = recovery.get(r.stripeCustomerId) ?? [];
-    list.push({ status: r.status, daysToRecover: r.daysToRecover });
-    recovery.set(r.stripeCustomerId, list);
-  }
-  const dispute = byCustomer<DisputeSignalRow>();
-  for (const d of disputeRows) {
-    if (!d.stripeCustomerId) continue;
-    const list = dispute.get(d.stripeCustomerId) ?? [];
-    list.push({ state: d.state });
-    dispute.set(d.stripeCustomerId, list);
-  }
-  const engagement = byCustomer<EngagementSignalRow>();
-  for (const e of engagementRows) {
-    const list = engagement.get(e.stripeCustomerId) ?? [];
-    list.push({ eventType: e.eventType, occurredAt: e.occurredAt.getTime() });
-    engagement.set(e.stripeCustomerId, list);
-  }
-  return { recovery, dispute, engagement };
-}
-
-function buildCustomerContextUpsert(
-  db: Db,
-  input: {
-    accountId: string;
-    stripeCustomerId: string;
-    customerEmail: string | null;
-    customerName: string | null;
-    customerSince: Date;
-    now: Date;
-    fields: CustomerContextFields;
-    scheduledChange: ScheduledChange | null;
-  },
-): BatchItem<"sqlite"> {
-  const { fields } = input;
-  const shared = {
-    customerEmail: input.customerEmail,
-    customerName: input.customerName,
-    customerSince: input.customerSince,
-    lastSeenAt: input.now,
-    mrrContributionCents: fields.mrrContributionCents,
-    activeSubscriptionsCount: fields.activeSubscriptionsCount,
-    currentPlanName: fields.currentPlanName,
-    recoverySignals: fields.recoverySignals,
-    disputeSignals: fields.disputeSignals,
-    engagementSignals: fields.engagementSignals,
-    subscriptionAgeDays: fields.subscriptionAgeDays,
-    planChangeCount: fields.planChangeCount,
-    seatChangeCount: fields.seatChangeCount,
-    intervalSwitchCount: fields.intervalSwitchCount,
-    paymentLatencyDriftDays: fields.paymentLatencyDriftDays,
-    refundCount: fields.refundCount,
-    disputeCount: fields.disputeCount,
-    scheduledChangeKind: input.scheduledChange?.kind ?? null,
-    scheduledChangeAt: input.scheduledChange ? new Date(input.scheduledChange.atMs) : null,
-    updatedAt: input.now,
-  };
-  // onConflictDoUpdate's `set` omits healthScore / healthFactors / aiAssessment / aiAssessmentGeneratedAt /
-  // aiRecommendedActions / currentPlanTier so a re-run never clobbers what the AI half wrote; currency and
-  // ltvCents are omitted because nothing sources them (see signals.ts buildCustomerContextFields).
-  return db
-    .insert(customerContext)
-    .values({
-      accountId: input.accountId,
-      stripeCustomerId: input.stripeCustomerId,
-      createdAt: input.now,
-      ...shared,
-    })
-    .onConflictDoUpdate({
-      target: [customerContext.accountId, customerContext.stripeCustomerId],
-      set: shared,
-    });
-}
+/** Customer upserts per D1 batch. */
+const UPSERTS_PER_BATCH = 100;
 
 export interface AccountSyncResult {
   accountId: string;
@@ -482,6 +366,8 @@ export interface AccountSyncResult {
    *  resumption cursor and Stripe lists newest-first, so a truncated account rescans the same customers every
    *  run; this flag makes that visible in cron_run_log instead of silently under-covering the account. */
   truncated: boolean;
+  /** The failure that stopped this account's sync, else null. The cron handler fails the run on any. */
+  error: string | null;
 }
 
 /** Runs the deterministic sync for one account: upserts every Stripe customer's customer_context row and
@@ -494,7 +380,13 @@ export async function runIntelligenceSyncForAccount(
   const db = getDb(env);
   const connection = await findActiveConnection(db, accountId);
   if (!connection?.stripeAccessToken) {
-    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated: false };
+    return {
+      accountId,
+      customersProcessed: 0,
+      snapshotWritten: false,
+      truncated: false,
+      error: null,
+    };
   }
 
   const [account] = await db
@@ -529,6 +421,7 @@ export async function runIntelligenceSyncForAccount(
 
   const now = new Date(nowMs);
   const currentPoints: CustomerMrrPoint[] = [];
+  // Sliced into batches of UPSERTS_PER_BATCH below, so thousands of customers are not one D1 call.
   const upserts: BatchItem<"sqlite">[] = [];
   const coupons: CouponCache = new Map();
   let scanned = 0;
@@ -579,13 +472,13 @@ export async function runIntelligenceSyncForAccount(
     );
   }
 
-  if (upserts.length > 0) {
-    await db.batch([upserts[0], ...upserts.slice(1)]);
+  for (const slice of chunked(upserts, UPSERTS_PER_BATCH)) {
+    await db.batch([slice[0], ...slice.slice(1)]);
   }
 
   // Nothing to snapshot: no customers and no prior snapshot would just record an all-zero row.
   if (currentPoints.length === 0 && !hasPriorSnapshot) {
-    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated };
+    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated, error: null };
   }
   // A scan cut off at the cap saw only part of the customers, so its MRR row would chart a drop that never
   // happened. The run reports truncated and the charts keep the last complete day.
@@ -595,6 +488,7 @@ export async function runIntelligenceSyncForAccount(
       customersProcessed: currentPoints.length,
       snapshotWritten: false,
       truncated,
+      error: null,
     };
   }
 
@@ -638,7 +532,13 @@ export async function runIntelligenceSyncForAccount(
     .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
     .where(eq(accounts.id, accountId));
 
-  return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
+  return {
+    accountId,
+    customersProcessed: currentPoints.length,
+    snapshotWritten: true,
+    truncated,
+    error: null,
+  };
 }
 
 /** Account-level gate for the sync: respects processing_paused and cancelledAt, excludes demo accounts
@@ -673,6 +573,7 @@ export async function runIntelligenceSyncForAllAccounts(
         customersProcessed: 0,
         snapshotWritten: false,
         truncated: false,
+        error: errorMessage(err),
       });
       console.error(`intelligence sync failed for account ${id}:`, errorMessage(err));
     }

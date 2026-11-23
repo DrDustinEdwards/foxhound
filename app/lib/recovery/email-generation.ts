@@ -2,7 +2,7 @@ import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anth
 
 import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
 import {
-  PLAIN_WRITING_LINES,
+  PLAIN_WRITING_PROMPT,
   findStockPhrasing,
   ownPhrasing,
   retryStockPhrasing,
@@ -380,8 +380,7 @@ function buildSystemPrompt(brandVoice: string, samples: readonly string[]): stri
     "- Sound like a real person from the business, not a template.",
     "- Keep it short. One clear call to action: the update link provided.",
     "- Output valid HTML for the body.",
-    "Plain writing:",
-    ...PLAIN_WRITING_LINES,
+    PLAIN_WRITING_PROMPT,
   ].join("\n");
 }
 

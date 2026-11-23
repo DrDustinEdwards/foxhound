@@ -112,6 +112,16 @@ export async function submitDisputeEvidenceWithClient(
   }
 }
 
+/** Whether Stripe already holds an evidence submission for the dispute (evidence_details.submission_count). */
+export async function disputeSubmittedAtStripe(
+  env: Env,
+  ctx: { stripeDisputeId: string; connectionAccessToken: string },
+): Promise<boolean> {
+  const stripe = getConnectedStripe(await decryptToken(env, ctx.connectionAccessToken));
+  const dispute = await stripe.disputes.retrieve(ctx.stripeDisputeId);
+  return (dispute.evidence_details?.submission_count ?? 0) > 0;
+}
+
 export interface DisputeSubmissionContext {
   stripeDisputeId: string;
   /**

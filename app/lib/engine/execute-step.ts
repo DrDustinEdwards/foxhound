@@ -125,9 +125,6 @@ const TEMPLATE_LABEL_GENERATED = "recovery_dunning";
 /** email_sends.template label for a template-fallback send; distinct so the fallback rate is queryable off email_sends. */
 export const TEMPLATE_LABEL_FALLBACK = "recovery_dunning_template";
 
-// Re-exported so callers keep one import.
-export { recoveryFooterNote };
-
 export function buildRecoveryEmailJob(
   ctx: EmailStepContext,
   copy: EmailCopy,

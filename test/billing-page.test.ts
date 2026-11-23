@@ -15,7 +15,7 @@ import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.
 
 const { buildRecoveryHistory, buildDisputeFeeRows, BILLING_HISTORY_LIMIT } =
   await import("~/lib/billing/page.server");
-const { ordinal, subscriptionDetail } = await import("~/lib/billing/page");
+const { ordinal } = await import("~/lib/billing/page");
 const finalizeCalls = vi.hoisted(() => ({ n: 0 }));
 vi.mock("~/lib/billing/platform-customer", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/billing/platform-customer")>()),
@@ -256,21 +256,6 @@ describe("buildDisputeFeeRows", () => {
     );
     const byId = Object.fromEntries(rows.map((r) => [r.disputeId, r.feeCapped]));
     expect(byId).toEqual({ dsp_big: true, dsp_small: false });
-  });
-});
-
-describe("subscriptionDetail", () => {
-  const end = T("2026-09-01T00:00:00.000Z");
-  it("renews, cancels on, expired, and nothing without a period end", () => {
-    const detail = (status: string, canceledAt: Date | null, currentPeriodEndsAt: Date | null) =>
-      subscriptionDetail({ status, canceledAt, currentPeriodEndsAt });
-    expect(detail("active", null, end)).toEqual({ text: "Renews Sep 1, 2026", warn: false });
-    expect(detail("active", T("2026-08-01T00:00:00.000Z"), end)).toEqual({
-      text: "Cancels on Sep 1, 2026",
-      warn: true,
-    });
-    expect(detail("canceled", end, end)).toEqual({ text: "Expired Sep 1, 2026", warn: false });
-    expect(detail("active", null, null)).toBeNull();
   });
 });
 

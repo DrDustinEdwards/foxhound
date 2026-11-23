@@ -27,7 +27,7 @@ export async function recordUnsubscribe(
   const written = await db
     .insert(emailSuppressions)
     .values({
-      email: payload.email,
+      email: payload.email.toLowerCase(),
       token,
       reason: UNSUBSCRIBE_REASON,
       accountId: payload.accountId,

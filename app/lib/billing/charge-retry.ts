@@ -13,6 +13,7 @@ import {
   lookupPlatformBillingEmail,
 } from "./platform-customer";
 import {
+  chargeableLines,
   createPlatformInvoice,
   finalizePlatformInvoice,
   findPlatformInvoiceByBillingId,
@@ -355,9 +356,7 @@ export async function retryInvoiceCharge(
   if (!existing) {
     const attemptCount = invoice.chargeAttemptCount + 1;
     const decision = decideFeeRetryAction({
-      // No Stripe invoice exists, so there is no live status to read. "draft"
-      // routes it through the caps, which is what should bound a create that
-      // keeps failing.
+      // No live status to read: "draft" routes it through the caps, which bound a create that keeps failing.
       invoiceStatus: "draft",
       attemptCount: invoice.chargeAttemptCount,
       invoiceCreatedMs: invoice.createdAt.getTime(),
@@ -397,14 +396,8 @@ export async function retryInvoiceCharge(
         billingEmail: () => lookupPlatformBillingEmail(env, invoice.accountId),
       });
     } catch (err) {
-      // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED.
-      //
-      // The pay path below has always done this; the CREATE path did not, so a
-      // throw here propagated to the sweep's per-invoice catch with nothing
-      // written. charge_attempt_count never moved, decideFeeRetryAction's
-      // attempt cap was therefore unreachable on this branch, and an invoice
-      // whose create fails permanently was retried every month until the AGE
-      // cap eventually stopped it.
+      // COUNT THE ATTEMPT EVEN THOUGH THE STRIPE CALL FAILED, as the pay path does: otherwise
+      // charge_attempt_count never moves and the attempt cap is unreachable on this branch.
       await writeAttempt(env, invoice, {
         status: "payment_failed",
         stripeInvoiceId: null,
@@ -429,6 +422,16 @@ export async function retryInvoiceCharge(
   }
 
   const liveStatus = existing.status ?? "open";
+
+  // A draft is finalized only when its items add up to the chargeable lines we hold: createPlatformInvoice
+  // attaches them one by one, and a throw midway leaves some. Re-attaching could double-bill (item keys
+  // expire in 24 hours, the sweep runs monthly), so the draft is left for review.
+  if (liveStatus === "draft") {
+    const { lines } = await loadLines(env, invoice.id);
+    if (existing.total !== chargeableLines(lines).reduce((sum, l) => sum + l.amountCents, 0)) {
+      return { invoiceId: invoice.id, outcome: "skipped", reason: "draft_lines_incomplete" };
+    }
+  }
 
   // AN EMAILED INVOICE IS NEVER CHARGED BY THE SWEEP. Writes go through
   // writeAttempt, the sweep's one money write, with the attempt count
@@ -465,16 +468,14 @@ export async function retryInvoiceCharge(
   const attemptCount = invoice.chargeAttemptCount + 1;
   const stripeInvoiceId = existing.id as string;
 
-  // The SECOND money-moving path, and the one the follow-up task did not name:
-  // payPlatformInvoice collects on an existing Stripe invoice. Guarding only
-  // the create branch would have left the more common retry path unguarded.
+  // The second money-moving path: payPlatformInvoice collects on an existing Stripe invoice.
+  if (liveStatus === "draft") {
+  }
   const blockedBeforePay = await blockedByGuard();
   if (blockedBeforePay) return blockedBeforePay;
 
   try {
-    // A Stripe DRAFT cannot be paid, it has to be finalized first. This is the
-    // "createPlatformInvoice threw on its own finalize" stranding: Stripe holds
-    // the draft with the items already attached.
+    // A Stripe DRAFT cannot be paid, it has to be finalized first (createPlatformInvoice threw on its own finalize).
     if (liveStatus === "draft") {
       await finalize(env, stripeInvoiceId, invoice.id);
     }
@@ -488,9 +489,7 @@ export async function retryInvoiceCharge(
     });
     return { invoiceId: invoice.id, outcome: "retried", reason: decision.reason };
   } catch (err) {
-    // Count the attempt even though the Stripe call failed, so a permanently
-    // failing invoice reaches the attempt cap instead of being retried monthly
-    // until the age cap. Recording it is what makes the cap reachable at all.
+    // Counted although the Stripe call failed, so a permanently failing invoice reaches the attempt cap.
     await writeAttempt(env, invoice, {
       status: "payment_failed",
       stripeInvoiceId,

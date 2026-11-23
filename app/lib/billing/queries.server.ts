@@ -1,9 +1,8 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
 import {
-  accountSubscriptions,
   adminAuditLog,
   billingInvoices,
   billingLineItems,
@@ -186,18 +185,4 @@ export async function getBillingInvoiceDetail(
       (a, b) => a.lineItem.createdAt.getTime() - b.lineItem.createdAt.getTime(),
     ),
   };
-}
-
-export async function listAccountSubscriptions(db: Db, accountId: string) {
-  return db
-    .select({
-      id: accountSubscriptions.id,
-      product: accountSubscriptions.product,
-      status: accountSubscriptions.status,
-      currentPeriodEndsAt: accountSubscriptions.currentPeriodEndsAt,
-      canceledAt: accountSubscriptions.canceledAt,
-    })
-    .from(accountSubscriptions)
-    .where(eq(accountSubscriptions.accountId, accountId))
-    .orderBy(asc(accountSubscriptions.createdAt));
 }

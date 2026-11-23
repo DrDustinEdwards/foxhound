@@ -6,9 +6,9 @@
     "measured_at": "bcbd23a",
     "knip": {},
     "jscpd": {
-      "clones": 86,
-      "lines": 837,
-      "percentage": 0.79,
+      "clones": 83,
+      "lines": 781,
+      "percentage": 0.74,
       "unread": 1
     },
     "shared copies": {
@@ -24,19 +24,19 @@
       "app/lib/admin-api/handler.server.ts": 680,
       "app/lib/admin/email-send.server.ts": 861,
       "app/lib/admin/merchants.server.ts": 568,
-      "app/lib/audit/engine.ts": 540,
-      "app/lib/billing/charge-retry.ts": 656,
+      "app/lib/audit/engine.ts": 539,
+      "app/lib/billing/charge-retry.ts": 655,
       "app/lib/billing/credit-note.ts": 512,
       "app/lib/billing/run.ts": 590,
       "app/lib/carrel/adapter.server.ts": 694,
-      "app/lib/constants.ts": 651,
+      "app/lib/constants.ts": 648,
       "app/lib/cron/recovery-tick.ts": 550,
       "app/lib/decline-codes/content.ts": 1238,
       "app/lib/demo/customer-base.ts": 1039,
       "app/lib/demo/disputes-seed.ts": 542,
       "app/lib/demo/intelligence-seed.ts": 613,
       "app/lib/demo/recovery-seed.ts": 777,
-      "app/lib/intelligence/sync.server.ts": 681,
+      "app/lib/intelligence/sync.server.ts": 582,
       "app/lib/marketing/docs-content.ts": 1004,
       "app/lib/marketing/features-content.ts": 836,
       "app/lib/mcp/tools.server.ts": 1294,
@@ -56,13 +56,13 @@
       "app/routes/terms.tsx": 789
     },
     "tests": {
-      "files": 270,
-      "cases": 1657
+      "files": 272,
+      "cases": 1666
     },
     "comments": {
-      "lines": 15742,
+      "lines": 15713,
       "code": 130180,
-      "percentage": 10.79
+      "percentage": 10.78
     }
   }
 }

@@ -9,6 +9,8 @@ const SANITIZE_OPTIONS: sanitizeHtml.IOptions = {
   allowedSchemes: ["http", "https", "mailto"],
   allowProtocolRelative: false,
   disallowedTagsMode: "discard",
+  // No allowedStyles, so no style parsing: vite.config.ts aliases postcss to a stub that throws.
+  parseStyleAttributes: false,
 };
 
 export function sanitizeEmailPreviewHtml(html: string): string {

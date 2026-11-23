@@ -27,7 +27,11 @@ import {
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { SUBMITTED_AUTOMATICALLY, SUBMITTED_EXTERNALLY } from "~/lib/disputes/labels";
 import { readEvidenceFilesForSubmission } from "~/lib/disputes/evidence-files.server";
-import { buildStripeEvidencePayload, submitDisputeEvidence } from "~/lib/disputes/submission";
+import {
+  buildStripeEvidencePayload,
+  disputeSubmittedAtStripe,
+  submitDisputeEvidence,
+} from "~/lib/disputes/submission";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 
 // Disputes read models + the plain (non-money) evidence-edit write (Phase 5
@@ -302,11 +306,16 @@ export async function approveAndSubmitDispute(
       } catch (err) {
         if (!isUniqueConstraintError(err)) throw err;
         // A row already exists: a CONFIRMED submission (submitted_at set ->
-        // reject) or a prior unconfirmed attempt (-> resume and re-submit).
+        // reject) or an unconfirmed one (a failed attempt or a concurrent request -> resume, reading Stripe first).
         const submittedAt = await getDisputeSubmittedAt(db, input.accountId, input.disputeId);
         return submittedAt != null ? "already_submitted" : "resume";
       }
     },
+    submittedAtStripe: () =>
+      disputeSubmittedAtStripe(env, {
+        stripeDisputeId: input.stripeDisputeId,
+        connectionAccessToken: input.connectionAccessToken,
+      }),
     // Phase B.
     submit: async () =>
       submitDisputeEvidence(env, {

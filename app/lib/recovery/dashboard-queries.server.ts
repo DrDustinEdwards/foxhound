@@ -19,6 +19,7 @@ import {
 } from "drizzle-orm";
 import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 import { byAccountActive } from "~/db/scope";
+import { stepPendingCondition } from "~/lib/cron/due-steps";
 import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
 import { billableRecoveryRowConditions, exemptionForgaveRecovery } from "~/db/billable";
 import {
@@ -484,7 +485,10 @@ export async function listUpcomingSteps(
     .where(
       and(
         eq(recoverySteps.accountId, accountId),
-        isNull(recoverySteps.executedAt),
+        // What the cron will send: pending (stepDueCondition's pieces) on a still-active, undeleted payment.
+        stepPendingCondition(),
+        eq(failedPayments.status, "active"),
+        isNull(failedPayments.deletedAt),
         gte(recoverySteps.scheduledAt, now),
         lte(recoverySteps.scheduledAt, until),
       ),

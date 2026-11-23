@@ -37,7 +37,6 @@ import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 import {
-  CRITICAL_CUSTOMERS_ALERT_LIVE,
   loadAlertTarget,
   notifyCriticalCustomers,
   notifyThresholdAlert,
@@ -303,7 +302,7 @@ async function evaluateAccountAlerts(
         now,
       )
     : 0;
-  if (CRITICAL_CUSTOMERS_ALERT_LIVE) await runCriticalCustomersCheck(env, db, account.id, now);
+  await runCriticalCustomersCheck(env, db, account.id, now);
   return fired;
 }
 

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { getDb, emailSends, emailSuppressions } from "~/db";
@@ -79,7 +79,10 @@ async function resolveEventAccountId(db: Db, event: EmailServiceEvent): Promise<
   return send?.accountId ?? null;
 }
 
-/** The suppression insert for a suppressing event; a duplicate address is a no-op via the unique index. */
+/**
+ * The suppression insert for a suppressing event, the address stored lowercase. A duplicate address is a
+ * no-op via the unique index, except a migrated row with suppressed_at NULL, which this suppresses.
+ */
 export function buildSuppressionInsert(
   db: Db,
   input: { email: string; token: string; reason: string; accountId: string | null; now: Date },
@@ -87,13 +90,22 @@ export function buildSuppressionInsert(
   return db
     .insert(emailSuppressions)
     .values({
-      email: input.email,
+      email: input.email.toLowerCase(),
       token: input.token,
       reason: input.reason,
       accountId: input.accountId,
       suppressedAt: input.now,
     })
-    .onConflictDoNothing({ target: emailSuppressions.email });
+    .onConflictDoUpdate({
+      target: emailSuppressions.email,
+      set: {
+        suppressedAt: input.now,
+        reason: input.reason,
+        token: input.token,
+        accountId: input.accountId,
+      },
+      setWhere: isNull(emailSuppressions.suppressedAt),
+    });
 }
 
 export async function recordEmailEvent(

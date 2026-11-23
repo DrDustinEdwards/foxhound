@@ -10,7 +10,6 @@ import {
   cumulativeRecoveryRateDaily,
   recoveryTimingBuckets,
   resolveRangeCutoff,
-  sumCentsByDayWindow,
 } from "~/lib/dashboard/recovery-window";
 
 // TASK-foxhound-recovery-surface-parity.md Phase 1: unit tests on the
@@ -161,22 +160,5 @@ describe("classifyWebhookHealth", () => {
 
   it("over 3 days: failure", () => {
     expect(classifyWebhookHealth(new Date(NOW - 100 * 60 * 60 * 1000), NOW).tone).toBe("failure");
-  });
-});
-
-describe("sumCentsByDayWindow", () => {
-  it("sums same-day amounts and zero-fills days with nothing", () => {
-    const points = sumCentsByDayWindow(
-      [
-        { date: new Date(NOW), cents: 500 },
-        { date: new Date(NOW), cents: 250 },
-      ],
-      3,
-      NOW,
-    );
-    expect(points).toHaveLength(3);
-    expect(points[2].cents).toBe(750); // today
-    expect(points[0].cents).toBe(0);
-    expect(points[1].cents).toBe(0);
   });
 });

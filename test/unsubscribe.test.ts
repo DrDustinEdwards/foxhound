@@ -191,6 +191,40 @@ describe("unsubscribe suppression write (real sqlite)", () => {
       .where(eq(schema.emailSuppressions.email, "cust@example.com"));
     expect(rows).toHaveLength(1);
   });
+
+  it("matches the address in any case, and a bounce suppresses a migrated unsuppressed row", async () => {
+    const { db } = createInMemoryDb();
+    await db.insert(schema.accounts).values({ id: "acc_1", name: "Acme" });
+    await db.insert(schema.emailSuppressions).values({
+      email: "migrated@example.com",
+      token: "tok_m",
+      reason: null,
+      accountId: "acc_1",
+      suppressedAt: null,
+    });
+    await db.insert(schema.emailSuppressions).values({
+      email: "Legacy@Example.com",
+      token: "tok_l",
+      reason: "unsubscribe",
+      accountId: "acc_1",
+      suppressedAt: now,
+    });
+    await buildSuppressionInsert(db, {
+      email: "Migrated@Example.com",
+      token: "tok_b",
+      reason: "bounce",
+      accountId: "acc_1",
+      now,
+    });
+    harness.db = db;
+    const env = makeEnv();
+    const gates = await SendGates.read(env, [
+      { to: "migrated@example.com", accountId: null },
+      { to: "legacy@example.com", accountId: null },
+    ]);
+    expect(gates.suppressed({ to: "migrated@example.com", accountId: null })).toBe(true);
+    expect(gates.suppressed({ to: "legacy@example.com", accountId: null })).toBe(true);
+  });
 });
 
 describe("the link signing key (EMAIL_TOKEN_KEY, falling back to ENCRYPTION_KEY)", () => {

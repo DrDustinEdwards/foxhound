@@ -2,7 +2,7 @@ import { plural } from "@drdustinedwards/site-helpers/text";
 import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
 
 import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
-import { PLAIN_WRITING_LINES, ownPhrasing } from "~/lib/ai/plain-writing";
+import { PLAIN_WRITING_PROMPT, ownPhrasing } from "~/lib/ai/plain-writing";
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import {
@@ -88,11 +88,10 @@ export function buildWinbackPrompt(input: WinbackPromptInput): string {
     "- Do NOT be desperate or salesy, be genuine",
     "- Never use timing words like 'today', 'tonight', 'yesterday', 'this morning', 'this afternoon', 'this evening', 'right now', 'immediately' or 'by end of day' in the subject or the body, you do not know when the customer will read this",
     "",
-    "Plain writing:",
-    ...PLAIN_WRITING_LINES,
+    PLAIN_WRITING_PROMPT,
     "",
     "Respond ONLY in this exact JSON format with no preamble or markdown:",
-    '{"subject":"<email subject line>","body":"<full HTML email body>"}',
+    '{"subject":"<email subject line>","bodyHtml":"<full HTML email body>"}',
   ].join("\n");
 }
 

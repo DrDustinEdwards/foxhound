@@ -3,6 +3,7 @@
 import { likeContains } from "@dustinedwards/site-runtime/d1";
 import { and, asc, desc, eq, gte, lt, or, sql } from "drizzle-orm";
 import { customerContext, type Db } from "~/db";
+import { customerCurrency } from "./recommendations.server";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { WATCH_CEILING, type HealthScoreBand } from "./health-band";
 
@@ -102,7 +103,7 @@ export async function listCustomerDirectory(
       customerEmail: customerContext.customerEmail,
       currentPlanTier: customerContext.currentPlanTier,
       mrrContributionCents: customerContext.mrrContributionCents,
-      currency: customerContext.currency,
+      currency: customerCurrency,
       healthScore: customerContext.healthScore,
       lastSeenAt: customerContext.lastSeenAt,
       recoverySignals: customerContext.recoverySignals,
@@ -121,7 +122,6 @@ export async function listCustomerDirectory(
     customers: rows.map((r) => ({
       ...r,
       mrrContributionCents: r.mrrContributionCents ?? 0,
-      currency: r.currency ?? "usd",
     })),
     totalCount: Number(totalCount),
     totalMrrCents: Number(totalMrrCents),

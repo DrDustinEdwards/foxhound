@@ -26,8 +26,10 @@ vi.mock("~/lib/stripe/client", () => ({
     events: {
       list: (args: unknown) => {
         harness.listArgs.push(args);
+        // Stripe filters by type, so the events (ignored-type fixtures) come back once, not per chunk.
+        const first = (args as { types: string[] }).types.includes("invoice.payment_failed");
         return (async function* () {
-          yield* harness.events;
+          if (first) yield* harness.events;
         })();
       },
     },
@@ -108,6 +110,12 @@ describe("missed-event sweep", () => {
     expect(harness.listArgs[0]).toMatchObject({
       created: { gte: Math.floor(NOW.getTime() / 1000) - 4 * 86_400 },
     });
+    // Noise events are filtered at Stripe, or they fill the per-account cap before an older missed one.
+    const listed = (harness.listArgs as { types: string[] }[]).flatMap((a) => a.types);
+    expect(listed).toEqual(
+      expect.arrayContaining(["invoice.payment_failed", "charge.dispute.closed"]),
+    );
+    expect(harness.listArgs.every((a) => (a as { types: string[] }).types.length <= 20)).toBe(true);
     expect(first).toMatchObject({
       accounts: 1,
       listed: 3,

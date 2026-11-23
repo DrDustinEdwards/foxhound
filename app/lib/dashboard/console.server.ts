@@ -22,6 +22,7 @@ import {
   listExpiringCardAlerts,
   listStepsForFailedPayments,
 } from "~/lib/recovery/queries.server";
+import { customerCurrency } from "~/lib/intelligence/recommendations.server";
 import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 
 // The console read model: the platform-level hero row, the four product tiles,
@@ -196,7 +197,7 @@ export async function getConsoleView(
         customerName: customerContext.customerName,
         customerEmail: customerContext.customerEmail,
         mrrContributionCents: customerContext.mrrContributionCents,
-        currency: customerContext.currency,
+        currency: customerCurrency,
         healthScore: customerContext.healthScore,
       })
       .from(customerContext)
@@ -214,7 +215,7 @@ export async function getConsoleView(
         customerName: customerContext.customerName,
         customerEmail: customerContext.customerEmail,
         mrrContributionCents: customerContext.mrrContributionCents,
-        currency: customerContext.currency,
+        currency: customerCurrency,
       })
       .from(customerContext)
       .where(
@@ -253,14 +254,10 @@ export async function getConsoleView(
   const atRisk = groupSumByCurrency(
     activeFailed.map((r) => ({ currency: r.currency, cents: r.amountCents })),
   );
-  // A customer with no MRR currency recorded has no figure to add, so it is
-  // counted but not summed.
   const highRisk = highRiskCustomers;
   const highRiskMrr = groupSumByCurrency(
     highRisk.flatMap((c) =>
-      c.currency && c.mrrContributionCents
-        ? [{ currency: c.currency, cents: c.mrrContributionCents }]
-        : [],
+      c.mrrContributionCents ? [{ currency: c.currency, cents: c.mrrContributionCents }] : [],
     ),
   );
   const openDisputeCount = Number(openDisputeRows[0]?.n ?? 0);
@@ -278,9 +275,7 @@ export async function getConsoleView(
     list.push(s);
     stepsByPayment.set(s.failedPaymentId, list);
   }
-  const exhausted = activeFailed.filter((p) =>
-    isSequenceExhausted(stepsByPayment.get(p.id) ?? [], nowMs),
-  );
+  const exhausted = activeFailed.filter((p) => isSequenceExhausted(stepsByPayment.get(p.id) ?? []));
 
   const attention: AttentionRow[] = [];
 
@@ -341,8 +336,8 @@ export async function getConsoleView(
       subject: label,
       detail: "reach out personally",
       emphasis: null,
-      mrrCents: c.currency ? (c.mrrContributionCents ?? null) : null,
-      mrrCurrency: c.currency ?? null,
+      mrrCents: c.mrrContributionCents ?? null,
+      mrrCurrency: c.currency,
       href: `/intelligence/customers/${c.stripeCustomerId}`,
       ariaLabel: `Open customer ${label} for outreach`,
       product: "Recovery + Intelligence",

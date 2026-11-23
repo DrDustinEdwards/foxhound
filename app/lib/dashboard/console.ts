@@ -57,18 +57,15 @@ export function lastRunPhrase(runAt: Date, nowMs: number): string {
 
 /**
  * A failed payment's sequence is "exhausted" when the payment is still active
- * but has no future unexecuted step left: the sequence ran to the end without
+ * but has no pending step left (the cron's stepPendingCondition: a step due now or backing off still counts): the sequence ran to the end without
  * recovering it, so nothing further happens without a human. That is precisely
  * the thing worth surfacing, and it is invisible from the payment's status
  * alone.
  */
 export function isSequenceExhausted(
-  steps: { scheduledAt: Date; executedAt: Date | null; result: string | null }[],
-  nowMs: number,
+  steps: { executedAt: Date | null; result: string | null }[],
 ): boolean {
-  return !steps.some(
-    (s) => s.executedAt === null && s.result === null && s.scheduledAt.getTime() > nowMs,
-  );
+  return !steps.some((s) => s.executedAt === null && s.result === null);
 }
 
 /** The "N active sequences · N open disputes" subtext, or "All clear". */

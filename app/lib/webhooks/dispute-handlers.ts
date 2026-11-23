@@ -169,12 +169,15 @@ export async function handleDisputeResolved(
   intent: IntentOf<"dispute_resolved">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, claim, idempotencyKey } = ctx;
-  // The dispute row normally exists by now (stamp_dispute intake runs on
-  // the earlier charge.dispute.created event). A miss is defensive, not
-  // expected: a safe claim-only ignore, never a throw.
   const dispute = await findDisputeByStripeId(env, accountId, intent.stripeDisputeId);
   if (!dispute) {
-    return claimOnly(ctx, "dispute_not_found");
+    // Out-of-order delivery (closed before created): claiming would mark the event handled and the
+    // dispute would stay open for good, so leave it unclaimed for Stripe's retry and the missed-event
+    // sweep. An account with Disputes off never creates the row, so there it is a claim-only ignore.
+    if (!(await readDisputesEnabled(getDb(env), accountId))) {
+      return claimOnly(ctx, "disputes_disabled");
+    }
+    return { status: "error", message: "dispute_not_found" };
   }
   if (isDisputeResolved(dispute.state)) {
     const { applied } = await executeMoneyWrite(env, {

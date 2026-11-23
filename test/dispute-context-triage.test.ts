@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { fetchDisputeContextWith } from "~/lib/disputes/context.server";
 import { createdNotice } from "~/lib/disputes/notices";
-import { calculateTriage, contextEvidenceFields } from "~/lib/disputes/triage";
+import { calculateTriage, contextEvidenceFields, emptyDisputeContext } from "~/lib/disputes/triage";
 
 // Recova read the disputed charge, the customer's other charges and their
 // subscription from Stripe at intake, and triaged on them (lib/disputes-
@@ -171,5 +171,22 @@ describe("dispute context and triage from Stripe", () => {
     expect(context.priorChargesCount).toBe(0);
     expect(context.avsResult).toBeNull();
     expect(calculateTriage(context, 3000, "general", false).recommendation).toBe("accept");
+  });
+});
+
+describe("the AVS half of the fraud triage", () => {
+  const fraud = (avsResult: string) =>
+    calculateTriage(
+      { ...emptyDisputeContext("cus_1"), priorChargesCount: 3, avsResult, cvvResult: "pass" },
+      5000,
+      "fraudulent",
+      false,
+    ).confidence;
+
+  it("claims AVS and CVV both passed only when no address check failed", () => {
+    expect(fraud("line1:pass zip:pass")).toBe(85);
+    expect(fraud("line1:n/a zip:pass")).toBe(85);
+    expect(fraud("line1:fail zip:pass")).toBe(65);
+    expect(fraud("line1:pass zip:fail")).toBe(65);
   });
 });

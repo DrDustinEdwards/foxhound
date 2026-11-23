@@ -83,10 +83,13 @@ describe("isSequenceExhausted", () => {
     ...o,
   });
 
-  // A step scheduled in the past that never executed will not fire on its own, so
-  // the sequence is done in practice even though the step is unexecuted.
-  it("is exhausted when the only unexecuted step is already overdue", () => {
-    expect(isSequenceExhausted([step({ scheduledAt: new Date(NOW - DAY) })], NOW)).toBe(true);
+  // The cron sends a due or overdue step on its next tick, so it is still pending.
+  it("is not exhausted while a step is overdue and waiting for the tick", () => {
+    expect(isSequenceExhausted([step({ scheduledAt: new Date(NOW - DAY) })])).toBe(false);
+  });
+
+  it("is exhausted once every step has run", () => {
+    expect(isSequenceExhausted([step({ executedAt: new Date(NOW) })])).toBe(true);
   });
 });
 
@@ -114,7 +117,8 @@ async function seedConsole(
     recoveredEarlier?: number[];
     disputeDeadlines?: (number | null)[];
     resolvedDisputes?: number;
-    atRisk?: { score: number; mrr: number; currency?: string }[];
+    atRisk?: { score: number; mrr: number; currency?: string | null }[];
+    accountCurrency?: string;
     cardMonthsOut?: number[];
     audit?: {
       daysAgo: number;
@@ -127,7 +131,12 @@ async function seedConsole(
 ) {
   const { db } = createInMemoryDb();
   const now = new Date(NOW);
-  await db.insert(accounts).values({ id: ACCOUNT_ID, name: "Console Co", createdAt: now });
+  await db.insert(accounts).values({
+    id: ACCOUNT_ID,
+    name: "Console Co",
+    createdAt: now,
+    currency: opts.accountCurrency,
+  });
 
   if (opts.connected !== false) {
     await db.insert(stripeConnections).values({
@@ -261,7 +270,7 @@ async function seedConsole(
       // The nightly scoring flags these for personal outreach.
       recommendedAction: "personal_outreach",
       mrrContributionCents: row.mrr,
-      currency: row.currency ?? "usd",
+      currency: row.currency === null ? null : (row.currency ?? "usd"),
       createdAt: now,
       updatedAt: now,
     });
@@ -431,6 +440,21 @@ describe("getConsoleView Intelligence tile", () => {
     expect(view.tiles.highRiskCustomerCount).toBe(5);
     expect(view.tiles.highRiskMrr).toEqual([{ currency: "usd", cents: 5_000 }]);
     expect(view.attention.filter((r) => r.key.startsWith("outreach-"))).toHaveLength(3);
+  });
+});
+
+describe("getConsoleView Intelligence tile currency", () => {
+  it("falls back to the account currency when the sync left the customer's null", async () => {
+    const db = await seedConsole({
+      accountCurrency: "eur",
+      atRisk: [{ score: 10, mrr: 4_000, currency: null }],
+    });
+    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
+    expect(view.tiles.highRiskMrr).toEqual([{ currency: "eur", cents: 4_000 }]);
+    expect(view.attention.find((r) => r.key.startsWith("outreach-"))).toMatchObject({
+      mrrCents: 4_000,
+      mrrCurrency: "eur",
+    });
   });
 });
 

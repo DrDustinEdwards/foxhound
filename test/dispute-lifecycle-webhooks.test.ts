@@ -206,6 +206,17 @@ describe("charge.dispute.funds_withdrawn and funds_reinstated", () => {
   });
 });
 
+describe("charge.dispute.closed before the dispute row exists", () => {
+  it("is not claimed, so the retry after the created event resolves it", async () => {
+    const db = await seed({ withDispute: false });
+    const closed = disputeEvent("evt_early_close", "charge.dispute.closed", NOW, { status: "won" });
+    expect(await processConnectedWebhook({} as Env, closed, NOW)).toMatchObject({
+      status: "error",
+    });
+    expect(await db.select().from(schema.webhookEvents)).toEqual([]);
+  });
+});
+
 describe("charge.dispute.closed as warning_closed", () => {
   it("closes the inquiry with no ruling and nothing billable", async () => {
     const db = await seed({ withDispute: true, status: "warning_needs_response" });
@@ -234,5 +245,27 @@ describe("charge.dispute.closed as warning_closed", () => {
     );
     await processConnectedWebhook({} as Env, late, NOW);
     expect((await readDispute(db)).state).toBe("inquiry_closed");
+  });
+});
+
+describe("a ruling with no timestamp", () => {
+  it("follows the event built before it instead of landing among dated ones by chance", () => {
+    const day = (n: number) => new Date(NOW.getTime() + n * 86_400_000);
+    const labels = buildDisputeTimeline({
+      createdAt: day(0),
+      amountCents: 5000,
+      currency: "usd",
+      reason: "general",
+      aiGeneratedAt: day(2),
+      stagedAt: day(1),
+      submittedAt: day(3),
+      submittedBy: null,
+      outcomeNotifiedAt: null,
+      resolvedAt: null,
+      state: "resolved_won",
+      funds: [],
+    }).map((i) => i.label);
+    expect(labels.at(-1)).toBe("Bank ruled: WON. Funds retained.");
+    expect(labels[1]).toBe("Evidence staged for your review.");
   });
 });

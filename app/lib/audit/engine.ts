@@ -7,6 +7,7 @@ import {
   type DeclineCategory,
   MIN_EXPIRED_DECLINES_FOR_CAU_ADVISORY,
 } from "~/lib/constants";
+import { churnReasonOf } from "~/lib/intelligence/mrr";
 import { monthlyEquivalentCents, type BillingInterval } from "~/lib/intelligence/signals";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { byCurrencyCode } from "~/lib/money/totals";
@@ -54,7 +55,7 @@ export interface AuditInvoice {
 
 /**
  * A subscription as the engine reads it: status, currency, customer id, the
- * card's expiry, the first item's price, and the cancellation.
+ * card's expiry, the items' prices and quantities, and the cancellation.
  */
 export interface AuditSubscription {
   status: Stripe.Subscription.Status;
@@ -63,6 +64,7 @@ export interface AuditSubscription {
   default_payment_method: string | { card?: { exp_month: number; exp_year: number } } | null;
   items: {
     data: {
+      quantity?: number | null;
       price: {
         unit_amount: number | null;
         recurring: { interval: Stripe.Price.Recurring.Interval; interval_count: number } | null;
@@ -172,35 +174,39 @@ export function extractDeclineCode(invoice: AuditInvoice): string | null {
   return fromFinalization ?? fromLastPayment ?? fromCharge ?? null;
 }
 
-/**
- * A subscription's recurring amount normalized to monthly cents, through the
- * same conversion Intelligence uses (signals.ts monthlyEquivalentCents), so the
- * audit's MRR and the dashboard's agree.
- */
-export function monthlyPlanCents(subscription: AuditSubscription): number {
-  const item = subscription.items?.data?.[0];
-  const price = item?.price;
-  if (!price) return 0;
-  const amount = price.unit_amount ?? 0;
-  const interval = price.recurring?.interval;
-  const intervalCount = price.recurring?.interval_count ?? 1;
-  if (!amount || !interval) return 0;
-  switch (interval) {
-    case "day":
-    case "week":
-    case "month":
-    case "year":
-      return monthlyEquivalentCents(amount, 1, interval as BillingInterval, intervalCount);
-    default:
-      return 0;
-  }
+type AuditItemPrice = AuditSubscription["items"]["data"][number]["price"];
+
+/** `perPrice` summed over every item of the subscription, times its quantity. */
+function sumItems(
+  subscription: AuditSubscription,
+  perPrice: (p: AuditItemPrice) => number,
+): number {
+  return (subscription.items?.data ?? []).reduce(
+    (total, item) => total + perPrice(item.price) * (item.quantity ?? 1),
+    0,
+  );
 }
 
 /**
- * THE WINDOW IS 30 DAYS AND NOT THE LOOKBACK, deliberately: Stripe's events API
- * retains 30 days regardless, so a 90-day denominator against a 30-day
- * numerator would inflate the trigger.
+ * A subscription's recurring amount normalized to monthly cents, through the
+ * same conversion Intelligence uses (signals.ts monthlyEquivalentCents), so the
+ * audit's MRR and the dashboard's agree. Every item, times its quantity.
  */
+export function monthlyPlanCents(subscription: AuditSubscription): number {
+  return sumItems(subscription, (price) => {
+    const amount = price?.unit_amount ?? 0;
+    const interval = price?.recurring?.interval;
+    if (!amount || !interval) return 0;
+    return monthlyEquivalentCents(
+      amount,
+      1,
+      interval as BillingInterval,
+      price.recurring?.interval_count ?? 1,
+    );
+  });
+}
+
+/** THE WINDOW IS 30 DAYS, NOT THE LOOKBACK: Stripe keeps events 30 days, so a 90-day denominator would inflate the trigger. */
 export function buildCardUpdaterAdvisory(
   eventsInWindow: number,
   expiredCardDeclinesInWindow: number,
@@ -210,10 +216,7 @@ export function buildCardUpdaterAdvisory(
   return `Stripe Account Updater is not firing for your cards. ${plural(expiredCardDeclinesInWindow, "expired-card decline")} hit your account in the last ${CAU_EVENT_RETENTION_DAYS} days, and Stripe updated none of them automatically. Common causes: cards held as raw numbers rather than attached to Stripe Customers, issuers that do not participate, and regional limits.`;
 }
 
-/**
- * An empty bucket per category, so a category with no failures reads 0 rather
- * than being absent.
- */
+/** An empty bucket per category, so a category with no failures reads 0, not absent. */
 function zeroByCategory(): Record<DeclineCategory, number> {
   return { soft: 0, network: 0, expired: 0, fraud: 0, revoked: 0, unknown: 0 };
 }
@@ -225,10 +228,7 @@ function amountOf(cents: number, currency: string | null | undefined, runCurrenc
   return { currency: (currency ?? runCurrency).toLowerCase(), cents };
 }
 
-/**
- * Totals per currency, through the one money-total path, in currency-code
- * order. A currency whose total is zero adds no line.
- */
+/** Totals per currency through the one money-total path, in code order; a zero total adds no line. */
 function totalsOf(amounts: Amount[]): MoneyTotals {
   return groupSumByCurrency(amounts)
     .filter((t) => t.cents !== 0)
@@ -359,7 +359,7 @@ function computePastDue(subscriptions: AuditSubscription[], runCurrency: string)
     count += 1;
     amounts.push(
       amountOf(
-        subscription.items?.data?.[0]?.price?.unit_amount ?? 0,
+        sumItems(subscription, (price) => price?.unit_amount ?? 0),
         subscription.currency,
         runCurrency,
       ),
@@ -402,21 +402,20 @@ function computeHealth(
 ): HealthScope {
   const mrr: Amount[] = [];
   let activeSubscriptionsCount = 0;
-  let pastDueCount = 0;
   let voluntaryCanceled = 0;
+  let involuntaryCanceled = 0;
 
   for (const subscription of subscriptions) {
     if (subscription.status === "active") {
       activeSubscriptionsCount += 1;
       mrr.push(amountOf(monthlyPlanCents(subscription), subscription.currency, runCurrency));
-    } else if (subscription.status === "past_due") {
-      pastDueCount += 1;
     } else if (subscription.status === "canceled") {
       const canceledAt = subscription.canceled_at ?? 0;
       if (canceledAt >= lookbackStartSeconds) {
-        // A cancellation Stripe attributes to a failed payment is INVOLUNTARY
-        // and is not voluntary churn. Everything else in the window is.
-        if (subscription.cancellation_details?.reason !== "payment_failed") {
+        // The definition Intelligence's churn uses; a past-due subscription has not churned.
+        if (churnReasonOf(subscription.cancellation_details?.reason) === "involuntary") {
+          involuntaryCanceled += 1;
+        } else {
           voluntaryCanceled += 1;
         }
       }
@@ -434,7 +433,7 @@ function computeHealth(
     arrTotals,
     activeSubscriptionsCount,
     voluntaryChurnRateBps: Math.round((voluntaryCanceled / denominator) * 10_000),
-    involuntaryChurnRateBps: Math.round((pastDueCount / denominator) * 10_000),
+    involuntaryChurnRateBps: Math.round((involuntaryCanceled / denominator) * 10_000),
   };
 }
 

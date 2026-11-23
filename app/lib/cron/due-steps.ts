@@ -70,7 +70,7 @@ export function accountProcessingEligibleCondition(): SQL {
 /**
  * A step is due now: unexecuted, no result, not soft-deleted, and its effective
  * time (next_retry_at if a send backoff rescheduled it, else scheduled_at) has
- * arrived. Mirrors the pure scheduler.isStepDue, expressed as a SQL predicate.
+ * arrived.
  */
 export function stepDueCondition(now: Date): SQL {
   return and(
@@ -90,7 +90,7 @@ export function stepDueCondition(now: Date): SQL {
  * (executed_at and result both null, next_retry_at set), so a sequence waiting
  * on a backoff is NOT exhausted.
  */
-function stepPendingCondition(): SQL {
+export function stepPendingCondition(): SQL {
   return and(
     isNull(recoverySteps.executedAt),
     isNull(recoverySteps.result),

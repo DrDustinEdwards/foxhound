@@ -201,7 +201,6 @@ export type WebhookIntent =
     }
   | { kind: "ignore"; reason: string };
 
-/** Classify a verified Stripe event into the processor intent. Pure. */
 /** Stripe's card updater replaced the card details (a new expiry or number
  *  from the network). Whether the customer has a payment to retry is the
  *  processor's question. */
@@ -211,6 +210,7 @@ function cardAutoUpdated(paymentMethod: Stripe.PaymentMethod): WebhookIntent {
   return { kind: "card_auto_updated", customerId };
 }
 
+/** Classify a verified Stripe event into the processor intent. Pure. */
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
   // Stripe's name for payment_method.automatically_updated before 2020-08-27, with the same
   // PaymentMethod payload.

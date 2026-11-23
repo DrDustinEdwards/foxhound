@@ -111,16 +111,3 @@ export async function resolveDemoMemberships(db: Db): Promise<Membership[]> {
     demoMembership(b, nameById.get(b.accountId) ?? null),
   );
 }
-
-/**
- * Resolve the synthetic membership for a demo business (Teamflow unless one is
- * named), or null if it has not been seeded yet (so the caller can send the
- * visitor back to /demos instead of into an empty shell).
- */
-export async function resolveDemoMembership(
-  db: Db,
-  business: DemoBusiness = DEMO_BUSINESSES[0],
-): Promise<Membership | null> {
-  const all = await resolveDemoMemberships(db);
-  return all.find((m) => m.accountId === business.accountId) ?? null;
-}

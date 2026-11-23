@@ -25,6 +25,7 @@ import { buildRecommendationLogInsert, recommendForAccount } from "./recommendat
 import { computeHealthScore, type HealthFactor } from "./risk";
 import { healthScoreInput, loadScoreExtras, scoreColumns } from "./score-inputs.server";
 import { accountProcessingEligible } from "./sync.server";
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // The Intelligence nightly orchestration: scoring -> predictions -> narrative, for one account, then every
@@ -136,6 +137,9 @@ function buildCustomerScoringWrites(
   ];
 }
 
+/** Customers whose scoring writes (four statements each) go into one D1 batch. */
+const SCORING_CUSTOMERS_PER_BATCH = 25;
+
 function buildScoringBatch(
   db: Db,
   accountId: string,
@@ -171,8 +175,11 @@ export async function runIntelligenceAiForAccount(
   const currency = account[0]?.currency ?? "usd";
 
   if (scored.length > 0) {
-    const batch = buildScoringBatch(db, accountId, scored, now, currency);
-    await db.batch([batch[0], ...batch.slice(1)]);
+    // A customer's writes stay in one batch; the account's go in slices, not one call of thousands.
+    for (const slice of chunked(scored, SCORING_CUSTOMERS_PER_BATCH)) {
+      const batch = buildScoringBatch(db, accountId, slice, now, currency);
+      await db.batch([batch[0], ...batch.slice(1)]);
+    }
   }
 
   // Alerts are not evaluated here; alert-run.server.ts runs them on the recovery tick.

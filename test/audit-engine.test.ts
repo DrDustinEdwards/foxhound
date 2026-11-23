@@ -185,6 +185,31 @@ describe("expiring cards", () => {
   });
 });
 
+describe("seats and extra items", () => {
+  const seats = (quantity: number) => ({
+    items: {
+      data: [
+        {
+          quantity,
+          price: { unit_amount: 2_000, recurring: { interval: "month", interval_count: 1 } },
+        },
+        { price: { unit_amount: 500, recurring: { interval: "month", interval_count: 1 } } },
+      ],
+    },
+  });
+
+  it("sums every item times its quantity, in MRR and in past-due value", () => {
+    const result = audit({
+      subscriptions: ok<Stripe.Subscription>([
+        subscription({ status: "active", customer: "a", ...seats(5) }),
+        subscription({ status: "past_due", customer: "b", ...seats(5) }),
+      ]),
+    });
+    expect(data(result.health).mrrCents).toBe(10_500);
+    expect(data(result.pastDueSubscriptions).totalCents).toBe(10_500);
+  });
+});
+
 describe("past-due subscriptions", () => {
   it("counts past_due only, at the RAW unit amount with no monthly normalization", () => {
     // Legacy's own choice and its own comment: this is the next cycle's value,
@@ -281,6 +306,23 @@ describe("health", () => {
     // cancellations counts, over a denominator of all four subscriptions.
     expect(scope.voluntaryChurnRateBps).toBe(2_500);
     expect(scope.involuntaryChurnRateBps).toBe(2_500);
+  });
+
+  it("involuntary churn is payment-failed or disputed cancellations, not the past-due share", () => {
+    const result = audit({
+      subscriptions: ok<Stripe.Subscription>([
+        subscription({ status: "active", customer: "a", ...price(10_000, "month") }),
+        subscription({
+          status: "canceled",
+          customer: "b",
+          canceled_at: secondsAt(10 * DAY),
+          cancellation_details: { reason: "payment_failed" },
+          ...price(10_000, "month"),
+        }),
+      ]),
+    });
+    expect(data(result.health).involuntaryChurnRateBps).toBe(5_000);
+    expect(data(result.health).voluntaryChurnRateBps).toBe(0);
   });
 
   it("a cancellation OUTSIDE the lookback is not churn in this window", () => {

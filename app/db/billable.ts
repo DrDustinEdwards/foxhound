@@ -1,6 +1,7 @@
 import {
   and,
   eq,
+  exists,
   getTableColumns,
   gt,
   inArray,
@@ -266,6 +267,18 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
           eq(recoveredPayments.refundedCents, input.refundedCents),
           billableRecoveryRowConditions(input.accountId, input.asOfMs),
           exemptionForgaveRecovery(input.asOfMs),
+          // The account gate every read applies: a pause or exemption landing after the read stops the line.
+          exists(
+            qb
+              .select({ one: sql`1` })
+              .from(accounts)
+              .where(
+                and(
+                  eq(accounts.id, recoveredPayments.accountId),
+                  accountBillingEligibleCondition(),
+                ),
+              ),
+          ),
         ),
       ),
   );
