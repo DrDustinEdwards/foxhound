@@ -1,5 +1,3 @@
-import { humanize } from "@drdustinedwards/site-helpers/text";
-import { formatDate } from "capsomer/behavior/time";
 import { DISPUTE_FEE_BPS, RECOVERY_FEE_BPS } from "~/lib/constants";
 
 // What /billing shows, in the shapes its sections render. Pure and client-safe:
@@ -76,49 +74,4 @@ export interface DisputeFeeRow {
   statusTone: FeeStatusTone;
   invoiceUrl: string | null;
   stripeInvoiceId: string | null;
-}
-
-export interface SubscriptionView {
-  id: string;
-  product: string;
-  status: string;
-  currentPeriodEndsAt: Date | null;
-  canceledAt: Date | null;
-}
-
-const SUBSCRIPTION_STATUS_LABELS: Record<string, string> = {
-  active: "Active",
-  canceled: "Canceled",
-  past_due: "Past due",
-};
-
-/** A readable status, never the raw column value. */
-export function subscriptionStatusLabel(status: string): string {
-  return SUBSCRIPTION_STATUS_LABELS[status] ?? humanize(status);
-}
-
-export function subscriptionStatusTone(status: string): FeeStatusTone {
-  if (status === "active") return "ok";
-  if (status === "past_due") return "crit";
-  return "neutral";
-}
-
-const PRODUCT_DISPLAY_NAMES: Record<string, string> = {
-  intelligence: "Intelligence",
-  disputes: "Disputes",
-};
-
-export function productDisplayName(slug: string): string {
-  return PRODUCT_DISPLAY_NAMES[slug] ?? humanize(slug);
-}
-
-export function subscriptionDetail(
-  s: Pick<SubscriptionView, "status" | "canceledAt" | "currentPeriodEndsAt">,
-): { text: string; warn: boolean } | null {
-  if (!s.currentPeriodEndsAt) return null;
-  const end = formatDate(s.currentPeriodEndsAt, { style: "medium" }) ?? "";
-  if (s.status === "active" && !s.canceledAt) return { text: `Renews ${end}`, warn: false };
-  if (s.status === "active" && s.canceledAt) return { text: `Cancels on ${end}`, warn: true };
-  if (s.status === "canceled") return { text: `Expired ${end}`, warn: false };
-  return null;
 }

@@ -11,7 +11,6 @@ import {
   DisputeFeesSection,
   PaymentMethodSection,
   RecoverySection,
-  SubscriptionsSection,
 } from "~/components/billing-sections";
 import { LedgerFreeRow, LedgerLineItemRow } from "~/components/billing-ledger-row";
 import { accounts, getDb } from "~/db";
@@ -27,11 +26,7 @@ import {
   getDefaultCard,
 } from "~/lib/billing/platform-customer";
 import { getBillingPreview } from "~/lib/billing/preview.server";
-import {
-  getBillingLedger,
-  listAccountSubscriptions,
-  listBillingInvoices,
-} from "~/lib/billing/queries.server";
+import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
@@ -40,7 +35,7 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// /billing: the page head, then Recovery, Dispute Fees, Subscriptions and Payment method, in a 720px column (sections in app/components/billing-sections.tsx). The evidence ledger follows them, since PRICING.md requires "action -> recovery -> fee for every charge". The loader is read-only: billing preview, invoices and their line items, subscriptions and the card on file. The one write is the billing-setup action below.
+// /billing: the page head, then Recovery, Dispute Fees and Payment method, in a 720px column (sections in app/components/billing-sections.tsx). The evidence ledger follows them, since PRICING.md requires "action -> recovery -> fee for every charge". The loader is read-only: billing preview, invoices and their line items and the card on file. The one write is the billing-setup action below.
 
 export function meta() {
   return [{ title: "Billing - Foxhound" }, NOINDEX];
@@ -77,12 +72,11 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   }
 
   const db = getDb(env);
-  const [accountRow, ledger, invoices, preview, subscriptions] = await Promise.all([
+  const [accountRow, ledger, invoices, preview] = await Promise.all([
     loadAccountBillingRow(env, accountId),
     getBillingLedger(db, accountId),
     listBillingInvoices(db, accountId),
     getBillingPreview(db, accountId, Date.now()),
-    listAccountSubscriptions(db, accountId),
   ]);
 
   // The card on file is a Stripe read. The demo never calls Stripe, and an account that never started setup has no customer to read.
@@ -94,7 +88,6 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     preview,
     recoveryHistory: buildRecoveryHistory(invoices, ledger.lineItems),
     disputeFees: buildDisputeFeeRows(invoices, ledger.lineItems, preview.pendingDisputeFees),
-    subscriptions,
     ledger,
   };
 }
@@ -148,7 +141,7 @@ export async function action({ context, request }: Route.ActionArgs) {
 }
 
 export default function Billing({ loaderData }: Route.ComponentProps) {
-  const { card, preview, recoveryHistory, disputeFees, subscriptions, ledger } = loaderData;
+  const { card, preview, recoveryHistory, disputeFees, ledger } = loaderData;
   const actionData = useActionData<typeof action>();
   const busy = useNavigation().state !== "idle";
 
@@ -196,8 +189,6 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
           accountBillingState={preview.accountBillingState}
           rows={disputeFees}
         />
-
-        <SubscriptionsSection subscriptions={subscriptions} />
 
         <PaymentMethodSection card={card} busy={busy} />
 

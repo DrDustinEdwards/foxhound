@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { routerRenderLink, AwayLink } from "capsomer/react/link";
 import { Button } from "capsomer/react/button";
 import { Panel } from "capsomer/react/panel";
-import { Row, RowList, type RowLinkProps } from "capsomer/react/row-list";
+import { Row, RowList } from "capsomer/react/row-list";
 import { Pill } from "capsomer/react/status";
 import "capsomer/button.css";
 import "capsomer/panel.css";
@@ -18,14 +18,9 @@ import {
   RECOVERY_FEE_PERCENT,
   formatLongDate,
   ordinal,
-  productDisplayName,
-  subscriptionDetail,
-  subscriptionStatusLabel,
-  subscriptionStatusTone,
   type DisputeFeeRow,
   type FeeStatusTone,
   type RecoveryHistoryRow,
-  type SubscriptionView,
 } from "~/lib/billing/page";
 import type { AccountBillingState } from "~/lib/billing/preview.server";
 import type { CurrencyAmount } from "~/lib/money/totals";
@@ -260,50 +255,6 @@ export function DisputeFeesSection({
           ))}
         </RowList>
       )}
-    </Panel>
-  );
-}
-
-/** Each product's own page. A product with none gets a plain title, never a link back to this section. */
-const PRODUCT_HREF: Record<string, string> = {
-  intelligence: "/intelligence/dashboard",
-  disputes: "/disputes/dashboard",
-  recovery: "/recovery/dashboard",
-};
-
-/** The row list needs a link or a button title; with nowhere to go, the title is plain text, which is neither. */
-const plainTitle = ({ children }: RowLinkProps) => <span>{children}</span>;
-
-/** The Subscriptions section; nothing at all when there are none. No Cancel, Keep subscription or past-due banner: Foxhound has no merchant cancel or reactivate writer, and nothing writes past_due. */
-export function SubscriptionsSection({ subscriptions }: { subscriptions: SubscriptionView[] }) {
-  if (subscriptions.length === 0) return null;
-  return (
-    <Panel title="Subscriptions" id="subscriptions">
-      <RowList label="Subscriptions" gap="sm">
-        {subscriptions.map((s) => {
-          const detail = subscriptionDetail(s);
-          return (
-            <Row
-              key={s.id}
-              variant="outline"
-              title={productDisplayName(s.product)}
-              href={PRODUCT_HREF[s.product] ?? ""}
-              renderLink={PRODUCT_HREF[s.product] ? routerRenderLink : plainTitle}
-              detail={
-                detail ? (
-                  <span className={detail.warn ? "fh-accent" : undefined}>{detail.text}</span>
-                ) : undefined
-              }
-              actions={
-                <StatusPill
-                  label={subscriptionStatusLabel(s.status)}
-                  tone={subscriptionStatusTone(s.status)}
-                />
-              }
-            />
-          );
-        })}
-      </RowList>
     </Panel>
   );
 }
