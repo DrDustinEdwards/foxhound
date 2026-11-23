@@ -6,9 +6,9 @@
     "measured_at": "bcbd23a",
     "knip": {},
     "jscpd": {
-      "clones": 86,
-      "lines": 834,
-      "percentage": 0.79,
+      "clones": 83,
+      "lines": 781,
+      "percentage": 0.74,
       "unread": 1
     },
     "shared copies": {
@@ -61,9 +61,9 @@
       "cases": 1656
     },
     "comments": {
-      "lines": 15742,
+      "lines": 15713,
       "code": 130180,
-      "percentage": 10.79
+      "percentage": 10.78
     }
   }
 }

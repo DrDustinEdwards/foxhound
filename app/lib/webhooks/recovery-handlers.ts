@@ -88,6 +88,32 @@ function invoiceClosed(status: string | null): boolean {
   return status === "paid" || status === "void";
 }
 
+/**
+ * Starts the sequence for a payment parked in stripe_retrying, anchored on this moment rather than
+ * the original failure. KEYED ON THE PAYMENT, NOT THE EVENT, so the payment_failed promotion and
+ * the later event that also finds the payment parked cannot each start a sequence for one invoice.
+ */
+async function startSequenceNow(
+  ctx: WebhookContext,
+  failedPaymentId: string,
+  decline: ReturnType<typeof bestDecline>,
+): Promise<WebhookOutcome> {
+  const { env, receivedAt, accountId, claim } = ctx;
+  const { applied } = await executeMoneyWrite(env, {
+    accountId,
+    idempotencyKey: `sequence-start:${failedPaymentId}`,
+    build: (db) =>
+      buildSequenceStartBatch(db, {
+        claim,
+        failedPaymentId,
+        accountId,
+        ...decline,
+        startedAt: receivedAt,
+      }),
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
+}
+
 export async function handleIntake(
   ctx: WebhookContext,
   intent: IntentOf<"intake">,
@@ -115,20 +141,7 @@ export async function handleIntake(
     // Stripe has stopped retrying, or never will on this card. The sequence
     // starts NOW, anchored on this moment rather than on the original
     // failure, which is what makes "Foxhound starts when Stripe stops" true.
-    const { applied } = await executeMoneyWrite(env, {
-      accountId,
-      // KEYED ON THE PAYMENT, NOT THE EVENT.
-      idempotencyKey: `sequence-start:${existing.id}`,
-      build: (db) =>
-        buildSequenceStartBatch(db, {
-          claim,
-          failedPaymentId: existing.id,
-          accountId,
-          ...decline,
-          startedAt: receivedAt,
-        }),
-    });
-    return applied ? { status: "applied" } : { status: "duplicate" };
+    return startSequenceNow(ctx, existing.id, decline);
   }
   const failedPaymentId = crypto.randomUUID();
   const { applied } = await executeMoneyWrite(env, {
@@ -162,7 +175,7 @@ export async function handleStripeGaveUp(
   ctx: WebhookContext,
   intent: IntentOf<"stripe_gave_up">,
 ): Promise<WebhookOutcome> {
-  const { env, receivedAt, accountId, connectionId, claim } = ctx;
+  const { env, accountId, connectionId } = ctx;
   const existing = await findActiveFailedPayment(env, accountId, intent.invoiceId);
   if (!existing || existing.status !== FAILED_PAYMENT_STATUS_STRIPE_RETRYING) {
     return claimOnly(ctx, existing ? "sequence_already_started" : "no_failed_payment");
@@ -172,21 +185,7 @@ export async function handleStripeGaveUp(
     (await resolveFailureFacts(env, connectionId, intent.invoiceId)).decline,
     existing,
   );
-  const { applied } = await executeMoneyWrite(env, {
-    accountId,
-    // Same payment-scoped key as the payment_failed promotion above, so the
-    // two events cannot each start a sequence for one invoice.
-    idempotencyKey: `sequence-start:${existing.id}`,
-    build: (db) =>
-      buildSequenceStartBatch(db, {
-        claim,
-        failedPaymentId: existing.id,
-        accountId,
-        ...decline,
-        startedAt: receivedAt,
-      }),
-  });
-  return applied ? { status: "applied" } : { status: "duplicate" };
+  return startSequenceNow(ctx, existing.id, decline);
 }
 
 // invoice.voided: the invoice can never be paid now, so a live recovery for it stops through the
