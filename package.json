@@ -31,7 +31,7 @@
   "dependencies": {
     "@better-auth/passkey": "1.7.17",
     "@cloudflare/workers-oauth-provider": "1.2.4",
-    "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.63.14",
+    "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.64.1",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.16.3",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.48.0",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.177.0",
