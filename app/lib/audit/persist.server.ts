@@ -17,6 +17,8 @@ export interface SaveAuditRunContext {
   isAuthenticated: boolean;
   summary: string;
   now: Date;
+  /** A run id fixed by its caller, so saving the same run again is a no-op. */
+  runId?: string;
 }
 
 function buildAuditRunRow(result: AuditResult, context: SaveAuditRunContext) {
@@ -88,8 +90,11 @@ export async function saveAuditRun(
   context: SaveAuditRunContext,
 ): Promise<string> {
   const db = getDb(env);
-  const id = crypto.randomUUID();
-  await db.insert(auditRuns).values({ id, ...buildAuditRunRow(result, context) });
+  const id = context.runId ?? crypto.randomUUID();
+  await db
+    .insert(auditRuns)
+    .values({ id, ...buildAuditRunRow(result, context) })
+    .onConflictDoNothing({ target: auditRuns.id });
   return id;
 }
 
