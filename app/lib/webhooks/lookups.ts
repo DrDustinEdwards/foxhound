@@ -366,10 +366,10 @@ export async function resolveDisputedRecovery(
  *  submitted this dispute (only a submitted win snapshots a fee). */
 export async function findDisputeByStripeId(
   env: Env,
+  accountId: string,
   stripeDisputeId: string,
 ): Promise<{
   id: string;
-  accountId: string;
   amountCents: number;
   currency: string;
   state: string;
@@ -379,14 +379,13 @@ export async function findDisputeByStripeId(
   const rows = await db
     .select({
       id: disputes.id,
-      accountId: disputes.accountId,
       amountCents: disputes.amountCents,
       currency: disputes.currency,
       state: disputes.state,
       submittedAt: disputes.submittedAt,
     })
     .from(disputes)
-    .where(eq(disputes.stripeDisputeId, stripeDisputeId))
+    .where(and(eq(disputes.accountId, accountId), eq(disputes.stripeDisputeId, stripeDisputeId)))
     .limit(1);
   return rows[0] ?? null;
 }

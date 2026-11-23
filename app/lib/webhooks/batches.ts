@@ -321,7 +321,12 @@ export function buildRefundStampBatch(
           ? { refundedAt: sql`coalesce(${recoveredPayments.refundedAt}, ${at})` }
           : {}),
       })
-      .where(eq(recoveredPayments.failedPaymentId, input.failedPaymentId)),
+      .where(
+        and(
+          eq(recoveredPayments.failedPaymentId, input.failedPaymentId),
+          eq(recoveredPayments.accountId, input.accountId),
+        ),
+      ),
   ];
 }
 
@@ -351,6 +356,7 @@ function buildDisputedAtStamp(db: Db, accountId: string, failedPaymentId: string
       .where(
         and(
           eq(recoveredPayments.failedPaymentId, failedPaymentId),
+          eq(recoveredPayments.accountId, accountId),
           isNull(recoveredPayments.disputedAt),
         ),
       ),
