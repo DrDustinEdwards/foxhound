@@ -91,10 +91,12 @@ export function LedgerLineItemRow({ entry }: { entry: EnrichedLineItem }) {
       {lineItem.type === "adjustment" ? (
         <p className="fh-small fh-quiet">
           {lineItem.description ?? "Manual adjustment"}
-          {adminAuditEntry
-            ? ` - approved by ${adminAuditEntry.actorEmail} (${adminAuditEntry.action})`
-            : ""}
+          {adminAuditEntry ? " - approved by Foxhound" : ""}
         </p>
+      ) : null}
+
+      {lineItem.type === "credit" ? (
+        <p className="fh-small fh-quiet">{lineItem.description ?? "Credit for a refunded fee"}</p>
       ) : null}
     </ChainRow>
   );

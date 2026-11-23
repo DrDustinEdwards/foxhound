@@ -171,7 +171,12 @@ export const DISPUTE_EVIDENCE_ALLOWED_TYPES = [
 ] as const;
 export type DisputeEvidenceFileType = (typeof DISPUTE_EVIDENCE_ALLOWED_TYPES)[number];
 
-export type BillingLineItemType = "recovery_fee" | "dispute_fee" | "subscription" | "adjustment";
+export type BillingLineItemType =
+  | "recovery_fee"
+  | "dispute_fee"
+  | "subscription"
+  | "adjustment"
+  | "credit";
 
 // One place holds every model id; the ai_calls cost map must cover each id
 // here.

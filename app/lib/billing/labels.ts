@@ -10,6 +10,7 @@ export const BILLING_LINE_ITEM_TYPE_LABELS: Record<BillingLineItemType, string> 
   dispute_fee: "Dispute fee",
   subscription: "Subscription",
   adjustment: "Adjustment",
+  credit: "Credit",
 };
 
 export const BILLING_INVOICE_STATUS_LABELS: Record<string, string> = {
