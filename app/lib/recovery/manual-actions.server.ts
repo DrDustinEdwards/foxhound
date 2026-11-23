@@ -7,6 +7,7 @@ import type { EmailJobResult } from "~/lib/email/dispatch";
 import { stepAction } from "~/lib/engine/step-runner";
 import { FAILED_PAYMENT_STATUS_ACTIVE, FAILED_PAYMENT_STATUS_CANCELLED } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { getFailedPaymentDetail } from "./queries.server";
 import { lastResendableEmailStep, nextPendingStep } from "./step-state";
 import {
@@ -208,10 +209,14 @@ async function markRecovered(
     );
     applied = result.applied;
   } catch (err) {
-    console.error("manual action mark_recovered: commit failed", err);
     // The outcomes unique index rejecting a replay surfaces here as a thrown constraint error only
-    // if it escapes the committer; the committer itself maps it to applied=false.
-    return { ok: false, reason: "already_resolved", intent: "mark_recovered" };
+    // if it escapes the committer (the committer itself maps it to applied=false); anything else
+    // is a real failure, and nothing was recorded.
+    if (isUniqueConstraintError(err)) {
+      return { ok: false, reason: "already_resolved", intent: "mark_recovered" };
+    }
+    console.error("manual action mark_recovered: commit failed", err);
+    return { ok: false, reason: "write_failed", intent: "mark_recovered" };
   }
 
   if (!applied) {

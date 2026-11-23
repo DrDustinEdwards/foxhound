@@ -241,7 +241,9 @@ export async function action({ context, params, request }: Route.ActionArgs) {
           error:
             outcome.intent === "note"
               ? "Failed to save note"
-              : "Could not stop recovery. Please try again.",
+              : outcome.intent === "mark_recovered"
+                ? "Could not mark this payment recovered. Please try again."
+                : "Could not stop recovery. Please try again.",
           intent: outcome.intent,
         },
         { status: 500 },
