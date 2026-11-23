@@ -417,8 +417,6 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
   }
   if (row.expiresAt.getTime() <= now.getTime()) return oauthError(400, "invalid_grant");
   if (row.clientId !== clientId) return oauthError(400, "invalid_grant");
-  // Every code was issued for a redirect_uri, so the exchange must name it
-  // (OAuth 2.1 section 4.1.3).
   if (!redirectUri || !redirectUriMatchesCode(redirectUri, row.redirectUri))
     return oauthError(400, "invalid_grant");
   if (!(await verifyPkceS256(verifier, row.codeChallenge))) return oauthError(400, "invalid_grant");

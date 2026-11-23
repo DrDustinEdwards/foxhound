@@ -26,13 +26,13 @@ import {
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "./dispute-description";
 import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
+import { asBoolean, asLabel, asNotificationEmail, asOptionalText, asVoice } from "./setting-input";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
 import { sealSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { readVoiceSamples, storeVoiceSamples } from "~/lib/recovery/voice-samples";
 
-// THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN. WHY THIS MODULE EXISTS. The settings forms and
-// the MCP write tools must agree exactly: same bounds, same allowlist, same refusal string. A
-// DISCRIMINATED OUTCOME, never a throw.
+// THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN. The settings forms and the MCP write tools must
+// agree exactly: same bounds, allowlist and refusal string. A DISCRIMINATED OUTCOME, never a throw.
 
 /** What every apply function returns. `fields` is the column names touched,
  *  which is what the trace records and what a tool reports back. */
@@ -73,36 +73,6 @@ async function commit(
     ? [...writes, traceInsert(db, accountId, fields, trace)]
     : writes;
   await db.batch(statements);
-}
-
-/** Coerce a JSON or form boolean. Accepts a real boolean and the "true" string
- *  a checkbox posts, so one rule serves both callers. */
-function asBoolean(value: unknown): boolean {
-  return value === true || value === "true";
-}
-
-/** Trim to null, the shape every optional text setting uses. */
-function asOptionalText(value: unknown): string | null {
-  const raw = typeof value === "string" ? value.trim() : "";
-  return raw.length > 0 ? raw : null;
-}
-
-/** The bound on a free-text setting that reaches an email or an AI prompt and
- *  has no bound of its own: a brand voice, and the shorter labels. */
-const VOICE_MAX_LENGTH = 3000;
-const LABEL_MAX_LENGTH = 200;
-
-/** asOptionalText, or the refusal when the text is over `max`. */
-function asBoundedText(
-  value: unknown,
-  max: number,
-  what: string,
-): { ok: true; value: string | null } | { ok: false; error: string } {
-  const text = asOptionalText(value);
-  if (text && text.length > max) {
-    return { ok: false, error: `Keep ${what} under ${formatCount(max)} characters.` };
-  }
-  return { ok: true, value: text };
 }
 
 export interface AuditSettingsState {
@@ -267,14 +237,11 @@ export async function applyNotificationSettings(
     typeof input.slackWebhookUrl === "string" ? input.slackWebhookUrl : "",
   );
   if (!webhook.ok) return { ok: false, error: webhook.error };
-  // One address: it becomes a mail header's recipient.
-  const notificationEmail = asOptionalText(input.notificationEmail);
-  if (notificationEmail && !isValidReplyToEmail(notificationEmail)) {
-    return { ok: false, error: "Enter a valid notification email address." };
-  }
+  const email = asNotificationEmail(input.notificationEmail);
+  if (!email.ok) return email;
 
   const state: NotificationSettingsState = {
-    notificationEmail,
+    notificationEmail: email.value,
     slackWebhookUrl: webhook.value,
     slackNotificationsEnabled: asBoolean(input.slackNotificationsEnabled),
     digestEnabled: asBoolean(input.digestEnabled),
@@ -440,7 +407,7 @@ export async function applyBrandVoice(
     const supplied = input[key];
     if (supplied === undefined) return stored[key];
     fields.push(BRAND_VOICE_COLUMNS[key]);
-    const text = asBoundedText(supplied, VOICE_MAX_LENGTH, "a brand voice");
+    const text = asVoice(supplied);
     if (!text.ok) tooLong = text.error;
     return text.ok ? text.value : null;
   };
@@ -529,13 +496,13 @@ export async function applyIntelligenceContext(
   const state: IntelligenceContextState = { ...stored };
 
   if (input.merchantIndustry !== undefined) {
-    const industry = asBoundedText(input.merchantIndustry, LABEL_MAX_LENGTH, "the industry");
+    const industry = asLabel(input.merchantIndustry, "the industry");
     if (!industry.ok) return industry;
     fields.push("merchant_industry");
     state.merchantIndustry = industry.value;
   }
   if (input.primaryCustomerType !== undefined) {
-    const type = asBoundedText(input.primaryCustomerType, LABEL_MAX_LENGTH, "the customer type");
+    const type = asLabel(input.primaryCustomerType, "the customer type");
     if (!type.ok) return type;
     fields.push("primary_customer_type");
     state.primaryCustomerType = type.value;
@@ -615,7 +582,7 @@ export async function applyAlertCreate(
     return { ok: false, error: ALERT_THRESHOLD_ERROR };
   }
   const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
-  const label = asBoundedText(input.label, LABEL_MAX_LENGTH, "the label");
+  const label = asLabel(input.label, "the label");
   if (!label.ok) return label;
   const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel)
     ? String(input.channel)

@@ -27,9 +27,8 @@ import { planRecoverySteps } from "~/lib/recovery/schedule";
 import { buildStopRecoveryBatch } from "~/lib/recovery/manual-action-batches.server";
 import { planWinbackSteps, WINBACK_STATUS } from "~/lib/recovery/winback";
 
-// The atomic DO batches for connected-account webhook processing. Every webhook side effect is
-// committed together with the webhook_events CLAIM in ONE batch through the per-account money-write
-// DO, keyed by account_id.
+// The atomic DO batches for connected-account webhooks. Each side effect commits with the
+// webhook_events CLAIM in ONE batch through the per-account money-write DO, keyed by account_id.
 
 export interface WebhookClaimInput {
   stripeEventId: string;
@@ -166,8 +165,7 @@ export interface SequenceStartBatchInput {
  */
 export function buildSequenceStartBatch(db: Db, input: SequenceStartBatchInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
-  // The category the steps are planned from is stored with the flip, so the
-  // row and its cadence cannot disagree.
+  // The steps' category is stored with the flip, so the row and its cadence cannot disagree.
   const flip = db
     .update(failedPayments)
     .set({
@@ -337,9 +335,8 @@ export function buildRefundStampBatch(
  */
 function buildDisputedAtStamp(db: Db, accountId: string, failedPaymentId: string, at: Date) {
   return [
-    // The order-independent half, as refund_signal_at is for refunds: a dispute that lands BEFORE
-    // the recovery row exists stamps the failed payment, and buildRecoveryBatch reads it so the
-    // recovery is born disputed.
+    // The order-independent half, as refund_signal_at is for refunds: a dispute landing BEFORE the
+    // recovery row stamps the failed payment, which buildRecoveryBatch reads to be born disputed.
     db
       .update(failedPayments)
       .set({ disputeSignalAt: at })
@@ -397,8 +394,7 @@ export interface DisputeIntakeInput {
  * disputes row (state: pending_review, "awaiting merchant review", never auto-submitted) + insert
  * the drafted dispute_evidence rows + (when the disputed charge resolves to a known recovery) stamp
  * recovered_payments.disputed_at so the maturity-window billable predicate excludes it. All atomic
- * through the per-account money-write DO, same shape as buildIntakeBatch/buildRecoverBatch
- * (claim-with-side-effects).
+ * through the per-account money-write DO, as buildIntakeBatch and buildRecoverBatch.
  */
 export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): MoneyWriteBatch {
   const claim = buildWebhookClaim(db, input.claim);
@@ -417,9 +413,8 @@ export function buildDisputeIntakeBatch(db: Db, input: DisputeIntakeInput): Mone
     evidenceDeadline: input.evidenceDeadline,
     createdAt: input.createdAt,
     stripeConnectionId: input.stripeConnectionId,
-    // A dispute Stripe has already closed (its closed event was processed
-    // first, or this created event is a late retry) is born resolved, so it
-    // is never left awaiting review or picked up by auto-submit.
+    // A dispute Stripe has already closed (its closed event came first, or this is a late
+    // retry) is born resolved, so it is never left awaiting review or picked up by auto-submit.
     ...(input.status === "won" || input.status === "lost"
       ? {
           state: input.status === "won" ? ("resolved_won" as const) : ("resolved_lost" as const),
@@ -504,9 +499,8 @@ export function buildDisputeResolutionUpdate(db: Db, input: Omit<DisputeResoluti
       resolvedAt: input.resolvedAt,
       // THE CAP IS RESOLVED BEFORE THIS BATCH IS BUILT. It needs a Stripe FX quote, and an external
       // call cannot live inside the money batch, so process.ts fetches it and hands the result in.
-      // A quote that failed arrives as a null cap and the fee is NOT snapshotted: the dispute
-      // resolves, and it is simply not billable until a run that can price it. Never the flat
-      // 50,000.
+      // A failed quote arrives as a null cap and the fee is NOT snapshotted: the dispute resolves,
+      // and is not billable until a run that can price it. Never the flat 50,000.
       resolvedFeeCents:
         billableWin && input.cap
           ? feeForCurrency(
