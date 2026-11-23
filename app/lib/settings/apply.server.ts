@@ -87,6 +87,24 @@ function asOptionalText(value: unknown): string | null {
   return raw.length > 0 ? raw : null;
 }
 
+/** The bound on a free-text setting that reaches an email or an AI prompt and
+ *  has no bound of its own: a brand voice, and the shorter labels. */
+const VOICE_MAX_LENGTH = 3000;
+const LABEL_MAX_LENGTH = 200;
+
+/** asOptionalText, or the refusal when the text is over `max`. */
+function asBoundedText(
+  value: unknown,
+  max: number,
+  what: string,
+): { ok: true; value: string | null } | { ok: false; error: string } {
+  const text = asOptionalText(value);
+  if (text && text.length > max) {
+    return { ok: false, error: `Keep ${what} under ${formatCount(max)} characters.` };
+  }
+  return { ok: true, value: text };
+}
+
 export interface AuditSettingsState {
   lookbackDays: number;
   autoRun: boolean;
@@ -249,9 +267,14 @@ export async function applyNotificationSettings(
     typeof input.slackWebhookUrl === "string" ? input.slackWebhookUrl : "",
   );
   if (!webhook.ok) return { ok: false, error: webhook.error };
+  // One address: it becomes a mail header's recipient.
+  const notificationEmail = asOptionalText(input.notificationEmail);
+  if (notificationEmail && !isValidReplyToEmail(notificationEmail)) {
+    return { ok: false, error: "Enter a valid notification email address." };
+  }
 
   const state: NotificationSettingsState = {
-    notificationEmail: asOptionalText(input.notificationEmail),
+    notificationEmail,
     slackWebhookUrl: webhook.value,
     slackNotificationsEnabled: asBoolean(input.slackNotificationsEnabled),
     digestEnabled: asBoolean(input.digestEnabled),
@@ -412,11 +435,14 @@ export async function applyBrandVoice(
   const stored = found[0];
 
   const fields: string[] = [];
+  let tooLong: string | null = null;
   const resolve = (key: BrandVoiceKey): string | null => {
     const supplied = input[key];
     if (supplied === undefined) return stored[key];
     fields.push(BRAND_VOICE_COLUMNS[key]);
-    return asOptionalText(supplied);
+    const text = asBoundedText(supplied, VOICE_MAX_LENGTH, "a brand voice");
+    if (!text.ok) tooLong = text.error;
+    return text.ok ? text.value : null;
   };
 
   const state: BrandVoiceState = {
@@ -428,6 +454,7 @@ export async function applyBrandVoice(
     fraud: resolve("fraud"),
     samples: readVoiceSamples(stored.samples),
   };
+  if (tooLong) return { ok: false, error: tooLong };
   let storedSamples = stored.samples;
   if (input.samples !== undefined) {
     if (!Array.isArray(input.samples))
@@ -502,12 +529,16 @@ export async function applyIntelligenceContext(
   const state: IntelligenceContextState = { ...stored };
 
   if (input.merchantIndustry !== undefined) {
+    const industry = asBoundedText(input.merchantIndustry, LABEL_MAX_LENGTH, "the industry");
+    if (!industry.ok) return industry;
     fields.push("merchant_industry");
-    state.merchantIndustry = asOptionalText(input.merchantIndustry);
+    state.merchantIndustry = industry.value;
   }
   if (input.primaryCustomerType !== undefined) {
+    const type = asBoundedText(input.primaryCustomerType, LABEL_MAX_LENGTH, "the customer type");
+    if (!type.ok) return type;
     fields.push("primary_customer_type");
-    state.primaryCustomerType = asOptionalText(input.primaryCustomerType);
+    state.primaryCustomerType = type.value;
   }
   if (input.merchantMrrSelfReported !== undefined) {
     const raw =
@@ -584,6 +615,8 @@ export async function applyAlertCreate(
     return { ok: false, error: ALERT_THRESHOLD_ERROR };
   }
   const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
+  const label = asBoundedText(input.label, LABEL_MAX_LENGTH, "the label");
+  if (!label.ok) return label;
   const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel)
     ? String(input.channel)
     : "email";
@@ -593,7 +626,7 @@ export async function applyAlertCreate(
     metric,
     direction,
     thresholdValue,
-    label: asOptionalText(input.label),
+    label: label.value,
     channel,
   };
   // A new row, so every column it names is a field this write touched.
