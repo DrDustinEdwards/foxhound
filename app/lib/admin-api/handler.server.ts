@@ -590,9 +590,7 @@ function match(method: string, path: string): { route: ApiRoute; params: string[
     const params: string[] = [];
     if (
       parts.every((part, i) =>
-        part === ":id"
-          ? (params.push(segments[i]), true)
-          : part === segments[i],
+        part === ":id" ? (params.push(segments[i]), true) : part === segments[i],
       )
     ) {
       return { route, params };
