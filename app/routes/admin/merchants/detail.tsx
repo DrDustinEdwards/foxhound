@@ -14,7 +14,7 @@ import "capsomer/field.css";
 import "capsomer/record-facts.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
-import { useState } from "react";
+import { ButtonLink } from "capsomer/react/link";
 import { Time } from "capsomer/react/time";
 import { data, Form, useNavigation } from "react-router";
 
@@ -27,7 +27,7 @@ import {
   setBillingExempt,
   setProcessingPaused,
 } from "~/lib/admin/merchants.server";
-import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
+import { merchantCancelHref } from "~/lib/admin/merchants";
 import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
@@ -64,7 +64,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 interface ActionResult {
   ok: boolean;
   error?: string;
-  warning?: string;
   adjustmentInvoiceId?: string;
 }
 
@@ -96,24 +95,6 @@ export async function action({ context, request, params }: Route.ActionArgs) {
       action: nextPaused ? "merchant.processing.pause" : "merchant.processing.resume",
       metadata: { accountId },
     });
-    return data<ActionResult>({ ok: true });
-  }
-
-  if (intent === "cancel") {
-    const result = await cancelMerchant(
-      env,
-      accountId,
-      {},
-      { actorEmail: auth.email, action: "merchant.cancel" },
-    );
-    if (result.deauthorizeErrors.length > 0) {
-      return data<ActionResult>({
-        ok: true,
-        warning:
-          `Canceled. ${result.deauthorizeErrors.length} Stripe connection(s) could not be revoked ` +
-          "automatically and will need a manual revoke or a retry; the account is fully canceled locally either way.",
-      });
-    }
     return data<ActionResult>({ ok: true });
   }
 
@@ -187,44 +168,6 @@ function ActionButton({
     >
       {children}
     </button>
-  );
-}
-
-function CancelForm({ accountId }: { accountId: string }) {
-  const [confirming, setConfirming] = useState(false);
-  const busy = useNavigation().state !== "idle";
-
-  if (!confirming) {
-    return (
-      <button
-        type="button"
-        onClick={() => setConfirming(true)}
-        className="cap-btn"
-        data-variant="danger"
-      >
-        Cancel merchant
-      </button>
-    );
-  }
-
-  return (
-    <Form method="post" className="cap-cluster">
-      <input type="hidden" name="intent" value="cancel" />
-      <span className="fh-small fh-error">
-        Disconnects Stripe and stops all processing for {accountId}. Already-matured, unbilled fees
-        still bill. Confirm?
-      </span>
-      <ActionButton tone="danger">Yes, cancel</ActionButton>
-      <button
-        type="button"
-        onClick={() => setConfirming(false)}
-        disabled={busy}
-        className="cap-btn"
-        data-variant="quiet"
-      >
-        Never mind
-      </button>
-    </Form>
   );
 }
 
@@ -350,8 +293,6 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
             ]}
           />
 
-          {actionData?.warning ? <Alert>{actionData.warning}</Alert> : null}
-
           <div className="cap-cluster">
             <Form method="post">
               <input type="hidden" name="intent" value="toggle-billing-exempt" />
@@ -371,7 +312,12 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
 
             <ViewAsForm accountId={account.id} who={account.name ?? account.id} />
 
-            {!account.cancelledAt ? <CancelForm accountId={account.id} /> : null}
+            {/* Cancel is the list's typed confirm page, its one writer route. */}
+            {!account.cancelledAt ? (
+              <ButtonLink to={merchantCancelHref(account.id)} variant="danger">
+                Cancel merchant
+              </ButtonLink>
+            ) : null}
           </div>
 
           {/* Review INFO-E. The pause toggle behaves differently on a row the brake
