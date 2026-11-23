@@ -29,7 +29,7 @@
       "app/lib/billing/credit-note.ts": 512,
       "app/lib/billing/run.ts": 590,
       "app/lib/carrel/adapter.server.ts": 694,
-      "app/lib/constants.ts": 653,
+      "app/lib/constants.ts": 651,
       "app/lib/cron/recovery-tick.ts": 550,
       "app/lib/decline-codes/content.ts": 1238,
       "app/lib/demo/customer-base.ts": 1039,
@@ -53,7 +53,7 @@
       "app/routes/app/recovery/payments/index.tsx": 1037,
       "app/routes/app/settings/account.tsx": 771,
       "app/routes/home.tsx": 522,
-      "app/routes/privacy.tsx": 956,
+      "app/routes/privacy.tsx": 947,
       "app/routes/terms.tsx": 789
     },
     "tests": {

@@ -4,9 +4,13 @@
 
 export type RecoveryRateTone = "red" | "caution" | "green";
 
+/** The highest rate that is still red, and the highest that is still caution; above the second is green. */
+export const RECOVERY_RATE_RED_MAX = 20;
+export const RECOVERY_RATE_CAUTION_MAX = 35;
+
 export function recoveryRateTone(pct: number): RecoveryRateTone {
-  if (pct <= 20) return "red";
-  if (pct <= 35) return "caution";
+  if (pct <= RECOVERY_RATE_RED_MAX) return "red";
+  if (pct <= RECOVERY_RATE_CAUTION_MAX) return "caution";
   return "green";
 }
 

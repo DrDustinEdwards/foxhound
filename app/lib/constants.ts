@@ -47,10 +47,6 @@ export const HOUR_MS = 60 * MINUTE_MS;
 export const DAY_MS = 24 * HOUR_MS;
 
 /**
- * A recovery is billable only once it is at least this old (refund window
- * absorption).
- */
-/**
  * How long before a recovery a click can have happened and still be its cause:
  * Stripe's own recommended retry window, inside which a customer acts on a
  * dunning email. Outside it the recovery still records, as `stripe_baseline`,
@@ -59,6 +55,10 @@ export const DAY_MS = 24 * HOUR_MS;
 export const EMAIL_ENGAGEMENT_WINDOW_DAYS = 14;
 export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * DAY_MS;
 
+/**
+ * A recovery is billable only once it is at least this old (refund window
+ * absorption).
+ */
 export const RECOVERY_MATURITY_DAYS = 30;
 export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * DAY_MS;
 
@@ -191,8 +191,7 @@ export const MODEL_AUDIT_SUMMARY = "claude-haiku-4-5-20251001";
 export const AUDIT_SUMMARY_MAX_TOKENS = 300;
 
 // Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a
-// silent Silent-first: for retryable declines a silent Foxhound retry precedes
-// the first customer-facing email, so we never dun a payment we could have
+// silent Foxhound retry precedes the first customer-facing email, so we never dun a payment we could have
 // quietly recovered. Every dunning email carries the hosted card-update link
 // (/p/:token), so the card updater is a passive channel on each one.
 export const STEP_TIMING_RETRY_EARLY_HOURS = 4;
@@ -349,8 +348,7 @@ export const AUDIT_QUEUE_MAX_RETRIES = 3;
 /** Cloudflare Queues accepts at most 100 messages per sendBatch call. */
 export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
-// Triggers; retention crons live before any table they govern takes writes)
-// ----
+// ---- Triggers and queues ----
 /**
  * Max age of a /p/:token card-update link before it is treated as expired
  * (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays
@@ -370,7 +368,6 @@ export const CRON_LOCK_LEASE_MS = 16 * 60 * 1000;
  * showing "Could not read", so one hung Durable Object cannot stall the loader.
  */
 export const CRON_LOCK_PEEK_TIMEOUT_MS = 2000;
-/** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 /**
  * How far ahead the expiring-card alert looks, in days. A card expiring further
  * out is too early to warn about, and one already expired is not warned about:
@@ -378,6 +375,7 @@ export const CRON_LOCK_PEEK_TIMEOUT_MS = 2000;
  */
 export const EXPIRING_CARD_DAYS_AHEAD = 30;
 
+/** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps
 export const CRON_SCHEDULE_MONTHLY = "0 4 1 * *"; // 04:00 UTC on the 1st, billing run
 // Monday 08:00 UTC. MON, not 1: Cloudflare numbers weekdays 1 = Sunday to 7 =

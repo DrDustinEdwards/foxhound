@@ -12,7 +12,17 @@ import migrationJournal from "../../../drizzle/migrations/meta/_journal.json";
 import type { Db } from "~/db";
 import { countActiveRecoveries } from "~/lib/admin/overview.server";
 import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/due-steps";
-import { CRON_LOCK_PEEK_TIMEOUT_MS } from "~/lib/constants";
+import {
+  CRON_LOCK_PEEK_TIMEOUT_MS,
+  RETENTION_AI_CALLS_DAYS,
+  RETENTION_CRON_LOG_DAYS,
+  RETENTION_EMAIL_SENDS_DAYS,
+  RETENTION_ENGAGEMENT_DAYS,
+  RETENTION_HEALTH_SCORE_DAYS,
+  RETENTION_PAGE_404_DAILY_DAYS,
+  RETENTION_SOCIAL_LEADS_DAYS,
+  RETENTION_WEBHOOK_EVENTS_DAYS,
+} from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { lockHealth } from "@dustinedwards/site-runtime/cron-lock";
 import { withTimeout } from "@dustinedwards/site-runtime/time";
@@ -143,38 +153,42 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
   return [
     {
       label: "Engagement events",
-      retentionPolicy: "180 days, then monthly aggregates",
+      retentionPolicy: `${RETENTION_ENGAGEMENT_DAYS} days, then monthly aggregates`,
       rowCount: engagementEventsCount[0]?.n ?? 0,
     },
-    { label: "Email sends", retentionPolicy: "180 days", rowCount: emailSendsCount[0]?.n ?? 0 },
+    {
+      label: "Email sends",
+      retentionPolicy: `${RETENTION_EMAIL_SENDS_DAYS} days`,
+      rowCount: emailSendsCount[0]?.n ?? 0,
+    },
     {
       label: "Webhook events",
-      retentionPolicy: "90 days",
+      retentionPolicy: `${RETENTION_WEBHOOK_EVENTS_DAYS} days`,
       rowCount: webhookEventsCount[0]?.n ?? 0,
     },
     {
       label: "Health score history",
-      retentionPolicy: "90 days raw, weekly rollups after",
+      retentionPolicy: `${RETENTION_HEALTH_SCORE_DAYS} days raw, weekly rollups after`,
       rowCount: healthScoreHistoryCount[0]?.n ?? 0,
     },
     {
       label: "Cron run log",
-      retentionPolicy: "90 days, newest 1,500 per job",
+      retentionPolicy: `${RETENTION_CRON_LOG_DAYS} days, newest 1,500 per job`,
       rowCount: cronRunLogCount[0]?.n ?? 0,
     },
     {
       label: "Social leads (non-actioned)",
-      retentionPolicy: "180 days",
+      retentionPolicy: `${RETENTION_SOCIAL_LEADS_DAYS} days`,
       rowCount: socialLeadsCount[0]?.n ?? 0,
     },
     {
       label: "Page 404s (daily aggregate)",
-      retentionPolicy: "365 days",
+      retentionPolicy: `${RETENTION_PAGE_404_DAILY_DAYS} days`,
       rowCount: page404DailyCount[0]?.n ?? 0,
     },
     {
       label: "AI calls",
-      retentionPolicy: "90 days raw, monthly cost aggregates after",
+      retentionPolicy: `${RETENTION_AI_CALLS_DAYS} days raw, monthly cost aggregates after`,
       rowCount: aiCallsCount[0]?.n ?? 0,
     },
   ];

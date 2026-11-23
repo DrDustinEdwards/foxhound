@@ -28,8 +28,8 @@ export function siteUrl(env: Env): string {
 // below) and in page copy (about.tsx, privacy.tsx, terms.tsx).
 export const SUPPORT_EMAIL = "support@foxhoundapp.com";
 
-// Foxhound operates as Dustin Edwards personally (sole proprietor) until Foxing LLC forms (targeted
-// ~September 2026), so Texas is the real governing-law state today, not a carried-over guess.
+// Foxhound operates as Dustin Edwards personally (sole proprietor) until Foxing LLC forms (no date is
+// set), so Texas is the real governing-law state today, not a carried-over guess.
 export const GOVERNING_LAW_JURISDICTION = "Texas";
 
 export function organizationJsonLd(url: string) {
@@ -63,8 +63,9 @@ export function softwareApplicationJsonLd(url: string) {
     description: `Recover failed Stripe subscription payments with silent retries and AI-drafted email sequences. ${RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing Stripe would have recovered anyway.`,
     publisher: { "@id": `${url}/#organization` },
     // NO `offers` BLOCK, DELIBERATELY. Recovery is a percentage of money it creates and
-    // Intelligence is a monthly fee, so "0" told search engines the product is free when two thirds
-    // of it is not.
+    // Recovery and disputes are billed as a percentage of what they win, so "0" told search engines
+    // there is no fee at all. Intelligence is free (INTELLIGENCE_FREE_SENTENCE), and says so in the
+    // description above.
   });
 }
 

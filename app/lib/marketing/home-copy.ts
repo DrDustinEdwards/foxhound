@@ -1,3 +1,4 @@
+import { STRIPE_WRITES, STRIPE_WRITES_LIMITS } from "~/lib/marketing/trust-copy";
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
 import {
@@ -145,8 +146,7 @@ export interface HomeFaq {
 export const FAQS: HomeFaq[] = [
   {
     question: "Does Foxhound touch my Stripe billing configuration?",
-    answer:
-      "No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: retrying an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence you approved, and closing a dispute at Stripe when you choose to accept it. It never changes your prices, products, subscription plans, or any other Stripe setting, and never reaches your payouts.",
+    answer: `No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: ${STRIPE_WRITES}. It ${STRIPE_WRITES_LIMITS}, and never changes any other Stripe setting.`,
   },
   // Replies go to the merchant's own address through the reply-to setting (app/lib/email/send.ts); until one is saved a reply
   // goes to the From line, as /docs/platform says.
