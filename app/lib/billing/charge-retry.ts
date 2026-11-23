@@ -13,6 +13,7 @@ import {
   lookupPlatformBillingEmail,
 } from "./platform-customer";
 import {
+  chargeableLines,
   createPlatformInvoice,
   finalizePlatformInvoice,
   findPlatformInvoiceByBillingId,
@@ -468,6 +469,10 @@ export async function retryInvoiceCharge(
   // The SECOND money-moving path, and the one the follow-up task did not name:
   // payPlatformInvoice collects on an existing Stripe invoice. Guarding only
   // the create branch would have left the more common retry path unguarded.
+  if (liveStatus === "draft") {
+    const incomplete = await draftIsIncomplete(env, invoice, existing);
+    if (incomplete) return incomplete;
+  }
   const blockedBeforePay = await blockedByGuard();
   if (blockedBeforePay) return blockedBeforePay;
 
@@ -509,7 +514,7 @@ export async function retryInvoiceCharge(
 async function settleEmailedInvoice(
   env: Env,
   invoice: StrandedInvoice,
-  existing: { id?: string; hosted_invoice_url?: string | null },
+  existing: { id?: string; total?: number; hosted_invoice_url?: string | null },
   liveStatus: string,
   finalize: ChargeRetryDeps["finalize"],
   blockedByGuard: () => Promise<SweepResult | null>,
@@ -533,6 +538,8 @@ async function settleEmailedInvoice(
   }
 
   if (liveStatus === "draft") {
+    const incomplete = await draftIsIncomplete(env, invoice, existing);
+    if (incomplete) return incomplete;
     const blocked = await blockedByGuard();
     if (blocked) return blocked;
     try {
@@ -576,6 +583,23 @@ async function settleEmailedInvoice(
     });
   }
   return { invoiceId: invoice.id, outcome: "skipped", reason: "emailed_invoice_awaiting_payment" };
+}
+
+/**
+ * A Stripe draft is finalized only when its total equals the chargeable lines we hold: createPlatformInvoice
+ * attaches items one by one, so a throw midway leaves a draft with some of them, and finalizing it would
+ * bill the merchant short while the row reads settled. Item keys expire after 24 hours and the sweep runs
+ * monthly, so re-attaching could double-bill; the draft is left for review instead.
+ */
+async function draftIsIncomplete(
+  env: Env,
+  invoice: StrandedInvoice,
+  existing: { total?: number },
+): Promise<SweepResult | null> {
+  const { lines } = await loadLines(env, invoice.id);
+  const expected = chargeableLines(lines).reduce((sum, l) => sum + l.amountCents, 0);
+  if (existing.total === expected) return null;
+  return { invoiceId: invoice.id, outcome: "skipped", reason: "draft_lines_incomplete" };
 }
 
 function writeAttempt(
