@@ -71,6 +71,26 @@ function daysSinceCancel(createdAt: Date, now: Date): number {
   return Math.floor((now.getTime() - createdAt.getTime()) / DAY_MS);
 }
 
+/** The reactivation's outcome row, idempotent on the sequence: a repeat is a no-op. */
+function recordReactivationOutcome(
+  env: Env,
+  sequence: WinbackSequenceForReactivation,
+  now: Date,
+): Promise<boolean> {
+  return recordOutcome(env, {
+    accountId: sequence.accountId,
+    product: "recovery",
+    eventType: "winback_reactivated",
+    outcome: "reactivated",
+    eventData: {
+      amountCents: sequence.amountCents,
+      daysSinceCancel: daysSinceCancel(sequence.createdAt, now),
+    },
+    idempotencyKey: `winback-reactivated:${sequence.id}`,
+    outcomeAt: now,
+  });
+}
+
 export type ReactivationOutcome =
   | { status: "reactivated"; sequenceId: string }
   | { status: "not_found" }
@@ -89,24 +109,18 @@ export async function reactivateWinbackSequence(
   const sequence = await loadReactivatableSequence(db, input.accountId, input.sequenceId);
   if (!sequence) return { status: "not_found" };
   if (!WINBACK_REACTIVATABLE_STATUSES.includes(sequence.status)) {
+    // The claim and the outcome are two writes. A run that died between them left a reactivated
+    // sequence with no outcome, and its redelivery lands here: record it (a no-op when it exists).
+    if (sequence.status === WINBACK_STATUS.REACTIVATED) {
+      await recordReactivationOutcome(env, sequence, input.now);
+    }
     return { status: "already_handled", sequenceId: sequence.id };
   }
 
   const claimed = await claimWinbackReactivation(db, sequence.id, input.now);
   if (!claimed) return { status: "duplicate", sequenceId: sequence.id };
 
-  await recordOutcome(env, {
-    accountId: sequence.accountId,
-    product: "recovery",
-    eventType: "winback_reactivated",
-    outcome: "reactivated",
-    eventData: {
-      amountCents: sequence.amountCents,
-      daysSinceCancel: daysSinceCancel(sequence.createdAt, input.now),
-    },
-    idempotencyKey: `winback-reactivated:${sequence.id}`,
-    outcomeAt: input.now,
-  });
+  await recordReactivationOutcome(env, sequence, input.now);
 
   return { status: "reactivated", sequenceId: sequence.id };
 }

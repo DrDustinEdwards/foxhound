@@ -252,6 +252,24 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
   });
 });
 
+describe("a reactivation that died between its claim and its outcome", () => {
+  it("records the outcome when the event is redelivered", async () => {
+    seedSequence();
+    sqlite
+      .prepare(
+        "UPDATE win_back_sequences SET status = 'reactivated', reactivated_at = ? WHERE id = 'wb_1'",
+      )
+      .run(RECEIVED.getTime() - 1000);
+    expect(outcomeRows()).toEqual([]);
+
+    await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }), RECEIVED);
+    expect(outcomeRows().map((r) => r.eventType)).toEqual(["winback_reactivated"]);
+
+    await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }), RECEIVED);
+    expect(outcomeRows()).toHaveLength(1);
+  });
+});
+
 describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by customer", () => {
   it("reactivates when the paid subscription carries the sequence id", async () => {
     seedSequence();

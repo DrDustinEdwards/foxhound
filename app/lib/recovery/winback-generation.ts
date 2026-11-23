@@ -92,7 +92,7 @@ export function buildWinbackPrompt(input: WinbackPromptInput): string {
     ...PLAIN_WRITING_LINES,
     "",
     "Respond ONLY in this exact JSON format with no preamble or markdown:",
-    '{"subject":"<email subject line>","body":"<full HTML email body>"}',
+    '{"subject":"<email subject line>","bodyHtml":"<full HTML email body>"}',
   ].join("\n");
 }
 
