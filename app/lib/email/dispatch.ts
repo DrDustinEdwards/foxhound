@@ -1,6 +1,6 @@
 import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { inList } from "@dustinedwards/site-runtime/d1";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, eq, isNotNull, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { accounts, getDb, emailSends, emailSuppressions } from "~/db";
@@ -245,14 +245,16 @@ export class SendGates {
   static async read(env: Env, jobs: readonly GatedJob[]): Promise<SendGates> {
     const db = getDb(env);
     const emails = new Set(jobs.map((j) => j.to));
+    const lowered = [...emails].map((e) => e.toLowerCase());
     const accountIds = new Set(jobs.flatMap((j) => (j.accountId ? [j.accountId] : [])));
     const [suppressed, live] = await db.batch([
       db
-        .select({ email: emailSuppressions.email })
+        .select({ email: sql<string>`lower(${emailSuppressions.email})` })
         .from(emailSuppressions)
         .where(
           and(
-            inList(emailSuppressions.email, [...emails]),
+            // Rows are stored lowercase; older mixed-case rows match through lower().
+            inList(sql`lower(${emailSuppressions.email})`, lowered),
             isNotNull(emailSuppressions.suppressedAt),
           ),
         ),
@@ -271,7 +273,7 @@ export class SendGates {
 
   suppressed(job: GatedJob): boolean {
     if (!this.#emails.has(job.to)) throw new Error("SendGates: this address was not read");
-    return this.#suppressed.has(job.to);
+    return this.#suppressed.has(job.to.toLowerCase());
   }
 
   liveSends(job: GatedJob): boolean {
