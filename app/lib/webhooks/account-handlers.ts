@@ -82,7 +82,9 @@ export async function handleAccountHealth(
  */
 export async function handleConnectionDeauthorized(ctx: WebhookContext): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, connectionId, claim, idempotencyKey } = ctx;
-  await disconnectConnectionLocal(getDb(env), connectionId, receivedAt);
+  // A connection already disconnected (Foxhound's own revoke raced this event)
+  // keeps its first stamp; the event is still claimed.
+  await disconnectConnectionLocal(getDb(env), accountId, connectionId, receivedAt);
   const { applied } = await executeMoneyWrite(env, {
     accountId,
     idempotencyKey,

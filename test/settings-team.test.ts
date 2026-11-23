@@ -1,3 +1,4 @@
+import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -153,12 +154,19 @@ const only = (): SentMessage => {
   return harness.sent[0];
 };
 
-function inviteToken(): string {
+function storedInviteHash(): string {
   return (
     sqlite
       .prepare("SELECT invite_token AS t FROM account_members WHERE status = 'pending'")
       .get() as { t: string }
   ).t;
+}
+
+/** The token in an answer's invite link, checked against the pending row's hash. */
+async function linkToken(body: Record<string, unknown>): Promise<string> {
+  const token = String(body.inviteUrl).split(`${BASE}/invite/`)[1];
+  expect(await sha256Hex(token)).toBe(storedInviteHash());
+  return token;
 }
 
 function pendingCount(): number {
@@ -239,8 +247,7 @@ describe("inviting a teammate", () => {
       emailError: null,
     });
     const m = only();
-    const url = `${BASE}/invite/${inviteToken()}`;
-    expect(res.body.inviteUrl).toBe(url);
+    const url = `${BASE}/invite/${await linkToken(res.body)}`;
     expect(m.to).toBe(INVITEE);
     expect(m.html).toContain(url);
     expect(m.text).toContain(url);
@@ -298,7 +305,7 @@ describe("inviting a teammate", () => {
     expect(harness.sent).toHaveLength(0);
     expect(suppressed.status).toBe(200);
     expect(suppressed.body.emailStatus).toBe("suppressed");
-    expect(String(suppressed.body.inviteUrl)).toContain(`/invite/${inviteToken()}`);
+    await linkToken(suppressed.body);
 
     for (const broken of [
       undefined,
@@ -315,7 +322,7 @@ describe("inviting a teammate", () => {
       expect(res.status).toBe(200);
       expect(res.body.emailStatus).toBe("failed");
       expect(String(res.body.emailError)).toMatch(/could not/i);
-      expect(inviteToken()).toBeTruthy();
+      expect(storedInviteHash()).toBeTruthy();
     }
   });
 
@@ -329,7 +336,7 @@ describe("inviting a teammate", () => {
       },
     });
     const res = await invite();
-    const token = inviteToken();
+    const token = await linkToken(res.body);
     expect(res.body.emailStatus).toBe("failed");
     const row = sqlite.prepare("SELECT error FROM email_sends").get() as { error: string };
     expect(row.error).toContain("rejected message linking");

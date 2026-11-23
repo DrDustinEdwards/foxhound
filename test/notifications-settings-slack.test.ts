@@ -269,4 +269,15 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
       reason: "threw",
     });
   });
+
+  it("a Slack host that never answers cannot hold the caller: the post carries a timeout", async () => {
+    let signal: AbortSignal | null | undefined;
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      signal = init?.signal;
+      return new Response("ok", { status: 200 });
+    }) as typeof globalThis.fetch;
+
+    await postToSlack("https://hooks.slack.com/services/x", event);
+    expect(signal).toBeInstanceOf(AbortSignal);
+  });
 });

@@ -110,7 +110,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       );
     }
     // The revoke runs AFTER the batch has committed. The default revoke can THROW (it builds its Stripe client outside its own try), and a throw there must not read as "could not disconnect": the connection IS disconnected. So the revoke handed in turns a throw into the failed revoke it is. Same writer, same batch, same order; only the reporting.
-    const result = await disconnectConnection(env, live, {
+    const result = await disconnectConnection(env, accountId, live, {
       deauthorize: async (e, stripeUserId) => {
         try {
           return await deauthorizeConnectedAccount(e, stripeUserId);

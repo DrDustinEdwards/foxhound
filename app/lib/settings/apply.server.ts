@@ -26,13 +26,13 @@ import {
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "./dispute-description";
 import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
+import { asBoolean, asLabel, asNotificationEmail, asOptionalText, asVoice } from "./setting-input";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
 import { sealSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { readVoiceSamples, storeVoiceSamples } from "~/lib/recovery/voice-samples";
 
-// THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN. WHY THIS MODULE EXISTS. The settings forms and
-// the MCP write tools must agree exactly: same bounds, same allowlist, same refusal string. A
-// DISCRIMINATED OUTCOME, never a throw.
+// THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN. The settings forms and the MCP write tools must
+// agree exactly: same bounds, allowlist and refusal string. A DISCRIMINATED OUTCOME, never a throw.
 
 /** What every apply function returns. `fields` is the column names touched,
  *  which is what the trace records and what a tool reports back. */
@@ -73,18 +73,6 @@ async function commit(
     ? [...writes, traceInsert(db, accountId, fields, trace)]
     : writes;
   await db.batch(statements);
-}
-
-/** Coerce a JSON or form boolean. Accepts a real boolean and the "true" string
- *  a checkbox posts, so one rule serves both callers. */
-function asBoolean(value: unknown): boolean {
-  return value === true || value === "true";
-}
-
-/** Trim to null, the shape every optional text setting uses. */
-function asOptionalText(value: unknown): string | null {
-  const raw = typeof value === "string" ? value.trim() : "";
-  return raw.length > 0 ? raw : null;
 }
 
 export interface AuditSettingsState {
@@ -249,9 +237,11 @@ export async function applyNotificationSettings(
     typeof input.slackWebhookUrl === "string" ? input.slackWebhookUrl : "",
   );
   if (!webhook.ok) return { ok: false, error: webhook.error };
+  const email = asNotificationEmail(input.notificationEmail);
+  if (!email.ok) return email;
 
   const state: NotificationSettingsState = {
-    notificationEmail: asOptionalText(input.notificationEmail),
+    notificationEmail: email.value,
     slackWebhookUrl: webhook.value,
     slackNotificationsEnabled: asBoolean(input.slackNotificationsEnabled),
     digestEnabled: asBoolean(input.digestEnabled),
@@ -412,11 +402,14 @@ export async function applyBrandVoice(
   const stored = found[0];
 
   const fields: string[] = [];
+  let tooLong: string | null = null;
   const resolve = (key: BrandVoiceKey): string | null => {
     const supplied = input[key];
     if (supplied === undefined) return stored[key];
     fields.push(BRAND_VOICE_COLUMNS[key]);
-    return asOptionalText(supplied);
+    const text = asVoice(supplied);
+    if (!text.ok) tooLong = text.error;
+    return text.ok ? text.value : null;
   };
 
   const state: BrandVoiceState = {
@@ -428,6 +421,7 @@ export async function applyBrandVoice(
     fraud: resolve("fraud"),
     samples: readVoiceSamples(stored.samples),
   };
+  if (tooLong) return { ok: false, error: tooLong };
   let storedSamples = stored.samples;
   if (input.samples !== undefined) {
     if (!Array.isArray(input.samples))
@@ -502,12 +496,16 @@ export async function applyIntelligenceContext(
   const state: IntelligenceContextState = { ...stored };
 
   if (input.merchantIndustry !== undefined) {
+    const industry = asLabel(input.merchantIndustry, "the industry");
+    if (!industry.ok) return industry;
     fields.push("merchant_industry");
-    state.merchantIndustry = asOptionalText(input.merchantIndustry);
+    state.merchantIndustry = industry.value;
   }
   if (input.primaryCustomerType !== undefined) {
+    const type = asLabel(input.primaryCustomerType, "the customer type");
+    if (!type.ok) return type;
     fields.push("primary_customer_type");
-    state.primaryCustomerType = asOptionalText(input.primaryCustomerType);
+    state.primaryCustomerType = type.value;
   }
   if (input.merchantMrrSelfReported !== undefined) {
     const raw =
@@ -584,6 +582,8 @@ export async function applyAlertCreate(
     return { ok: false, error: ALERT_THRESHOLD_ERROR };
   }
   const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
+  const label = asLabel(input.label, "the label");
+  if (!label.ok) return label;
   const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel)
     ? String(input.channel)
     : "email";
@@ -593,7 +593,7 @@ export async function applyAlertCreate(
     metric,
     direction,
     thresholdValue,
-    label: asOptionalText(input.label),
+    label: label.value,
     channel,
   };
   // A new row, so every column it names is a field this write touched.

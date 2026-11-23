@@ -535,6 +535,7 @@ describe("a client known by its metadata document (CIMD)", () => {
       code: back.searchParams.get("code")!,
       code_verifier: verifier,
       client_id: DOC_URL,
+      redirect_uri: CLAUDE_REDIRECT,
     });
     expect(status).toBe(200);
     const [key] = await db.select().from(apiKeys);

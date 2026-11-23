@@ -288,7 +288,7 @@ export async function executeRetryStep(
 async function notifySlackRecovered(env: Env, ctx: RetryStepContext): Promise<void> {
   const target = await resolveSlackTarget(env, ctx.accountId);
   if (target.status !== "ready") return;
-  const customer = await loadSlackCustomer(env, ctx.failedPaymentId, "Customer");
+  const customer = await loadSlackCustomer(env, ctx.accountId, ctx.failedPaymentId, "Customer");
   if (!customer) return;
   await postToSlack(target.webhookUrl, {
     type: "payment_recovered",

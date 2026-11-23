@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { accounts, getDb } from "~/db";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
@@ -63,6 +63,8 @@ export async function resolveSlackTarget(
   }
 }
 
+const SLACK_TIMEOUT_MS = 5_000;
+
 /** Post one event to a resolved webhook. */
 export async function postToSlack(webhookUrl: string, event: SlackEvent): Promise<SlackOutcome> {
   return postSlackBody(webhookUrl, buildSlackPayload(event));
@@ -80,6 +82,8 @@ async function postSlackBody(webhookUrl: string, body: { text: string }): Promis
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
       redirect: "manual",
+      // A slow host must not hold the step or queue consumer that posts.
+      signal: AbortSignal.timeout(SLACK_TIMEOUT_MS),
     });
     if (!res.ok) {
       console.error(`slack notification rejected: ${res.status}`);
@@ -121,6 +125,7 @@ export async function postSlackText(
  */
 export async function loadSlackCustomer(
   env: Env,
+  accountId: string,
   failedPaymentId: string,
   nameFallback: string,
 ): Promise<{ customerEmail: string; customerName: string } | null> {
@@ -131,7 +136,7 @@ export async function loadSlackCustomer(
       customerName: failedPayments.customerName,
     })
     .from(failedPayments)
-    .where(eq(failedPayments.id, failedPaymentId))
+    .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.id, failedPaymentId)))
     .limit(1);
   if (!row) return null;
   return {

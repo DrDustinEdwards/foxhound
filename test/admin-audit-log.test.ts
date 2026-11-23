@@ -25,6 +25,7 @@ vi.mock("~/lib/stripe/connect", async (importOriginal) => ({
 const { action: cronsAction } = await import("~/routes/admin/crons");
 const { action: brakeAction } = await import("~/routes/admin/brake");
 const { action: merchantAction } = await import("~/routes/admin/merchants/detail");
+const { action: merchantsAction } = await import("~/routes/admin/merchants/index");
 
 interface Entry {
   action: string;
@@ -240,7 +241,7 @@ describe("the cron toggles write the audit row with the change", () => {
 
 let sqlite: Database.Database;
 
-function postMerchant(fields: Record<string, string>) {
+function postMerchant(fields: Record<string, string>, act: unknown = merchantAction) {
   const c = new RouterContextProvider();
   c.set(cloudflareContext, {
     env: { MONEY_WRITER: inMemoryMoneyWriter(() => sqlite).binding } as unknown as Env,
@@ -249,7 +250,7 @@ function postMerchant(fields: Record<string, string>) {
   c.set(adminContext, { email: "admin@example.com" });
   const body = new FormData();
   for (const [k, v] of Object.entries(fields)) body.append(k, v);
-  return (merchantAction as (args: unknown) => Promise<unknown>)({
+  return (act as (args: unknown) => Promise<unknown>)({
     request: new Request("https://foxhoundapp.com/admin/merchants/acc_1", { method: "POST", body }),
     context: c,
     params: { id: "acc_1" },
@@ -299,12 +300,25 @@ describe("an admin change on the merchant page never stands without its audit ro
   it.each([
     ["billing exemption", { intent: "toggle-billing-exempt", nextExempt: "true" }],
     ["pause", { intent: "toggle-processing-paused", nextPaused: "true" }],
-    ["cancel", { intent: "cancel" }],
-  ])("%s: a failed audit write changes nothing", async (_name, fields) => {
-    await expect(postMerchant(fields)).rejects.toThrow();
+    ["cancel", { intent: "cancel", accountId: "acc_1", confirm: "cancel" }, merchantsAction],
+  ])("%s: a failed audit write changes nothing", async (_name, fields, act?: unknown) => {
+    await expect(postMerchant(fields, act)).rejects.toThrow();
     expect(accountRow()).toEqual({ exempt: 0, paused: 0, canceled: null });
     expect(sqlite.prepare("SELECT disconnected_at AS d FROM stripe_connections").get()).toEqual({
       d: null,
     });
+  });
+});
+
+describe("app1 F3: the merchant page cannot cancel without the typed word", () => {
+  it("a bare intent=cancel post to the merchant page cancels nothing", async () => {
+    const made = createInMemoryDb();
+    sqlite = made.sqlite;
+    harness.db = made.db;
+    sqlite
+      .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acc_1', 'Acme', 1000)")
+      .run();
+    await postMerchant({ intent: "cancel" });
+    expect(accountRow()).toEqual({ exempt: 0, paused: 0, canceled: null });
   });
 });

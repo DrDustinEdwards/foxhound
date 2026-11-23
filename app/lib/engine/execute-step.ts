@@ -34,7 +34,7 @@ import { decideEmailStep } from "./step-runner";
 async function notifySlackEmailSent(env: Env, ctx: EmailStepContext): Promise<void> {
   const target = await resolveSlackTarget(env, ctx.accountId);
   if (target.status !== "ready") return;
-  const customer = await loadSlackCustomer(env, ctx.failedPaymentId, "there");
+  const customer = await loadSlackCustomer(env, ctx.accountId, ctx.failedPaymentId, "there");
   if (!customer) return;
   await postToSlack(target.webhookUrl, {
     type: "email_sent",

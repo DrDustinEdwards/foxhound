@@ -138,8 +138,8 @@ export async function handleStampDispute(
   // recovery notification above.
   const noticeFor = applied
     ? disputeId
-    : await findDisputeByStripeId(env, intent.stripeDisputeId).then(
-        (row) => (row && row.accountId === accountId ? row.id : null),
+    : await findDisputeByStripeId(env, accountId, intent.stripeDisputeId).then(
+        (row) => row?.id ?? null,
         (err) => {
           console.error("dispute notice lookup on a redelivery failed", err);
           return null;
@@ -169,8 +169,7 @@ export async function handleDisputeResolved(
   intent: IntentOf<"dispute_resolved">,
 ): Promise<WebhookOutcome> {
   const { env, receivedAt, accountId, claim, idempotencyKey } = ctx;
-  const dispute = await findDisputeByStripeId(env, intent.stripeDisputeId);
-  if (dispute && dispute.accountId !== accountId) return claimOnly(ctx, "dispute_not_found");
+  const dispute = await findDisputeByStripeId(env, accountId, intent.stripeDisputeId);
   if (!dispute) {
     // Out-of-order delivery (closed before created): claiming would mark the event handled and the
     // dispute would stay open for good, so leave it unclaimed for Stripe's retry and the missed-event

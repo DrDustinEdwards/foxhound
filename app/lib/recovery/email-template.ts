@@ -198,6 +198,10 @@ export function buildTemplateEmail(input: TemplateEmailInput): EmailCopy {
   }
   return {
     subject: subjectFor(input),
-    bodyHtml: bodyFor(input),
+    bodyHtml: bodyFor({
+      ...input,
+      merchantName: escapeHtml(input.merchantName),
+      amountFormatted: escapeHtml(input.amountFormatted),
+    }),
   };
 }

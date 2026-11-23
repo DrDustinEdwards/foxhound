@@ -1,6 +1,7 @@
 // Account invites (account.ts split): reading an invite by token, creating one,
 // and accepting it into a membership.
 
+import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { and, eq, inArray } from "drizzle-orm";
 import { type Db, accountMembers, accounts } from "~/db";
 import { INVITE_TTL_MS, MEMBER_ROLE, MEMBER_STATUS } from "./roles";
@@ -12,6 +13,16 @@ export interface InviteView {
   accountId: string;
   accountName: string | null;
   invitedEmail: string | null;
+}
+
+/**
+ * The stored forms that match a link's token: its SHA-256 (every invite from
+ * createInvite) or the raw token of an invite made before the hash. A raw token
+ * is a uuid and never 64 hex characters, so the two cannot collide. The raw
+ * form can go once INVITE_TTL_MS has passed since the hash shipped.
+ */
+async function storedTokenForms(token: string): Promise<string[]> {
+  return [await sha256Hex(token), token];
 }
 
 /** A pending, unexpired invite for a token, with its account name. */
@@ -27,7 +38,7 @@ export async function getInviteByToken(db: Db, token: string): Promise<InviteVie
     })
     .from(accountMembers)
     .innerJoin(accounts, eq(accountMembers.accountId, accounts.id))
-    .where(eq(accountMembers.inviteToken, token))
+    .where(inArray(accountMembers.inviteToken, await storedTokenForms(token)))
     .limit(1);
 
   const row = rows[0];
@@ -70,7 +81,8 @@ export async function hasOpenInviteForEmail(
 }
 
 /**
- * Create a pending team-member invite. Returns the token for the invite link.
+ * Create a pending team-member invite. Returns the token for the invite link;
+ * the row keeps only its hash.
  */
 export async function createInvite(
   db: Db,
@@ -87,7 +99,7 @@ export async function createInvite(
     role: MEMBER_ROLE.MEMBER,
     invitedEmail: normalizeInviteEmail(email),
     status: MEMBER_STATUS.PENDING,
-    inviteToken: token,
+    inviteToken: await sha256Hex(token),
     inviteExpiresAt: new Date(now.getTime() + INVITE_TTL_MS),
     createdAt: now,
   });
@@ -160,7 +172,7 @@ export async function acceptInvite(
         and(
           eq(accountMembers.id, invite.memberId),
           eq(accountMembers.status, MEMBER_STATUS.PENDING),
-          eq(accountMembers.inviteToken, token),
+          inArray(accountMembers.inviteToken, await storedTokenForms(token)),
         ),
       )
       .returning({ id: accountMembers.id });

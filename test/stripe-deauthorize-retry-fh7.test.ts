@@ -45,6 +45,7 @@ describe("the Stripe deauthorize retry", () => {
   it("queues a failed revoke, keeps it while Stripe fails, and clears it once Stripe accepts", async () => {
     const out = await disconnectConnection(
       ENV,
+      "acct_a",
       { id: "sc_a", stripeUserId: "acct_1Sample" },
       { deauthorize: failing },
     );
@@ -68,6 +69,7 @@ describe("the Stripe deauthorize retry", () => {
   it("never revokes a Stripe account that is live on a Foxhound account again", async () => {
     await disconnectConnection(
       ENV,
+      "acct_a",
       { id: "sc_a", stripeUserId: "acct_1Sample" },
       { deauthorize: failing },
     );
@@ -97,5 +99,41 @@ describe("the Stripe deauthorize retry", () => {
     );
     expect(failure).toMatchObject({ connectionId: "sc_missing", queued: false });
     expect(failure.error).toMatch(/not queued for retry/);
+  });
+
+  it("a connection already disconnected, or another account's, is refused before any revoke", async () => {
+    const calls: string[] = [];
+    const deauthorize = async (_env: Env, stripeUserId: string) => {
+      calls.push(stripeUserId);
+      return { ok: true };
+    };
+    await disconnectConnection(
+      ENV,
+      "acct_a",
+      { id: "sc_a", stripeUserId: "acct_1Sample" },
+      { deauthorize },
+    );
+    const [first] = await db.select().from(stripeConnections);
+
+    await expect(
+      disconnectConnection(
+        ENV,
+        "acct_a",
+        { id: "sc_a", stripeUserId: "acct_1Sample" },
+        { deauthorize },
+      ),
+    ).rejects.toThrow();
+    await expect(
+      disconnectConnection(
+        ENV,
+        "acct_b",
+        { id: "sc_a", stripeUserId: "acct_1Sample" },
+        { deauthorize },
+      ),
+    ).rejects.toThrow();
+    expect(calls).toEqual(["acct_1Sample"]);
+    expect((await db.select().from(stripeConnections))[0].disconnectedAt).toEqual(
+      first.disconnectedAt,
+    );
   });
 });
