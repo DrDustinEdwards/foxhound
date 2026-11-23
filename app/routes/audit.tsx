@@ -50,6 +50,12 @@ export function meta({ loaderData }: Route.MetaArgs) {
   ];
 }
 
+/** The currencies the form offers, and the only ones the action accepts. */
+const ESTIMATOR_CURRENCIES = ["usd", "eur", "gbp", "cad", "aud"] as const;
+/** Past any real MRR or customer base, and inside what an integer column holds. */
+const MRR_MAX = 1_000_000_000;
+const CUSTOMER_COUNT_MAX = 100_000_000;
+
 type ActionResult =
   | { ok: true; result: EstimatorResult; mrrCents: number; currency: string }
   | { ok: false; error: string };
@@ -81,17 +87,24 @@ export async function action({ request, context }: Route.ActionArgs) {
   const currency = String(form.get("currency") ?? "usd").toLowerCase();
   const turnstileToken = String(form.get("cf-turnstile-response") ?? "");
 
-  if (!Number.isFinite(mrrDollars) || mrrDollars <= 0) {
+  if (!Number.isFinite(mrrDollars) || mrrDollars <= 0 || mrrDollars > MRR_MAX) {
     return data<ActionResult>(
       { ok: false, error: "Enter a monthly recurring revenue amount greater than 0." },
       { status: 400 },
     );
   }
-  if (!Number.isFinite(customerCount) || customerCount <= 0) {
+  if (
+    !Number.isInteger(customerCount) ||
+    customerCount <= 0 ||
+    customerCount > CUSTOMER_COUNT_MAX
+  ) {
     return data<ActionResult>(
-      { ok: false, error: "Enter a customer count greater than 0." },
+      { ok: false, error: "Enter a whole customer count greater than 0." },
       { status: 400 },
     );
+  }
+  if (!(ESTIMATOR_CURRENCIES as readonly string[]).includes(currency)) {
+    return data<ActionResult>({ ok: false, error: "Choose a currency." }, { status: 400 });
   }
   if (!turnstileToken) {
     return data<ActionResult>(
@@ -341,11 +354,11 @@ function EstimatorForm({
         </label>
         <div className="cap-select-wrap">
           <select className="cap-select" id={currencyId} name="currency" defaultValue="usd">
-            <option value="usd">USD</option>
-            <option value="eur">EUR</option>
-            <option value="gbp">GBP</option>
-            <option value="cad">CAD</option>
-            <option value="aud">AUD</option>
+            {ESTIMATOR_CURRENCIES.map((code) => (
+              <option key={code} value={code}>
+                {code.toUpperCase()}
+              </option>
+            ))}
           </select>
         </div>
       </div>
