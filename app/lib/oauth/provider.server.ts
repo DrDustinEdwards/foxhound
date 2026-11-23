@@ -417,7 +417,7 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
   }
   if (row.expiresAt.getTime() <= now.getTime()) return oauthError(400, "invalid_grant");
   if (row.clientId !== clientId) return oauthError(400, "invalid_grant");
-  if (redirectUri && !redirectUriMatchesCode(redirectUri, row.redirectUri))
+  if (!redirectUri || !redirectUriMatchesCode(redirectUri, row.redirectUri))
     return oauthError(400, "invalid_grant");
   if (!(await verifyPkceS256(verifier, row.codeChallenge))) return oauthError(400, "invalid_grant");
 

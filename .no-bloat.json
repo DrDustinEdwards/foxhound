@@ -21,7 +21,7 @@
       "app/app.css": 887,
       "app/components/audit/sections.tsx": 523,
       "app/components/recovery-dashboard-panels.tsx": 547,
-      "app/lib/admin-api/handler.server.ts": 681,
+      "app/lib/admin-api/handler.server.ts": 680,
       "app/lib/admin/email-send.server.ts": 861,
       "app/lib/admin/merchants.server.ts": 568,
       "app/lib/audit/engine.ts": 540,
@@ -45,9 +45,8 @@
       "app/lib/settings/apply.server.ts": 650,
       "app/lib/webhooks/batches.ts": 617,
       "app/lib/webhooks/events.ts": 521,
-      "app/lib/webhooks/lookups.ts": 649,
+      "app/lib/webhooks/lookups.ts": 648,
       "app/marketing.css": 518,
-      "app/routes/admin/merchants/detail.tsx": 514,
       "app/routes/app/disputes/detail.tsx": 713,
       "app/routes/app/recovery/payments/detail.tsx": 885,
       "app/routes/app/recovery/payments/index.tsx": 1037,
@@ -57,8 +56,8 @@
       "app/routes/terms.tsx": 789
     },
     "tests": {
-      "files": 268,
-      "cases": 1647
+      "files": 270,
+      "cases": 1657
     },
     "comments": {
       "lines": 15742,

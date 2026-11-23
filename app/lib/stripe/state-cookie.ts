@@ -52,6 +52,8 @@ export function readAuditStateCookie(request: Request): string | null {
 export interface AuditGrant {
   accessToken: string;
   stripeAccountId: string;
+  /** When the grant was sealed (ms), read back from the seal. */
+  issuedAt: number;
 }
 
 /** What a sealed value must say it is before it counts as an audit grant. */
@@ -70,7 +72,7 @@ const AUDIT_GRANT_CLOCK_SKEW_MS = 60_000;
  */
 export async function setAuditGrantCookie(
   env: Env,
-  grant: AuditGrant,
+  grant: Omit<AuditGrant, "issuedAt">,
   issuedAtMs: number = Date.now(),
 ): Promise<string> {
   const sealed = await encryptToken(
@@ -118,5 +120,5 @@ export async function readAuditGrantCookie(
   if (typeof iat !== "number" || !Number.isFinite(iat)) return null;
   const ageMs = nowMs - iat;
   if (ageMs > AUDIT_TOKEN_TTL_SECONDS * 1000 || ageMs < -AUDIT_GRANT_CLOCK_SKEW_MS) return null;
-  return { accessToken: t, stripeAccountId: a };
+  return { accessToken: t, stripeAccountId: a, issuedAt: iat };
 }

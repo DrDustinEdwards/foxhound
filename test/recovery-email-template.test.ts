@@ -53,3 +53,17 @@ describe("the template says the right thing per category", () => {
     expect(forCategory("unknown").bodyHtml).toContain("did not tell us why");
   });
 });
+
+describe("lib3 F5: the merchant's name is words, never markup", () => {
+  it("escapes the name in the body for every category", () => {
+    for (const declineCategory of ALL_CATEGORIES) {
+      const { bodyHtml } = buildTemplateEmail({
+        ...base,
+        declineCategory,
+        merchantName: "Acme <img src=x>",
+      });
+      expect(bodyHtml).not.toContain("<img");
+      expect(bodyHtml).toContain("Acme &lt;img src=x&gt;");
+    }
+  });
+});

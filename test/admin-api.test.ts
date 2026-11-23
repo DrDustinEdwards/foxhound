@@ -250,6 +250,13 @@ describe("the reads", () => {
     expect(status).toBe(404);
     expect(String(json.error)).toMatch(/merchants/);
   });
+
+  it("a malformed id segment is a 404 naming the routes, not a thrown 500", async () => {
+    const { keys } = await seed();
+    const { status, json } = await api("/merchants/%E0%A4%A", asAdmin(keys.admin));
+    expect(status).toBe(404);
+    expect(json.ok).toBe(false);
+  });
 });
 
 describe("pause is a direct write, audited under the acting admin", () => {

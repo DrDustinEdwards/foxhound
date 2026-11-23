@@ -73,12 +73,14 @@ export const accountMembers = sqliteTable(
     role: text("role").notNull(),
     invitedEmail: text("invited_email"),
     status: text("status").notNull(),
+    // SHA-256 of the invite link's token (app/lib/auth/invites.ts).
     inviteToken: text("invite_token"),
     inviteExpiresAt: ts("invite_expires_at"),
     createdAt: ts("created_at"),
   },
   (t) => [
     index("account_members_account_idx").on(t.accountId),
+    uniqueIndex("account_members_invite_token_uq").on(t.inviteToken),
     // Every signed-in request resolves its memberships by user. The partial unique index below cannot serve it: its status = 'active' filter does not match a bound parameter.
     index("account_members_user_idx").on(t.userId),
     // A user joins a given account AT MOST ONCE, and may join MANY accounts (a unique on (user_id, account_id), not on user_id alone, which would cap every user at one active membership). The application's accept-invite path enforces the same pair; the index moves it down to where a race cannot get past it. Pending invite rows carry a null user_id and status 'pending' and are excluded twice over. The read-checks in acceptInvite and createAccountForUser stay as fast paths; this is the backstop against a concurrent double-accept of the SAME account's invite.

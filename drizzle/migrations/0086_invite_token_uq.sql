@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `account_members_invite_token_uq` ON `account_members` (`invite_token`);

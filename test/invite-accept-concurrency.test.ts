@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Db } from "~/db";
 import { accountMembers, accounts } from "~/db/schema";
 import { createAccountForUser, resolveMembership } from "~/lib/auth/account";
-import { acceptInvite } from "~/lib/auth/invites";
+import { acceptInvite, createInvite } from "~/lib/auth/invites";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 
 import { executeMoneyWrite } from "~/lib/money/execute";
@@ -419,5 +419,22 @@ describe("MEDIUM #4 sibling: concurrent account creation cannot land two active 
 
     expect(first.ok && retry.ok && retry.accountId).toBe(first.ok && first.accountId);
     expect(await db.select({ id: accounts.id }).from(accounts)).toHaveLength(1);
+  });
+});
+
+describe("app-gap G5: an invite stores only its token's hash", () => {
+  it("the row holds no raw token, and the link's token still accepts", async () => {
+    const { sqlite, db } = createInMemoryDb();
+    runStatement(sqlite, db.insert(accounts).values({ id: "acc_A", name: "Acme A" }));
+
+    const { token } = await createInvite(db, "acc_A", EMAIL);
+
+    const stored = await db.select({ token: accountMembers.inviteToken }).from(accountMembers);
+    expect(stored[0].token).not.toBe(token);
+    expect(await acceptInvite(db, token, USER, EMAIL)).toEqual({
+      ok: true,
+      accountId: "acc_A",
+      alreadyMember: false,
+    });
   });
 });

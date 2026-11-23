@@ -138,8 +138,8 @@ export async function handleStampDispute(
   // recovery notification above.
   const noticeFor = applied
     ? disputeId
-    : await findDisputeByStripeId(env, intent.stripeDisputeId).then(
-        (row) => (row && row.accountId === accountId ? row.id : null),
+    : await findDisputeByStripeId(env, accountId, intent.stripeDisputeId).then(
+        (row) => row?.id ?? null,
         (err) => {
           console.error("dispute notice lookup on a redelivery failed", err);
           return null;
@@ -172,8 +172,8 @@ export async function handleDisputeResolved(
   // The dispute row normally exists by now (stamp_dispute intake runs on
   // the earlier charge.dispute.created event). A miss is defensive, not
   // expected: a safe claim-only ignore, never a throw.
-  const dispute = await findDisputeByStripeId(env, intent.stripeDisputeId);
-  if (!dispute || dispute.accountId !== accountId) {
+  const dispute = await findDisputeByStripeId(env, accountId, intent.stripeDisputeId);
+  if (!dispute) {
     return claimOnly(ctx, "dispute_not_found");
   }
   if (isDisputeResolved(dispute.state)) {

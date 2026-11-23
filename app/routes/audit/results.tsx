@@ -1,3 +1,4 @@
+import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
 import { redirect } from "react-router";
 import { ButtonLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
@@ -31,7 +32,7 @@ import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 import type { Route } from "./+types/results";
 import "~/audit-tool.css";
 
-// The live run. THE ENGINE RUNS AT RENDER: the loader calls `runAudit` on EVERY load from the OAuth cookie, never reading back a stored row, so a reload inside the cookie's five minutes re-runs five Stripe reads and one AI call. Treating `audit_runs` as a cache would change behavior; the shareable-by-id page is the only reader of a stored run.
+// The live run. THE ENGINE RUNS AT RENDER: the loader calls `runAudit` on EVERY load from the OAuth cookie, never reading back a stored row, so a reload inside the cookie's five minutes re-runs five Stripe reads and one AI call. Treating `audit_runs` as a cache would change behavior; the shareable-by-id page is the only reader of a stored run. The stored row is keyed on the grant, so those reloads file one run, not one each.
 // AN ANONYMOUS RUN LEAVES BEHIND NOTHING: no account, no membership, no connection row, no outcome, no billing line; its only anonymous write is an AI-cost row with a null account id. This route creates no billable path (PRICING rev 3 keeps the audit free).
 // PERSISTENCE NEEDS ONE CHECK: a run is stored only when a signed-in account resolves AND the audited Stripe account is live on the caller's ACTIVE account, so a merchant auditing somebody else's Stripe account never files that account's MRR, disputes and failed invoices into their own history; the page says plainly when it did not store.
 
@@ -96,6 +97,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         isAuthenticated: true,
         summary: summary.summary,
         now: ranAt,
+        // One row per grant: a reload, back/forward or revalidation inside the
+        // five minutes files the first run only.
+        runId: await sha256Hex(
+          `audit-grant:${grant.issuedAt}:${stripeAccountId}:${membership.accountId}`,
+        ),
       });
       notSaved = null;
     } else {

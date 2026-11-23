@@ -272,9 +272,8 @@ const EMAIL_NOTE =
 
 const ROUTES: ApiRoute[] = [
   {
-    // Who the API takes the caller to be. The admin MCP asks this at sign-in,
-    // so whether a person is an admin is answered here, from ADMIN_EMAIL, and
-    // nowhere else.
+    // Who the API takes the caller to be. The admin MCP asks this at sign-in, so
+    // whether a person is an admin is answered here, from ADMIN_EMAIL, alone.
     method: "GET",
     pattern: "/me",
     handler: async ({ caller }) => ({ actor: caller.actorEmail }),
@@ -336,13 +335,11 @@ const ROUTES: ApiRoute[] = [
     handler: async ({ db, params }) => ({ merchant: await merchantForAgent(db, params[0]) }),
   },
   {
-    // VIEW AS MERCHANT for an agent: one of the merchant MCP's own READ tools,
-    // run for the named account, so an admin sees exactly the answer the
-    // merchant's agent would get (the same picks, the same masking, the same
-    // pagination) and nothing the merchant's key could not read. Allowlisted by
-    // the registry itself (a tool whose scope is "read"), so a write tool
-    // cannot be named here and a tool added later is covered on the day it is
-    // registered.
+    // VIEW AS MERCHANT for an agent: one of the merchant MCP's own READ tools, run
+    // for the named account, so an admin sees exactly the answer the merchant's
+    // agent would get (the same picks, masking and pagination) and nothing the
+    // merchant's key could not read. Allowlisted by the registry itself (a tool
+    // whose scope is "read"): a write tool cannot be named, and a new one is covered.
     method: "POST",
     pattern: "/merchants/:id/view",
     handler: async ({ db, env, caller, params, body, now }) => {
@@ -487,8 +484,7 @@ const ROUTES: ApiRoute[] = [
     }),
   },
   {
-    // Render one email exactly as it would be sent. Sends nothing, writes
-    // nothing.
+    // Render one email exactly as it would be sent. Sends and writes nothing.
     method: "POST",
     pattern: "/emails/preview",
     handler: async ({ db, env, caller, body, now }) => {
@@ -576,7 +572,12 @@ const ROUTES: ApiRoute[] = [
 const ADMIN_API_ROUTES = ROUTES.map((r) => `${r.method} ${r.pattern}`);
 
 function match(method: string, path: string): { route: ApiRoute; params: string[] } | null {
-  const segments = path.split("/").filter(Boolean);
+  let segments: string[];
+  try {
+    segments = path.split("/").filter(Boolean).map(decodeURIComponent);
+  } catch {
+    return null; // a malformed escape names no route
+  }
   for (const route of ROUTES) {
     if (route.method !== method) continue;
     const parts = route.pattern.split("/").filter(Boolean);
@@ -584,9 +585,7 @@ function match(method: string, path: string): { route: ApiRoute; params: string[
     const params: string[] = [];
     if (
       parts.every((part, i) =>
-        part === ":id"
-          ? (params.push(decodeURIComponent(segments[i])), true)
-          : part === segments[i],
+        part === ":id" ? (params.push(segments[i]), true) : part === segments[i],
       )
     ) {
       return { route, params };

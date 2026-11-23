@@ -12,6 +12,7 @@ import {
   ACCOUNT_B,
   NOW,
   ORIGIN,
+  CLAUDE_REDIRECT,
   authorizeRoute,
   consent,
   context,
@@ -76,6 +77,7 @@ describe("the token endpoint", () => {
         code: back.searchParams.get("code")!,
         code_verifier: verifier,
         client_id: clientId,
+        redirect_uri: CLAUDE_REDIRECT,
       },
       true,
     );
@@ -131,6 +133,16 @@ describe("the token endpoint", () => {
         code_verifier: v,
         client_id: clientId,
       }),
+      "no redirect",
+    );
+    await bad(
+      (code, v) => ({
+        grant_type: "authorization_code",
+        code,
+        code_verifier: v,
+        client_id: clientId,
+        redirect_uri: CLAUDE_REDIRECT,
+      }),
       "expired",
       new Date(Date.now() + OAUTH_CODE_TTL_MS + 1000),
     );
@@ -146,6 +158,7 @@ describe("the token endpoint", () => {
       code,
       code_verifier: verifier,
       client_id: clientId,
+      redirect_uri: CLAUDE_REDIRECT,
     };
     const first = await tokenCall(fields);
     expect(first.status).toBe(200);
@@ -299,6 +312,7 @@ describe("a grant ends when the person who approved it leaves the account", () =
       code,
       code_verifier: verifier,
       client_id: clientId,
+      redirect_uri: CLAUDE_REDIRECT,
     });
     expect(res.status).toBe(400);
     expect(res.body.error).toBe("invalid_grant");
@@ -414,6 +428,7 @@ describe("least scope: read unless the owner allows changes", () => {
       code: back.searchParams.get("code")!,
       code_verifier: verifier,
       client_id: clientId,
+      redirect_uri: CLAUDE_REDIRECT,
     });
     return { access: body.access_token as string, scope: body.scope };
   }

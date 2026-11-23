@@ -375,7 +375,7 @@ describe("the callback refuses before it exchanges, and every exit clears the st
         headers: { Cookie: `${AUDIT_TOKEN_COOKIE}=${value}` },
       }),
     );
-    expect(grant).toEqual({ accessToken: TOKEN, stripeAccountId: STRIPE_A });
+    expect(grant).toMatchObject({ accessToken: TOKEN, stripeAccountId: STRIPE_A });
     expect(setCookies(response).some((c) => c.startsWith(`${AUDIT_OAUTH_STATE_COOKIE}=;`))).toBe(
       true,
     );
@@ -495,6 +495,21 @@ describe("a signed-in merchant running the anonymous flow", () => {
     expect(rows[0].stripe_account_id).toBe(STRIPE_A);
     expect(rows[0].is_authenticated).toBe(1);
     expect(rows[0].failed_invoices_cents).toBe(4200);
+  });
+
+  it("a reload inside the grant files no second run (app1 F1)", async () => {
+    signIn(ACCOUNT_A);
+    const cookie = cookieHeader({ [AUDIT_TOKEN_COOKIE]: await mintGrant(STRIPE_A) });
+    for (let i = 0; i < 2; i += 1) {
+      await resultsRoute.loader({
+        request: new Request(`${ORIGIN}/audit/results?account=${STRIPE_A}`, {
+          headers: { Cookie: cookie },
+        }),
+        context: routeContext(),
+        params: {},
+      } as never);
+    }
+    expect(runsInDb()).toHaveLength(1);
   });
 
   it("the second account is not a loophole: the active account decides", async () => {

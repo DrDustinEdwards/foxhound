@@ -83,6 +83,7 @@
     "0082_drop_cron_run_history.sql": "6def7a346ba35b8e1550749a71bb57fc524bbd37336aab89e2e64786fefa4c10",
     "0083_drop_api_keys_key_hash_idx.sql": "42a743682639ded06881ed3013e5e25bea8ca9d7e0a7b768dd0027e14d7bf5bc",
     "0084_partial_refunds.sql": "402286fb2b5dc3454791aa0be73062e5546d86465227af59d0d09a3398fa58fa",
-    "0085_ai_outcomes.sql": "773a3c83112ed08cf7a559ed01786e65320fabeea5df6c793f8561c4a48015c7"
+    "0085_ai_outcomes.sql": "773a3c83112ed08cf7a559ed01786e65320fabeea5df6c793f8561c4a48015c7",
+    "0086_invite_token_uq.sql": "3ef1011f00ea4c270183197e0473a3e5ee39d67f2a961cba6c4ad7dbd2d17c4a"
   }
 }
