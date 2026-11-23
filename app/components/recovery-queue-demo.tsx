@@ -24,7 +24,7 @@ import "capsomer/app-frame.css";
 // It sizes to its own content; nothing here may reintroduce a fixed height (a fixed-height hero clipped the old ledger mock). Text-micro is the floor. It honors prefers-reduced-motion by settling on the final frame and scheduling nothing: an indefinite auto-playing loop with no pause control fails WCAG 2.2.2.
 // The frames and their classes are lib/marketing/queue-demo-frames.ts. On a page that does not hydrate, the queue-demo island (islands/queue-demo.ts) plays them on this markup: every status icon is drawn, the ones not showing hidden, and data-queue names each part it changes.
 
-// prefers-reduced-motion is an external store, so it is read through useSyncExternalStore, not sampled into state inside the animation effect. A synchronous setState in the effect fails react-hooks/set-state-in-effect, and a lazy useState initialiser would mismatch hydration (window does not exist on the server); useSyncExternalStore takes the server snapshot as its third argument. It also follows a visitor who turns reduced motion on while the page is open.
+// prefers-reduced-motion is an external store, so it is read through capsomer's usePrefersReducedMotion hook, not sampled into state inside the animation effect (a synchronous setState there fails react-hooks/set-state-in-effect). It also follows a visitor who turns reduced motion on while the page is open.
 // All three icons are drawn, the one for `status` showing (the hidden attribute on the others), so the island can switch them.
 function StatusIcons({ status }: { status: Status }) {
   return (

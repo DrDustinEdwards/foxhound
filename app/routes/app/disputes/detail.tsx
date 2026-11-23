@@ -173,7 +173,11 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   } = useDraftDirty(savedOk ? saveFetcher.data : undefined);
   const resolved = isDisputeResolved(state);
   const outcome = outcomeWord(state);
-  const fee = disputeFeeCents(dispute.amountCents, DISPUTE_FEE_CAP_CENTS);
+  // The cap is US dollars and the bill converts it at Stripe's rate when the dispute resolves, so a figure is shown only in USD; any other currency gets the terms in words.
+  const fee =
+    dispute.currency.toLowerCase() === "usd"
+      ? formatMoney(disputeFeeCents(dispute.amountCents, DISPUTE_FEE_CAP_CENTS), dispute.currency)
+      : null;
   const days = daysUntilDeadline(dispute.evidenceDeadline, nowMs);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
   const shippingEditable = draftEditable && shipsPhysical;
@@ -642,9 +646,17 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             <div className="fh-small">
               <p className="fh-soft">
                 Submitting this evidence to Stripe approves a fee of{" "}
-                <span className="fh-mono fh-text">{formatMoney(fee, dispute.currency)}</span> (
-                {disputeFeeTerms()}) if Foxhound wins this dispute. Merchant-fought or lost disputes
-                are never billed.
+                {fee ? (
+                  <>
+                    <span className="fh-mono fh-text">{fee}</span> ({disputeFeeTerms()})
+                  </>
+                ) : (
+                  <>
+                    {disputeFeeTerms()}, converted to {dispute.currency.toUpperCase()} at Stripe's
+                    rate
+                  </>
+                )}{" "}
+                if Foxhound wins this dispute. Merchant-fought or lost disputes are never billed.
               </p>
               {approveError ? (
                 <div className="fh-dispute-gap">
@@ -660,7 +672,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                   <Form method="post">
                     <input type="hidden" name="intent" value="approve" />
                     <ApproveButton
-                      label={`Approve and submit (fee ${formatMoney(fee, dispute.currency)})`}
+                      label={fee ? `Approve and submit (fee ${fee})` : "Approve and submit"}
                       approving={approving}
                       dirty={dirty}
                     />

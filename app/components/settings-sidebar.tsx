@@ -57,8 +57,7 @@ export const SETTINGS_NAV_GROUPS: SettingsNavGroup[] = [
   },
 ];
 
-/** OVERVIEW IS EXACT-MATCH: `startsWith` would make it permanently active, because every settings route begins with `/settings`. Every other item matches itself or a child path. */
+/** An item is active on its own path or a child path. */
 export function isSettingsItemActive(pathname: string, to: string): boolean {
-  if (to === "/settings") return pathname === "/settings";
   return pathname === to || pathname.startsWith(`${to}/`);
 }

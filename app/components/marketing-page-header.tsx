@@ -1,6 +1,6 @@
 import { SectionTrail } from "~/components/section-trail";
 
-// The shared eyebrow/title/subtext block, used on pricing, products, demos, docs, features, privacy and terms; the blog hand-rolls it in BlogHeaderIntro.tsx. The container is 1080px and left aligned; the subtext clamps at 560px so long lines do not stretch the full width. title is ReactNode so pricing can embed an accent span (amber) in the second half of its headline. The three lines reveal one after another as a Capsomer reveal stack (capsomer/reveal.css, CSS only).
+// The shared title/subtext block, used on pricing, products, demos, docs, features, privacy and terms; the blog hand-rolls it in BlogHeaderIntro.tsx. The container is 1080px and left aligned; the subtext clamps at 560px so long lines do not stretch the full width. title is ReactNode so pricing can embed an accent span (amber) in the second half of its headline. The lines reveal one after another as a Capsomer reveal stack (capsomer/reveal.css, CSS only).
 export function MarketingPageHeader({
   title,
   subtext,
