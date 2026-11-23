@@ -169,13 +169,28 @@ export async function cancelMerchant(
 // The same posture as cancelMerchant above, narrowed to a single connection:
 // plain batch, local commit first, Stripe revoke best-effort after.
 
-function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date): CancelBatch {
+// The stamp matches only a live connection of this account and returns the row
+// it changed, so a connection that is unknown, another account's or already
+// disconnected matches nothing and is told apart (hard rule 3).
+function buildDisconnectConnectionBatch(
+  db: Db,
+  accountId: string,
+  connectionId: string,
+  now: Date,
+) {
   return [
     db
       .update(stripeConnections)
       .set({ disconnectedAt: now })
-      .where(eq(stripeConnections.id, connectionId)),
-  ];
+      .where(
+        and(
+          eq(stripeConnections.id, connectionId),
+          eq(stripeConnections.accountId, accountId),
+          isNull(stripeConnections.disconnectedAt),
+        ),
+      )
+      .returning({ id: stripeConnections.id }),
+  ] as const;
 }
 
 /**
@@ -187,10 +202,14 @@ function buildDisconnectConnectionBatch(db: Db, connectionId: string, now: Date)
  */
 export async function disconnectConnectionLocal(
   db: Db,
+  accountId: string,
   connectionId: string,
   now: Date,
-): Promise<void> {
-  await db.batch(buildDisconnectConnectionBatch(db, connectionId, now));
+): Promise<boolean> {
+  const [stamped] = await db.batch(
+    buildDisconnectConnectionBatch(db, accountId, connectionId, now),
+  );
+  return stamped.length > 0;
 }
 
 export interface DisconnectConnectionResult {
@@ -209,13 +228,17 @@ export interface DisconnectConnectionDeps {
 
 export async function disconnectConnection(
   env: Env,
+  accountId: string,
   connection: { id: string; stripeUserId: string },
   deps: Partial<DisconnectConnectionDeps> = {},
 ): Promise<DisconnectConnectionResult> {
   const deauthorize = deps.deauthorize ?? deauthorizeConnectedAccount;
   const now = new Date();
 
-  await disconnectConnectionLocal(getDb(env), connection.id, now);
+  // Nothing changed, so nothing is revoked at Stripe.
+  if (!(await disconnectConnectionLocal(getDb(env), accountId, connection.id, now))) {
+    throw new Error(`disconnectConnection: no live connection ${connection.id} on ${accountId}`);
+  }
 
   const [failure] = await revokeDisconnectedGrants(env, [connection], now, deauthorize);
   return failure
