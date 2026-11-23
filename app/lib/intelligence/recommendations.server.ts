@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, count, desc, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 
 import {
@@ -26,6 +26,9 @@ import {
 // for the whole account, grouped in memory.
 
 export const ENGAGEMENT_WINDOW_DAYS = 30;
+
+/** A customer's currency for a query joined to `accounts`. The sync leaves customer_context.currency null and reports MRR in the account's currency (signals.ts), so every view falls back to the account's, then USD. */
+export const customerCurrency = sql<string>`coalesce(${customerContext.currency}, ${accounts.currency}, 'usd')`;
 
 /** Named so a later rule change is told apart in the log. */
 const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";
@@ -150,9 +153,10 @@ export async function recommendOneCustomer(
     .select({
       mrrContributionCents: customerContext.mrrContributionCents,
       recoverySignals: customerContext.recoverySignals,
-      currency: customerContext.currency,
+      currency: customerCurrency,
     })
     .from(customerContext)
+    .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
     .where(
       and(
         eq(customerContext.accountId, accountId),
@@ -176,7 +180,7 @@ export async function recommendOneCustomer(
     mrrContributionCents: subject.mrrContributionCents ?? 0,
     accountMrrAscending: everyMrr.map((r) => r.mrr ?? 0).sort((a, b) => a - b),
   });
-  return { result, currency: subject.currency ?? "usd" };
+  return { result, currency: subject.currency };
 }
 
 /** The customers among `stripeCustomerIds` whose stored action is personal outreach. */
@@ -263,8 +267,7 @@ export async function listActionableRecommendations(
         customerName: customerContext.customerName,
         planName: customerContext.currentPlanName,
         mrrContributionCents: customerContext.mrrContributionCents,
-        currency: customerContext.currency,
-        accountCurrency: accounts.currency,
+        currency: customerCurrency,
         healthScore: customerContext.healthScore,
         recommendedAction: customerContext.recommendedAction,
       })
@@ -280,11 +283,9 @@ export async function listActionableRecommendations(
   ]);
   return {
     totalCount: total?.n ?? 0,
-    rows: rows.map(({ accountCurrency, ...r }) => ({
+    rows: rows.map((r) => ({
       ...r,
       mrrContributionCents: r.mrrContributionCents ?? 0,
-      // The sync leaves customer_context.currency null and reports MRR in the account's currency (signals.ts).
-      currency: r.currency ?? accountCurrency ?? "usd",
       recommendedAction: r.recommendedAction as RecommendedAction,
     })),
   };
