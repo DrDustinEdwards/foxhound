@@ -69,7 +69,11 @@ export function calculateTriage(
   reason: string,
   shipsPhysical: boolean,
 ): TriageResult {
-  const avsPass = context.avsResult?.includes("pass") ?? false;
+  // "line1:<check> zip:<check>" (combineAvs): every check Stripe ran must have passed, none failed.
+  const avsChecks = [...(context.avsResult?.matchAll(/:(\S+)/g) ?? [])]
+    .map((m) => m[1])
+    .filter((check) => check !== "n/a");
+  const avsPass = avsChecks.length > 0 && avsChecks.every((check) => check === "pass");
   const cvvPass = context.cvvResult === "pass";
 
   if (reason === "fraudulent") {
