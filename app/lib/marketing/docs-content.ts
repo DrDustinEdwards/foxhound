@@ -1,7 +1,6 @@
 // The five docs guides behind /docs/:slug. Every sentence is true of Foxhound's engine and its built settings pages. Where
 // Foxhound has not built what a heading describes, the Part says so, and H3s whose whole content was that feature are cut.
 // Figures come from the engine's constants, not retyped: the fee, the cap, the windows, the bands and the schedules.
-
 import { STRIPE_WRITES, STRIPE_WRITES_LIMITS } from "~/lib/marketing/trust-copy";
 import type { DocWidgetName } from "~/components/docs/doc-widgets";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
