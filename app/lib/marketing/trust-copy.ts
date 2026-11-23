@@ -5,7 +5,7 @@
 // disputes/accept.server (disputes.close) and disputes/fraud-warnings.server (refunds.create). Add a Stripe write there and it goes here.
 
 export const STRIPE_WRITES =
-  "retrying payment on an invoice that has already failed, setting a customer's default payment method after that customer updates their card, opening a Stripe checkout when a customer updates their card or a former customer chooses to resubscribe, submitting dispute evidence once someone on the team has approved it or auto-submit is on, closing a dispute at Stripe when the owner chooses to accept it, and refunding a charge when the owner presses \"Refund this charge\" on an early fraud warning";
+  'retrying payment on an invoice that has already failed, setting a customer\'s default payment method after that customer updates their card, opening a Stripe checkout when a customer updates their card or a former customer chooses to resubscribe, submitting dispute evidence once someone on the team has approved it or auto-submit is on, closing a dispute at Stripe when the owner chooses to accept it, and refunding a charge when the owner presses "Refund this charge" on an early fraud warning';
 
 export const STRIPE_WRITES_LIMITS =
   "never changes prices, products or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts";

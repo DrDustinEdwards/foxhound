@@ -90,8 +90,8 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           The Stripe access token for a connected account is encrypted before it is stored, using
-          AES-256-GCM with a 96-bit initialization vector per record. A Slack webhook URL, if you add
-          one for alerts, is sealed with the same keyring. Nothing else Foxhound stores is a
+          AES-256-GCM with a 96-bit initialization vector per record. A Slack webhook URL, if you
+          add one for alerts, is sealed with the same keyring. Nothing else Foxhound stores is a
           credential.
         </p>
         <p>

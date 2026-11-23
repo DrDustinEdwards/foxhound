@@ -421,8 +421,8 @@ const SECTIONS: LegalSection[] = [
         <p>
           The Stripe connection carries read and write scope, because retrying a failed invoice is a
           write. Foxhound uses the write half for these things and no others: {STRIPE_WRITES}. It{" "}
-          {STRIPE_WRITES_LIMITS}. Foxhound never stores card numbers, and Stripe access tokens
-          are encrypted at rest with AES-256.
+          {STRIPE_WRITES_LIMITS}. Foxhound never stores card numbers, and Stripe access tokens are
+          encrypted at rest with AES-256.
         </p>
       </>
     ),

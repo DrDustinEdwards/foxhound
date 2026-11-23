@@ -156,7 +156,11 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
       retentionPolicy: `${RETENTION_ENGAGEMENT_DAYS} days, then monthly aggregates`,
       rowCount: engagementEventsCount[0]?.n ?? 0,
     },
-    { label: "Email sends", retentionPolicy: `${RETENTION_EMAIL_SENDS_DAYS} days`, rowCount: emailSendsCount[0]?.n ?? 0 },
+    {
+      label: "Email sends",
+      retentionPolicy: `${RETENTION_EMAIL_SENDS_DAYS} days`,
+      rowCount: emailSendsCount[0]?.n ?? 0,
+    },
     {
       label: "Webhook events",
       retentionPolicy: `${RETENTION_WEBHOOK_EVENTS_DAYS} days`,

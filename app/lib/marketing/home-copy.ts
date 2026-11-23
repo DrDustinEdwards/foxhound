@@ -146,8 +146,7 @@ export interface HomeFaq {
 export const FAQS: HomeFaq[] = [
   {
     question: "Does Foxhound touch my Stripe billing configuration?",
-    answer:
-      `No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: ${STRIPE_WRITES}. It ${STRIPE_WRITES_LIMITS}, and never changes any other Stripe setting.`,
+    answer: `No. The connection carries read and write scope, because retrying a failed invoice is a write, but Foxhound writes for these things and no others: ${STRIPE_WRITES}. It ${STRIPE_WRITES_LIMITS}, and never changes any other Stripe setting.`,
   },
   // Replies go to the merchant's own address through the reply-to setting (app/lib/email/send.ts); until one is saved a reply
   // goes to the From line, as /docs/platform says.

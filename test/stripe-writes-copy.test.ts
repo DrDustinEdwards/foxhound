@@ -16,7 +16,9 @@ it("states the Stripe write list only in trust-copy.ts", () => {
   const retyped = sources("app").filter(
     (path) =>
       !path.endsWith("trust-copy.ts") &&
-      /closing a dispute at Stripe|opening a Stripe checkout when/i.test(readFileSync(path, "utf8")),
+      /closing a dispute at Stripe|opening a Stripe checkout when/i.test(
+        readFileSync(path, "utf8"),
+      ),
   );
   expect(retyped).toEqual([]);
 });
