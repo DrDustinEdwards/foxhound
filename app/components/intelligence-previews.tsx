@@ -12,7 +12,7 @@ import { markup } from "capsomer/behavior/trusted-html";
 import "capsomer/table.css";
 
 // The previews on /product/intelligence: the Intelligence dashboard (MRR stat cards and plan breakdown over a narrative card), the customer table and the churn bands. The parts are Capsomer's and the one chart is Enarratio's, drawn by the dashboard's own drawPlans. The page does not hydrate, so the chart is drawn on the server twice, at the frame's width and narrow, in Capsomer's server frame: the charts island (app/islands/charts.ts, Capsomer's chart-enhance) swaps in the narrow drawing in a column under 30rem, so a phone keeps 12 px text, and adds Enarratio's enhancement layer. Every figure and row is the demo seed read through Foxhound's own Intelligence code (app/lib/marketing/intelligence-preview.server.ts), never a merchant's rows.
-// Where the dashboard differs, the preview follows it (app/routes/app/intelligence/index.tsx): MRR by plan shows no customer count, because the snapshot keeps none. The customer table has no Action column: nothing in Foxhound writes a recommended action.
+// Where the dashboard differs, the preview follows it (app/routes/app/intelligence/index.tsx): MRR by plan shows no customer count, because the snapshot keeps none. The customer table has no Action column: the dashboard has no merchant-facing action control.
 
 /** The churn bands' words for the three bands. */
 const BAND_LABEL: Record<HealthScoreBand, string> = {

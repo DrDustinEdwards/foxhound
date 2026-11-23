@@ -59,7 +59,4 @@
   .fh-pricing-text-3 {
     line-height: var(--leading-relaxed);
   }
-  .fh-pricing-block-4 {
-    margin-top: var(--space-5-5);
-  }
 }
