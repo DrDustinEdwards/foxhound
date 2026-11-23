@@ -14,11 +14,8 @@ import {
   demoBlocksMethod,
   demoFallbackPath,
   hasDemoCookie,
-  resolveDemoMembership,
   setDemoCookieHeader,
 } from "~/lib/demo/session";
-
-import { createInMemoryDb } from "./helpers/inmemory-db";
 
 const withCookie = (cookie: string) => new Request("https://x/dashboard", { headers: { cookie } });
 
@@ -109,12 +106,5 @@ describe("demoFallbackPath (shared by the not-yet-seeded fallback and /demo/exit
   it("sends a signed-in caller to their own dashboard, an anonymous one to /demos", () => {
     expect(demoFallbackPath(true)).toBe("/console");
     expect(demoFallbackPath(false)).toBe("/demos");
-  });
-});
-
-describe("resolveDemoMembership", () => {
-  it("returns null before the demo is seeded (so the shell sends the visitor back to /demos)", async () => {
-    const { db } = createInMemoryDb();
-    expect(await resolveDemoMembership(db)).toBeNull();
   });
 });

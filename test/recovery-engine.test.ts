@@ -3,59 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
-import {
-  isSequenceComplete,
-  isStepDue,
-  nextDueStep,
-  selectDueSteps,
-  type SchedulableStep,
-} from "~/lib/engine/scheduler";
 import { decideEmailStep, decideRetryStep } from "~/lib/engine/step-runner";
 import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
 import { planRecoverySteps } from "~/lib/recovery/schedule";
 
 const now = new Date("2026-07-10T12:00:00.000Z");
-
-function step(overrides: Partial<SchedulableStep>): SchedulableStep {
-  return {
-    stepNumber: 1,
-    scheduledAt: new Date("2026-07-10T00:00:00.000Z"),
-    executedAt: null,
-    result: null,
-    nextRetryAt: null,
-    ...overrides,
-  };
-}
-
-describe("scheduler due-step selection", () => {
-  it("an executed or resolved step is never due", () => {
-    expect(isStepDue(step({ executedAt: now }), now)).toBe(false);
-    expect(isStepDue(step({ result: "email_sent" }), now)).toBe(false);
-  });
-
-  it("a rescheduled step becomes due at next_retry_at, not scheduled_at", () => {
-    const rescheduled = step({ nextRetryAt: new Date("2026-07-10T18:00:00.000Z") });
-    expect(isStepDue(rescheduled, now)).toBe(false); // retry time is in the future
-    expect(isStepDue(rescheduled, new Date("2026-07-10T18:00:00.000Z"))).toBe(true);
-  });
-
-  it("selects due steps earliest-first and picks the next one", () => {
-    const steps = [
-      step({ stepNumber: 2, scheduledAt: new Date("2026-07-10T06:00:00.000Z") }),
-      step({ stepNumber: 1, scheduledAt: new Date("2026-07-10T03:00:00.000Z") }),
-      step({ stepNumber: 3, scheduledAt: new Date("2026-07-11T00:00:00.000Z") }), // future
-    ];
-    const due = selectDueSteps(steps, now);
-    expect(due.map((s) => s.stepNumber)).toEqual([1, 2]);
-    expect(nextDueStep(steps, now)?.stepNumber).toBe(1);
-  });
-
-  it("sequence is complete only when every step has executed", () => {
-    expect(isSequenceComplete([step({ executedAt: now }), step({ executedAt: now })])).toBe(true);
-    expect(isSequenceComplete([step({ executedAt: now }), step({})])).toBe(false);
-    expect(isSequenceComplete([])).toBe(false);
-  });
-});
 
 describe("step-runner: retry deciders", () => {
   it("a paid invoice is a recovered retry (record foxhound_retry)", () => {
