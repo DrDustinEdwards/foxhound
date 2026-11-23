@@ -576,7 +576,13 @@ const ROUTES: ApiRoute[] = [
 const ADMIN_API_ROUTES = ROUTES.map((r) => `${r.method} ${r.pattern}`);
 
 function match(method: string, path: string): { route: ApiRoute; params: string[] } | null {
-  const segments = path.split("/").filter(Boolean);
+  let segments: string[];
+  try {
+    segments = path.split("/").filter(Boolean).map(decodeURIComponent);
+  } catch {
+    // A malformed escape names no route.
+    return null;
+  }
   for (const route of ROUTES) {
     if (route.method !== method) continue;
     const parts = route.pattern.split("/").filter(Boolean);
@@ -585,7 +591,7 @@ function match(method: string, path: string): { route: ApiRoute; params: string[
     if (
       parts.every((part, i) =>
         part === ":id"
-          ? (params.push(decodeURIComponent(segments[i])), true)
+          ? (params.push(segments[i]), true)
           : part === segments[i],
       )
     ) {
