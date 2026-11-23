@@ -38,7 +38,7 @@ import { SendGates } from "~/lib/email/dispatch";
 import type { EmailNotice } from "~/lib/email/templates";
 import type { EmailAudience, OutboundEmailJob } from "~/lib/email/types";
 import { signUnsubscribeToken } from "~/lib/email/unsubscribe-token";
-import { recoveryFooterNote } from "~/lib/engine/execute-step";
+import { recoveryFooterNote } from "~/lib/email/templates";
 import {
   criticalCustomersContent,
   thresholdAlertContent,
