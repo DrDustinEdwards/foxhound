@@ -39,7 +39,12 @@ import {
   type RawBillingLineObservation,
   type RecoverySignalRow,
 } from "./signals";
-import { buildMrrSnapshotFields, type ChurnReason, type CustomerMrrPoint } from "./mrr";
+import {
+  buildMrrSnapshotFields,
+  churnReasonOf,
+  type ChurnReason,
+  type CustomerMrrPoint,
+} from "./mrr";
 import {
   discountedItemCents,
   earliestScheduledChange,
@@ -77,12 +82,6 @@ function productName(product: Stripe.Price["product"] | undefined): string | nul
   if (!product || typeof product === "string") return null;
   if ("deleted" in product && product.deleted) return null;
   return (product as Stripe.Product).name ?? null;
-}
-
-function subscriptionCancellationChurnReason(sub: Stripe.Subscription): ChurnReason {
-  const reason = sub.cancellation_details?.reason;
-  if (!reason) return null;
-  return reason === "payment_failed" || reason === "payment_disputed" ? "involuntary" : "voluntary";
 }
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
@@ -173,7 +172,7 @@ function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription
     status: sub.status,
     createdMs: stripeMs(sub.created),
     currency: sub.currency,
-    churnReason: sub.status === "canceled" ? subscriptionCancellationChurnReason(sub) : null,
+    churnReason: sub.status === "canceled" ? churnReasonOf(sub.cancellation_details?.reason) : null,
     cancelAtMs: stripeMs(sub.cancel_at),
     items: sub.items.data.map((item) => ({
       priceId: item.price.id,

@@ -27,6 +27,14 @@ export function isCohortRows(value: unknown): value is CohortRow[] {
 
 export type ChurnReason = "voluntary" | "involuntary" | null;
 
+/** The one churn definition, shared by the daily sync and the audit: a cancellation Stripe attributes to a failed or disputed payment is involuntary, any other stated reason voluntary, none unknown. */
+export function churnReasonOf(cancellationReason: string | null | undefined): ChurnReason {
+  if (!cancellationReason) return null;
+  return cancellationReason === "payment_failed" || cancellationReason === "payment_disputed"
+    ? "involuntary"
+    : "voluntary";
+}
+
 export interface CustomerMrrPoint {
   stripeCustomerId: string;
   mrrCents: number;
