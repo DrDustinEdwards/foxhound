@@ -111,11 +111,24 @@ const billingMonthly: CronHandler = async (env, ctx) => {
 };
 
 /**
+ * A per-account failure must fail the run: runScheduledJobs records the run failed and alerts
+ * (alertCronFailure) only when the handler throws, after the loop gave every account its turn.
+ */
+function failOnAccountErrors(results: readonly { accountId: string; error: string | null }[]) {
+  const failed = results.filter((r) => r.error !== null);
+  if (failed.length === 0) return;
+  throw new Error(
+    `${failed.length} of ${results.length} accounts failed (${failed.map((r) => r.accountId).join(", ")}): ${failed[0].error}`,
+  );
+}
+
+/**
  * The Intelligence deterministic sync (customer_context signals +
  * mrr_snapshots, the free MRR tier), wrapped as a cron handler.
  */
 const intelligenceSync: CronHandler = async (env) => {
   const results = await runIntelligenceSyncForAllAccounts(env, Date.now());
+  failOnAccountErrors(results);
   const customersProcessed = results.reduce((sum, r) => sum + r.customersProcessed, 0);
   const snapshotsWritten = results.filter((r) => r.snapshotWritten).length;
   const truncatedAccounts = results.filter((r) => r.truncated).length;
@@ -149,12 +162,11 @@ const alertsEvaluate: CronHandler = async (env) => {
  */
 const intelligenceAi: CronHandler = async (env) => {
   const results = await runIntelligenceAiForAllAccounts(env, Date.now());
+  failOnAccountErrors(results);
   const customersScored = results.reduce((sum, r) => sum + r.customersScored, 0);
-  const failed = results.filter((r) => r.error !== null).length;
-  const failedNote = failed > 0 ? `, ${failed} account(s) failed` : "";
   return {
     rowsProcessed: customersScored,
-    message: `${results.length} accounts, ${customersScored} customers scored${failedNote}`,
+    message: `${results.length} accounts, ${customersScored} customers scored`,
   };
 };
 

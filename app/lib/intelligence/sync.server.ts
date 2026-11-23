@@ -481,6 +481,8 @@ export interface AccountSyncResult {
    *  resumption cursor and Stripe lists newest-first, so a truncated account rescans the same customers every
    *  run; this flag makes that visible in cron_run_log instead of silently under-covering the account. */
   truncated: boolean;
+  /** The failure that stopped this account's sync, else null. The cron handler fails the run on any. */
+  error: string | null;
 }
 
 /** Runs the deterministic sync for one account: upserts every Stripe customer's customer_context row and
@@ -493,7 +495,13 @@ export async function runIntelligenceSyncForAccount(
   const db = getDb(env);
   const connection = await findActiveConnection(db, accountId);
   if (!connection?.stripeAccessToken) {
-    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated: false };
+    return {
+      accountId,
+      customersProcessed: 0,
+      snapshotWritten: false,
+      truncated: false,
+      error: null,
+    };
   }
 
   const [account] = await db
@@ -584,7 +592,7 @@ export async function runIntelligenceSyncForAccount(
 
   // Nothing to snapshot: no customers and no prior snapshot would just record an all-zero row.
   if (currentPoints.length === 0 && !hasPriorSnapshot) {
-    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated };
+    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated, error: null };
   }
   // A scan cut off at the cap saw only part of the customers, so its MRR row would chart a drop that never
   // happened. The run reports truncated and the charts keep the last complete day.
@@ -594,6 +602,7 @@ export async function runIntelligenceSyncForAccount(
       customersProcessed: currentPoints.length,
       snapshotWritten: false,
       truncated,
+      error: null,
     };
   }
 
@@ -637,7 +646,13 @@ export async function runIntelligenceSyncForAccount(
     .set({ mrrEstimateCents: snapshotFields.totalMrrCents })
     .where(eq(accounts.id, accountId));
 
-  return { accountId, customersProcessed: currentPoints.length, snapshotWritten: true, truncated };
+  return {
+    accountId,
+    customersProcessed: currentPoints.length,
+    snapshotWritten: true,
+    truncated,
+    error: null,
+  };
 }
 
 /** Account-level gate for the sync: respects processing_paused and cancelledAt, excludes demo accounts
@@ -672,6 +687,7 @@ export async function runIntelligenceSyncForAllAccounts(
         customersProcessed: 0,
         snapshotWritten: false,
         truncated: false,
+        error: errorMessage(err),
       });
       console.error(`intelligence sync failed for account ${id}:`, errorMessage(err));
     }
