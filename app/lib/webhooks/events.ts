@@ -201,7 +201,31 @@ export type WebhookIntent =
     }
   | { kind: "ignore"; reason: string };
 
-/** Classify a verified Stripe event into the processor intent. Pure. */
+/** Every event type classifyStripeEvent acts on, for a listing (the missed-event sweep) that must not page through the rest. Keep in step with its switch. */
+export const CLASSIFIED_EVENT_TYPES = [
+  "invoice.payment_failed",
+  "invoice.payment_succeeded",
+  "charge.refunded",
+  "charge.dispute.created",
+  "charge.dispute.closed",
+  "charge.dispute.updated",
+  "charge.dispute.funds_withdrawn",
+  "charge.dispute.funds_reinstated",
+  "customer.subscription.deleted",
+  "checkout.session.completed",
+  "customer.updated",
+  "customer.subscription.updated",
+  "payment_method.automatically_updated",
+  "invoice.marked_uncollectible",
+  "invoice.voided",
+  "account.updated",
+  "account.application.deauthorized",
+  "radar.early_fraud_warning.created",
+  "radar.early_fraud_warning.updated",
+  "invoice.upcoming",
+  "customer.subscription.trial_will_end",
+] as const;
+
 /** Stripe's card updater replaced the card details (a new expiry or number
  *  from the network). Whether the customer has a payment to retry is the
  *  processor's question. */

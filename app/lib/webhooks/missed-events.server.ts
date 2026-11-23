@@ -1,5 +1,5 @@
 import { and, isNotNull, isNull, notLike } from "drizzle-orm";
-import { inList } from "@dustinedwards/site-runtime/d1";
+import { chunked, inList } from "@dustinedwards/site-runtime/d1";
 import type Stripe from "stripe";
 
 import { getDb, stripeConnections, webhookEvents } from "~/db";
@@ -7,6 +7,7 @@ import { DAY_MS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
+import { CLASSIFIED_EVENT_TYPES } from "./events";
 import { processConnectedWebhook } from "./process";
 
 // THE MISSED-EVENT SWEEP. Stripe retries a failed webhook delivery for three days and then drops
@@ -21,6 +22,8 @@ const MISSED_EVENT_LOOKBACK_DAYS = 4;
 const MISSED_EVENT_LIST_LIMIT_PER_ACCOUNT = 500;
 /** Unclaimed events processed per run across all accounts, a subrequest budget. */
 const MISSED_EVENT_PROCESS_LIMIT = 200;
+/** Stripe's limit on `types` in one events listing. */
+const STRIPE_EVENT_TYPES_PER_LIST = 20;
 
 interface MissedEventSweepResult {
   accounts: number;
@@ -98,22 +101,30 @@ export async function sweepMissedStripeEvents(
         for (const e of page) if (!claimed.has(e.id)) unclaimed.push(e);
         page = [];
       };
-      for await (const event of stripe.events.list({ created: { gte: since }, limit: 100 })) {
-        if (seen >= MISSED_EVENT_LIST_LIMIT_PER_ACCOUNT) {
-          result.overLimit += 1;
-          break;
+      // Stripe takes at most 20 types per listing.
+      for (const types of chunked(CLASSIFIED_EVENT_TYPES, STRIPE_EVENT_TYPES_PER_LIST)) {
+        // Only what the processor acts on, so noise events cannot fill the per-account cap first.
+        for await (const event of stripe.events.list({
+          created: { gte: since },
+          types,
+          limit: 100,
+        })) {
+          if (seen >= MISSED_EVENT_LIST_LIMIT_PER_ACCOUNT) {
+            result.overLimit += 1;
+            break;
+          }
+          seen += 1;
+          page.push(event);
+          if (page.length === 100) await flush();
         }
-        seen += 1;
-        page.push(event);
-        if (page.length === 100) await flush();
+        await flush();
       }
-      await flush();
       result.listed += seen;
 
-      // Stripe lists newest first; replay in the order they happened. The
+      // Each listing is newest first; replay in the order they happened. The
       // account is set because an event read with the merchant's own token
       // need not carry it, and processConnectedWebhook routes on it.
-      for (const event of unclaimed.reverse()) {
+      for (const event of unclaimed.sort((x, y) => x.created - y.created)) {
         if (result.replayed >= MISSED_EVENT_PROCESS_LIMIT) {
           result.truncated = true;
           break;
