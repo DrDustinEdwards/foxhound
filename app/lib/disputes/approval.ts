@@ -1,5 +1,4 @@
 import { sha256Hex } from "@dustinedwards/site-runtime/encoding";
-import { isUniqueConstraintError } from "~/lib/money/serializer";
 import type { DisputeState } from "~/lib/constants";
 import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
 
@@ -8,7 +7,9 @@ import type { DisputeSubmissionResult } from "~/lib/disputes/submission";
 //   Phase A (buildPendingApprovalBatch, BEFORE Stripe): write the
 //     dispute_approvals row. Its presence is the durable proof the merchant
 //     approved and a submission was attempted. The unique index on
-//     dispute_approvals.dispute_id serializes concurrent approvals.
+//     dispute_approvals.dispute_id lets one request insert; a request that
+//     finds the row already there resumes, and reads Stripe before submitting
+//     (see ApproveAndSubmitDeps.submittedAtStripe).
 //   Phase C (buildSubmissionConfirmationBatch, AFTER Stripe accepts): advance
 //     the dispute to `submitted` and set disputes.submitted_at. submitted_at is
 //     the marker billing keys off (app/db/billable.ts getBillableDisputes), so
@@ -51,26 +52,13 @@ export async function hashEvidence(
   return sha256Hex(JSON.stringify(pairs));
 }
 
-/**
- * Maps a failed buildApprovalBatch write to the clean user-facing message the
- * sequential canApprove pre-check already uses, or null if the caller should
- * rethrow. The structural guarantee (dispute_approvals unique per dispute_id)
- * already makes a double-submit impossible; without this, the LOSING request of
- * a concurrent race (both requests pass the pre-check on a stale read, the
- * second's insert then fails the unique constraint) surfaced as an unhandled
- * 500 instead of the same "already submitted" message.
- */
-export function approvalRaceErrorMessage(err: unknown): string | null {
-  return isUniqueConstraintError(err) ? "This dispute has already been submitted." : null;
-}
-
 // Approve -> submit orchestration
 
 /**
  * Outcome of the pre-submit durable write (Phase A):
  *  - `created`: a fresh pending approval row was written.
- *  - `resume`: a pending (unconfirmed) approval row from a prior attempt already
- *     exists; proceed and re-submit rather than dead-end.
+ *  - `resume`: a pending (unconfirmed) approval row already exists, from a failed
+ *     attempt or a concurrent request; Stripe is read before submitting again.
  *  - `already_submitted`: a CONFIRMED submission already exists; reject.
  */
 export type PendingApprovalOutcome = "created" | "resume" | "already_submitted";
@@ -82,6 +70,11 @@ export interface ApproveAndSubmitDeps {
    * resumed, or is already a confirmed submission.
    */
   writePendingApproval: () => Promise<PendingApprovalOutcome>;
+  /**
+   * Whether Stripe already holds a submission for this dispute. Read only on `resume`: a prior run or a
+   * concurrent request may have submitted already, and a second `submit: true` is refused by Stripe.
+   */
+  submittedAtStripe: () => Promise<boolean>;
   /** Phase B: submit the merchant-approved evidence to Stripe. */
   submit: () => Promise<DisputeSubmissionResult>;
   /**
@@ -110,12 +103,14 @@ export async function approveAndSubmit(
   if (pending === "already_submitted") {
     return { status: "error", message: "This dispute has already been submitted." };
   }
-  const submission = await deps.submit();
-  if (!submission.ok) {
-    return {
-      status: "error",
-      message: `Stripe did not accept the submission: ${submission.error}`,
-    };
+  if (pending === "created" || !(await deps.submittedAtStripe())) {
+    const submission = await deps.submit();
+    if (!submission.ok) {
+      return {
+        status: "error",
+        message: `Stripe did not accept the submission: ${submission.error}`,
+      };
+    }
   }
   await deps.confirmSubmission();
   return { status: "submitted" };

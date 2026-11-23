@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
 import {
-  approvalRaceErrorMessage,
   approveAndSubmit,
   hashEvidence,
   type ApproveAndSubmitDeps,
@@ -21,23 +20,6 @@ const db = drizzle({} as never, { schema });
 function sqlOf(item: unknown): { sql: string; params: unknown[] } {
   return (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
 }
-
-describe("approvalRaceErrorMessage (Phase 5 review MEDIUM fix: the race loser's handled path)", () => {
-  it("maps a unique-constraint violation on the approval batch to the same clean message the sequential pre-check uses", () => {
-    const err = new Error("UNIQUE constraint failed: dispute_approvals.dispute_id");
-    expect(approvalRaceErrorMessage(err)).toBe("This dispute has already been submitted.");
-  });
-
-  it("also recognizes a primary-key constraint violation", () => {
-    const err = new Error("D1_ERROR: PRIMARY KEY constraint failed: dispute_approvals.id");
-    expect(approvalRaceErrorMessage(err)).toBe("This dispute has already been submitted.");
-  });
-
-  it("returns null (the caller rethrows) for an unrelated failure", () => {
-    expect(approvalRaceErrorMessage(new Error("network timeout"))).toBeNull();
-    expect(approvalRaceErrorMessage(new Error("D1_ERROR: too many statements"))).toBeNull();
-  });
-});
 
 describe("hashEvidence", () => {
   it("is deterministic regardless of field order", () => {
@@ -112,6 +94,7 @@ describe("approveAndSubmit (record and submission can never diverge: review MEDI
       pending: PendingApprovalOutcome;
       submit: DisputeSubmissionResult;
       confirmThrows: boolean;
+      stripeHasIt: boolean;
     }> = {},
   ) {
     const calls: string[] = [];
@@ -119,6 +102,10 @@ describe("approveAndSubmit (record and submission can never diverge: review MEDI
       writePendingApproval: async () => {
         calls.push("pending");
         return over.pending ?? "created";
+      },
+      submittedAtStripe: async () => {
+        calls.push("stripe_read");
+        return over.stripeHasIt ?? false;
       },
       submit: async () => {
         calls.push("submit");
@@ -141,6 +128,18 @@ describe("approveAndSubmit (record and submission can never diverge: review MEDI
     // no submitted_at, so billing never counts this dispute. Retriable.
     expect(calls).toEqual(["pending", "submit"]);
     expect(calls).not.toContain("confirm");
+  });
+
+  it("a resumed approval Stripe already holds goes straight to confirm, never submitting twice", async () => {
+    const { calls, deps } = harness({ pending: "resume", stripeHasIt: true });
+    expect((await approveAndSubmit(deps)).status).toBe("submitted");
+    expect(calls).toEqual(["pending", "stripe_read", "confirm"]);
+  });
+
+  it("a resumed approval Stripe does not hold yet is submitted again", async () => {
+    const { calls, deps } = harness({ pending: "resume" });
+    expect((await approveAndSubmit(deps)).status).toBe("submitted");
+    expect(calls).toEqual(["pending", "stripe_read", "submit", "confirm"]);
   });
 
   it("an already-confirmed submission is rejected before any Stripe call", async () => {
