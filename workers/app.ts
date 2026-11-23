@@ -12,7 +12,7 @@ import {
 import type { ServerBuild } from "react-router";
 
 import { markdownCopies } from "@drdustinedwards/site-helpers/markdown-copy";
-import { setPageRenderer } from "~/lib/page-dates.server";
+import { setPageRenderer } from "@drdustinedwards/site-helpers/lastmod";
 import { draftPostContext } from "~/lib/preview-context";
 import { siteFiles } from "~/lib/seo/files";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
