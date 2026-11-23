@@ -154,7 +154,7 @@ export function RecoveryCalculator() {
             <Row
               name="foxhoundFee"
               label="Foxhound fee"
-              sub={`${RECOVERY_FEE_BPS / 100}% of what Foxhound recovers, nothing else, ever`}
+              sub={`${RECOVERY_FEE_BPS / 100}% of what Foxhound recovers`}
               value={`-${fmt(foxhoundFee)}`}
               valueClassName="fh-soft"
             />

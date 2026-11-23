@@ -13,6 +13,7 @@ import {
   STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
+import { STRIPE_WRITES, STRIPE_WRITES_LIMITS, SUBPROCESSORS } from "~/lib/marketing/trust-copy";
 import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -58,14 +59,8 @@ const SECTIONS: LegalSection[] = [
           <strong className="fh-text">
             Merchant onboarding requests {STRIPE_CONNECT_SCOPE} scope
           </strong>
-          , because recovery involves writes. Foxhound writes for these things and no others:
-          retrying payment on an invoice that has already failed, setting a customer default payment
-          method after that customer updates their card, opening a Stripe checkout when a former
-          customer chooses to resubscribe, submitting dispute evidence once someone on your team has
-          approved it, and closing a dispute at Stripe when you choose to accept it. It never
-          changes prices, products or subscription plans, never charges a customer except by
-          retrying a failed invoice or through a checkout they complete, and never reaches your
-          payouts or bank account.
+          , because recovery involves writes. Foxhound writes for these things and no others:{" "}
+          {STRIPE_WRITES}. It {STRIPE_WRITES_LIMITS}.
         </p>
         <p>
           An audit prospect who becomes a merchant re-authorizes at that point. The audit connection
@@ -95,8 +90,9 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           The Stripe access token for a connected account is encrypted before it is stored, using
-          AES-256-GCM with a 96-bit initialization vector per record. Nothing else Foxhound stores
-          is a credential.
+          AES-256-GCM with a 96-bit initialization vector per record. A Slack webhook URL, if you add
+          one for alerts, is sealed with the same keyring. Nothing else Foxhound stores is a
+          credential.
         </p>
         <p>
           Keys are a keyring rather than a single value: every stored record carries the id of the
@@ -135,10 +131,9 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          Foxhound shares data with the infrastructure providers that run the service: Stripe
-          (payments and Connect), Cloudflare (hosting, database and email delivery), and Anthropic
-          (drafting recovery emails and dispute evidence). The same three are named in the{" "}
-          <Link to="/privacy">privacy policy</Link>, and that list is the authoritative one.
+          Foxhound shares data with these providers:{" "}
+          {SUBPROCESSORS.map(({ role, name }) => `${role}: ${name}`).join("; ")}. The same list is
+          in the <Link to="/privacy">privacy policy</Link>.
         </p>
         <p>
           Foxhound does not sell data and does not share it with advertising or analytics networks.

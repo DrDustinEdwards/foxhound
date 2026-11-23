@@ -11,6 +11,7 @@ import {
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
+import { STRIPE_WRITES, STRIPE_WRITES_LIMITS, SUBPROCESSORS } from "~/lib/marketing/trust-copy";
 import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -267,15 +268,11 @@ const SECTIONS: LegalSection[] = [
         </p>
         <p>The third parties we may share personal information with are as follows:</p>
         <ul>
-          <li>AI Service Providers: Anthropic</li>
-          <li>Invoice and Billing: Stripe</li>
-          <li>Website Performance Monitoring: Sentry</li>
-          <li>
-            Cloud Computing Services, Database and File Storage, Email Delivery, and Website
-            Analytics: Cloudflare
-          </li>
-          <li>Off-Site Backup Storage: Amazon Web Services</li>
-          <li>Sign-In, if you choose it: Google and Apple</li>
+          {SUBPROCESSORS.map(({ role, name }) => (
+            <li key={name}>
+              {role}: {name}
+            </li>
+          ))}
         </ul>
         <p>We also may need to share your personal information in the following situations:</p>
         <p>
@@ -423,14 +420,8 @@ const SECTIONS: LegalSection[] = [
         </p>
         <p>
           The Stripe connection carries read and write scope, because retrying a failed invoice is a
-          write. Foxhound uses the write half for these things and no others: retrying payment on an
-          invoice that has already failed, setting a customer&apos;s default payment method after
-          that customer updates their card, opening a Stripe checkout when a former customer chooses
-          to resubscribe, submitting dispute evidence once someone on your team has approved it or
-          you have turned on auto-submit, and closing a dispute at Stripe when you choose to accept
-          it. It never changes prices, products, or subscription plans, never charges a customer
-          except by retrying a failed invoice or through a checkout they complete, and never reaches
-          your payouts or bank account. Foxhound never stores card numbers, and Stripe access tokens
+          write. Foxhound uses the write half for these things and no others: {STRIPE_WRITES}. It{" "}
+          {STRIPE_WRITES_LIMITS}. Foxhound never stores card numbers, and Stripe access tokens
           are encrypted at rest with AES-256.
         </p>
       </>

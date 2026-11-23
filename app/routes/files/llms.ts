@@ -1,3 +1,4 @@
+import { STRIPE_WRITES, STRIPE_WRITES_LIMITS } from "~/lib/marketing/trust-copy";
 import { INTELLIGENCE_FREE_SENTENCE } from "~/lib/marketing/pricing-copy";
 import { llmsResponse } from "@drdustinedwards/site-helpers/llms";
 import { getDb } from "~/db";
@@ -31,7 +32,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     summary:
       "Foxhound is a failed-payment recovery, disputes, and subscription-intelligence platform for Stripe merchants. Outcome-based pricing: it earns only when it creates money the merchant can verify, above what Stripe's own tools would have recovered anyway.",
     intro: [
-      `Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. For the free audit, ${AUDIT_ACCESS_ASK} ${AUDIT_ACCESS_PROMISE} Connecting a merchant account at /connect also requests read and write, because retrying a failed invoice is a write. On a connected account the write half is used for these things and no others: retrying payment on an invoice that has already failed, setting a customer default payment method after that customer updates their card, opening a Stripe checkout when a former customer chooses to resubscribe, submitting dispute evidence after someone on the merchant team approves it, and closing a dispute at Stripe when the merchant chooses to accept it. Foxhound never changes prices, products, or subscription plans, never charges a customer except by retrying a failed invoice or through a checkout the customer completes, and never reaches payouts or bank accounts.`,
+      `Foxhound is built on Stripe Connect for subscription businesses. It sits on top of Stripe and acts after a payment fails, a dispute opens, or a subscription's billing signals change. For the free audit, ${AUDIT_ACCESS_ASK} ${AUDIT_ACCESS_PROMISE} Connecting a merchant account at /connect also requests read and write, because retrying a failed invoice is a write. On a connected account the write half is used for these things and no others: ${STRIPE_WRITES}. Foxhound ${STRIPE_WRITES_LIMITS}.`,
     ],
     sections: [
       {
