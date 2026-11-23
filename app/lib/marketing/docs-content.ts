@@ -100,11 +100,7 @@ export const DOC_GUIDES: DocGuide[] = [
             body: "Foxhound starts after Stripe's own Smart Retries have run and failed. It does not interfere with Stripe's recovery logic, and a payment Stripe brings back on its own is recorded and never billed.",
           },
           { kind: "h3", text: "Connecting your Stripe account" },
-          "Foxhound connects to your Stripe account through Stripe Connect with read and write OAuth scope, because retrying a failed invoice is a write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: " +
-            STRIPE_WRITES +
-            ". It " +
-            STRIPE_WRITES_LIMITS +
-            ".",
+          `Foxhound connects to your Stripe account through Stripe Connect with read and write OAuth scope, because retrying a failed invoice is a write. Foxhound reads invoices, subscriptions, disputes, and customer data. It writes for these things and no others: ${STRIPE_WRITES}. It ${STRIPE_WRITES_LIMITS}.`,
           {
             kind: "steps",
             items: [

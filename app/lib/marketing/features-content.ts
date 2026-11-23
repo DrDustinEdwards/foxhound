@@ -64,7 +64,6 @@ export interface FeatureFacts {
   cronJobCount: number;
   merchantMcpToolCount: number;
 }
-
 export const FEATURES_META_DESCRIPTION =
   "Features across automation, intelligence, email, visibility, control, integration, and security. Built for Stripe subscription businesses.";
 
