@@ -19,7 +19,7 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 // (email then Slack). Merchant mail: the notice template with the merchant audience footer, no unsubscribe or
 // postal address, through processEmailJob so suppression, the live-send gate and the email_sends claim apply.
 // The notice has one heading: the threshold alert uses its subject, the critical alert its first line. This
-// file WRITES NOTHING: the caller (evaluateAndRecordAlerts, runCriticalCustomersCheck in ai-run.server.ts)
+// file WRITES NOTHING: the caller (evaluateAndRecordAlerts, runCriticalCustomersCheck in alert-run.server.ts)
 // records alert_history and cooldowns after the send. Slack is posted here, not via
 // app/lib/notify/slack.server.ts, because the alert path reads only slack_webhook_url and ignores the
 // Slack notifications toggle; same host and demo refusals.
@@ -29,9 +29,6 @@ const CRITICAL_ALERT_TEMPLATE = "alert_critical_customers";
 
 /** The platform speaks, never the merchant's sender. */
 const ALERT_FROM_NAME = "Foxhound";
-
-/** The critical customers alert links /intelligence/recommendations; a test holds this equal to whether routes.ts serves the page. */
-export const CRITICAL_CUSTOMERS_ALERT_LIVE = true;
 
 /** Every cents metric as US dollars (two decimals); anything else as the bare number. */
 function formatAlertValue(metric: string, value: number): string {

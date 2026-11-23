@@ -119,7 +119,7 @@ function gatedJob(env: Env, job: CronJob, { now = false }: { now?: boolean } = {
           try {
             await lock.release(token);
           } catch {
-            // Deliberately swallowed: see THE TOKEN IS THE FENCE above.
+            // Deliberately swallowed: a failed release only lets the lease run out, and must not hide the job's own result.
           }
         }
       } catch (err) {

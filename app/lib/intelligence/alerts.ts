@@ -20,9 +20,9 @@ export interface AlertConfig {
 /** An alert that has fired does not fire again for 24 hours, however many evaluations see it past its threshold. */
 const ALERT_COOLDOWN_MS = DAY_MS;
 
-/** The nightly run's start drifts by however long the earlier jobs on the same "0 3 * * *" trigger take. Without
- *  a margin, a run starting a second earlier than last night's finds the alert still in cooldown and a steady
- *  breach is mailed every other night. */
+/** The evaluation runs on the 5-minute tick, so its start drifts from day to day. Without a margin, a run
+ *  starting a second earlier than yesterday's finds the alert still in cooldown and a steady breach is mailed
+ *  every other day. */
 const ALERT_COOLDOWN_MARGIN_MS = HOUR_MS;
 
 export const ALERT_COOLDOWN_WINDOW_MS = ALERT_COOLDOWN_MS - ALERT_COOLDOWN_MARGIN_MS;

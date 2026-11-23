@@ -55,6 +55,7 @@ import {
   type ScheduledChange,
   type ScheduleTerms,
 } from "./subscription-terms";
+import { chunked } from "@dustinedwards/site-runtime/d1";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { stripeMs } from "~/lib/stripe/time";
 
@@ -473,6 +474,9 @@ function buildCustomerContextUpsert(
     });
 }
 
+/** Customer upserts per D1 batch. */
+const UPSERTS_PER_BATCH = 100;
+
 export interface AccountSyncResult {
   accountId: string;
   customersProcessed: number;
@@ -536,6 +540,7 @@ export async function runIntelligenceSyncForAccount(
 
   const now = new Date(nowMs);
   const currentPoints: CustomerMrrPoint[] = [];
+  // Sliced into batches of UPSERTS_PER_BATCH below, so thousands of customers are not one D1 call.
   const upserts: BatchItem<"sqlite">[] = [];
   const coupons: CouponCache = new Map();
   let scanned = 0;
@@ -586,8 +591,8 @@ export async function runIntelligenceSyncForAccount(
     );
   }
 
-  if (upserts.length > 0) {
-    await db.batch([upserts[0], ...upserts.slice(1)]);
+  for (const slice of chunked(upserts, UPSERTS_PER_BATCH)) {
+    await db.batch([slice[0], ...slice.slice(1)]);
   }
 
   // Nothing to snapshot: no customers and no prior snapshot would just record an all-zero row.

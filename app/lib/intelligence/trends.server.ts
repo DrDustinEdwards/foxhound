@@ -26,7 +26,7 @@ export interface MrrSnapshotPoint {
   currency: string;
 }
 
-/** The dashboard's MRR snapshot series. The caller must have checked entitlement. */
+/** The dashboard's MRR snapshot series. */
 export async function getMrrSnapshotSeries(
   db: Db,
   accountId: string,

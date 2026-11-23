@@ -154,7 +154,7 @@ export async function getRecoveryDashboardWindow(
     categoryStats[row.declineCategory] = stat;
   }
 
-  // listRecoveredWithFailureContext), not the detected-at cohort above. This is
+  // Time to recovery reads the windowed recoveries (listRecoveredWithFailureContext), not the detected-at cohort above. This is
   // a distribution over recoveries that happened in this window and how long
   // each took - a question about the recovery events themselves, same as
   // recoveredRevenue, not about the cohort of failures that started the window
