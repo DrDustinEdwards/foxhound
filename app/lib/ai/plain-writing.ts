@@ -10,7 +10,7 @@ import { checkProse, WRITING_RULES, type ProseIssue } from "@dustinedwards/site-
  * The family's plain-writing rules as prompt lines. Its line on headings is
  * about blog posts and is left out.
  */
-export const PLAIN_WRITING_LINES: readonly string[] = WRITING_RULES.split("\n").filter(
+const PLAIN_WRITING_LINES: readonly string[] = WRITING_RULES.split("\n").filter(
   (line) => line.startsWith("- ") && !/headings/i.test(line),
 );
 
