@@ -2,7 +2,7 @@
 
 import { likeContains } from "@dustinedwards/site-runtime/d1";
 import { and, asc, desc, eq, gte, lt, or, sql } from "drizzle-orm";
-import { accounts, customerContext, type Db } from "~/db";
+import { customerContext, type Db } from "~/db";
 import { customerCurrency } from "./recommendations.server";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { WATCH_CEILING, type HealthScoreBand } from "./health-band";
@@ -113,7 +113,6 @@ export async function listCustomerDirectory(
       scheduledChangeAt: customerContext.scheduledChangeAt,
     })
     .from(customerContext)
-    .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
     .where(where)
     .orderBy(...orderBy)
     .limit(CUSTOMER_DIRECTORY_PAGE_SIZE)

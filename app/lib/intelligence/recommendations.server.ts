@@ -27,8 +27,8 @@ import {
 
 export const ENGAGEMENT_WINDOW_DAYS = 30;
 
-/** A customer's currency for a query joined to `accounts`. The sync leaves customer_context.currency null and reports MRR in the account's currency (signals.ts), so every view falls back to the account's, then USD. */
-export const customerCurrency = sql<string>`coalesce(${customerContext.currency}, ${accounts.currency}, 'usd')`;
+/** A customer's currency, in any customer_context query. The sync leaves customer_context.currency null and reports MRR in the account's currency (signals.ts), so every view falls back to the account's, then USD. */
+export const customerCurrency = sql<string>`coalesce(${customerContext.currency}, (select ${accounts.currency} from ${accounts} where ${accounts.id} = ${customerContext.accountId}), 'usd')`;
 
 /** Named so a later rule change is told apart in the log. */
 const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";
@@ -156,7 +156,6 @@ export async function recommendOneCustomer(
       currency: customerCurrency,
     })
     .from(customerContext)
-    .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
     .where(
       and(
         eq(customerContext.accountId, accountId),
@@ -272,7 +271,6 @@ export async function listActionableRecommendations(
         recommendedAction: customerContext.recommendedAction,
       })
       .from(customerContext)
-      .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
       .where(where)
       .orderBy(
         isNull(customerContext.mrrContributionCents),

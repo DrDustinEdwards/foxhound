@@ -115,6 +115,20 @@ function InvoiceRef({ url, stripeId }: { url: string | null; stripeId: string | 
   return null;
 }
 
+/** A fee row's status pill and its invoice link. */
+function FeeRowActions({
+  row,
+}: {
+  row: Pick<RecoveryHistoryRow, "statusLabel" | "statusTone" | "invoiceUrl" | "stripeInvoiceId">;
+}) {
+  return (
+    <span className="cap-cluster" data-gap="4">
+      <StatusPill label={row.statusLabel} tone={row.statusTone} />
+      <InvoiceRef url={row.invoiceUrl} stripeId={row.stripeInvoiceId} />
+    </span>
+  );
+}
+
 /** Where a "Next invoice" line would be false: an exempt account is never invoiced, and a paused one is not invoiced while paused. */
 function billingStateNote(state: AccountBillingState): string | null {
   if (state.billingExempt) {
@@ -187,12 +201,7 @@ export function RecoverySection({
               href={`/billing/invoices/${r.invoiceId}`}
               renderLink={routerRenderLink}
               detail={`Recovered: ${formatMoneyShort(r.recoveredCents, r.currency)} · Fee: ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
-              actions={
-                <span className="cap-cluster" data-gap="4">
-                  <StatusPill label={r.statusLabel} tone={r.statusTone} />
-                  <InvoiceRef url={r.invoiceUrl} stripeId={r.stripeInvoiceId} />
-                </span>
-              }
+              actions={<FeeRowActions row={r} />}
             />
           ))}
         </RowList>
@@ -245,12 +254,7 @@ export function DisputeFeesSection({
               href={`/disputes/${r.disputeId}`}
               renderLink={routerRenderLink}
               detail={`Fee (${r.feeCapped ? "capped" : `${DISPUTE_FEE_PERCENT}%`}): ${formatMoney(r.feeCents, r.currency)}${creditSuffix(r.creditedCents, r.currency)}`}
-              actions={
-                <span className="cap-cluster" data-gap="4">
-                  <StatusPill label={r.statusLabel} tone={r.statusTone} />
-                  <InvoiceRef url={r.invoiceUrl} stripeId={r.stripeInvoiceId} />
-                </span>
-              }
+              actions={<FeeRowActions row={r} />}
             />
           ))}
         </RowList>

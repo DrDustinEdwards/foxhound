@@ -201,7 +201,6 @@ export async function getConsoleView(
         healthScore: customerContext.healthScore,
       })
       .from(customerContext)
-      .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
       .where(
         and(
           eq(customerContext.accountId, accountId),
@@ -219,7 +218,6 @@ export async function getConsoleView(
         currency: customerCurrency,
       })
       .from(customerContext)
-      .innerJoin(accounts, eq(accounts.id, customerContext.accountId))
       .where(
         and(
           eq(customerContext.accountId, accountId),

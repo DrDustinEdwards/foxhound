@@ -47,10 +47,6 @@ export const HOUR_MS = 60 * MINUTE_MS;
 export const DAY_MS = 24 * HOUR_MS;
 
 /**
- * A recovery is billable only once it is at least this old (refund window
- * absorption).
- */
-/**
  * How long before a recovery a click can have happened and still be its cause:
  * Stripe's own recommended retry window, inside which a customer acts on a
  * dunning email. Outside it the recovery still records, as `stripe_baseline`,
@@ -59,6 +55,7 @@ export const DAY_MS = 24 * HOUR_MS;
 export const EMAIL_ENGAGEMENT_WINDOW_DAYS = 14;
 export const EMAIL_ENGAGEMENT_WINDOW_MS = EMAIL_ENGAGEMENT_WINDOW_DAYS * DAY_MS;
 
+/** A recovery is billable only once it is at least this old (refund window absorption). */
 export const RECOVERY_MATURITY_DAYS = 30;
 export const RECOVERY_MATURITY_MS = RECOVERY_MATURITY_DAYS * DAY_MS;
 
@@ -178,8 +175,7 @@ export type BillingLineItemType =
   | "adjustment"
   | "credit";
 
-// One place holds every model id; the ai_calls cost map must cover each id
-// here.
+// One place holds every model id; the ai_calls cost map must cover each id here.
 /** Recovery / dunning copy generation. */
 export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
 /**
@@ -195,8 +191,7 @@ export const MODEL_AUDIT_SUMMARY = "claude-haiku-4-5-20251001";
 /** Token budget for the summary (three sentences). */
 export const AUDIT_SUMMARY_MAX_TOKENS = 300;
 
-// Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a
-// silent Silent-first: for retryable declines a silent Foxhound retry precedes
+// Rebuild ordering is SILENT-FIRST (PRICING.md): for retryable declines a silent Foxhound retry precedes
 // the first customer-facing email, so we never dun a payment we could have
 // quietly recovered. Every dunning email carries the hosted card-update link
 // (/p/:token), so the card updater is a passive channel on each one.
@@ -334,10 +329,7 @@ export const CLICK_SUSPECT_HONEYPOT = "honeypot";
 export const EMAIL_QUEUE_MAX_RETRIES = 3;
 /** Queue names. */
 export const EMAIL_QUEUE_NAME = "foxhound-email";
-/**
- * The dead-letter queue for EMAIL_QUEUE_NAME (declared as the consumer's
- * `dead_letter_queue` in wrangler.jsonc).
- */
+/** The dead-letter queue for EMAIL_QUEUE_NAME (the consumer's `dead_letter_queue` in wrangler.jsonc). */
 export const EMAIL_DLQ_QUEUE_NAME = "foxhound-email-dlq";
 export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
 /**
@@ -354,8 +346,6 @@ export const AUDIT_QUEUE_MAX_RETRIES = 3;
 /** Cloudflare Queues accepts at most 100 messages per sendBatch call. */
 export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
 
-// Triggers; retention crons live before any table they govern takes writes)
-// ----
 /**
  * Max age of a /p/:token card-update link before it is treated as expired
  * (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays

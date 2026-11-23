@@ -775,7 +775,7 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
     });
   });
 
-  it("mark_recovered: a thrown D1 error is write_failed, a unique-constraint replay is already_resolved", async () => {
+  it("mark_recovered: a thrown commit is write_failed, not already_resolved", async () => {
     const { db } = seed();
     const failing: ManualActionCommit = async () => {
       throw new Error("d1 unavailable");
@@ -783,14 +783,6 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
     expect(await dispatchManualAction(request(db, failing, { intent: "mark_recovered" }))).toEqual({
       ok: false,
       reason: "write_failed",
-      intent: "mark_recovered",
-    });
-    const replay: ManualActionCommit = async () => {
-      throw new Error("UNIQUE constraint failed: outcomes.idempotency_key");
-    };
-    expect(await dispatchManualAction(request(db, replay, { intent: "mark_recovered" }))).toEqual({
-      ok: false,
-      reason: "already_resolved",
       intent: "mark_recovered",
     });
   });

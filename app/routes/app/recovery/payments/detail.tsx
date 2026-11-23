@@ -132,9 +132,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = form.get("intent");
 
-  // The shared dispatcher owns account scoping, ownership and the per-intent
-  // preconditions (app/lib/recovery/manual-actions.server.ts). accountId comes
-  // from the session, never from the form.
+  // The dispatcher owns scoping and preconditions (manual-actions.server.ts); accountId is the session's, never the form's.
   let outcome: Awaited<ReturnType<typeof dispatchManualAction>>;
   try {
     outcome = await dispatchManualAction({

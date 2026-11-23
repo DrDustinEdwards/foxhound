@@ -174,16 +174,17 @@ export function extractDeclineCode(invoice: AuditInvoice): string | null {
   return fromFinalization ?? fromLastPayment ?? fromCharge ?? null;
 }
 
-/** What `perItem` gives, summed over every item of the subscription and multiplied by its quantity. */
+type AuditItemPrice = AuditSubscription["items"]["data"][number]["price"];
+
+/** `perPrice` summed over every item of the subscription, times its quantity. */
 function sumItems(
   subscription: AuditSubscription,
-  perItem: (price: AuditSubscription["items"]["data"][number]["price"]) => number,
+  perPrice: (p: AuditItemPrice) => number,
 ): number {
-  let total = 0;
-  for (const item of subscription.items?.data ?? []) {
-    total += perItem(item.price) * (item.quantity ?? 1);
-  }
-  return total;
+  return (subscription.items?.data ?? []).reduce(
+    (total, item) => total + perPrice(item.price) * (item.quantity ?? 1),
+    0,
+  );
 }
 
 /**
@@ -205,11 +206,7 @@ export function monthlyPlanCents(subscription: AuditSubscription): number {
   });
 }
 
-/**
- * THE WINDOW IS 30 DAYS AND NOT THE LOOKBACK, deliberately: Stripe's events API
- * retains 30 days regardless, so a 90-day denominator against a 30-day
- * numerator would inflate the trigger.
- */
+/** THE WINDOW IS 30 DAYS, NOT THE LOOKBACK: Stripe keeps events 30 days, so a 90-day denominator would inflate the trigger. */
 export function buildCardUpdaterAdvisory(
   eventsInWindow: number,
   expiredCardDeclinesInWindow: number,
@@ -219,10 +216,7 @@ export function buildCardUpdaterAdvisory(
   return `Stripe Account Updater is not firing for your cards. ${plural(expiredCardDeclinesInWindow, "expired-card decline")} hit your account in the last ${CAU_EVENT_RETENTION_DAYS} days, and Stripe updated none of them automatically. Common causes: cards held as raw numbers rather than attached to Stripe Customers, issuers that do not participate, and regional limits.`;
 }
 
-/**
- * An empty bucket per category, so a category with no failures reads 0 rather
- * than being absent.
- */
+/** An empty bucket per category, so a category with no failures reads 0, not absent. */
 function zeroByCategory(): Record<DeclineCategory, number> {
   return { soft: 0, network: 0, expired: 0, fraud: 0, revoked: 0, unknown: 0 };
 }
@@ -234,10 +228,7 @@ function amountOf(cents: number, currency: string | null | undefined, runCurrenc
   return { currency: (currency ?? runCurrency).toLowerCase(), cents };
 }
 
-/**
- * Totals per currency, through the one money-total path, in currency-code
- * order. A currency whose total is zero adds no line.
- */
+/** Totals per currency through the one money-total path, in code order; a zero total adds no line. */
 function totalsOf(amounts: Amount[]): MoneyTotals {
   return groupSumByCurrency(amounts)
     .filter((t) => t.cents !== 0)
@@ -421,9 +412,7 @@ function computeHealth(
     } else if (subscription.status === "canceled") {
       const canceledAt = subscription.canceled_at ?? 0;
       if (canceledAt >= lookbackStartSeconds) {
-        // One definition with Intelligence's churn (mrr.ts churnReasonOf): a payment-failed or
-        // disputed cancellation is involuntary, any other reason voluntary. A past-due
-        // subscription has not churned and is its own scope (pastDueSubscriptions).
+        // The definition Intelligence's churn uses; a past-due subscription has not churned.
         if (churnReasonOf(subscription.cancellation_details?.reason) === "involuntary") {
           involuntaryCanceled += 1;
         } else {

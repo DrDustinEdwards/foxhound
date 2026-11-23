@@ -7,7 +7,6 @@ import { DAY_MS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
-import { CLASSIFIED_EVENT_TYPES } from "./events";
 import { processConnectedWebhook } from "./process";
 
 // THE MISSED-EVENT SWEEP. Stripe retries a failed webhook delivery for three days and then drops
@@ -24,6 +23,31 @@ const MISSED_EVENT_LIST_LIMIT_PER_ACCOUNT = 500;
 const MISSED_EVENT_PROCESS_LIMIT = 200;
 /** Stripe's limit on `types` in one events listing. */
 const STRIPE_EVENT_TYPES_PER_LIST = 20;
+
+/** Every event type classifyStripeEvent (events.ts) acts on, so the listing does not page through the rest. Keep in step with its switch. */
+const CLASSIFIED_EVENT_TYPES = [
+  "invoice.payment_failed",
+  "invoice.payment_succeeded",
+  "charge.refunded",
+  "charge.dispute.created",
+  "charge.dispute.closed",
+  "charge.dispute.updated",
+  "charge.dispute.funds_withdrawn",
+  "charge.dispute.funds_reinstated",
+  "customer.subscription.deleted",
+  "checkout.session.completed",
+  "customer.updated",
+  "customer.subscription.updated",
+  "payment_method.automatically_updated",
+  "invoice.marked_uncollectible",
+  "invoice.voided",
+  "account.updated",
+  "account.application.deauthorized",
+  "radar.early_fraud_warning.created",
+  "radar.early_fraud_warning.updated",
+  "invoice.upcoming",
+  "customer.subscription.trial_will_end",
+] as const;
 
 interface MissedEventSweepResult {
   accounts: number;
