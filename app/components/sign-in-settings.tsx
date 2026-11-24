@@ -176,7 +176,11 @@ export function SignInMethodsPanel({
           variant="primary"
           pending={busy === "add"}
           onClick={() =>
-            void run("add", () => betterAuthClient.passkey.addPasskey(), "The passkey was not saved.")
+            void run(
+              "add",
+              () => betterAuthClient.passkey.addPasskey(),
+              "The passkey was not saved.",
+            )
           }
         >
           {busy === "add"
@@ -200,7 +204,8 @@ export function SignInMethodsPanel({
                     onClick={() =>
                       void run(
                         provider.id,
-                        () => betterAuthClient.unlinkAccount({ accountId: provider.accountId ?? "" }),
+                        () =>
+                          betterAuthClient.unlinkAccount({ accountId: provider.accountId ?? "" }),
                         `${provider.label} was not disconnected.`,
                       )
                     }

@@ -64,8 +64,7 @@ async function buildAuth(env: Env) {
     // A passkey added or removed, Google or Apple joined or left, sessions
     // ended, the account deleted, a new device, a recovery: mailed to the
     // account's address.
-    sendSecurityNotice: (_kind, { user, detail }) =>
-      mailSecurityNotice(env, user.email, detail),
+    sendSecurityNotice: (_kind, { user, detail }) => mailSecurityNotice(env, user.email, detail),
   });
 
   const google = signIn.socialProviders.google;

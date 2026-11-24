@@ -93,7 +93,10 @@ export async function loader({ context }: Route.LoaderArgs) {
   let blogPosts: Awaited<ReturnType<typeof listPublishedBlogPosts>> = [];
   try {
     const db = getDb(env);
-    const [featured, latest] = await Promise.all([getFeaturedPost(db), listPublishedBlogPosts(db, 5)]);
+    const [featured, latest] = await Promise.all([
+      getFeaturedPost(db),
+      listPublishedBlogPosts(db, 5),
+    ]);
     blogPosts = blogStripCards(featured, latest);
   } catch (err) {
     console.error("home blog strip read failed", err);

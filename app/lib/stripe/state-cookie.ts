@@ -12,7 +12,10 @@ import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 // CSRF state cookie for the Stripe Connect OAuth flow, written by setHostCookie: __Host-, HttpOnly,
 // Secure, SameSite=Lax.
 
-export function setOAuthStateCookie(state: string, name: string = STRIPE_OAUTH_STATE_COOKIE): string {
+export function setOAuthStateCookie(
+  state: string,
+  name: string = STRIPE_OAUTH_STATE_COOKIE,
+): string {
   return setHostCookie(name, encodeURIComponent(state), STRIPE_OAUTH_STATE_TTL_SECONDS);
 }
 

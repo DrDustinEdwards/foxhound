@@ -18,7 +18,10 @@ const harness = vi.hoisted(() => ({
 vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }));
 vi.mock("~/lib/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/auth")>()),
-  getBetterAuth: async () => ({ api: { signInSocial: harness.signInSocial }, handler: harness.handler }),
+  getBetterAuth: async () => ({
+    api: { signInSocial: harness.signInSocial },
+    handler: harness.handler,
+  }),
 }));
 vi.mock("~/lib/auth/rate-limit.server", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/auth/rate-limit.server")>()),
