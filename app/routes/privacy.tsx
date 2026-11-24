@@ -205,60 +205,6 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    id: "legal-bases",
-    title: "WHAT LEGAL BASES DO WE RELY ON TO PROCESS YOUR PERSONAL INFORMATION?",
-    body: (
-      <>
-        <p>
-          <em>In Short:</em> We only process your personal information when we believe it is
-          necessary and we have a valid legal reason (i.e., legal basis) to do so under applicable
-          law, like with your consent, to comply with laws, to provide you with services to enter
-          into or fulfill our contractual obligations, to protect your rights, or to fulfill our
-          legitimate business interests.
-        </p>
-        <p>We may rely on the following legal bases to process your personal information:</p>
-        <ul>
-          <li>
-            Consent. We may process your information if you have given us permission (i.e., consent)
-            to use your personal information for a specific purpose. You can withdraw your consent
-            at any time. <More to="rights">Learn more about withdrawing your consent.</More>
-          </li>
-          <li>
-            Performance of a Contract. We may process your personal information when we believe it
-            is necessary to fulfill our contractual obligations to you, including providing our
-            Services or at your request prior to entering into a contract with you.
-          </li>
-          <li>
-            Legitimate Interests. We may process your information when we believe it is reasonably
-            necessary to achieve our legitimate business interests and those interests do not
-            outweigh your interests and fundamental rights and freedoms. For example, we may process
-            your personal information for some of the purposes described in order to: Analyze how
-            our Services are used so we can improve them to engage and retain users; Diagnose
-            problems and/or prevent fraudulent activities; Understand how our users use our products
-            and services so we can improve user experience.
-          </li>
-          <li>
-            Legal Obligations. We may process your information where we believe it is necessary for
-            compliance with our legal obligations, such as to cooperate with a law enforcement body
-            or regulatory agency, exercise or defend our legal rights, or disclose your information
-            as evidence in litigation in which we are involved.
-          </li>
-          <li>
-            Vital Interests. We may process your information where we believe it is necessary to
-            protect your vital interests or the vital interests of a third party, such as situations
-            involving potential threats to the safety of any person.
-          </li>
-        </ul>
-        <p>
-          When we process information about a merchant&apos;s customers, we do so on the
-          merchant&apos;s instructions. The merchant is responsible for having its own legal basis
-          and privacy notice for its customers, as our{" "}
-          <Link to="/terms#data-processing">Terms of Service</Link> set out.
-        </p>
-      </>
-    ),
-  },
-  {
     id: "share",
     title: "WHEN AND WITH WHOM DO WE SHARE YOUR PERSONAL INFORMATION?",
     body: (
