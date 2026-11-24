@@ -64,7 +64,7 @@ describe("cron registry", () => {
     const names = daily.map((j) => j.name);
     expect(names.indexOf("intelligence-sync")).toBeGreaterThan(-1);
     expect(names.indexOf("intelligence-sync")).toBeLessThan(names.indexOf("intelligence-ai"));
-    expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(8);
+    expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(7);
   });
 
   it("and the merged monthly audit has LEGACY'S HOUR to itself", () => {

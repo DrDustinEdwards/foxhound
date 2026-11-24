@@ -1,5 +1,5 @@
 import type { BatchItem } from "drizzle-orm/batch";
-import { and, inArray, isNull, lt, sql, type SQL } from "drizzle-orm";
+import { inArray, lt, sql } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
 import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
@@ -11,7 +11,6 @@ import {
   engagementEvents,
   getDb,
   healthScoreHistory,
-  socialLeads,
   webhookEvents,
 } from "~/db";
 import {
@@ -20,7 +19,6 @@ import {
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_HEALTH_SCORE_DAYS,
-  RETENTION_SOCIAL_LEADS_DAYS,
   RETENTION_SWEEP_LIMIT,
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
@@ -42,7 +40,7 @@ export function cutoffFor(days: number, nowMs: number): Date {
 }
 
 /**
- * Delete up to RETENTION_SWEEP_LIMIT rows matching a predicate, returning the
+ * Delete up to RETENTION_SWEEP_LIMIT rows older than the cutoff, returning the
  * count.
  *
  * Batching the id list would also have worked and is deliberately NOT what this
@@ -50,12 +48,14 @@ export function cutoffFor(days: number, nowMs: number): Date {
  * raises RETENTION_SWEEP_LIMIT or edits a chunk size, whereas a batched delete
  * stays one careless constant away from the same failure.
  */
-async function deleteBoundedWhere(
+async function deleteOlderThan(
   db: Db,
   table: SQLiteTable,
   idColumn: SQLiteColumn,
-  predicate: SQL,
+  tsColumn: SQLiteColumn,
+  cutoff: Date,
 ): Promise<number> {
+  const predicate = lt(tsColumn, cutoff);
   const rows = await db
     .select({ id: idColumn })
     .from(table)
@@ -71,17 +71,6 @@ async function deleteBoundedWhere(
       ),
     );
   return rows.length;
-}
-
-/** Age-based sweep: the common case, where the predicate is one timestamp. */
-async function deleteOlderThan(
-  db: Db,
-  table: SQLiteTable,
-  idColumn: SQLiteColumn,
-  tsColumn: SQLiteColumn,
-  cutoff: Date,
-): Promise<number> {
-  return deleteBoundedWhere(db, table, idColumn, lt(tsColumn, cutoff));
 }
 
 export async function sweepEngagementEvents(env: Env): Promise<CronJobResult> {
@@ -128,18 +117,6 @@ export async function sweepHealthScoreHistory(env: Env): Promise<CronJobResult> 
     healthScoreHistory.id,
     healthScoreHistory.recordedAt,
     cutoff,
-  );
-  return { rowsProcessed: rows };
-}
-
-/** Non-actioned social leads only (a lead we replied to is kept). */
-export async function sweepSocialLeads(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_SOCIAL_LEADS_DAYS, Date.now());
-  const rows = await deleteBoundedWhere(
-    getDb(env),
-    socialLeads,
-    socialLeads.id,
-    and(lt(socialLeads.scoutRunAt, cutoff), isNull(socialLeads.repliedAt)) as SQL,
   );
   return { rowsProcessed: rows };
 }

@@ -20,7 +20,6 @@ import {
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_HEALTH_SCORE_DAYS,
   RETENTION_PAGE_404_DAILY_DAYS,
-  RETENTION_SOCIAL_LEADS_DAYS,
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
@@ -36,7 +35,6 @@ import {
   healthScoreHistory,
   page404Daily,
   recoverySteps,
-  socialLeads,
   webhookEvents,
 } from "~/db";
 
@@ -136,7 +134,6 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
     webhookEventsCount,
     healthScoreHistoryCount,
     cronRunLogCount,
-    socialLeadsCount,
     page404DailyCount,
     aiCallsCount,
   ] = await Promise.all([
@@ -145,7 +142,6 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
     db.select({ n: count() }).from(webhookEvents),
     db.select({ n: count() }).from(healthScoreHistory),
     db.select({ n: count() }).from(cronRunLog),
-    db.select({ n: count() }).from(socialLeads),
     db.select({ n: count() }).from(page404Daily),
     db.select({ n: count() }).from(aiCalls),
   ]);
@@ -175,11 +171,6 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
       label: "Cron run log",
       retentionPolicy: `${RETENTION_CRON_LOG_DAYS} days, newest 1,500 per job`,
       rowCount: cronRunLogCount[0]?.n ?? 0,
-    },
-    {
-      label: "Social leads (non-actioned)",
-      retentionPolicy: `${RETENTION_SOCIAL_LEADS_DAYS} days`,
-      rowCount: socialLeadsCount[0]?.n ?? 0,
     },
     {
       label: "Page 404s (daily aggregate)",

@@ -9,7 +9,6 @@ import {
   emailSends,
   engagementEvents,
   healthScoreHistory,
-  socialLeads,
   webhookEvents,
 } from "~/db/schema";
 import type { AiCallRow } from "~/lib/cron/retention";
@@ -171,28 +170,6 @@ const SWEEPERS: Record<string, SweeperCase> = {
         ),
       );
     },
-  },
-  sweepSocialLeads: {
-    fn: retention.sweepSocialLeads,
-    seed: (db, n, when) =>
-      insertMany(
-        db,
-        socialLeads,
-        rowsOf(
-          n,
-          (i) => ({
-            id: `sl_${when.getTime()}_${i}`,
-            platform: "reddit",
-            postUrl: `https://example.test/${when.getTime()}/${i}`,
-            intentScore: 1,
-            status: "new",
-            scoutRunAt: when,
-            repliedAt: null,
-            createdAt: when,
-          }),
-          when,
-        ),
-      ),
   },
   sweepAiCalls: {
     fn: retention.sweepAiCalls,

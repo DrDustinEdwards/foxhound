@@ -63,7 +63,6 @@ import {
   sweepEmailSends,
   sweepEngagementEvents,
   sweepHealthScoreHistory,
-  sweepSocialLeads,
   sweepWebhookEvents,
 } from "./retention";
 
@@ -447,7 +446,6 @@ export const CRON_JOBS: CronJob[] = [
     schedule: CRON_SCHEDULE_DAILY,
     handler: sweepHealthScoreHistory,
   },
-  { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
   { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
   { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
@@ -481,7 +479,6 @@ const RUN_NOW: Record<string, { backup?: boolean }> = {
   "retention-email-sends": {},
   "retention-webhook-events": {},
   "retention-health-score": {},
-  "retention-social-leads": {},
   "retention-page-404": {},
   "retention-ai-calls": {},
   "retention-auth-events": {},

@@ -55,7 +55,7 @@ Column-level mapping from the legacy Recova Supabase schema to the Foxhound D1 s
 | intelligence_reports                  | CARRY                                                                     | "carry"                                                                                             |
 | alerts                                | CARRY                                                                     | "carry"                                                                                             |
 | alert_history                         | CARRY                                                                     | "carry"                                                                                             |
-| intelligence_notification_preferences | CARRY                                                                     | "carry"                                                                                             |
+| intelligence_notification_preferences | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
 | benchmark_data                        | CARRY                                                                     | "carry (seeds the no-auth estimator)"                                                               |
 | competitor_monitors                   | **DO-NOT-MIGRATE**                                                        | "absorbed-feature artifact, 0 rows"                                                                 |
 | audit_runs                            | CARRY+MODIFY                                                              | + explicit lift fields (stripe_baseline_recovered, still_dying, foxhound_adds)                      |
@@ -67,18 +67,18 @@ Column-level mapping from the legacy Recova Supabase schema to the Foxhound D1 s
 | cron_run_history                      | CARRY (canonical single table)                                            | as above                                                                                            |
 | admin_audit_log                       | CARRY                                                                     | "carry, permanent"                                                                                  |
 | ai_calls                              | CARRY                                                                     | "carry; cost map keyed to every model ID; retention"                                                |
-| platform_stats                        | CARRY                                                                     | "carry"                                                                                             |
-| customer_notes                        | CARRY                                                                     | "carry"                                                                                             |
+| platform_stats                        | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
+| customer_notes                        | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
 | page_404s                             | **REDESIGN -> page_404_daily + raw w/ retention** (rows NOT migrated)     | "daily aggregate per path + 30d raw; 140,428 legacy rows not migrated"                              |
 | blog_posts                            | CARRY                                                                     | "carry + designed-in featured + taxonomy" (featured already present)                                |
 | blog_post_links                       | CARRY                                                                     | "carry"                                                                                             |
 | blog_post_versions                    | CARRY                                                                     | "carry (keep last 10 per post)"                                                                     |
-| social_config                         | CARRY                                                                     | "carry"                                                                                             |
-| social_leads                          | CARRY                                                                     | "carry; leads retention 180d"                                                                       |
-| social_posts                          | CARRY                                                                     | "carry"                                                                                             |
-| social_topic_log                      | CARRY                                                                     | "carry"                                                                                             |
-| social_blocklist                      | CARRY                                                                     | "carry"                                                                                             |
-| social_keywords                       | CARRY                                                                     | "carry"                                                                                             |
+| social_config                         | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
+| social_leads                          | CARRY, dropped in 0087 (unused)                                           | "carry; leads retention 180d"                                                                       |
+| social_posts                          | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
+| social_topic_log                      | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
+| social_blocklist                      | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
+| social_keywords                       | CARRY, dropped in 0087 (unused)                                           | "carry"                                                                                             |
 | oauth_authorization_codes             | **DO-NOT-MIGRATE**                                                        | "replaced by Better Auth + Foxhound MCP token issuance"                                             |
 | oauth_clients                         | **DO-NOT-MIGRATE**                                                        | as above                                                                                            |
 | oauth_tokens                          | **DO-NOT-MIGRATE**                                                        | as above                                                                                            |
@@ -106,7 +106,6 @@ These columns reference a Better-Auth-owned `user.id`. In Phase 2 they are store
 
 - `account_members.user_id`
 - `admin_audit_log.target_user_id`
-- `intelligence_notification_preferences.user_id`
 
 All other cross-table references (`account_id`, `stripe_connection_id`, `failed_payment_id`, `dispute_id`, etc.) are enforced FKs within the Phase 2 schema.
 
