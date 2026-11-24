@@ -43,10 +43,7 @@ import {
 import { chunked } from "@dustinedwards/site-runtime/d1";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { stripeMs } from "~/lib/stripe/time";
-import {
-  buildCustomerContextUpsert,
-  fetchFoxhoundHistoryByCustomer,
-} from "./sync-writes.server";
+import { buildCustomerContextUpsert, fetchFoxhoundHistoryByCustomer } from "./sync-writes.server";
 
 // The live Stripe + D1 seam for the deterministic Intelligence engine: one enumeration per account per run
 // feeds both customer_context (per-customer signals) and mrr_snapshots (the free MRR tier), so Stripe is read
@@ -54,9 +51,7 @@ import {
 // tests. These writes are operational, not money (only recovered_payments + outcomes ride the money DO), so
 // plain db.batch()/insert() via getDb.
 
-function priceInterval(
-  price: Stripe.Price | null | undefined,
-): BillingInterval {
+function priceInterval(price: Stripe.Price | null | undefined): BillingInterval {
   // The SDK types Stripe's enums as open, so equality does not narrow them: each known value is returned by name.
   switch (price?.recurring?.interval) {
     case "day":
@@ -70,11 +65,7 @@ function priceInterval(
   }
 }
 
-const ACTIVE_SUBSCRIPTION_STATUSES = new Set([
-  "active",
-  "trialing",
-  "past_due",
-]);
+const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 interface CustomerStripeSnapshot {
   activeSubscriptions: ActiveSubscriptionSnapshot[];
@@ -136,20 +127,14 @@ function narrowDiscounts(
 
 /** A schedule phase's billing terms as one comparable key (see subscription-terms.ts nextScheduledChange). */
 function phaseBillingKey(phase: Stripe.SubscriptionSchedule.Phase): string {
-  const items = phase.items
-    .map((i) => `${asId(i.price) ?? ""}x${i.quantity ?? 1}`)
-    .sort();
+  const items = phase.items.map((i) => `${asId(i.price) ?? ""}x${i.quantity ?? 1}`).sort();
   const discounts = phase.discounts
-    .map(
-      (d) => asId(d.coupon) || asId(d.discount) || asId(d.promotion_code) || "",
-    )
+    .map((d) => asId(d.coupon) || asId(d.discount) || asId(d.promotion_code) || "")
     .sort();
   return `${items.join(",")}|${discounts.join(",")}`;
 }
 
-function narrowSchedule(
-  schedule: Stripe.Subscription["schedule"],
-): ScheduleTerms | null {
+function narrowSchedule(schedule: Stripe.Subscription["schedule"]): ScheduleTerms | null {
   if (!schedule || typeof schedule === "string") return null;
   return {
     status: schedule.status,
@@ -162,17 +147,12 @@ function narrowSchedule(
   };
 }
 
-function narrowSubscriptionForSync(
-  sub: Stripe.Subscription,
-): NarrowSubscription {
+function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription {
   return {
     status: sub.status,
     createdMs: stripeMs(sub.created),
     currency: sub.currency,
-    churnReason:
-      sub.status === "canceled"
-        ? churnReasonOf(sub.cancellation_details?.reason)
-        : null,
+    churnReason: sub.status === "canceled" ? churnReasonOf(sub.cancellation_details?.reason) : null,
     cancelAtMs: stripeMs(sub.cancel_at),
     items: sub.items.data.map((item) => ({
       priceId: item.price.id,
@@ -198,11 +178,7 @@ interface StripeObjectCaches {
   prices: ObjectCache<Stripe.Price>;
 }
 
-function cached<T>(
-  cache: ObjectCache<T>,
-  id: string,
-  read: () => Promise<T>,
-): Promise<T | null> {
+function cached<T>(cache: ObjectCache<T>, id: string, read: () => Promise<T>): Promise<T | null> {
   let pending = cache.get(id);
   if (!pending) {
     pending = read().catch(() => null);
@@ -249,8 +225,7 @@ async function resolveDiscounts(
           expand: ["applies_to", "currency_options"],
         }),
       )) ?? d.embedded;
-    if (coupon)
-      out.push({ coupon: couponTermsIn(coupon, currency), endMs: d.endMs });
+    if (coupon) out.push({ coupon: couponTermsIn(coupon, currency), endMs: d.endMs });
   }
   return out;
 }
@@ -296,12 +271,7 @@ async function fetchCustomerStripeSnapshot(
         productId: item.productId,
         unitAmountCents: item.unitAmountCents,
         quantity: item.quantity,
-        discounts: await resolveDiscounts(
-          stripe,
-          caches.coupons,
-          item.discounts,
-          sub.currency,
-        ),
+        discounts: await resolveDiscounts(stripe, caches.coupons, item.discounts, sub.currency),
       });
     }
     const periodCents = discountedItemCents(itemTerms, subDiscounts, nowMs);
@@ -317,8 +287,7 @@ async function fetchCustomerStripeSnapshot(
     );
     sub.items.forEach((item, i) => {
       // One unit's cost per billing period after discounts; monthlyEquivalentCents spreads it over interval_count.
-      const unitAmountCents =
-        item.quantity > 0 ? periodCents[i] / item.quantity : 0;
+      const unitAmountCents = item.quantity > 0 ? periodCents[i] / item.quantity : 0;
       if (active) {
         activeSubscriptions.push({
           priceId: item.priceId,
@@ -345,8 +314,7 @@ async function fetchCustomerStripeSnapshot(
     });
     if (sub.churnReason) churnReason = sub.churnReason;
     if (active) {
-      if (sub.schedule)
-        scheduled.push(nextScheduledChange(sub.schedule, nowMs));
+      if (sub.schedule) scheduled.push(nextScheduledChange(sub.schedule, nowMs));
       if (sub.cancelAtMs !== null && sub.cancelAtMs > nowMs)
         scheduled.push({ kind: "cancel", atMs: sub.cancelAtMs });
     }
@@ -369,9 +337,7 @@ async function fetchCustomerStripeSnapshot(
       if (!priceDetails) continue;
       const priceId = asId(priceDetails.price);
       if (!priceId) continue;
-      const price = await cached(caches.prices, priceId, () =>
-        stripe.prices.retrieve(priceId),
-      );
+      const price = await cached(caches.prices, priceId, () => stripe.prices.retrieve(priceId));
       billingHistory.push({
         at: stripeMs(invoice.created),
         priceId,
@@ -468,12 +434,7 @@ export async function runIntelligenceSyncForAccount(
   ]);
   const hasPriorSnapshot = priorSnapshotRows.length > 0;
   const priorByCustomer = hasPriorSnapshot
-    ? new Map(
-        priorContextRows.map((r) => [
-          r.stripeCustomerId,
-          r.mrrContributionCents ?? 0,
-        ]),
-      )
+    ? new Map(priorContextRows.map((r) => [r.stripeCustomerId, r.mrrContributionCents ?? 0]))
     : null;
 
   const now = new Date(nowMs);
@@ -496,12 +457,7 @@ export async function runIntelligenceSyncForAccount(
     }
     if (customer.deleted) continue;
 
-    const snapshot = await fetchCustomerStripeSnapshot(
-      stripe,
-      customer.id,
-      caches,
-      nowMs,
-    );
+    const snapshot = await fetchCustomerStripeSnapshot(stripe, customer.id, caches, nowMs);
     const customerSinceMs = stripeMs(customer.created);
     const fields = buildCustomerContextFields({
       customerSinceMs,
@@ -647,10 +603,7 @@ export async function runIntelligenceSyncForAllAccounts(
         truncated: false,
         error: errorMessage(err),
       });
-      console.error(
-        `intelligence sync failed for account ${id}:`,
-        errorMessage(err),
-      );
+      console.error(`intelligence sync failed for account ${id}:`, errorMessage(err));
     }
   }
   return results;
