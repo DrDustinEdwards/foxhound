@@ -244,6 +244,30 @@ export const alertHistory = sqliteTable(
   ],
 );
 
+export const intelligenceNotificationPreferences = sqliteTable(
+  "intelligence_notification_preferences",
+  {
+    id: id(),
+    accountId: accountRef(),
+    // soft ref to Better Auth user.id
+    userId: text("user_id").notNull(),
+    weeklyNarrativeEmail: bool("weekly_narrative_email").notNull().default(true),
+    weeklyNarrativeSlack: bool("weekly_narrative_slack").notNull().default(false),
+    healthAlertEmail: bool("health_alert_email").notNull().default(true),
+    healthAlertSlack: bool("health_alert_slack").notNull().default(false),
+    healthAlertThreshold: integer("health_alert_threshold").notNull().default(50),
+    expansionAlertEmail: bool("expansion_alert_email").notNull().default(true),
+    expansionAlertSlack: bool("expansion_alert_slack").notNull().default(false),
+    competitorAlertEmail: bool("competitor_alert_email").notNull().default(false),
+    competitorAlertSlack: bool("competitor_alert_slack").notNull().default(false),
+    anomalyAlertEmail: bool("anomaly_alert_email").notNull().default(true),
+    anomalyAlertSlack: bool("anomaly_alert_slack").notNull().default(false),
+    createdAt: ts("created_at").notNull(),
+    updatedAt: ts("updated_at").notNull(),
+  },
+  (t) => [index("intelligence_notif_prefs_account_idx").on(t.accountId)],
+);
+
 // global (not tenant-scoped): seeds the no-auth estimator
 export const benchmarkData = sqliteTable("benchmark_data", {
   id: id(),

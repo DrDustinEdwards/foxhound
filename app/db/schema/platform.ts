@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts, bool, json } from "./columns";
 import { accounts, accountRef, optionalAccountRef } from "./tenancy";
@@ -237,6 +237,31 @@ export const aiCallsMonthly = sqliteTable(
     updatedAt: ts("updated_at").notNull(),
   },
   (t) => [uniqueIndex("ai_calls_monthly_uq").on(t.accountId, t.model, t.month)],
+);
+
+// global single-row rollup; total_recovered_usd is a USD-denominated aggregate by definition
+export const platformStats = sqliteTable("platform_stats", {
+  id: integer("id").primaryKey(),
+  totalRecoveredUsd: integer("total_recovered_usd"),
+  totalMerchants: integer("total_merchants"),
+  totalFailedDetected: integer("total_failed_detected"),
+  totalEmailsSent: integer("total_emails_sent"),
+  avgRecoveryRatePct: real("avg_recovery_rate_pct"),
+  avgHoursToFirstRecovery: real("avg_hours_to_first_recovery"),
+  lastComputedAt: ts("last_computed_at"),
+});
+
+export const customerNotes = sqliteTable(
+  "customer_notes",
+  {
+    id: id(),
+    accountId: accountRef(),
+    stripeCustomerId: text("stripe_customer_id").notNull(),
+    body: text("body").notNull(),
+    createdBy: text("created_by"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("customer_notes_account_idx").on(t.accountId)],
 );
 
 // site-runtime ./not-found's daily 404 count per path.

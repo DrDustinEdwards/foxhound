@@ -87,3 +87,99 @@ export const blogPostVersions = sqliteTable(
   },
   (t) => [index("blog_post_versions_post_idx").on(t.postId)],
 );
+
+export const socialConfig = sqliteTable("social_config", {
+  id: id(),
+  platform: text("platform").notNull(),
+  enabled: bool("enabled").notNull().default(false),
+  postEnabled: bool("post_enabled").notNull().default(false),
+  replyEnabled: bool("reply_enabled").notNull().default(false),
+  redditReady: bool("reddit_ready").notNull().default(false),
+  maxRepliesPerDay: integer("max_replies_per_day").notNull(),
+  minIntentScore: integer("min_intent_score").notNull(),
+  createdAt: ts("created_at").notNull(),
+  updatedAt: ts("updated_at").notNull(),
+  maxPostAgeHours: integer("max_post_age_hours").notNull(),
+  minUpvotes: integer("min_upvotes").notNull(),
+  postsPerWeek: integer("posts_per_week").notNull(),
+});
+
+export const socialKeywords = sqliteTable("social_keywords", {
+  id: id(),
+  platform: text("platform").notNull(),
+  query: text("query").notNull(),
+  enabled: bool("enabled").notNull().default(true),
+  createdAt: ts("created_at").notNull(),
+  isCompetitor: bool("is_competitor").notNull().default(false),
+  lastUsedAt: ts("last_used_at"),
+  leadCount: integer("lead_count").notNull().default(0),
+});
+
+export const socialLeads = sqliteTable(
+  "social_leads",
+  {
+    id: id(),
+    platform: text("platform").notNull(),
+    postUrl: text("post_url").notNull(),
+    postId: text("post_id"),
+    author: text("author"),
+    title: text("title"),
+    body: text("body"),
+    subreddit: text("subreddit"),
+    intentScore: integer("intent_score").notNull(),
+    keywordsMatched: json<string[]>("keywords_matched"),
+    status: text("status").notNull(),
+    replyId: text("reply_id"),
+    replyBody: text("reply_body"),
+    scoutRunAt: ts("scout_run_at").notNull(),
+    repliedAt: ts("replied_at"),
+    skipReason: text("skip_reason"),
+    createdAt: ts("created_at").notNull(),
+    upvoteCount: integer("upvote_count"),
+    postAgeHours: integer("post_age_hours"),
+    filterReason: text("filter_reason"),
+    sentiment: text("sentiment"),
+    isCompetitorMention: bool("is_competitor_mention").notNull().default(false),
+    isGoogleRanking: bool("is_google_ranking").notNull().default(false),
+    generatedReply: text("generated_reply"),
+    replyApprovedAt: ts("reply_approved_at"),
+    keywordId: text("keyword_id").references(() => socialKeywords.id),
+  },
+  (t) => [
+    index("social_leads_keyword_idx").on(t.keywordId),
+    // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
+    index("social_leads_scout_run_idx").on(t.scoutRunAt),
+  ],
+);
+
+export const socialPosts = sqliteTable(
+  "social_posts",
+  {
+    id: id(),
+    platform: text("platform").notNull(),
+    postType: text("post_type").notNull(),
+    content: text("content").notNull(),
+    platformPostId: text("platform_post_id"),
+    leadId: text("lead_id").references(() => socialLeads.id),
+    status: text("status").notNull(),
+    error: text("error"),
+    postedAt: ts("posted_at"),
+    createdAt: ts("created_at").notNull(),
+  },
+  (t) => [index("social_posts_lead_idx").on(t.leadId)],
+);
+
+export const socialTopicLog = sqliteTable("social_topic_log", {
+  id: id(),
+  topicKey: text("topic_key").notNull(),
+  platform: text("platform").notNull(),
+  usedAt: ts("used_at").notNull(),
+});
+
+export const socialBlocklist = sqliteTable("social_blocklist", {
+  id: id(),
+  type: text("type").notNull(),
+  value: text("value").notNull(),
+  reason: text("reason"),
+  createdAt: ts("created_at").notNull(),
+});
