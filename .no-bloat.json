@@ -36,7 +36,7 @@
       "app/lib/demo/disputes-seed.ts": 542,
       "app/lib/demo/intelligence-seed.ts": 613,
       "app/lib/demo/recovery-seed.ts": 777,
-      "app/lib/intelligence/sync.server.ts": 582,
+      "app/lib/intelligence/sync.server.ts": 545,
       "app/lib/marketing/docs-content.ts": 1004,
       "app/lib/marketing/features-content.ts": 836,
       "app/lib/mcp/tools.server.ts": 1294,
