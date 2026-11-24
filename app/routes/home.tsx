@@ -8,7 +8,7 @@ import "capsomer/disclosure.css";
 import "capsomer/source-line.css";
 // Capsomer's tokens and the amber family (capbase layer), which every part on this page reads. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
-import { jsonLd, faqPage } from "@drdustinedwards/site-helpers/schema";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { Link, ButtonLink } from "capsomer/react/link";
 import { SourceLine } from "capsomer/react/source-line";
 import { CtaBand } from "capsomer/react/cta-band";
@@ -58,7 +58,7 @@ import "~/home.css";
 const H2 = "fh-home-h2 fh-section fh-semibold fh-text";
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // JSON-LD: Organization, SoftwareApplication, the FAQPage from the plain answers above, the Speakable WebPage and the WebSite. Every URL comes from the loader's siteUrl.
+  // JSON-LD: Organization, SoftwareApplication, the Speakable WebPage and the WebSite. Every URL comes from the loader's siteUrl.
   const url = loaderData?.siteUrl ?? "";
   return [
     ...marketingMeta({
@@ -72,7 +72,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
       ? [
           jsonLd(organizationJsonLd(url)),
           jsonLd(softwareApplicationJsonLd(url)),
-          jsonLd(faqPage(FAQS)),
           jsonLd(
             speakableWebPageJsonLd(url, {
               path: "/",

@@ -38,7 +38,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/post";
 import { DAY_MS } from "~/lib/constants";
-import { faqPage, jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 import { MarketingError } from "~/components/error-view";
 import { markup } from "capsomer/behavior/trusted-html";
@@ -68,7 +68,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
-  const [{ html, toc, faq, version }, cover, share, previous, next, related] = await Promise.all([
+  const [{ html, toc, version }, cover, share, previous, next, related] = await Promise.all([
     renderPostBody(db, post.body),
     coverPicture(db, post, "content"),
     // The share image Carrel set (site-api's image and imageAlt search fields), read the way the cover is.
@@ -93,7 +93,6 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
     previous,
     next,
     related,
-    faq,
   };
 }
 
@@ -168,7 +167,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
         authorName: post.author,
       }),
     ),
-    ...(loaderData.faq.length > 0 ? [jsonLd(faqPage(loaderData.faq))] : []),
   ];
 }
 

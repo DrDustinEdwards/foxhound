@@ -26,13 +26,13 @@ import "capsomer/price-card.css";
 import "~/site-header.css";
 
 import type { Route } from "./+types/pricing";
-import { faqPage, jsonLd } from "@drdustinedwards/site-helpers/schema";
+import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/pricing.css";
 
 // /pricing: the shared page header, the 1200px card container on a 1/2/4 column grid with gap-4, each card's order (name, price, price label or a blank line, description, check list, Learn more), the 760px FAQ under its "Questions" h2, and the 760px closing block with its 560px line. The page sits in Capsomer's amber family with Foxhound's own neutrals (.fh-cap), each card and FAQ item is Capsomer's panel, and the closing link is Capsomer's primary button. Text: card name 1.125rem, price 2.5rem, price label and closing microcopy 0.75rem, description, bullets and Learn more 0.8125rem, the h2s 1.5rem to 1.75rem and 1.75rem to 2rem, FAQ question and closing line 0.9375rem, FAQ answer 0.875rem. Card names and FAQ questions are h2 and h3 (not plain divs), so a screen reader can move between the plans and the questions; the page keeps one h1 and never skips a level. Copy, and every number in it, read from the engine constants, are in lib/marketing/pricing-copy.ts.
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // JSON-LD: an array of the FAQPage, sourced from the exact list rendered above, and a WebPage whose SpeakableSpecification points at the cards and FAQ sections by the classes on them. Every URL comes from the loader's siteUrl.
+  // JSON-LD: a WebPage whose SpeakableSpecification points at the cards and FAQ sections by the classes on them. Every URL comes from the loader's siteUrl.
   return [
     ...marketingMeta({
       title: "Pricing",
@@ -42,7 +42,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
     }),
     ...(loaderData
       ? [
-          jsonLd(faqPage(PRICING_FAQS)),
           jsonLd(
             speakableWebPageJsonLd(loaderData.siteUrl, {
               path: "/pricing",
