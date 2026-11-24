@@ -555,7 +555,7 @@ export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
  * Pinned Stripe API version (the installed `stripe` package's default), so
  * behavior does not depend on the account's dashboard default.
  */
-export const STRIPE_API_VERSION = "2026-10-28.endive";
+export const STRIPE_API_VERSION = "2026-11-18.endive";
 /**
  * The public-preview channel of the same release, for preview-only endpoints
  * such as FX Quotes, which Stripe serves only on a `.preview` version.
