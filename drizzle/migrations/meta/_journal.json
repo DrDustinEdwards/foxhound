@@ -582,6 +582,13 @@
       "when": 1795415847942,
       "tag": "0086_invite_token_uq",
       "breakpoints": true
+    },
+    {
+      "idx": 83,
+      "version": "6",
+      "when": 1795425489014,
+      "tag": "0087_drop_unused_tables",
+      "breakpoints": true
     }
   ]
 }
