@@ -256,9 +256,8 @@ const SECTIONS: LegalSection[] = [
           We provide the AI Products through third-party service providers (&quot;AI Service
           Providers&quot;), including Anthropic. As outlined in this Privacy Notice, your input,
           output, and personal information will be shared with and processed by these AI Service
-          Providers to enable your use of our AI Products for purposes outlined in &quot;WHAT LEGAL
-          BASES DO WE RELY ON TO PROCESS YOUR PERSONAL INFORMATION?&quot; You must not use the AI
-          Products in any way that violates the terms or policies of any AI Service Provider.
+          Providers to enable your use of our AI Products. You must not use the AI Products in any
+          way that violates the terms or policies of any AI Service Provider.
         </p>
         <h3>Our AI Products</h3>
         <p>Our AI Products are designed for the following functions:</p>
