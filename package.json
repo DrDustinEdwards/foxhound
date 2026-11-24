@@ -29,14 +29,14 @@
     "check:all": "npm run typecheck && npm run lint && npm run test && npm run check-tokens && npm run check:console && npm run check:migrations && npm run check:test-assertions && npm run check-gates"
   },
   "dependencies": {
-    "@better-auth/passkey": "1.7.17",
+    "@better-auth/passkey": "1.7.27",
     "@cloudflare/workers-oauth-provider": "1.2.4",
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.65.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.17.1",
     "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.48.7",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.180.0",
     "@modelcontextprotocol/server": "2.4.0",
-    "better-auth": "1.7.23",
+    "better-auth": "1.7.27",
     "capsomer": "github:DrDustinEdwards/capsomer#v0.164.10",
     "drizzle-orm": "0.45.4",
     "enarratio": "0.17.2",
