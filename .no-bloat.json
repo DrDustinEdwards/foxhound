@@ -29,7 +29,7 @@
       "app/lib/billing/credit-note.ts": 512,
       "app/lib/billing/run.ts": 590,
       "app/lib/carrel/adapter.server.ts": 694,
-      "app/lib/constants.ts": 648,
+      "app/lib/constants.ts": 647,
       "app/lib/cron/recovery-tick.ts": 550,
       "app/lib/decline-codes/content.ts": 1238,
       "app/lib/demo/customer-base.ts": 1039,
