@@ -4,7 +4,7 @@ import { Link } from "capsomer/react/link";
 
 import { Wordmark } from "./wordmark";
 
-// /compare, /decline-codes and /about are not in the footer. The three social icons wait for Foxhound handles to exist.
+// /compare and /about are not in the footer. The three social icons wait for Foxhound handles to exist.
 export const COLUMNS: { heading: string; links: { to: string; label: string }[] }[] = [
   {
     heading: "Product",
@@ -28,6 +28,7 @@ export const COLUMNS: { heading: string; links: { to: string; label: string }[] 
     links: [
       { to: "/docs", label: "Docs" },
       { to: "/blog", label: "Blog" },
+      { to: "/decline-codes", label: "Decline codes" },
       { to: "/contact", label: "Contact" },
     ],
   },
