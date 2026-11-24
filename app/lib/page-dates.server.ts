@@ -1,5 +1,4 @@
-import { trackPageDates, type PageRecord } from "@drdustinedwards/site-helpers/lastmod";
-import { htmlToMarkdown } from "@drdustinedwards/site-helpers/markdown-copy";
+import { trackRenderedPageDates, type PageRecord } from "@drdustinedwards/site-helpers/lastmod";
 import { sql } from "drizzle-orm";
 import { inList, chunked, rowsPerInsert } from "@dustinedwards/site-runtime/d1";
 
@@ -10,13 +9,6 @@ import { siteUrl } from "~/lib/seo/jsonld";
 // The day each code-written page of /sitemap.xml last changed. No row dates these pages (marketing, docs, decline codes,
 // comparisons), so the daily page-dates job reads each as Markdown, the way the Markdown copies are made, with Prelum's
 // trackPageDates, and keeps the day its text last changed in page_dates. The sitemap reads it back with loadPageDates.
-
-/** Renders a path through the Worker's own page handler and returns its HTML, or null when it is not a page. workers/app.ts sets it. */
-export type PageRenderer = (path: string, env: Env) => Promise<string | null>;
-let renderPage: PageRenderer | undefined;
-export function setPageRenderer(renderer: PageRenderer): void {
-  renderPage = renderer;
-}
 
 /** Every row of page_dates as the record Prelum's trackPageDates and pageDates take. */
 export async function loadPageDates(db: Db): Promise<PageRecord> {
@@ -47,19 +39,12 @@ const sqlExcluded = (column: string) => sql.raw(`excluded.${column}`);
 
 /** The daily job: date every code-written page of the sitemap. */
 export const runCodePageDates: CronHandler = async (env) => {
-  if (!renderPage) throw new Error("page-dates: no page renderer is set");
-  const render = renderPage;
   const { codePagePaths } = await import("~/routes/files/sitemap");
-  const origin = siteUrl(env);
   const db = getDb(env);
-  const { record, changed } = await trackPageDates({
+  const { record, changed } = await trackRenderedPageDates({
     paths: codePagePaths(),
-    read: async (path) => {
-      const html = await render(path, env);
-      if (html === null) return null;
-      const facts = htmlToMarkdown(html, { base: `${origin}${path}` });
-      return `${facts.title}\n${facts.description}\n${facts.markdown}`;
-    },
+    origin: siteUrl(env),
+    env,
     load: () => loadPageDates(db),
     save: (next) => savePageDates(db, next),
   });

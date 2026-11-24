@@ -10,6 +10,8 @@ import {
 } from "~/lib/marketing/decline-categories";
 import {
   STAT_SOURCES,
+  STRIPE_LAPSED_PAYMENT_FAILURE_PERCENT,
+  STRIPE_RECOVERED_MONTHS,
   STRIPE_RECOVERY_RATE_PERCENT,
   STRIPE_UNRECOVERED_RATE_PERCENT,
 } from "~/lib/marketing/statistics";
@@ -64,12 +66,12 @@ export const STATS: HomeStat[] = [
     href: STAT_SOURCES.stripeBilling,
   },
   {
-    stat: "1 in 4",
+    stat: `1 in ${100 / STRIPE_LAPSED_PAYMENT_FAILURE_PERCENT}`,
     body: "subscription cancellations are purely due to payment failures. These customers never chose to leave, their payment just failed.",
     href: STAT_SOURCES.stripeSmartRetries,
   },
   {
-    stat: "7 months",
+    stat: `${STRIPE_RECOVERED_MONTHS} months`,
     body: "is how long recovered subscriptions continue on average. One recovered payment is not one month of revenue, it is most of a year.",
     href: STAT_SOURCES.stripeSmartRetries,
   },
