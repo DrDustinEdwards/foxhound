@@ -90,7 +90,7 @@ function toSummary(r: SummaryRow): BlogPostSummary {
 }
 
 /** Most recent published posts, newest first. */
-export async function listPublishedBlogPosts(db: Db, limit?: number): Promise<BlogPostSummary[]> {
+export async function listLivePosts(db: Db, limit?: number): Promise<BlogPostSummary[]> {
   const base = db
     .select(SUMMARY_COLUMNS)
     .from(blogPosts)

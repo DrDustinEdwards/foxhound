@@ -36,7 +36,7 @@ export const blogPosts = sqliteTable(
   },
   (t) => [
     uniqueIndex("blog_posts_slug_uq").on(t.slug),
-    // Every public list query filters WHERE published = true ORDER BY published_at DESC (listPublishedBlogPosts, getAllPublishedPosts, the tag archive, sitemap/feed/llms generators); this index backs them.
+    // Every public list query filters WHERE published = true ORDER BY published_at DESC (listLivePosts, getAllPublishedPosts, the tag archive, sitemap/feed/llms generators); this index backs them.
     index("blog_posts_published_published_at_idx").on(t.published, t.publishedAt),
   ],
 );
