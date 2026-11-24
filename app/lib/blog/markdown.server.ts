@@ -173,7 +173,6 @@ export async function renderPostBody(
 ): Promise<{
   html: string;
   toc: TocItem[];
-  faq: Array<{ question: string; answer: string }>;
   version: string;
 }> {
   const diagrams = takeDiagramFigures(body);
@@ -191,14 +190,13 @@ export async function renderPostBody(
     options: { media, postLink },
   });
   const html = stitchDiagramFigures(rendered.html, diagrams.slugs);
-  const { toc, faq } = rendered;
+  const { toc } = rendered;
   // version goes on the body's wrapper (data-render-version), so prelum-content
   // can see a page rendered by an older pipeline, such as one the edge cache
   // still holds after a Prelum update.
   return {
     html,
     toc: toc.map(({ depth, text, id }) => ({ level: depth === 2 ? 2 : 3, text, id })),
-    faq,
     version: RENDER_VERSION,
   };
 }

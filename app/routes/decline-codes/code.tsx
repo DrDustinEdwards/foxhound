@@ -15,12 +15,10 @@ import {
   categoryBadgeTone,
   recoveryApproach,
 } from "~/lib/decline-codes/presentation";
-import { faqPage } from "@drdustinedwards/site-helpers/schema";
 import { siteUrl } from "~/lib/seo/jsonld";
 import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/code";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "capsomer/button.css";
 import "capsomer/panel.css";
 import "~/reference.css";
@@ -46,9 +44,6 @@ export function meta({ loaderData }: Route.MetaArgs) {
       path: `/decline-codes/${view.code}`,
       siteUrl: url,
     }),
-    jsonLd(
-      faqPage(loaderData.content.faqs.map((f) => ({ question: f.question, answer: f.answer }))),
-    ),
   ];
 }
 

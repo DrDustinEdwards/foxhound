@@ -72,19 +72,16 @@ describe("renderPostBody", () => {
     );
   });
 
-  it("links a post named in a :::faq answer, and gives the JSON-LD its words", async () => {
+  it("links a post named in a :::faq answer", async () => {
     const db = drizzle(async () => ({ rows: [["stripe-recovery", "Stripe recovery"]] }), {
       schema,
     }) as unknown as Db;
-    const { html, faq } = await renderPostBody(
+    const { html } = await renderPostBody(
       db,
       ":::faq\nQ: Where next?\nA: The ::postlink[stripe-recovery|full recovery system] works upstream.\n:::",
     );
     expect(html).toContain(
       '<dd>The <a href="/blog/stripe-recovery">full recovery system</a> works upstream.</dd>',
     );
-    expect(faq).toEqual([
-      { question: "Where next?", answer: "The full recovery system works upstream." },
-    ]);
   });
 });
