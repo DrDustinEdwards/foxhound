@@ -182,12 +182,12 @@ export const MODEL_RECOVERY_EMAIL = "claude-sonnet-5";
  * Unauthenticated home-page email sample generator: copy generation, so the
  * cheap model.
  */
-export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-4-5-20251001";
+export const MODEL_MARKETING_EMAIL_SAMPLE = "claude-haiku-5-5";
 /**
  * The audit's three-sentence summary. Its own constant so a later retier knows
  * which Haiku caller it meant.
  */
-export const MODEL_AUDIT_SUMMARY = "claude-haiku-4-5-20251001";
+export const MODEL_AUDIT_SUMMARY = "claude-haiku-5-5";
 /** Token budget for the summary (three sentences). */
 export const AUDIT_SUMMARY_MAX_TOKENS = 300;
 

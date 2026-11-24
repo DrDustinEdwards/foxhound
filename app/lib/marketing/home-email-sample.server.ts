@@ -96,7 +96,7 @@ async function draftSample(
       model: MODEL_MARKETING_EMAIL_SAMPLE,
       max_tokens: 400,
       thinking: { type: "disabled" },
-      // No effort: Haiku 4.5 rejects it with a 400, which failed every home page generation.
+      // No effort: Haiku rejects it with a 400, which failed every home page generation.
       messages: [{ role: "user", content: buildPrompt(category) + instruction }],
     },
     OUTPUT_SCHEMA,
