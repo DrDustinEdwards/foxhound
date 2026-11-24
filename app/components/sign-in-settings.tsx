@@ -14,7 +14,8 @@ import {
 } from "@dustinedwards/site-runtime/sign-in-client";
 import { securityHistoryWords } from "@dustinedwards/site-runtime/sign-in-words";
 
-import { betterAuthClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
+import { signInAgainIfStale } from "@dustinedwards/site-runtime/sign-in-client";
+import { betterAuthClient, reauthHref, signInAgain } from "~/lib/auth/client";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 
 /** Where this person is signed in (site-runtime's sessionRows, current first);
@@ -107,7 +108,7 @@ export function SignInMethodsPanel({
     setBusy(key);
     try {
       const res = await change();
-      if (signInAgainIfStale(res?.error)) return;
+      if (signInAgainIfStale(res?.error, reauthHref)) return;
       if (res?.error) {
         const message = (res.error as { message?: string }).message;
         setError(message ? `${failed} ${message}` : failed);
