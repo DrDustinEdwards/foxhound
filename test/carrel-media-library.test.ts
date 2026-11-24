@@ -2,9 +2,9 @@ import { createSiteApi } from "@dustinedwards/site-api";
 import { runConformance } from "@dustinedwards/site-api/conformance";
 import { describe, expect, it, vi } from "vitest";
 
-import { renderMarkdown } from "~/lib/blog/markdown.server";
+import { renderPostBody } from "~/lib/blog/markdown.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
-import { carrelMediaAdapter } from "~/lib/carrel/media-adapter.server";
+import { blogMediaAdapter } from "~/lib/carrel/media-adapter.server";
 import { serializePostSource } from "~/lib/carrel/source";
 import { loader as mediaLoader } from "~/routes/files/media";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -167,7 +167,7 @@ function setup() {
   const api = createSiteApi({
     adapter: {
       ...carrelAdapter(db, d1Over(sqlite), { renderDocument: renderDraft }),
-      media: carrelMediaAdapter(env, db),
+      media: blogMediaAdapter(env, db),
     },
     key: KEY,
     limiter: { limit: async () => ({ success: true }) },
@@ -244,7 +244,7 @@ describe("the media library through Carrel's site-api mount", () => {
     });
     expect(created.status).toBe(200);
 
-    const { html } = await renderMarkdown(t.db, `![Declines by reason](/media/${id})\n`);
+    const { html } = await renderPostBody(t.db, `![Declines by reason](/media/${id})\n`);
     expect(html).toContain("<picture>");
     // Named by its bytes, so the route serves each size immutable.
     expect(html).toMatch(new RegExp(`/media/${id}\\.webp\\?v=[0-9a-f]{12}&#x26;w=680 `));

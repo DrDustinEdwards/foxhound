@@ -47,7 +47,7 @@ import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
-import { formatLongDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
+import { formatDetectedDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
 import {
@@ -430,7 +430,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   const confirmLine = (id: string) => {
     const r = rows.find((p) => p.id === id);
     return r
-      ? `${r.customerName ?? r.customerEmail}, ${formatMoney(r.amountCents, r.currency)}, detected ${formatLongDate(r.detectedAt)}`
+      ? `${r.customerName ?? r.customerEmail}, ${formatMoney(r.amountCents, r.currency)}, detected ${formatDetectedDate(r.detectedAt)}`
       : id;
   };
 
@@ -878,7 +878,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
                               {relative(toMs(p.detectedAt), nowMs, "UTC")}
                             </span>
                             <span className="fh-payments-sub fh-line fh-nowrap">
-                              {formatLongDate(p.detectedAt)}
+                              {formatDetectedDate(p.detectedAt)}
                             </span>
                           </span>
                           {/* Recova's View, shown on hover. The row link above

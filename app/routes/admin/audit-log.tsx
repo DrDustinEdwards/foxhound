@@ -9,11 +9,11 @@ import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import {
   auditActor,
-  auditDetail,
+  auditEntryDetail,
   auditTarget,
   describeAuditAction,
 } from "~/lib/admin/audit-describe";
-import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
+import { listAdminAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
 import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -29,7 +29,7 @@ export function meta() {
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
-  const rows = await listAuditLog(db);
+  const rows = await listAdminAuditLog(db);
   const lookups = await loadAuditLookups(db, rows);
   const entries = rows.map((e) => ({
     id: e.id,
@@ -37,7 +37,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     actor: auditActor(e.actorEmail),
     action: describeAuditAction(e.action),
     target: auditTarget(e, lookups),
-    detail: auditDetail(e),
+    detail: auditEntryDetail(e),
   }));
   return { entries };
 }

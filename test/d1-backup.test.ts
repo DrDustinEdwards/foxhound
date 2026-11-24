@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 
-import { backupStatus, runD1Backup } from "~/lib/backup/d1-backup";
+import { d1BackupStatus, runD1Backup } from "~/lib/backup/d1-backup";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 
-describe("runD1Backup and backupStatus without a bucket", () => {
+describe("runD1Backup and d1BackupStatus without a bucket", () => {
   it("the job fails loudly while BACKUPS is unbound", async () => {
     await expect(runD1Backup({} as Env, new Date())).rejects.toThrow(/BACKUPS R2 binding/);
   });
 
   it("health says so instead of reporting a fake age", async () => {
-    const status = await backupStatus({} as Env);
+    const status = await d1BackupStatus({} as Env);
     expect(status.age_hours).toBeNull();
     expect(status.warning).toMatch(/no backup bucket/);
   });
@@ -37,7 +37,7 @@ describe("runD1Backup and backupStatus without a bucket", () => {
         truncated: false,
       }),
     };
-    const status = await backupStatus(
+    const status = await d1BackupStatus(
       { BACKUPS: bucket } as unknown as Env,
       new Date("2026-10-09T09:00:00.000Z"),
     );

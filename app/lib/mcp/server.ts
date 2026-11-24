@@ -164,7 +164,7 @@ function buildMcpServer(
 
 /** Serve one already-authenticated request through the SDK in the era that can answer it (site-runtime's routeMcpEra).
  *  `authInfo` carries the key's scopes for the per-tool step-up; null is the list-only test key, which every tool refuses. */
-export function serveMcp(
+export function serveAdminMcp(
   request: Request,
   registry: McpToolRegistry,
   ctx: McpToolContext,

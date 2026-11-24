@@ -9,7 +9,7 @@ import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 // (see ~/lib/disputes/approval.ts for the phase-ordering rationale). Split into
 // this .server.ts sibling specifically so drizzle-orm and the
 // disputes/dispute_approvals table objects never share a module with
-// canApprove, which the disputes detail page component calls directly and so
+// canApproveDispute, which the disputes detail page component calls directly and so
 // must stay client-reachable.
 
 // Not a MoneyWriteBatch (app/db/money-write.ts): that type name is reserved for

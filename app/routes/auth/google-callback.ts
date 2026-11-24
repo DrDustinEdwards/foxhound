@@ -1,4 +1,4 @@
-import { getAuth } from "~/lib/auth";
+import { getBetterAuth } from "~/lib/auth";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/google-callback";
@@ -8,5 +8,5 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = new URL(request.url);
   url.pathname = "/api/auth/callback/google";
-  return (await getAuth(env)).handler(new Request(url, request));
+  return (await getBetterAuth(env)).handler(new Request(url, request));
 }

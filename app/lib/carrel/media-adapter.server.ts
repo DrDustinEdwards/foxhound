@@ -10,7 +10,7 @@ import {
 
 import type { Db } from "~/db";
 import { EXTENSIONS, UPLOAD_KEY, mediaUrl } from "~/lib/media/images";
-import { suggestFor } from "~/lib/media/suggest.server";
+import { suggestMediaMeta } from "~/lib/media/suggest.server";
 import { mediaUses } from "~/lib/media/usage.server";
 
 // Carrel's media group over the blog's media library: site-api's mediaLibrary
@@ -48,7 +48,7 @@ function uploadKey(file: MediaKeyInput, attempt: number): string {
   return key;
 }
 
-export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
+export function blogMediaAdapter(env: Env, db: Db): MediaAdapter {
   return mediaLibrary({
     store: d1MediaStore(env.DB),
     bucket: env.MEDIA,
@@ -62,6 +62,6 @@ export function carrelMediaAdapter(env: Env, db: Db): MediaAdapter {
     // In the served bucket, where they always were: the media route serves only
     // UPLOAD_KEY (app/routes/files/media.ts).
     history: { prefix: "revisions/" },
-    suggest: (picture, id) => suggestFor(env, picture, id),
+    suggest: (picture, id) => suggestMediaMeta(env, picture, id),
   });
 }

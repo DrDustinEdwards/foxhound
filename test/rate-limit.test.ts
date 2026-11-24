@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  enforceRateLimit,
+  limitPublicActions,
   rateLimitedResponse,
   resolveRateLimitBinding,
 } from "~/lib/http/rate-limit";
@@ -93,7 +93,7 @@ describe("resolveRateLimitBinding", () => {
   // touching gets deleted rather than fixed (capsid/conventions.md), and
   // widening a matcher is exactly when that happens. /connect and
   // /invite/:token are the near misses on purpose: both are POST actions under
-  // app/routes/auth, both reach getAuth(env).api, and both reach only
+  // app/routes/auth, both reach getBetterAuth(env).api, and both reach only
   // getSession, which is the read every authenticated loader performs.
   it("leaves session-only auth POSTs alone: /connect and /invite/:token", () => {
     expect(resolveRateLimitBinding(post("/connect"))).toBeNull();
@@ -189,16 +189,16 @@ describe("rateLimitedResponse", () => {
   });
 });
 
-describe("enforceRateLimit", () => {
+describe("limitPublicActions", () => {
   it("allows the first 20 public requests for a key and denies the 21st with 429", async () => {
     const env = makeEnv();
     const ip = { "cf-connecting-ip": "1.2.3.4" };
     for (let i = 1; i <= 20; i++) {
       const req = new Request("http://localhost/demos", { method: "POST", headers: ip });
-      expect(await enforceRateLimit(req, env)).toBeNull();
+      expect(await limitPublicActions(req, env)).toBeNull();
     }
     const over = new Request("http://localhost/demos", { method: "POST", headers: ip });
-    const result = await enforceRateLimit(over, env);
+    const result = await limitPublicActions(over, env);
     expect(result).not.toBeNull();
     expect(result?.status).toBe(429);
     expect(result?.headers.get("Retry-After")).toMatch(/^\d+$/);
@@ -207,14 +207,14 @@ describe("enforceRateLimit", () => {
   it("keys the DO id on bucket + cf-connecting-ip, or a stable key without one", async () => {
     const namespace = makeRateLimiterNamespace();
     const env = makeEnv(namespace);
-    await enforceRateLimit(
+    await limitPublicActions(
       new Request("http://localhost/audit", {
         method: "POST",
         headers: { "cf-connecting-ip": "9.8.7.6" },
       }),
       env,
     );
-    await enforceRateLimit(new Request("http://localhost/audit", { method: "POST" }), env);
+    await limitPublicActions(new Request("http://localhost/audit", { method: "POST" }), env);
     expect(namespace.names).toEqual(["public:9.8.7.6", "public:unknown"]);
   });
 
@@ -224,7 +224,7 @@ describe("enforceRateLimit", () => {
       method: "POST",
       headers: { "cf-connecting-ip": "1.1.1.1" },
     });
-    await expect(enforceRateLimit(request, makeEnv(broken))).resolves.toBeNull();
+    await expect(limitPublicActions(request, makeEnv(broken))).resolves.toBeNull();
     log.mockRestore();
   });
 });

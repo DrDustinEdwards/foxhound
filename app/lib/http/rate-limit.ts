@@ -115,7 +115,7 @@ export function isIpWithinRateLimit(
 
 /** Check the request against the applicable rate-limit rule; return the 429 to send, or null to proceed.
  *  Called BEFORE the route handler (workers/app.ts), so a throttled request never reaches the action. Fails open. */
-export async function enforceRateLimit(request: Request, env: Env): Promise<Response | null> {
+export async function limitPublicActions(request: Request, env: Env): Promise<Response | null> {
   const rule = resolveRateLimitBinding(request);
   if (!rule) return null;
   const key = clientIp(request);

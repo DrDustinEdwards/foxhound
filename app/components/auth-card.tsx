@@ -7,7 +7,7 @@ import { Panel } from "capsomer/react/panel";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Form } from "react-router";
 
-import { authClient } from "~/lib/auth/client";
+import { betterAuthClient } from "~/lib/auth/client";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -131,7 +131,7 @@ export function PasskeyContinue({ next }: { next: string }) {
   async function continueWithPasskey(autoFill: boolean) {
     // site-runtime's wrapper: on a passkey the site no longer has, it tells the
     // browser (WebAuthn's signalUnknownCredential) so it stops offering it.
-    const res = await signInWithPasskey(authClient, { autoFill });
+    const res = await signInWithPasskey(betterAuthClient, { autoFill });
     if (!res?.error) {
       // The passkey's provider learns it is still accepted, under the
       // account's address (site-runtime's signalPasskeys). Each passkey has a
@@ -139,7 +139,7 @@ export function PasskeyContinue({ next }: { next: string }) {
       const credentialId = (res as { webauthn?: { response?: { id?: string } } }).webauthn?.response
         ?.id;
       if (credentialId) {
-        const session = await authClient.getSession().catch(() => null);
+        const session = await betterAuthClient.getSession().catch(() => null);
         await signalPasskeys({
           user: session?.data?.user.id ?? null,
           credentialIds: [credentialId],

@@ -15,7 +15,7 @@ import {
   getFeaturedPost,
   getPostsBySlug,
   getPublishedTagSet,
-  listPublishedPosts,
+  listPublishedBlogPosts,
   type BlogPostSummary,
 } from "~/lib/blog/queries.server";
 import { SECTIONS, type BlogSectionConfig } from "~/lib/blog/sections";
@@ -53,7 +53,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 
   const [featured, latest8, sectionPosts, tagSet] = await Promise.all([
     getFeaturedPost(db),
-    listPublishedPosts(db, 8),
+    listPublishedBlogPosts(db, 8),
     getPostsBySlug(db, allSectionSlugs),
     getPublishedTagSet(db),
   ]);
