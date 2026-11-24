@@ -6,6 +6,7 @@ import { LegalDoc, type LegalSection } from "capsomer/react/legal-doc";
 import "capsomer/legal-doc.css";
 import "capsomer/link.css";
 import {
+  HEALTH_SCORE_AT_RISK_THRESHOLD,
   RETENTION_AI_CALLS_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
@@ -18,7 +19,7 @@ import { marketingMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/privacy";
 
-// The privacy notice. Foxhound differs from the standard wording where it works differently: the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12); the product description says what Foxhound does (silent retry first, dispute responses only on approval or the merchant's opt-in auto-submit); the personal information list, the other sources and the service providers are Foxhound's own (Cloudflare; Google and Apple sign-in; Amazon for off-site file backups); the retention windows are the engine's constants and the account deletion keeps fee evidence; the EU, UK, Swiss and Canadian paragraphs are left out, because the network's sites are written for US and Texas law only; the "Learn more" pointers in the summary link to their sections. There is no contact page; the email is the way to reach us. The page has one main landmark: marketing.tsx renders it.
+// The privacy notice. Foxhound differs from the standard wording where it works differently: the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12); the product description says what Foxhound does (silent retry first, dispute responses only on approval or the merchant's opt-in auto-submit); the personal information list, the other sources and the service providers are Foxhound's own (Cloudflare; Google and Apple sign-in; Amazon for off-site file backups); the category answers follow the build (G is the session's coarse place from site-runtime's sessionDetails, K the intelligence scores and recommendations); the retention windows and the at-risk score are the engine's constants and the account deletion keeps fee evidence; the EU, UK, Swiss and Canadian paragraphs are left out, because the network's sites are written for US and Texas law only; the "Learn more" pointers in the summary link to their sections. There is no contact page; the email is the way to reach us. The page has one main landmark: marketing.tsx renders it.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
@@ -86,7 +87,7 @@ const SECTIONS: LegalSection[] = [
           Services. This information does not reveal your specific identity (like your name or
           contact information) but may include device and usage information, such as your IP
           address, browser and device characteristics, operating system, language preferences,
-          referring URLs, device name, country, location, information about how and when you use our
+          referring URLs, device name, rough location, information about how and when you use our
           Services, and other technical information. This information is primarily needed to
           maintain the security and operation of our Services, and for our internal analytics and
           reporting purposes.
@@ -107,9 +108,11 @@ const SECTIONS: LegalSection[] = [
             Device Data. We collect device data such as information about your computer, phone,
             tablet, or other device you use to access the Services. Depending on the device used,
             this device data may include information such as your IP address (or proxy server),
-            device and application identification numbers, location, browser type, hardware model,
-            Internet service provider and/or mobile carrier, operating system, and system
-            configuration information.
+            device and application identification numbers, browser type, hardware model, Internet
+            service provider and/or mobile carrier, operating system, and system configuration
+            information. When you sign in, we keep the city, region, and country Cloudflare matches
+            to your IP address, for the session list in your account settings. We do not collect
+            precise location, such as GPS.
           </li>
           <li>
             Email Engagement Data. When someone opens a recovery or win-back email we send for a
@@ -126,11 +129,15 @@ const SECTIONS: LegalSection[] = [
           When a merchant connects a Stripe account, we receive the Stripe data the Services need to
           run: the merchant&apos;s customers&apos; names and email addresses, their subscriptions
           and invoices, failed payments and the reasons Stripe gives for them, and disputes with the
-          details Stripe holds on the disputed charge, such as a billing address. We process this
-          information on the merchant&apos;s behalf and on the merchant&apos;s instructions. If you
-          are a customer of a merchant that uses Foxhound, the merchant&apos;s own privacy notice
-          explains how it uses your information. We do not buy information about you from data
-          brokers, marketing partners, or other third parties.
+          details Stripe holds on the disputed charge, such as a billing address and the
+          customer&apos;s IP address at purchase. From this billing history and from email opens, we
+          work out a health score from 0 to 100 for each customer (below{" "}
+          {HEALTH_SCORE_AT_RISK_THRESHOLD} is at risk), a risk band, and a recommended next step for
+          the merchant. Fixed rules make these, not AI. We process this information on the
+          merchant&apos;s behalf and on the merchant&apos;s instructions. If you are a customer of a
+          merchant that uses Foxhound, the merchant&apos;s own privacy notice explains how it uses
+          your information. We do not buy information about you from data brokers, marketing
+          partners, or other third parties.
         </p>
       </>
     ),
@@ -295,8 +302,7 @@ const SECTIONS: LegalSection[] = [
         <p>
           As part of our Services, we offer products, features, or tools powered by artificial
           intelligence, machine learning, or similar technologies (collectively, &quot;AI
-          Products&quot;). These tools are designed to enhance your experience and provide you with
-          innovative solutions. The terms in this Privacy Notice govern your use of the AI Products
+          Products&quot;). The terms in this Privacy Notice govern your use of the AI Products
           within our Services.
         </p>
         <h3>Use of AI Technologies</h3>
@@ -311,8 +317,6 @@ const SECTIONS: LegalSection[] = [
         <h3>Our AI Products</h3>
         <p>Our AI Products are designed for the following functions:</p>
         <ul>
-          <li>AI document generation</li>
-          <li>Natural language processing</li>
           <li>Drafting recovery and win-back emails in the merchant&apos;s brand voice</li>
           <li>Drafting dispute evidence</li>
           <li>Summarizing audit results</li>
@@ -325,9 +329,7 @@ const SECTIONS: LegalSection[] = [
         <h3>How We Process Your Data Using AI</h3>
         <p>
           All personal information processed using our AI Products is handled in line with our
-          Privacy Notice and our agreement with third parties. This ensures high security and
-          safeguards your personal information throughout the process, giving you peace of mind
-          about your data&apos;s safety.
+          Privacy Notice and our agreement with third parties.
         </p>
       </>
     ),
@@ -578,7 +580,10 @@ const SECTIONS: LegalSection[] = [
             history, online behavior, interest data, and interactions with our and other websites,
             applications, systems, and advertisements): YES
           </li>
-          <li>Category G: Geolocation data (device location): NO</li>
+          <li>
+            Category G: Geolocation data (device location): YES (only the city, region, and country
+            of a sign-in)
+          </li>
           <li>
             Category H: Audio, electronic, sensory, or similar information (images and audio, video
             or call recordings created in connection with our business activities): NO
@@ -589,23 +594,18 @@ const SECTIONS: LegalSection[] = [
             professional qualifications if you apply for a job with us): NO
           </li>
           <li>Category J: Education Information (student records and directory information): NO</li>
-          <li>Category K: Inferences drawn from collected personal information: NO</li>
+          <li>
+            Category K: Inferences drawn from collected personal information: YES, customer health
+            scores, risk bands, and suggested next steps
+          </li>
           <li>Category L: Sensitive personal Information: NO</li>
         </ul>
-        <p>
-          We may also collect other personal information outside of these categories through
-          instances where you interact with us in person, online, or by phone or mail in the context
-          of: receiving help through our customer support channels; participation in customer
-          surveys or contests; and facilitation in the delivery of our Services and to respond to
-          your inquiries.
-        </p>
         <p>
           We will use and retain the collected personal information as needed to provide the
           Services or for:
         </p>
         <ul>
-          <li>Category A - As long as the user has an account with us</li>
-          <li>Category B - As long as the user has an account with us</li>
+          <li>Categories A, B, G, and K - As long as the user has an account with us</li>
           <li>
             Category D - As long as the user has an account with us, and afterward the records our
             fees are billed on
@@ -809,7 +809,7 @@ export default function PrivacyPage() {
     <LegalBody>
       <LegalDoc
         title="Privacy Policy"
-        updated="2026-11-11"
+        updated="2026-11-24"
         contentsLabel="Table of Contents"
         intro={
           <>
