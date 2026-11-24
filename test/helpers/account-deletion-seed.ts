@@ -299,21 +299,6 @@ export async function seedRecords(
     horizonDays: 30,
     predictedAt: OLD,
   });
-  await db.insert(schema.customerNotes).values({
-    id: `${p}-note`,
-    accountId,
-    stripeCustomerId: `cus_${p}_ada`,
-    body: t("Ada left a note"),
-    createdBy: userId,
-    createdAt: OLD,
-  });
-  await db.insert(schema.intelligenceNotificationPreferences).values({
-    id: `${p}-inp`,
-    accountId,
-    userId,
-    createdAt: OLD,
-    updatedAt: OLD,
-  });
   await db.insert(schema.intelligenceReports).values({
     id: `${p}-ir`,
     accountId,

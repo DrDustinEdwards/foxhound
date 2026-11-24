@@ -227,7 +227,7 @@ export async function findActiveMembership(
 }
 
 /** Pending + active members of an account, for the team settings view. */
-export async function listMembers(db: Db, accountId: string) {
+export async function listAccountMembers(db: Db, accountId: string) {
   return db
     .select({
       id: accountMembers.id,

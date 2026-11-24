@@ -16,7 +16,7 @@ import {
   authContext,
   createInvite,
   hasOpenInviteForEmail,
-  listMembers,
+  listAccountMembers,
   removeMember,
   MEMBER_ROLE,
 } from "~/lib/auth";
@@ -45,13 +45,13 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const { membership } = context.get(authContext);
   const auth = context.get(authContext);
-  const members = await listMembers(getDb(env), membership.accountId);
+  const members = await listAccountMembers(getDb(env), membership.accountId);
   const isOwner = membership.role === MEMBER_ROLE.OWNER;
   // No account name: the heading is "Team" alone, and the header's business tile already names the account this page is scoped to.
   return {
     isOwner,
     // THE THREE REFUSALS, RESOLVED HERE rather than in the render: owners only, never yourself, never another owner. It is a plain boolean on purpose: deciding it in the component would mean importing MEMBER_ROLE, and `~/lib/auth` is a server module the build refuses in client code. The server enforces all three again inside removeMember; this only decides what to draw.
-    // OWNER FIRST; everyone else keeps the order they were added (listMembers' order). Array sort is stable.
+    // OWNER FIRST; everyone else keeps the order they were added (listAccountMembers' order). Array sort is stable.
     members: members
       .map((m) => ({
         ...m,

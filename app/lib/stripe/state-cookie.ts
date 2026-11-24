@@ -12,15 +12,18 @@ import { decryptToken, encryptToken } from "~/lib/stripe/encryption";
 // CSRF state cookie for the Stripe Connect OAuth flow, written by setHostCookie: __Host-, HttpOnly,
 // Secure, SameSite=Lax.
 
-export function setStateCookie(state: string, name: string = STRIPE_OAUTH_STATE_COOKIE): string {
+export function setOAuthStateCookie(
+  state: string,
+  name: string = STRIPE_OAUTH_STATE_COOKIE,
+): string {
   return setHostCookie(name, encodeURIComponent(state), STRIPE_OAUTH_STATE_TTL_SECONDS);
 }
 
-export function clearStateCookie(name: string = STRIPE_OAUTH_STATE_COOKIE): string {
+export function clearOAuthStateCookie(name: string = STRIPE_OAUTH_STATE_COOKIE): string {
   return setHostCookie(name, "", 0);
 }
 
-export function readStateCookie(
+export function readOAuthStateCookie(
   request: Request,
   name: string = STRIPE_OAUTH_STATE_COOKIE,
 ): string | null {
@@ -34,15 +37,15 @@ export function readStateCookie(
 }
 
 export function setAuditStateCookie(state: string): string {
-  return setStateCookie(state, AUDIT_OAUTH_STATE_COOKIE);
+  return setOAuthStateCookie(state, AUDIT_OAUTH_STATE_COOKIE);
 }
 
 export function clearAuditStateCookie(): string {
-  return clearStateCookie(AUDIT_OAUTH_STATE_COOKIE);
+  return clearOAuthStateCookie(AUDIT_OAUTH_STATE_COOKIE);
 }
 
 export function readAuditStateCookie(request: Request): string | null {
-  return readStateCookie(request, AUDIT_OAUTH_STATE_COOKIE);
+  return readOAuthStateCookie(request, AUDIT_OAUTH_STATE_COOKIE);
 }
 
 /**

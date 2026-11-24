@@ -28,7 +28,7 @@ import {
   type StartedCall,
 } from "./call-log.server";
 import { EMPTY_REGISTRY, type McpToolRegistry } from "./registry";
-import { MCP_SERVER, MCP_SERVER_INFO, serveMcp } from "./server";
+import { MCP_SERVER, MCP_SERVER_INFO, serveAdminMcp } from "./server";
 
 // The merchant MCP endpoint: the door, not the protocol. It decides who may call (origin, bearer key, scope, demo refusal,
 // rate limits) and hands an authenticated request to the SDK in ./server.ts. Stateless Streamable HTTP at /mcp, mounted
@@ -174,7 +174,7 @@ export async function handleMcpRequest(
     limiter: env.RATE_LIMITER,
     serve: (req, caller) => {
       const now = new Date();
-      return serveMcp(
+      return serveAdminMcp(
         req,
         registry,
         {
@@ -256,7 +256,7 @@ export async function handleMcpRequest(
   }
 
   const now = new Date();
-  const response = await serveMcp(
+  const response = await serveAdminMcp(
     new Request(request, { method: request.method, body: text }),
     registry,
     {

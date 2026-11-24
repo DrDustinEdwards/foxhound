@@ -4,18 +4,18 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import type { Db } from "~/db";
 import * as schema from "~/db/schema";
 import { BLOG_DIAGRAMS } from "~/lib/blog/diagrams";
-import { renderMarkdown } from "~/lib/blog/markdown.server";
+import { renderPostBody } from "~/lib/blog/markdown.server";
 
-// An empty-D1 stand-in; renderMarkdown only
+// An empty-D1 stand-in; renderPostBody only
 // touches the db when a body contains ::postlink[...], so most cases below
 // never exercise it.
 function emptyDb(): Db {
   return drizzle(async () => ({ rows: [] }), { schema }) as unknown as Db;
 }
 
-describe("renderMarkdown", () => {
+describe("renderPostBody", () => {
   it("assigns ids to h2/h3 headings and returns a matching TOC", async () => {
-    const { html, toc } = await renderMarkdown(
+    const { html, toc } = await renderPostBody(
       emptyDb(),
       "## First Section\n\nBody.\n\n### A Subsection\n\nMore.",
     );
@@ -33,7 +33,7 @@ describe("renderMarkdown", () => {
 
   it("inlines each diagram as one figure, with its title and description", async () => {
     for (const slug of Object.keys(BLOG_DIAGRAMS)) {
-      const { html } = await renderMarkdown(emptyDb(), diagram(slug));
+      const { html } = await renderPostBody(emptyDb(), diagram(slug));
       expect(html, slug).toContain(
         `<figure class="blog-diagram" role="img" aria-labelledby="${slug}-title" aria-describedby="${slug}-desc">`,
       );
@@ -44,24 +44,24 @@ describe("renderMarkdown", () => {
       expect(html, slug).not.toContain("<style");
       expect(html, slug).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     }
-    const recovery = await renderMarkdown(emptyDb(), diagram("recovery-sequence"));
+    const recovery = await renderPostBody(emptyDb(), diagram("recovery-sequence"));
     expect(recovery.html).toContain(">CANCELED<");
     expect(recovery.html).not.toContain("CANCELLED");
     expect(recovery.html).toContain('width="680"');
     expect(recovery.html).toContain('height="820"');
-    const withdrawn = await renderMarkdown(emptyDb(), diagram("nrr-calculation"));
+    const withdrawn = await renderPostBody(emptyDb(), diagram("nrr-calculation"));
     expect(withdrawn.html).not.toContain("blog-diagram");
     expect(withdrawn.html).not.toContain("<img");
-    await expect(renderMarkdown(emptyDb(), diagram("not-a-diagram"))).rejects.toThrow(
+    await expect(renderPostBody(emptyDb(), diagram("not-a-diagram"))).rejects.toThrow(
       /not a diagram this site draws/,
     );
-    await expect(renderMarkdown(emptyDb(), "![x](https://example.com/a.png)")).rejects.toThrow(
+    await expect(renderPostBody(emptyDb(), "![x](https://example.com/a.png)")).rejects.toThrow(
       /not an image this site serves/,
     );
   });
 
   it("falls back to a visible <code> for an unresolved ::postlink, also at the start of a line and inside bold", async () => {
-    const { html } = await renderMarkdown(
+    const { html } = await renderPostBody(
       emptyDb(),
       "See ::postlink[some-other-post] for more.\n\n::postlink[a-post|Its name] starts this line.\n\n**::postlink[b-post]**",
     );
@@ -76,7 +76,7 @@ describe("renderMarkdown", () => {
     const db = drizzle(async () => ({ rows: [["stripe-recovery", "Stripe recovery"]] }), {
       schema,
     }) as unknown as Db;
-    const { html, faq } = await renderMarkdown(
+    const { html, faq } = await renderPostBody(
       db,
       ":::faq\nQ: Where next?\nA: The ::postlink[stripe-recovery|full recovery system] works upstream.\n:::",
     );

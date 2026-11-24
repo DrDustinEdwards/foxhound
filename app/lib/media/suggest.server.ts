@@ -9,7 +9,7 @@ import { getDb } from "~/db";
 import { buildAiCallRow } from "~/lib/ai/cost";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-export const suggestFor = mediaSuggester<Env>({
+export const suggestMediaMeta = mediaSuggester<Env>({
   app: "foxhound",
   describe: "in a blog about failed payments and subscription billing",
   async afterCall(env, usage, id) {

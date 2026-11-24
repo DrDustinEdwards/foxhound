@@ -82,7 +82,13 @@ export interface RecoverySeedResult {
   winBackSteps: WinBackStepInsert[];
 }
 
-// Decline-code sampling: real Stripe codes, each a subset of decline.ts's set for its category, so classifyDecline lands back on the sampled category.
+// Decline-code sampling (weighted, real Stripe codes -> classifyDecline so the
+// seeded code/category pair can never drift out of sync with decline.ts). Every
+// code list here is a subset of decline.ts's own set for that category, so
+// classifyDecline(code) always lands back on the category it was sampled for -
+// both here (the weighted day-walk roll) and via sampleDeclineCodeFor- Category
+// (the scripted narrative's category is already fixed by the event, so the code
+// must be sampled FROM that category, never independently).
 
 const SOFT_CODES = ["insufficient_funds", "do_not_honor", "generic_decline"] as const;
 const EXPIRED_CODES = ["expired_card"] as const;
@@ -107,7 +113,12 @@ function sampleDeclineCodeForCategory(seed: string, category: DeclineCategory): 
   return pick(`${seed}:code`, CODES_BY_CATEGORY[category]);
 }
 
-// The category mix for a day-walk failure: all six engine categories, so no panel reads "No data yet".
+// The category mix for a day-walk failure. Foxhound's engine classifies six,
+// and RECOVERY_SCHEDULES, DECLINE_CATEGORY_LABELS, and /recovery/sequence all
+// ship a section for each, so leaving revoked and unknown at zero left two
+// panels reading "No data yet" on every demo visit: the fail-closed classifier
+// and the revoked hard-stop, two deliberate engine behaviors, had no visible
+// evidence anywhere.
 const CATEGORY_WEIGHTS: { category: DeclineCategory; upTo: number }[] = [
   { category: "soft", upTo: 46 },
   { category: "expired", upTo: 64 },

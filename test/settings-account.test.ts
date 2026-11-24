@@ -35,7 +35,7 @@ vi.mock("~/lib/stripe/connect", () => ({
 vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }));
 
 vi.mock("~/lib/auth/auth.server", () => ({
-  getAuth: () => ({
+  getBetterAuth: () => ({
     api: {
       getSession: async () => ({
         session: { createdAt: harness.signedInAt },

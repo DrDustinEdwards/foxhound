@@ -9,7 +9,6 @@ import {
   apiKeys,
   disputeApprovals,
   getDb,
-  intelligenceNotificationPreferences,
   oauthAuthorizationCodes,
   oauthGrants,
   passkey,
@@ -120,8 +119,8 @@ async function readDeletionPlan(db: Db, userId: string): Promise<DeletionPlan | 
 
 /**
  * The statements that delete the person: their memberships elsewhere, their
- * notification preferences, their name on any approval they signed, then the
- * Better Auth rows that point at the user.
+ * name on any approval they signed, then the Better Auth rows that point at the
+ * user.
  */
 function buildUserDeletionStatements(
   db: Db,
@@ -131,9 +130,6 @@ function buildUserDeletionStatements(
   const { userId, email } = plan;
   return [
     db.delete(accountMembers).where(eq(accountMembers.userId, userId)),
-    db
-      .delete(intelligenceNotificationPreferences)
-      .where(eq(intelligenceNotificationPreferences.userId, userId)),
     db
       .update(disputeApprovals)
       .set({ approvedByEmail: null, approvedByUserId: null })

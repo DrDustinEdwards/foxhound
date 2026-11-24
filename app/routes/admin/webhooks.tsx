@@ -21,7 +21,7 @@ import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import { merchantHref, type AdminHandle } from "~/lib/admin/page";
 import {
-  isFiltered,
+  isWebhookFiltered,
   parseWebhookFilters,
   WEBHOOK_PAGE_SIZE,
   WEBHOOKS_PATH,
@@ -63,7 +63,7 @@ const LINK = "fh-row-link";
 export default function AdminWebhooks({ loaderData }: Route.ComponentProps) {
   const { summary, list, filters } = loaderData;
   const pending = usePagePending(WEBHOOKS_PATH);
-  const filtered = isFiltered(filters);
+  const filtered = isWebhookFiltered(filters);
   const typeId = useId();
 
   return (

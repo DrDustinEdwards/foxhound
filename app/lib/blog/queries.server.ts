@@ -40,7 +40,7 @@ export interface BlogPost extends BlogPostSummary {
 
 // Columns needed to build a summary. No body: reading time is precomputed at
 // write time into reading_minutes, so a list/tag-archive read never pulls the
-// full markdown body just to render a card. Only getPostBySlug (the single-post
+// full markdown body just to render a card. Only getBlogPostBySlug (the single-post
 // detail read) selects the full row, body included.
 const SUMMARY_COLUMNS = {
   id: blogPosts.id,
@@ -90,7 +90,7 @@ function toSummary(r: SummaryRow): BlogPostSummary {
 }
 
 /** Most recent published posts, newest first. */
-export async function listPublishedPosts(db: Db, limit?: number): Promise<BlogPostSummary[]> {
+export async function listLivePosts(db: Db, limit?: number): Promise<BlogPostSummary[]> {
   const base = db
     .select(SUMMARY_COLUMNS)
     .from(blogPosts)
@@ -188,7 +188,7 @@ export async function getPostsBySlug(db: Db, slugs: string[]): Promise<BlogPostS
 }
 
 /** A single published post by slug, full body included, or null. */
-export async function getPostBySlug(db: Db, slug: string): Promise<BlogPost | null> {
+export async function getBlogPostBySlug(db: Db, slug: string): Promise<BlogPost | null> {
   const rows = await db
     .select()
     .from(blogPosts)

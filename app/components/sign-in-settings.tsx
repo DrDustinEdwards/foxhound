@@ -14,7 +14,8 @@ import {
 } from "@dustinedwards/site-runtime/sign-in-client";
 import { securityHistoryWords } from "@dustinedwards/site-runtime/sign-in-words";
 
-import { authClient, signInAgain, signInAgainIfStale } from "~/lib/auth/client";
+import { signInAgainIfStale } from "@dustinedwards/site-runtime/sign-in-client";
+import { betterAuthClient, reauthHref, signInAgain } from "~/lib/auth/client";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 
 /** Where this person is signed in (site-runtime's sessionRows, current first);
@@ -107,7 +108,7 @@ export function SignInMethodsPanel({
     setBusy(key);
     try {
       const res = await change();
-      if (signInAgainIfStale(res?.error)) return;
+      if (signInAgainIfStale(res?.error, reauthHref)) return;
       if (res?.error) {
         const message = (res.error as { message?: string }).message;
         setError(message ? `${failed} ${message}` : failed);
@@ -136,7 +137,7 @@ export function SignInMethodsPanel({
                 onRename={(name) =>
                   void run(
                     `rename-${p.id}`,
-                    () => authClient.passkey.updatePasskey({ id: p.id, name }),
+                    () => betterAuthClient.passkey.updatePasskey({ id: p.id, name }),
                     "The passkey was not renamed.",
                   )
                 }
@@ -144,7 +145,7 @@ export function SignInMethodsPanel({
                   void run(
                     p.id,
                     async () => {
-                      const res = await authClient.passkey.deletePasskey({ id: p.id });
+                      const res = await betterAuthClient.passkey.deletePasskey({ id: p.id });
                       // Tell the browser's password manager it is gone, so
                       // it stops offering it (where the browser can). The
                       // relying party is this host, BETTER_AUTH_URL's.
@@ -176,7 +177,11 @@ export function SignInMethodsPanel({
           variant="primary"
           pending={busy === "add"}
           onClick={() =>
-            void run("add", () => authClient.passkey.addPasskey(), "The passkey was not saved.")
+            void run(
+              "add",
+              () => betterAuthClient.passkey.addPasskey(),
+              "The passkey was not saved.",
+            )
           }
         >
           {busy === "add"
@@ -200,7 +205,8 @@ export function SignInMethodsPanel({
                     onClick={() =>
                       void run(
                         provider.id,
-                        () => authClient.unlinkAccount({ accountId: provider.accountId ?? "" }),
+                        () =>
+                          betterAuthClient.unlinkAccount({ accountId: provider.accountId ?? "" }),
                         `${provider.label} was not disconnected.`,
                       )
                     }
@@ -215,7 +221,7 @@ export function SignInMethodsPanel({
                       void run(
                         provider.id,
                         () =>
-                          authClient.linkSocial({
+                          betterAuthClient.linkSocial({
                             provider: provider.id,
                             callbackURL: "/settings/account",
                           }),
@@ -278,7 +284,7 @@ export function SignInMethodsPanel({
                 onClick={() =>
                   void run(
                     "others",
-                    () => authClient.revokeOtherSessions(),
+                    () => betterAuthClient.revokeOtherSessions(),
                     "The other devices were not signed out.",
                   )
                 }

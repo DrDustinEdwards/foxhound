@@ -20,7 +20,7 @@ import { CARD, ConnectStripeAction } from "~/components/marketing-card";
 import { RecoveryQueueDemo } from "~/components/recovery-queue-demo";
 import { RecoveryCalculator } from "~/components/recovery-calculator";
 import { getDb } from "~/db";
-import { getFeaturedPost, listPublishedPosts } from "~/lib/blog/queries.server";
+import { getFeaturedPost, listLivePosts } from "~/lib/blog/queries.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { blogStripCards } from "~/lib/marketing/blog-strip";
 import {
@@ -90,10 +90,10 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   // The blog strip is the page's only database read. A D1 error drops the
   // strip (it renders nothing when empty), never the whole home page.
-  let blogPosts: Awaited<ReturnType<typeof listPublishedPosts>> = [];
+  let blogPosts: Awaited<ReturnType<typeof listLivePosts>> = [];
   try {
     const db = getDb(env);
-    const [featured, latest] = await Promise.all([getFeaturedPost(db), listPublishedPosts(db, 5)]);
+    const [featured, latest] = await Promise.all([getFeaturedPost(db), listLivePosts(db, 5)]);
     blogPosts = blogStripCards(featured, latest);
   } catch (err) {
     console.error("home blog strip read failed", err);

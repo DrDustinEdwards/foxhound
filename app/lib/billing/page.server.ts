@@ -1,7 +1,7 @@
 import { disputeFeeCents } from "~/lib/billing/fees";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import {
-  formatLongDate,
+  formatInvoiceDate,
   type DisputeFeeRow,
   type FeeStatusTone,
   type RecoveryHistoryRow,
@@ -78,7 +78,7 @@ export function buildRecoveryHistory(
         // Named by the run that issued it, not by its period: under maturity
         // most of an invoice's recoveries are from the month before its period,
         // so a month label would misdate them.
-        periodLabel: `Invoiced ${formatLongDate(invoice.createdAt.getTime())}`,
+        periodLabel: `Invoiced ${formatInvoiceDate(invoice.createdAt.getTime())}`,
         currency: invoice.currency,
         recoveredCents: recovered.find((r) => r.currency === invoice.currency)?.cents ?? 0,
         feeCents: fees.find((f) => f.currency === invoice.currency)?.cents ?? 0,

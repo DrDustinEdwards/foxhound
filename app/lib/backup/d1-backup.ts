@@ -111,14 +111,14 @@ async function runFilesBackup(env: Env, name: string): Promise<CronJobResult> {
   };
 }
 
-export const runMediaBackup = (env: Env) => runFilesBackup(env, "media");
+export const runMediaFilesBackup = (env: Env) => runFilesBackup(env, "media");
 export const runEvidenceBackup = (env: Env) => runFilesBackup(env, "evidence");
 
 /**
  * The unauthenticated health fields: age of the newest complete dump, with each
  * files copy's under `files`; any one's warning warns.
  */
-export async function backupStatus(env: Env, now = new Date()): Promise<SiteBackupStatus> {
+export async function d1BackupStatus(env: Env, now = new Date()): Promise<SiteBackupStatus> {
   if (!env.BACKUPS) {
     return {
       last_ok: null,

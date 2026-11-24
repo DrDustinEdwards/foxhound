@@ -34,8 +34,6 @@ import {
   discountedItemCents,
   earliestScheduledChange,
   nextScheduledChange,
-  type CouponTerms,
-  type DiscountTerms,
   type ItemTerms,
   type ScheduledChange,
   type ScheduleTerms,
@@ -43,6 +41,12 @@ import {
 import { chunked } from "@dustinedwards/site-runtime/d1";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { stripeMs } from "~/lib/stripe/time";
+import {
+  cached,
+  resolveDiscounts,
+  type RawDiscount,
+  type StripeObjectCaches,
+} from "./sync-stripe-cache.server";
 import { buildCustomerContextUpsert, fetchFoxhoundHistoryByCustomer } from "./sync-writes.server";
 
 // The live Stripe + D1 seam for the deterministic Intelligence engine: one enumeration per account per run
@@ -65,12 +69,6 @@ function priceInterval(price: Stripe.Price | null | undefined): BillingInterval 
   }
 }
 
-function productName(product: Stripe.Price["product"] | undefined): string | null {
-  if (!product || typeof product === "string") return null;
-  if ("deleted" in product && product.deleted) return null;
-  return (product as Stripe.Product).name ?? null;
-}
-
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 
 interface CustomerStripeSnapshot {
@@ -84,17 +82,9 @@ interface CustomerStripeSnapshot {
   scheduledChange: ScheduledChange | null;
 }
 
-/** A subscription or item discount as read off Stripe: its coupon and when a repeating one ends. */
-interface RawDiscount {
-  couponId: string;
-  embedded: Stripe.Coupon | null;
-  endMs: number | null;
-}
-
 interface NarrowSubscriptionItem {
   priceId: string;
   productId: string | null;
-  productName: string | null;
   unitAmountCents: number;
   quantity: number;
   interval: BillingInterval;
@@ -164,7 +154,6 @@ function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription
     items: sub.items.data.map((item) => ({
       priceId: item.price.id,
       productId: asId(item.price.product) || null,
-      productName: productName(item.price.product),
       unitAmountCents: item.price.unit_amount ?? 0,
       quantity: item.quantity ?? 1,
       interval: priceInterval(item.price),
@@ -176,59 +165,12 @@ function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription
   };
 }
 
-/** Coupons read once per sync run and shared across customers. Retrieved with applies_to and
- *  currency_options (Stripe includes them only on request). A coupon that cannot be retrieved (a deleted
- *  coupon still discounts its subscriptions) falls back to the embedded object. */
-type CouponCache = Map<string, Promise<Stripe.Coupon | null>>;
-
-function couponTermsIn(coupon: Stripe.Coupon, currency: string): CouponTerms {
-  const amountOffCents =
-    coupon.amount_off === null
-      ? null
-      : coupon.currency === currency
-        ? coupon.amount_off
-        : (coupon.currency_options?.[currency]?.amount_off ?? null);
-  return {
-    percentOff: coupon.percent_off,
-    amountOffCents,
-    // Anything but once or repeating counts as forever, as recurs() in subscription-terms.ts reads it.
-    duration:
-      coupon.duration === "once"
-        ? "once"
-        : coupon.duration === "repeating"
-          ? "repeating"
-          : "forever",
-    appliesToProducts: coupon.applies_to?.products ?? null,
-  };
-}
-
-async function resolveDiscounts(
-  stripe: Stripe,
-  cache: CouponCache,
-  discounts: readonly RawDiscount[],
-  currency: string,
-): Promise<DiscountTerms[]> {
-  const out: DiscountTerms[] = [];
-  for (const d of discounts) {
-    let pending = cache.get(d.couponId);
-    if (!pending) {
-      pending = stripe.coupons
-        .retrieve(d.couponId, { expand: ["applies_to", "currency_options"] })
-        .catch(() => null);
-      cache.set(d.couponId, pending);
-    }
-    const coupon = (await pending) ?? d.embedded;
-    if (coupon) out.push({ coupon: couponTermsIn(coupon, currency), endMs: d.endMs });
-  }
-  return out;
-}
-
 /** Reads one customer's subscriptions, invoices and charges from the connected account into the shapes
  *  signals.ts derives from. Bounded per customer (INTELLIGENCE_MAX_INVOICES/CHARGES_PER_CUSTOMER). */
 async function fetchCustomerStripeSnapshot(
   stripe: Stripe,
   stripeCustomerId: string,
-  coupons: CouponCache,
+  caches: StripeObjectCaches,
   nowMs: number,
 ): Promise<CustomerStripeSnapshot> {
   const activeSubscriptions: ActiveSubscriptionSnapshot[] = [];
@@ -245,37 +187,46 @@ async function fetchCustomerStripeSnapshot(
       customer: stripeCustomerId,
       status: "all",
       limit: 100,
-      expand: [
-        "data.items.data.price.product",
-        "data.discounts",
-        "data.items.data.discounts",
-        "data.schedule",
-      ],
+      expand: ["data.discounts", "data.items.data.discounts", "data.schedule"],
     }),
     narrowSubscriptionForSync,
   );
 
   for (const sub of subscriptions) {
     const active = ACTIVE_SUBSCRIPTION_STATUSES.has(sub.status);
-    const subDiscounts = await resolveDiscounts(stripe, coupons, sub.discounts, sub.currency);
+    const subDiscounts = await resolveDiscounts(
+      stripe,
+      caches.coupons,
+      sub.discounts,
+      sub.currency,
+    );
     const itemTerms: ItemTerms[] = [];
     for (const item of sub.items) {
       itemTerms.push({
         productId: item.productId,
         unitAmountCents: item.unitAmountCents,
         quantity: item.quantity,
-        discounts: await resolveDiscounts(stripe, coupons, item.discounts, sub.currency),
+        discounts: await resolveDiscounts(stripe, caches.coupons, item.discounts, sub.currency),
       });
     }
     const periodCents = discountedItemCents(itemTerms, subDiscounts, nowMs);
 
+    const names = await Promise.all(
+      sub.items.map(async ({ productId }) => {
+        if (!active || !productId) return null;
+        const product = await cached(caches.products, productId, () =>
+          stripe.products.retrieve(productId),
+        );
+        return product?.name ?? null;
+      }),
+    );
     sub.items.forEach((item, i) => {
       // One unit's cost per billing period after discounts; monthlyEquivalentCents spreads it over interval_count.
       const unitAmountCents = item.quantity > 0 ? periodCents[i] / item.quantity : 0;
       if (active) {
         activeSubscriptions.push({
           priceId: item.priceId,
-          productName: item.productName,
+          productName: names[i],
           quantity: item.quantity,
           interval: item.interval,
           intervalCount: item.intervalCount,
@@ -309,7 +260,6 @@ async function fetchCustomerStripeSnapshot(
   for await (const invoice of stripe.invoices.list({
     customer: stripeCustomerId,
     limit: 100,
-    expand: ["data.lines.data.pricing.price_details.price"],
   })) {
     invoicesScanned += 1;
     if (invoicesScanned > INTELLIGENCE_MAX_INVOICES_PER_CUSTOMER) break;
@@ -320,9 +270,9 @@ async function fetchCustomerStripeSnapshot(
     for (const line of invoice.lines.data) {
       const priceDetails = line.pricing?.price_details;
       if (!priceDetails) continue;
-      const price = typeof priceDetails.price === "string" ? null : priceDetails.price;
-      const priceId =
-        typeof priceDetails.price === "string" ? priceDetails.price : priceDetails.price.id;
+      const priceId = asId(priceDetails.price);
+      if (!priceId) continue;
+      const price = await cached(caches.prices, priceId, () => stripe.prices.retrieve(priceId));
       billingHistory.push({
         at: stripeMs(invoice.created),
         priceId,
@@ -337,7 +287,10 @@ async function fetchCustomerStripeSnapshot(
   let refundCount = 0;
   let disputeCount = 0;
   let chargesScanned = 0;
-  for await (const charge of stripe.charges.list({ customer: stripeCustomerId, limit: 100 })) {
+  for await (const charge of stripe.charges.list({
+    customer: stripeCustomerId,
+    limit: 100,
+  })) {
     chargesScanned += 1;
     if (chargesScanned > INTELLIGENCE_MAX_CHARGES_PER_CUSTOMER) break;
     if (charge.refunded) refundCount += 1;
@@ -423,7 +376,11 @@ export async function runIntelligenceSyncForAccount(
   const currentPoints: CustomerMrrPoint[] = [];
   // Sliced into batches of UPSERTS_PER_BATCH below, so thousands of customers are not one D1 call.
   const upserts: BatchItem<"sqlite">[] = [];
-  const coupons: CouponCache = new Map();
+  const caches: StripeObjectCaches = {
+    coupons: new Map(),
+    products: new Map(),
+    prices: new Map(),
+  };
   let scanned = 0;
   let truncated = false;
 
@@ -435,7 +392,7 @@ export async function runIntelligenceSyncForAccount(
     }
     if (customer.deleted) continue;
 
-    const snapshot = await fetchCustomerStripeSnapshot(stripe, customer.id, coupons, nowMs);
+    const snapshot = await fetchCustomerStripeSnapshot(stripe, customer.id, caches, nowMs);
     const customerSinceMs = stripeMs(customer.created);
     const fields = buildCustomerContextFields({
       customerSinceMs,
@@ -478,7 +435,13 @@ export async function runIntelligenceSyncForAccount(
 
   // Nothing to snapshot: no customers and no prior snapshot would just record an all-zero row.
   if (currentPoints.length === 0 && !hasPriorSnapshot) {
-    return { accountId, customersProcessed: 0, snapshotWritten: false, truncated, error: null };
+    return {
+      accountId,
+      customersProcessed: 0,
+      snapshotWritten: false,
+      truncated,
+      error: null,
+    };
   }
   // A scan cut off at the cap saw only part of the customers, so its MRR row would chart a drop that never
   // happened. The run reports truncated and the charts keep the last complete day.

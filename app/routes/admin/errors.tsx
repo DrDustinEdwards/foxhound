@@ -13,7 +13,7 @@ import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
 import {
   auditActor,
-  auditDetail,
+  auditEntryDetail,
   auditTarget,
   describeAuditAction,
 } from "~/lib/admin/audit-describe";
@@ -49,7 +49,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     actor: auditActor(e.actorEmail),
     action: describeAuditAction(e.action),
     target: auditTarget(e, lookups),
-    detail: auditDetail(e),
+    detail: auditEntryDetail(e),
   }));
   return { sentry, failed };
 }

@@ -30,7 +30,7 @@ import { upgradeMissedRetryAttributions } from "~/lib/recovery/record-recovery";
 
 import { pruneAuthEvents, pruneExpiredAuth } from "@dustinedwards/site-runtime/sign-in";
 
-import { runD1Backup, runEvidenceBackup, runMediaBackup } from "~/lib/backup/d1-backup";
+import { runD1Backup, runEvidenceBackup, runMediaFilesBackup } from "~/lib/backup/d1-backup";
 import {
   deauthorizeRetryFailureError,
   describeDeauthorizeRetry,
@@ -54,7 +54,7 @@ import {
   sweepMissedStripeEvents,
 } from "~/lib/webhooks/missed-events.server";
 import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
-import { runPageDates } from "~/lib/page-dates.server";
+import { runCodePageDates } from "~/lib/page-dates.server";
 import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
 import type { CronHandler } from "./run";
@@ -63,7 +63,6 @@ import {
   sweepEmailSends,
   sweepEngagementEvents,
   sweepHealthScoreHistory,
-  sweepSocialLeads,
   sweepWebhookEvents,
 } from "./retention";
 
@@ -255,7 +254,7 @@ const expiringCards: CronHandler = async (env) => {
  * wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts.
  */
 const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
-const mediaBackup: CronHandler = (env) => runMediaBackup(env);
+const mediaBackup: CronHandler = (env) => runMediaFilesBackup(env);
 const evidenceBackup: CronHandler = (env) => runEvidenceBackup(env);
 
 /**
@@ -447,14 +446,13 @@ export const CRON_JOBS: CronJob[] = [
     schedule: CRON_SCHEDULE_DAILY,
     handler: sweepHealthScoreHistory,
   },
-  { name: "retention-social-leads", schedule: CRON_SCHEDULE_DAILY, handler: sweepSocialLeads },
   { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
   { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
   { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
   { name: "tool-call-log-export", schedule: CRON_SCHEDULE_DAILY, handler: toolCallLogExport },
   // The day each code-written sitemap page last changed, for /sitemap.xml's
   // lastmod.
-  { name: "page-dates", schedule: CRON_SCHEDULE_DAILY, handler: runPageDates },
+  { name: "page-dates", schedule: CRON_SCHEDULE_DAILY, handler: runCodePageDates },
 ];
 
 /** The jobs registered for a given cron schedule string. */
@@ -481,7 +479,6 @@ const RUN_NOW: Record<string, { backup?: boolean }> = {
   "retention-email-sends": {},
   "retention-webhook-events": {},
   "retention-health-score": {},
-  "retention-social-leads": {},
   "retention-page-404": {},
   "retention-ai-calls": {},
   "retention-auth-events": {},

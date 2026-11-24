@@ -26,7 +26,11 @@ interface DemoHealthPoint {
   reason: string;
 }
 
-// Replaces the seed's computed customerContext.engagementSignals for a scripted customer.
+// Optional override for the Intelligence layer's
+// customerContext.engagementSignals write. When present on a scripted customer,
+// the intelligence seed uses these values instead of computing from the default
+// formula, for narratives that need an opens/recency profile the formula would
+// not otherwise produce.
 export interface DemoEngagementOverride {
   emailOpened30d?: number;
   emailClicked30d?: number;

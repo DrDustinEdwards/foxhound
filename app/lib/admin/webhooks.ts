@@ -29,6 +29,6 @@ export function parseWebhookFilters(params: URLSearchParams): WebhookFilters {
   };
 }
 
-export function isFiltered(f: WebhookFilters): boolean {
+export function isWebhookFiltered(f: WebhookFilters): boolean {
   return f.type !== "" || f.errorsOnly || f.pendingOnly;
 }

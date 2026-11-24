@@ -29,7 +29,7 @@ export const SUBMITTED_OR_RESOLVED: readonly DisputeState[] = [
   "inquiry_closed",
 ];
 
-export function canApprove(state: DisputeState): boolean {
+export function canApproveDispute(state: DisputeState): boolean {
   return !(SUBMITTED_OR_RESOLVED as readonly string[]).includes(state);
 }
 
