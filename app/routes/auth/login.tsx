@@ -16,7 +16,7 @@ import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import { DEFAULT_NEXT_PATH, REAUTH_PARAM } from "~/lib/auth/next-path";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { getSession } from "~/lib/auth/session";
-import { answerSignInForm, signInErrorMessage } from "~/lib/auth/sign-in-link.server";
+import { answerSignInForm, loginErrorMessage } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/login";
@@ -44,7 +44,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     next,
     reauth,
     methods: signInMethods(env, { social: true }),
-    error: signInErrorMessage(code),
+    error: loginErrorMessage(code),
   };
 }
 

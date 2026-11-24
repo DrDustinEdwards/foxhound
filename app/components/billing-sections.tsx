@@ -16,7 +16,7 @@ import type { CardSummary } from "~/lib/billing/platform-customer";
 import {
   DISPUTE_FEE_PERCENT,
   RECOVERY_FEE_PERCENT,
-  formatLongDate,
+  formatInvoiceDate,
   ordinal,
   type DisputeFeeRow,
   type FeeStatusTone,
@@ -167,7 +167,7 @@ export function RecoverySection({
           />
         </div>
         <p className="fh-billing-note fh-tiny fh-faint">
-          {stateNote ?? `Next invoice: ${formatLongDate(nextRunAtMs)}`}
+          {stateNote ?? `Next invoice: ${formatInvoiceDate(nextRunAtMs)}`}
         </p>
         {accountBillingState.cancelledAt && !stateNote ? (
           <p className="fh-billing-fine fh-tiny fh-faint">
@@ -238,7 +238,7 @@ export function DisputeFeesSection({
       <SummaryBox>
         <SummaryRow label="Pending fees this month" value={estimatedDisputeFees} fee />
         <p className="fh-billing-fine fh-tiny fh-faint">
-          {stateNote ?? `Added to your next monthly invoice on ${formatLongDate(nextRunAtMs)}.`}
+          {stateNote ?? `Added to your next monthly invoice on ${formatInvoiceDate(nextRunAtMs)}.`}
         </p>
       </SummaryBox>
 

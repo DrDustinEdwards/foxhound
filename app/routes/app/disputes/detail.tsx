@@ -22,7 +22,7 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
-import { canApprove } from "~/lib/disputes/approval";
+import { canApproveDispute } from "~/lib/disputes/approval";
 import {
   ACCEPT_UNAVAILABLE_APPROVED_LINE,
   BACK_LINK_DEMO,
@@ -159,7 +159,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
 
   const state = dispute.state as DisputeState;
   // Editable while the dispute awaits a response and nobody has submitted, and never in the demo.
-  const editable = !isDemo && canApprove(state);
+  const editable = !isDemo && canApproveDispute(state);
   // The draft locks once an approval row exists: the approval's
   // hash attests the saved evidence, so it is not edited after.
   const draftEditable = editable && !approval;

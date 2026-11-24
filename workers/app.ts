@@ -23,7 +23,7 @@ import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { TOKEN_ROUTES } from "~/lib/errors/token-routes";
 import { withSecurityHeaders } from "~/lib/http/content-security-policy";
 import { SPECULATION_OPTIONS } from "~/lib/http/speculation-rules";
-import { enforceRateLimit } from "~/lib/http/rate-limit";
+import { limitPublicActions } from "~/lib/http/rate-limit";
 import { handleMcpRequest } from "~/lib/mcp/handler.server";
 import { handleQueueBatch } from "~/lib/queue/consumer";
 import { FONT_PRELOADS } from "~/lib/preloads";
@@ -55,7 +55,7 @@ const serverBuild = () => import("virtual:react-router/server-build") as Promise
  * endpoints are limited inside their actions by site-runtime's limiter, where a ".data" spelling of the path cannot
  * slip past it.
  */
-const rateLimit: GatewayStep<Env> = (request, env) => enforceRateLimit(request, env);
+const rateLimit: GatewayStep<Env> = (request, env) => limitPublicActions(request, env);
 
 /** CARREL'S SITE API with its preview links (/preview/<token>, site-api's PREVIEW_LINK_PATH). Inside /api/carrel/v1 the package enforces rate limit, key and route in that order. The path is checked before the import so the adapter graph stays off every page render. A preview link is noindex, private, no-store and no-referrer from the package (the set does not overwrite them, so the token, which is the address, is never sent on) and writes nothing; any write Carrel makes (a post, its schedule, a media library picture a post shows) can change a stored page, so the pages are purged. */
 const carrel = siteApiStep<Env>(async (env, kit) => {
@@ -73,8 +73,8 @@ const carrel = siteApiStep<Env>(async (env, kit) => {
  */
 const operator: GatewayStep<Env> = async (request, env, _ctx, kit) => {
   if (kit.url.pathname !== "/api/operator") return undefined;
-  const { operatorAnswer } = await import("~/lib/operator.server");
-  return operatorAnswer(request, env);
+  const { operatorReply } = await import("~/lib/operator.server");
+  return operatorReply(request, env);
 };
 
 /** THE MERCHANT MCP ENDPOINT: JSON-RPC over POST with its own header contract and bearer auth. The path is checked before the import, which keeps the tool modules' graph (the ORM, the billing and intelligence views) off every marketing request. The cache policy (respond) classes /mcp private, which is what pins it no-store. */

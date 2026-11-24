@@ -34,7 +34,7 @@ import {
 } from "~/db";
 import { auditTarget, describeAuditAction, type AuditTarget } from "~/lib/admin/audit-describe";
 import { failedCronRuns } from "~/lib/admin/crons.server";
-import { listAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
+import { listAdminAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
 import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { BILLABLE_ATTRIBUTION_KINDS, DAY_MS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
@@ -460,7 +460,7 @@ export interface RecentAdminAction {
  * The newest audit rows, described as /admin/platform/audit-log describes them.
  */
 export async function listRecentAdminActions(db: Db): Promise<RecentAdminAction[]> {
-  const rows = await listAuditLog(db, RECENT_ACTIONS_LIMIT);
+  const rows = await listAdminAuditLog(db, RECENT_ACTIONS_LIMIT);
   const lookups = await loadAuditLookups(db, rows);
   return rows.map((e) => ({
     id: e.id,

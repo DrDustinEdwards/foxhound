@@ -9,7 +9,7 @@ import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { buildDisputeResolutionUpdate } from "~/lib/webhooks/batches";
 
-import { canApprove } from "./approval";
+import { canApproveDispute } from "./approval";
 
 // ONE MONEY BATCH through the per-account Durable Object, keyed on the dispute:
 // the resolution and its outcome row commit together or not at all, and a
@@ -166,7 +166,7 @@ export async function acceptDispute(
   input: AcceptDisputeInput,
   deps: { stripe?: Stripe } = {},
 ): Promise<AcceptDisputeResult> {
-  if (!canApprove(input.state as DisputeState)) {
+  if (!canApproveDispute(input.state as DisputeState)) {
     return { status: "error", message: ACCEPT_CLOSED_MESSAGE };
   }
   if (input.hasApproval) {

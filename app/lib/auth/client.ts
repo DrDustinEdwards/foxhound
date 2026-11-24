@@ -7,7 +7,7 @@ import { createAuthClient } from "better-auth/react";
 
 import { REAUTH_PARAM } from "./next-path";
 
-export const authClient = createAuthClient({ plugins: signInClientPlugins() });
+export const betterAuthClient = createAuthClient({ plugins: signInClientPlugins() });
 
 /**
  * Adding a passkey and unlinking Google or Apple need a sign-in from the last

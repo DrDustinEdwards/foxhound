@@ -1,5 +1,5 @@
 // Auth module entry point. Application code imports from "~/lib/auth".
-export { getAuth } from "./auth.server";
+export { getBetterAuth } from "./auth.server";
 export { getSession } from "./session";
 export { MEMBER_ROLE } from "./roles";
 export {
@@ -8,7 +8,7 @@ export {
   resolveActiveMembershipFrom,
   resolveMembership,
   createAccountForUser,
-  listMembers,
+  listAccountMembers,
   removeMember,
 } from "./account";
 export { getInviteByToken, createInvite, hasOpenInviteForEmail, acceptInvite } from "./invites";

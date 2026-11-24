@@ -13,7 +13,7 @@ import type { Route } from "./+types/generate-email-sample";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// Live generation for the home page's email generator: unauthenticated, so abuse protection is mandatory. The rate limit is a dedicated bucket checked here in the action (not the shared top-level enforceRateLimit path). Over the limit (429) or when generation fails (503), the action answers { error: true } and the generator shows "Generation failed. Try again.", rather than passing a stored sample off as one generated in real time.
+// Live generation for the home page's email generator: unauthenticated, so abuse protection is mandatory. The rate limit is a dedicated bucket checked here in the action (not the shared top-level limitPublicActions path). Over the limit (429) or when generation fails (503), the action answers { error: true } and the generator shows "Generation failed. Try again.", rather than passing a stored sample off as one generated in real time.
 const UNAVAILABLE = { error: true } as const;
 
 function isValidCategory(value: string): value is MarketingEmailCategory {

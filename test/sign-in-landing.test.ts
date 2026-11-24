@@ -16,7 +16,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 vi.mock("~/lib/auth", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/auth")>()),
-  getAuth: async () => ({
+  getBetterAuth: async () => ({
     api: {
       getSession: async () => ({ user: { id: "user_1" }, session: { activeAccountId: null } }),
       listPasskeys: async () => [],

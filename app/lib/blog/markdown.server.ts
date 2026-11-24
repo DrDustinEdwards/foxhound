@@ -167,7 +167,7 @@ function stitchDiagramFigures(html: string, slugs: string[]): string {
   }, html);
 }
 
-export async function renderMarkdown(
+export async function renderPostBody(
   db: Db,
   body: string,
 ): Promise<{

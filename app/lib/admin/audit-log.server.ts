@@ -9,7 +9,7 @@ import { accounts, adminAuditLog, blogPosts } from "~/db";
 
 import { auditLookupIds, type AuditLookups } from "./audit-describe";
 
-export async function listAuditLog(db: Db, limit = 200) {
+export async function listAdminAuditLog(db: Db, limit = 200) {
   return db.select().from(adminAuditLog).orderBy(desc(adminAuditLog.createdAt)).limit(limit);
 }
 

@@ -30,7 +30,7 @@ export interface CreatePostInput {
   id?: string;
 }
 
-export async function createPost(db: Db, input: CreatePostInput): Promise<string> {
+export async function createBlogPost(db: Db, input: CreatePostInput): Promise<string> {
   const id = input.id ?? crypto.randomUUID();
   const now = new Date();
   await db.insert(blogPosts).values({
@@ -190,7 +190,7 @@ export async function setTrashed(db: Db, postId: string, trashed: boolean): Prom
  * Deletes the post for good, with its versions, the further-reading links to
  * and from it, and the redirects that led to it, as one batch.
  */
-export async function deletePost(db: Db, postId: string, slug: string): Promise<void> {
+export async function deleteBlogPost(db: Db, postId: string, slug: string): Promise<void> {
   await db.batch([
     db
       .delete(blogPostLinks)

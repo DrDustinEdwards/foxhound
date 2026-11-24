@@ -25,7 +25,7 @@ export function ordinal(n: number): string {
   }
 }
 
-export function formatLongDate(ms: number): string {
+export function formatInvoiceDate(ms: number): string {
   return new Date(ms).toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",

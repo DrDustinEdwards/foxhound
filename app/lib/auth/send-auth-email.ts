@@ -72,7 +72,7 @@ const SIGN_IN_SETTINGS_PATH = "/settings/account";
  * refusal is thrown by name, with the recipient cut out of the provider's
  * words.
  */
-export async function sendSecurityNoticeEmail(
+export async function mailSecurityNotice(
   env: Env,
   to: string,
   detail: NoticeDetail,

@@ -9,7 +9,7 @@ import { data } from "react-router";
 
 import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
 import { AuthLink } from "~/components/auth-link";
-import { getAuth } from "~/lib/auth";
+import { getBetterAuth } from "~/lib/auth";
 import { getSession } from "~/lib/auth/session";
 import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
 import { knownSignInError } from "~/lib/auth/sign-in-link.server";
@@ -45,7 +45,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
 export async function action({ request, context }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  const res = await confirmSignInLink(await getAuth(env), request);
+  const res = await confirmSignInLink(await getBetterAuth(env), request);
   // Better Auth's redirect (signed in, or back here with ?error=), or its per-IP limit.
   if (res.status !== 429) return res;
   return data({ limited: true }, { status: 429 });
