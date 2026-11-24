@@ -35,7 +35,7 @@ import {
   declineLabel,
   deliverabilityFigures,
   formatCurrencyTotals,
-  formatLongDate,
+  formatDetectedDate,
   RECOVERY_FEE_LABEL,
   type OnboardingChecklistState,
   type PaymentStepSummary,
@@ -523,7 +523,7 @@ export function PaymentsTable({
                         <span className="fh-line">
                           {relative(toMs(p.detectedAt), nowMs, "UTC", { granularity: "day" })}
                         </span>
-                        <span className="fh-line">{formatLongDate(p.detectedAt)}</span>
+                        <span className="fh-line">{formatDetectedDate(p.detectedAt)}</span>
                       </td>
                       <td data-label="Actions">
                         <Link

@@ -5,7 +5,7 @@ import { getSession, listMemberships } from "~/lib/auth";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 import { ADD_ACCOUNT_ACTION, buildConnectState } from "~/lib/stripe/connect-state";
-import { setStateCookie } from "~/lib/stripe/state-cookie";
+import { setOAuthStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect-additional";
 
@@ -27,6 +27,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const state = buildConnectState(ADD_ACCOUNT_ACTION, session.user.id);
   return redirect(buildConnectAuthorizeUrl(env, state), {
-    headers: { "Set-Cookie": setStateCookie(state) },
+    headers: { "Set-Cookie": setOAuthStateCookie(state) },
   });
 }

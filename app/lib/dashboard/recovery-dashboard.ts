@@ -70,7 +70,7 @@ export function formatShortDate(day: string | Date): string {
 }
 
 /** "Oct 3, 2026", in UTC, for the Detected column. */
-export function formatLongDate(date: Date): string {
+export function formatDetectedDate(date: Date): string {
   return date.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",

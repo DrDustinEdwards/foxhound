@@ -121,7 +121,7 @@ export function personJsonLd(
 // instead of an inline Person: Foxhound is a company, not a person, and
 // schema.org's `author` property accepts an Organization. Any other author
 // string falls back to an inline Person node.
-export function articleJsonLd(
+export function blogPostJsonLd(
   url: string,
   opts: {
     headline: string;

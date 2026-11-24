@@ -25,7 +25,7 @@ vi.mock("~/lib/auth", async (importOriginal) => {
     new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
   return {
     ...original,
-    getAuth: async () => ({
+    getBetterAuth: async () => ({
       api: {
         signInSocial: async () => {
           harness.calls.signInSocial++;

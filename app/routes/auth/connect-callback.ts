@@ -23,7 +23,7 @@ import {
 import { ADD_ACCOUNT_ACTION, AUDIT_ACTION, verifyConnectState } from "~/lib/stripe/connect-state";
 import { encryptToken } from "~/lib/stripe/encryption";
 import { findLiveAttachment } from "~/lib/stripe/connections.server";
-import { clearStateCookie, readStateCookie } from "~/lib/stripe/state-cookie";
+import { clearOAuthStateCookie, readOAuthStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect-callback";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
@@ -40,7 +40,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   const bounce = (reason: string) =>
     redirect(`/connect?error=${reason}`, {
-      headers: { "Set-Cookie": clearStateCookie() },
+      headers: { "Set-Cookie": clearOAuthStateCookie() },
     });
 
   if (oauthError) {
@@ -56,7 +56,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   if (!code) return bounce("no_code");
 
   // The whole trust decision, before the code is exchanged and before anything is read or written: the state must be one WE minted (byte-identical to the HttpOnly cookie), must name a known action, and (below, once there is a session) must name the user signed in now. See verifyConnectState for why the comparison is on raw strings.
-  const minted = verifyConnectState(state, readStateCookie(request));
+  const minted = verifyConnectState(state, readOAuthStateCookie(request));
   if (!minted) return bounce("invalid_state");
   const { action } = minted;
   // AND IT MUST NOT BE THE AUDIT'S: a state minted by the anonymous audit flow is refused BEFORE the exchange, so a short-lived audit grant can never reach the branch that attaches a connection or mints an account. The two flows use different cookie names today; this refuses on the payload as well, so the guard does not depend on that staying true.
@@ -143,7 +143,7 @@ async function landOn(
 ): Promise<Response> {
   await setSessionActiveAccount(db, sessionId, accountId);
   return redirect(destinationFor(newConnectionId), {
-    headers: { "Set-Cookie": clearStateCookie() },
+    headers: { "Set-Cookie": clearOAuthStateCookie() },
   });
 }
 
@@ -297,7 +297,7 @@ async function attachToActiveAccount(
 
   syncSoon(membership.accountId);
   return redirect(destinationFor(newConnectionId), {
-    headers: { "Set-Cookie": clearStateCookie() },
+    headers: { "Set-Cookie": clearOAuthStateCookie() },
   });
 }
 
@@ -315,5 +315,5 @@ async function writeConnection(
 }
 
 function bounceTo(path: string): Response {
-  return redirect(path, { headers: { "Set-Cookie": clearStateCookie() } });
+  return redirect(path, { headers: { "Set-Cookie": clearOAuthStateCookie() } });
 }

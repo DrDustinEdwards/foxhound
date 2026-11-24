@@ -6,7 +6,7 @@ import { adminAuditLog, cronConfig } from "~/db";
 import { BRAKE_CONFIRM_PHRASES } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
-import { auditDetail, auditLookupIds, auditTarget } from "~/lib/admin/audit-describe";
+import { auditEntryDetail, auditLookupIds, auditTarget } from "~/lib/admin/audit-describe";
 import * as route from "~/routes/admin/audit-log";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -41,7 +41,7 @@ const entry = (action: string, metadata: unknown, targetEmail: string | null = n
   targetUserId: null,
 });
 
-const detail = auditDetail;
+const detail = auditEntryDetail;
 
 describe("the loader", () => {
   beforeEach(async () => {

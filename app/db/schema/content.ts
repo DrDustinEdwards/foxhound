@@ -29,14 +29,14 @@ export const blogPosts = sqliteTable(
     showUpdatedAt: bool("show_updated_at").notNull().default(true),
     showPublishedAt: bool("show_published_at").notNull().default(true),
     featured: bool("featured").notNull().default(false),
-    // Precomputed at write time (createPost/updatePostWithVersion) from body's word count, so a list or tag-archive read never needs the full body just to show a reading time.
+    // Precomputed at write time (createBlogPost/updatePostWithVersion) from body's word count, so a list or tag-archive read never needs the full body just to show a reading time.
     readingMinutes: integer("reading_minutes").notNull().default(1),
     // Carrel's content trash: set when the post goes to the trash, which takes it off the blog; null otherwise. site-api's runSchedules deletes a post 30 days after it was trashed.
     trashedAt: ts("trashed_at"),
   },
   (t) => [
     uniqueIndex("blog_posts_slug_uq").on(t.slug),
-    // Every public list query filters WHERE published = true ORDER BY published_at DESC (listPublishedPosts, getAllPublishedPosts, the tag archive, sitemap/feed/llms generators); this index backs them.
+    // Every public list query filters WHERE published = true ORDER BY published_at DESC (listLivePosts, getAllPublishedPosts, the tag archive, sitemap/feed/llms generators); this index backs them.
     index("blog_posts_published_published_at_idx").on(t.published, t.publishedAt),
   ],
 );

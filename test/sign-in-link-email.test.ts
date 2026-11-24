@@ -55,7 +55,7 @@ vi.mock("~/db/client", async (importOriginal) => ({
 
 const { requestSignInLink, signInWithCode } =
   await import("@dustinedwards/site-runtime/sign-in-form");
-const { getAuth } = await import("~/lib/auth");
+const { getBetterAuth } = await import("~/lib/auth");
 const { passkeyOfferURL } = await import("~/lib/auth/sign-in-link.server");
 const { sendSignInLinkEmail } = await import("~/lib/auth/send-auth-email");
 
@@ -133,7 +133,7 @@ afterEach(() => {
 /** What /login sends: the page's own path to Better Auth's handler. */
 async function ask(env: Env, email = TO) {
   const answer = await requestSignInLink(
-    await getAuth(env),
+    await getBetterAuth(env),
     new Request(`${BASE}/login`, { method: "POST", headers: { origin: BASE } }),
     {
       email,
@@ -165,7 +165,7 @@ function codeIn(m: SentMessage): string {
 async function typeCode(env: Env, code: string, ip = "203.0.113.1") {
   const headers = { origin: BASE, "cf-connecting-ip": ip, cookie: asked };
   return signInWithCode(
-    await getAuth(env),
+    await getBetterAuth(env),
     new Request(`${BASE}/login?code`, { method: "POST", headers }),
     {
       email: TO,

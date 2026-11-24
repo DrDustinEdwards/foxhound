@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import { blogPostLinks, blogPostVersions, blogPosts } from "~/db";
 import { updatePostWithVersion } from "~/lib/blog/admin-queries.server";
-import { getPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
+import { getBlogPostBySlug, getSlugRedirect } from "~/lib/blog/queries.server";
 import { carrelAdapter } from "~/lib/carrel/adapter.server";
 import { parsePostSource, serializePostSource } from "~/lib/carrel/source";
 
@@ -229,12 +229,12 @@ describe("content round trip against the real schema", () => {
     expect((await t.api.runSchedules({ now: new Date("2030-01-01T14:59:00Z") })).applied).toEqual(
       [],
     );
-    expect(await getPostBySlug(t.db, "why-cards-fail")).toBeNull();
+    expect(await getBlogPostBySlug(t.db, "why-cards-fail")).toBeNull();
 
     // The cron at its time puts it live, dated the time it was scheduled for.
     const run = await t.api.runSchedules({ now: new Date("2030-01-01T15:00:30Z") });
     expect(run.applied.map((a) => [a.id, a.kind])).toEqual([["s1", "publish"]]);
-    const live = await getPostBySlug(t.db, "why-cards-fail");
+    const live = await getBlogPostBySlug(t.db, "why-cards-fail");
     expect(live?.publishedAt?.toISOString()).toBe(at);
     expect((await t.api.runSchedules({ now: new Date("2030-01-01T15:01:00Z") })).applied).toEqual(
       [],
@@ -257,10 +257,10 @@ describe("content round trip against the real schema", () => {
       status: "published",
       scheduledUpdate: { changeId: "c3" },
     });
-    expect((await getPostBySlug(t.db, "why-cards-fail"))?.body).toContain("Hello");
+    expect((await getBlogPostBySlug(t.db, "why-cards-fail"))?.body).toContain("Hello");
 
     await t.api.runSchedules({ now: new Date("2030-02-01T00:00:00Z") });
-    const updated = await getPostBySlug(t.db, "why-cards-fail");
+    const updated = await getBlogPostBySlug(t.db, "why-cards-fail");
     expect(updated?.body).toContain("Goodbye");
     expect(updated?.publishedAt?.toISOString()).toBe(at);
     expect((await t.call("/content/s1/schedule")).status).toBe(404);
@@ -295,7 +295,7 @@ describe("content round trip against the real schema", () => {
     expect(renamed.status).toBe(200);
     const moved = await json(renamed);
     expect(moved.previousPath).toBe("/blog/why-cards-fail");
-    expect((await getPostBySlug(t.db, "why-cards-decline"))?.id).toBe("why-cards-decline");
+    expect((await getBlogPostBySlug(t.db, "why-cards-decline"))?.id).toBe("why-cards-decline");
     expect(await getSlugRedirect(t.db, "why-cards-fail")).toBe("why-cards-decline");
     // Its history came with it.
     expect(
@@ -317,7 +317,7 @@ describe("content round trip against the real schema", () => {
       await post("why-cards-decline", "trash", { expectedVersion: moved.version, changeId: "c5" }),
     );
     expect(trashed.status).toBe("draft");
-    expect(await getPostBySlug(t.db, "why-cards-decline")).toBeNull();
+    expect(await getBlogPostBySlug(t.db, "why-cards-decline")).toBeNull();
     const listed = (await (await t.call("/content?trashed=true")).json()) as {
       items: Array<{ id: string }>;
       filtered: string[];

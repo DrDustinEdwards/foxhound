@@ -12,7 +12,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { ACCEPT_APPROVED_MESSAGE, acceptDispute } from "~/lib/disputes/accept.server";
-import { canApprove } from "~/lib/disputes/approval";
+import { canApproveDispute } from "~/lib/disputes/approval";
 import {
   BACK_LINK_REAL,
   CUSTOMER_IP_FIELD,
@@ -68,7 +68,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   }
 
   if (intent === "save") {
-    if (!canApprove(detail.dispute.state as DisputeState)) {
+    if (!canApproveDispute(detail.dispute.state as DisputeState)) {
       return data(
         {
           error: "This dispute has already been submitted; evidence is locked.",
@@ -138,7 +138,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
   if (intent === "upload_file" || intent === "delete_file") {
     // The dispute was read under the signed-in account above, so another account's dispute is already a 404. With no bucket bound, the answer says so first.
     if (!env.EVIDENCE) return fileResult(intent, "uploads_unavailable");
-    if (!canApprove(detail.dispute.state as DisputeState) || detail.approval) {
+    if (!canApproveDispute(detail.dispute.state as DisputeState) || detail.approval) {
       return fileResult(intent, "evidence_locked");
     }
     const outcome =
@@ -179,7 +179,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
 
   if (intent === "accept") {
     // Refuse a dispute that is no longer open, close it at Stripe, then write the accepted state and its outcome.
-    if (!canApprove(detail.dispute.state as DisputeState)) {
+    if (!canApproveDispute(detail.dispute.state as DisputeState)) {
       return data(
         { error: "This dispute is already closed or submitted.", intent: "accept" as const },
         { status: 409 },
@@ -232,7 +232,7 @@ export async function disputeDetailAction({ context, params, request }: Route.Ac
 
   if (intent === "approve") {
     // Re-check against a fresh read, never the form's own hidden state: the schema enforces the gate (dispute_approvals is unique per dispute); this check just fails fast with a readable message.
-    if (!canApprove(detail.dispute.state as DisputeState)) {
+    if (!canApproveDispute(detail.dispute.state as DisputeState)) {
       return data(
         { error: "This dispute has already been submitted.", intent: "approve" as const },
         { status: 409 },

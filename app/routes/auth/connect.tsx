@@ -26,7 +26,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { buildConnectAuthorizeUrl } from "~/lib/stripe/connect";
 import { buildConnectState, CONNECT_ACTION } from "~/lib/stripe/connect-state";
 import { activeConnectionWhere } from "~/lib/stripe/connections.server";
-import { setStateCookie } from "~/lib/stripe/state-cookie";
+import { setOAuthStateCookie } from "~/lib/stripe/state-cookie";
 
 import type { Route } from "./+types/connect";
 import { readForm } from "@dustinedwards/site-runtime/body";
@@ -115,7 +115,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   // MARKED "connect": an unmarked state is how an add-account control falls through to the upsert branch, so both flows say what they are and the callback refuses anything that says neither.
   const state = buildConnectState(CONNECT_ACTION, session.user.id);
   return redirect(buildConnectAuthorizeUrl(env, state), {
-    headers: { "Set-Cookie": setStateCookie(state) },
+    headers: { "Set-Cookie": setOAuthStateCookie(state) },
   });
 }
 

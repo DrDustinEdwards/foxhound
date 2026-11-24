@@ -166,7 +166,7 @@ function count(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
 }
 
-export function auditDetail(entry: AuditEntryLike): string | null {
+export function auditEntryDetail(entry: AuditEntryLike): string | null {
   const m = record(entry.metadata);
   const via = str(m.via);
 

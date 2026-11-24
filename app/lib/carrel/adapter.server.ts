@@ -24,8 +24,8 @@ import { and, desc, eq, isNull, like, ne } from "drizzle-orm";
 
 import { blogPostLinks, blogPostVersions, blogPosts, type Db } from "~/db";
 import {
-  createPost,
-  deletePost,
+  createBlogPost,
+  deleteBlogPost,
   renamePost,
   setPublished,
   setTrashed,
@@ -286,7 +286,7 @@ export function carrelAdapter(
                 .limit(1)
             ).length > 0,
         }));
-      await createPost(db, {
+      await createBlogPost(db, {
         id,
         title: post.title,
         slug,
@@ -454,7 +454,7 @@ export function carrelAdapter(
         if (!row.trashedAt)
           throw new RefusedError("Move the post to the trash first: a delete cannot be undone.");
         await schedules.remove(id).run();
-        await deletePost(db, id, row.slug);
+        await deleteBlogPost(db, id, row.slug);
       },
 
       async rename(id, input) {

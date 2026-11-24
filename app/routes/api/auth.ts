@@ -1,6 +1,6 @@
 import { limitedResponse } from "@dustinedwards/site-runtime/rate-limit";
 
-import { getAuth } from "~/lib/auth";
+import { getBetterAuth } from "~/lib/auth";
 import { checkAuthLimit } from "~/lib/auth/rate-limit.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -9,7 +9,7 @@ import type { Route } from "./+types/auth";
 // Better Auth HTTP surface, mounted at /api/auth/* (its default basePath). The single handler covers every method and sub-path (the passkey and email-link sign-ins, sign-out, the link's verify, the OAuth callbacks); loader serves GET, action serves the rest.
 async function handle({ request, context }: Route.LoaderArgs | Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
-  return (await getAuth(env)).handler(request);
+  return (await getBetterAuth(env)).handler(request);
 }
 
 export function loader(args: Route.LoaderArgs) {

@@ -12,7 +12,7 @@ import {
 import { d1FireStore } from "@dustinedwards/site-runtime/routine";
 
 import { cronConfig, getDb } from "~/db";
-import { backupStatus } from "~/lib/backup/d1-backup";
+import { d1BackupStatus } from "~/lib/backup/d1-backup";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { isCronEnabled } from "~/lib/cron/gating";
 import { cronEveryMinutes } from "~/lib/cron/run";
@@ -24,7 +24,7 @@ import type { Route } from "./+types/health";
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   return siteHealthResponse(env, {
-    backup: () => backupStatus(env),
+    backup: () => d1BackupStatus(env),
     jobs: () => enabledCronJobs(env),
     checks: [
       r2Check("media", env.MEDIA),

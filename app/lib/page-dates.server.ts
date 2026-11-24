@@ -38,7 +38,7 @@ async function savePageDates(db: Db, record: PageRecord): Promise<void> {
 const sqlExcluded = (column: string) => sql.raw(`excluded.${column}`);
 
 /** The daily job: date every code-written page of the sitemap. */
-export const runPageDates: CronHandler = async (env) => {
+export const runCodePageDates: CronHandler = async (env) => {
   const { codePagePaths } = await import("~/routes/files/sitemap");
   const db = getDb(env);
   const { record, changed } = await trackRenderedPageDates({

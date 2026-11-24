@@ -16,7 +16,7 @@ import { EMAIL_CHANGE_EXPIRES_IN_SECONDS } from "@dustinedwards/site-runtime/sig
 import {
   sendEmailChangeConfirmation,
   sendNewEmailVerification,
-  sendSecurityNoticeEmail,
+  mailSecurityNotice,
   sendSignInLinkEmail,
 } from "./send-auth-email";
 
@@ -64,8 +64,7 @@ async function buildAuth(env: Env) {
     // A passkey added or removed, Google or Apple joined or left, sessions
     // ended, the account deleted, a new device, a recovery: mailed to the
     // account's address.
-    sendSecurityNotice: (_kind, { user, detail }) =>
-      sendSecurityNoticeEmail(env, user.email, detail),
+    sendSecurityNotice: (_kind, { user, detail }) => mailSecurityNotice(env, user.email, detail),
   });
 
   const google = signIn.socialProviders.google;
@@ -142,7 +141,7 @@ export type Auth = Awaited<ReturnType<typeof buildAuth>>;
 // build. This memoizes within an isolate without leaking between environments.
 const cache = new WeakMap<Env, Promise<Auth>>();
 
-export function getAuth(env: Env): Promise<Auth> {
+export function getBetterAuth(env: Env): Promise<Auth> {
   let auth = cache.get(env);
   if (!auth) {
     auth = buildAuth(env);

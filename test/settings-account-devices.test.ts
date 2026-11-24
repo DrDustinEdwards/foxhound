@@ -37,7 +37,7 @@ vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
   getDb: () => db,
 }));
-vi.mock("~/lib/auth/auth.server", () => ({ getAuth: async () => auth }));
+vi.mock("~/lib/auth/auth.server", () => ({ getBetterAuth: async () => auth }));
 
 const { loader } = await import("~/routes/app/settings/account");
 

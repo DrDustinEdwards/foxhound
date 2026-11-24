@@ -24,15 +24,15 @@ import "capsomer/share-row.css";
 import "capsomer/toc.css";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { coverPicture, renderMarkdown } from "~/lib/blog/markdown.server";
+import { coverPicture, renderPostBody } from "~/lib/blog/markdown.server";
 import {
   getNextPost,
-  getPostBySlug,
+  getBlogPostBySlug,
   getPostLinks,
   getPreviousPost,
   getSlugRedirect,
 } from "~/lib/blog/queries.server";
-import { articleJsonLd, organizationJsonLd, personJsonLd, siteUrl } from "~/lib/seo/jsonld";
+import { blogPostJsonLd, organizationJsonLd, personJsonLd, siteUrl } from "~/lib/seo/jsonld";
 import { draftPostContext } from "~/lib/preview-context";
 import { marketingMeta } from "~/lib/seo/meta";
 
@@ -56,7 +56,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   if (gone) throw gone;
 
   // Carrel's preview renders its draft here, in-process (workers/app.ts); no request from outside sets it.
-  const post = context.get(draftPostContext) ?? (await getPostBySlug(db, params.slug));
+  const post = context.get(draftPostContext) ?? (await getBlogPostBySlug(db, params.slug));
   if (!post) {
     // A post Carrel renamed keeps its old address, permanently moved (blog_slug_redirects); site-runtime's renameRedirect
     // keeps the query and answers a method other than GET with a 308.
@@ -69,7 +69,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
   }
 
   const [{ html, toc, faq, version }, cover, share, previous, next, related] = await Promise.all([
-    renderMarkdown(db, post.body),
+    renderPostBody(db, post.body),
     coverPicture(db, post, "content"),
     // The share image Carrel set (site-api's image and imageAlt search fields), read the way the cover is.
     coverPicture(
@@ -152,7 +152,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
         ]
       : []),
     jsonLd(
-      articleJsonLd(url, {
+      blogPostJsonLd(url, {
         headline: title,
         description,
         path: `/blog/${post.slug}`,

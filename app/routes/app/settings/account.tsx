@@ -46,7 +46,7 @@ import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
 import { getAccount } from "~/lib/settings/queries.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
-import { getAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
+import { getBetterAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import type { AuthContext } from "~/lib/auth/context";
 import { deletionConsequence, ownedAccountNames } from "~/lib/auth/deletion-copy";
 import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
@@ -77,7 +77,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   return {
     signIn: {
       ...(await signInSettings(env, auth.userId, auth.isDemo)),
-      devices: await signedInDevices(env, request, auth),
+      devices: await devicesOrStale(env, request, auth),
       history:
         auth.isDemo || auth.viewingAs
           ? null
@@ -143,13 +143,13 @@ async function signInSettings(
 }
 
 /** Where this person is signed in, from Better Auth's own list, which wants a sign-in from the last 10 minutes: "stale" until then, and the panel asks for one, as adding a passkey does. The demo and an admin's read-only view list none: the request's session is not this person's. */
-async function signedInDevices(
+async function devicesOrStale(
   env: Env,
   request: Request,
   auth: AuthContext,
 ): Promise<SignedInDevices> {
   if (auth.isDemo || auth.viewingAs) return null;
-  return (await accountSessions(await getAuth(env), request)) ?? "stale";
+  return (await accountSessions(await getBetterAuth(env), request)) ?? "stale";
 }
 
 /** How many of a person's latest security events the Sign-in panel lists. */
@@ -172,7 +172,7 @@ interface ActionResult {
  *  requireFreshSession), else null, which the page answers by asking for a
  *  new sign-in. */
 async function freshSession(env: Env, request: Request) {
-  return requireFreshSession(await getAuth(env), request).catch((error: unknown) => {
+  return requireFreshSession(await getBetterAuth(env), request).catch((error: unknown) => {
     if (error instanceof SessionNotFresh) return null;
     throw error;
   });
@@ -275,7 +275,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       let deleted: Response | null = null;
       try {
         deleted = await (
-          await getAuth(env)
+          await getBetterAuth(env)
         ).api.deleteUser({ body: {}, headers: request.headers, asResponse: true });
       } catch (err) {
         console.error("account deletion failed:", err);
@@ -315,7 +315,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         return refuse("Sign in with an email link first, then change your address.");
       try {
         await (
-          await getAuth(env)
+          await getBetterAuth(env)
         ).api.changeEmail({
           body: { newEmail },
           headers: request.headers,
@@ -338,7 +338,7 @@ export async function action({ request, context }: Route.ActionArgs) {
       // By the session's id, so no session token reaches the page (site-runtime ./sign-in).
       try {
         const ok = await revokeSessionById(
-          await getAuth(env),
+          await getBetterAuth(env),
           request,
           String(form.get("session") ?? ""),
         );

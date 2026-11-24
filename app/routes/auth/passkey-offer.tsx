@@ -10,8 +10,9 @@ import { useEffect, useState } from "react";
 import { Form, redirect, useNavigation } from "react-router";
 
 import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
-import { getAuth } from "~/lib/auth";
-import { authClient, signInAgainIfStale } from "~/lib/auth/client";
+import { getBetterAuth } from "~/lib/auth";
+import { signInAgainIfStale } from "@dustinedwards/site-runtime/sign-in-client";
+import { betterAuthClient, reauthHref } from "~/lib/auth/client";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
@@ -30,7 +31,7 @@ export function meta() {
  *  `next` is settled here: an account not yet on Stripe goes on to /connect
  *  rather than an empty console. */
 async function signedIn(request: Request, env: Env) {
-  const auth = await getAuth(env);
+  const auth = await getBetterAuth(env);
   const session = await auth.api.getSession(sessionLookup(request));
   if (!session) throw redirect("/login");
   const next = await signedInLanding(
@@ -82,8 +83,8 @@ export default function PasskeyOffer({ loaderData }: Route.ComponentProps) {
             void (async () => {
               setBusy(true);
               setError(null);
-              const res = await authClient.passkey.addPasskey();
-              if (signInAgainIfStale(res?.error)) return;
+              const res = await betterAuthClient.passkey.addPasskey();
+              if (signInAgainIfStale(res?.error, reauthHref)) return;
               setBusy(false);
               if (res?.error) {
                 setError("The passkey was not saved. Try again, or skip it for now.");

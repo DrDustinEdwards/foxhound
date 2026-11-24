@@ -6,19 +6,19 @@
 import { operatorJobTools } from "@dustinedwards/site-runtime/cron";
 import { operatorResponse } from "@dustinedwards/site-runtime/operator";
 
-import { backupStatus } from "~/lib/backup/d1-backup";
+import { d1BackupStatus } from "~/lib/backup/d1-backup";
 import { RUN_NOW_JOBS } from "~/lib/cron/registry";
 import { CRON_HISTORY, runJobNowList } from "~/lib/cron/run";
 
 /** The OPERATOR_TOKEN bearer and the per-caller limiter, 30 calls a minute; closed (503) until the secret is set. */
-export function operatorAnswer(request: Request, env: Env): Promise<Response> {
+export function operatorReply(request: Request, env: Env): Promise<Response> {
   return operatorResponse(request, {
     token: env.OPERATOR_TOKEN,
     limiter: env.RATE_LIMITER,
     tools: operatorJobTools({
       db: env.DB,
       jobs: () => runJobNowList(env, RUN_NOW_JOBS),
-      backupStatus: () => backupStatus(env),
+      backupStatus: () => d1BackupStatus(env),
       files: ["media", "evidence"],
       history: CRON_HISTORY,
     }),

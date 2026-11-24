@@ -11,7 +11,7 @@ import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { INDEXNOW_KEY } from "~/lib/seo/indexnow-key";
 
 import { carrelAdapter, type RenderDocument } from "./adapter.server";
-import { carrelMediaAdapter } from "./media-adapter.server";
+import { blogMediaAdapter } from "./media-adapter.server";
 
 // Mounts site-api at /api/carrel/v1, and its preview links at /preview/<token>.
 // The guard order is the package's: prefix, rate limit, key, route.
@@ -57,7 +57,7 @@ export function carrelSiteApi(env: Env, renderDocument?: RenderDocument): SiteAp
     // both, for Carrel's report.
     adapter: {
       ...carrelAdapter(db, env.DB, { renderDocument }),
-      media: carrelMediaAdapter(env, db),
+      media: blogMediaAdapter(env, db),
       insight: { notFound: (options) => notFoundReport(env.DB, options) },
     },
     key: env.CARREL_SITE_KEY,

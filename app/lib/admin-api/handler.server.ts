@@ -10,7 +10,7 @@ import { jsonResponse } from "@dustinedwards/site-runtime/http";
 
 import { getDb, type Db } from "~/db";
 import { accounts, adminApiCalls } from "~/db/schema";
-import { listAuditLog } from "~/lib/admin/audit-log.server";
+import { listAdminAuditLog } from "~/lib/admin/audit-log.server";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import {
   ADMIN_EMAIL_AUDIT_ACTION,
@@ -397,7 +397,7 @@ const ROUTES: ApiRoute[] = [
     method: "GET",
     pattern: "/audit-log",
     handler: async ({ db, url }) => {
-      const rows = await listAuditLog(db, 500);
+      const rows = await listAdminAuditLog(db, 500);
       const { items, ...rest } = slice("/audit-log", rows, page(url, "/audit-log"));
       return { entries: items, ...rest };
     },

@@ -7,22 +7,13 @@ import { createAuthClient } from "better-auth/react";
 
 import { REAUTH_PARAM } from "./next-path";
 
-export const authClient = createAuthClient({ plugins: signInClientPlugins() });
+export const betterAuthClient = createAuthClient({ plugins: signInClientPlugins() });
 
-/**
- * Adding a passkey and unlinking Google or Apple need a sign-in from the last
- * 10 minutes (site-runtime ./sign-in, FRESH_SECONDS). On Better Auth's
- * SESSION_NOT_FRESH the person logs in again and comes back to this page
- * (safeNextPath checks it there).
- */
-export function signInAgainIfStale(error: unknown): boolean {
-  if ((error as { code?: string } | null)?.code !== "SESSION_NOT_FRESH") return false;
-  signInAgain();
-  return true;
-}
+/** The sign-in address for a fresh sign-in that comes back to `next` (site-runtime's signInAgainIfStale takes it). */
+export const reauthHref = (next: string) =>
+  `/login?${REAUTH_PARAM}&next=${encodeURIComponent(next)}`;
 
 /** Log in again and come back to this page, for a fresh sign-in. */
 export function signInAgain(): void {
-  const next = encodeURIComponent(location.pathname + location.search);
-  window.location.assign(`/login?${REAUTH_PARAM}&next=${next}`);
+  window.location.assign(reauthHref(location.pathname + location.search));
 }

@@ -6,7 +6,7 @@ import {
 } from "@dustinedwards/site-runtime/sign-in-form";
 import { data, redirect } from "react-router";
 
-import { getAuth } from "~/lib/auth";
+import { getBetterAuth } from "~/lib/auth";
 
 import { DEFAULT_NEXT_PATH } from "./next-path";
 
@@ -20,7 +20,7 @@ const SITE = { siteName: "Foxhound", settings: "My account" } as const;
  * The words for a ?error= code that comes back to /login (the limiter's, or
  * Better Auth's from a refused Google or Apple sign-in), or null for none.
  */
-export function signInErrorMessage(code: string | null): string | null {
+export function loginErrorMessage(code: string | null): string | null {
   return signInErrorWords(code, SITE);
 }
 
@@ -55,7 +55,7 @@ export function passkeyOfferURL(env: Env, next: string): string {
  * back to the confirm page, which says so.
  */
 export async function answerSignInForm(env: Env, request: Request, form: FormData) {
-  const answer = await signInFormAction(await getAuth(env), request, form, {
+  const answer = await signInFormAction(await getBetterAuth(env), request, form, {
     landing: (next) => passkeyOfferURL(env, next),
     errorLanding: new URL(CONFIRM_PATH, env.BETTER_AUTH_URL).toString(),
     next: { fallback: DEFAULT_NEXT_PATH },

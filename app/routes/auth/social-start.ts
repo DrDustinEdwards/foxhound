@@ -2,7 +2,7 @@ import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { signInMethods } from "@dustinedwards/site-runtime/sign-in";
 import { redirect } from "react-router";
 
-import { getAuth } from "~/lib/auth";
+import { getBetterAuth } from "~/lib/auth";
 import { forwardSetCookie } from "~/lib/auth/http";
 import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
@@ -46,7 +46,7 @@ export async function action({ request, context, params }: Route.ActionArgs) {
   const errorCallbackURL = new URL("/login", env.BETTER_AUTH_URL).toString();
 
   const res = await (
-    await getAuth(env)
+    await getBetterAuth(env)
   ).api.signInSocial({
     body: { provider, callbackURL, errorCallbackURL },
     headers: request.headers,
