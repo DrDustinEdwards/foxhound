@@ -52,7 +52,7 @@
       "app/routes/app/recovery/payments/index.tsx": 1037,
       "app/routes/app/settings/account.tsx": 771,
       "app/routes/home.tsx": 522,
-      "app/routes/privacy.tsx": 947,
+      "app/routes/privacy.tsx": 893,
       "app/routes/terms.tsx": 789
     },
     "tests": {
