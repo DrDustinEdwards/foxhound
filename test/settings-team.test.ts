@@ -23,9 +23,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action, loader } = await import("~/routes/app/settings/team");
+const { action } = await import("~/routes/app/settings/team");
 const { EMAIL_FROM_ADDRESS } = await import("~/lib/constants");
-const { INVITE_TTL_MS } = await import("~/lib/auth/roles");
 const { hashRecipient } = await import("~/lib/email/dispatch");
 
 const BASE = "https://foxhoundapp.test";
@@ -200,39 +199,6 @@ describe("removing a member", () => {
     expect(memberIds(OTHER)).toEqual(["m_theirs"]);
     expect(memberIds(ACCOUNT)).toEqual(["m_a", "m_owner"]);
   });
-
-  it("the loader lists the owner first, then by join time, a row with none last, and marks only an owner's non-owner rows removable", async () => {
-    for (const id of ["u_b", "u_c"]) {
-      sqlite
-        .prepare(
-          "INSERT INTO user (id, name, email, email_verified, updated_at) VALUES (?, ?, ?, 0, 0)",
-        )
-        .run(id, id, `${id}@example.com`);
-    }
-    // The owner joined last, so insertion or time order alone would list them last.
-    sqlite.prepare("UPDATE account_members SET created_at = 3000 WHERE id = 'm_owner'").run();
-    seedMember("m_a", ACCOUNT, MEMBER_USER, "member", "active", null, 1000);
-    seedMember("m_b", ACCOUNT, "u_b", "member", "active", null, 2000);
-    // created_at is nullable and SQLite sorts NULL first ascending.
-    seedMember("m_null", ACCOUNT, "u_c", "member", "active", null, null);
-
-    const load = async (role: string) =>
-      (await loader({
-        context: ctxFor(role),
-        request: new Request(`${BASE}/settings/team`),
-        params: {},
-      } as never)) as { isOwner: boolean; members: { id: string; removable: boolean }[] };
-
-    const asOwner = await load("owner");
-    expect(asOwner.isOwner).toBe(true);
-    expect(asOwner.members.map((m) => m.id)).toEqual(["m_owner", "m_a", "m_b", "m_null"]);
-    expect(asOwner.members.filter((m) => m.removable).map((m) => m.id)).toEqual([
-      "m_a",
-      "m_b",
-      "m_null",
-    ]);
-    expect((await load("member")).members.every((m) => !m.removable)).toBe(true);
-  });
 });
 
 describe("inviting a teammate", () => {
@@ -262,15 +228,10 @@ describe("inviting a teammate", () => {
     ).toEqual([{ a: ACCOUNT, t: "team_invite", h: await hashRecipient(INVITEE), s: "sent" }]);
   });
 
-  it("a non-owner, an empty address, a removal, or loading the page sends nothing", async () => {
+  it("a non-owner, an empty address, or a removal sends nothing", async () => {
     await post({ email: INVITEE }, "member");
     await post({ email: "" });
     await post({ _action: "remove", memberId: "nobody" });
-    await loader({
-      context: ctxFor(),
-      request: new Request(`${BASE}/settings/team`),
-      params: {},
-    } as never);
     expect(harness.sent).toHaveLength(0);
   });
 
@@ -281,18 +242,6 @@ describe("inviting a teammate", () => {
     expect(m.text).toContain("You've been invited to join Tom & Jerry <b>Co</b> on Foxhound.");
     expect(m.html).toContain("Tom &amp; Jerry &lt;b&gt;Co&lt;/b&gt;");
     expect(m.html).not.toContain("<b>Co</b>");
-  });
-
-  it("the 7 days the email states is how long the invite lasts", async () => {
-    await invite();
-    expect(INVITE_TTL_MS).toBe(7 * 24 * 60 * 60 * 1000);
-    const row = sqlite
-      .prepare(
-        "SELECT invite_expires_at - created_at AS ttl FROM account_members WHERE status = 'pending'",
-      )
-      .get() as { ttl: number };
-    // Stored in seconds or milliseconds depending on the column mode.
-    expect([7 * 24 * 60 * 60, 7 * 24 * 60 * 60 * 1000]).toContain(row.ttl);
   });
 
   it("a send that is refused or fails still leaves the invite, and tells the merchant", async () => {

@@ -10,11 +10,7 @@ import { withSignIn } from "~/lib/auth/options";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// FH-5: Foxhound stores no Google tokens. A Google sign-in's account writes
-// (createOAuthUser on sign-up, updateAccount on each later sign-in) keep none,
-// through site-runtime's hooks merged as auth.server.ts merges them (withSignIn),
-// and the clear_oauth_tokens migration clears the rows stored before. Fake
-// tokens and a fake secret.
+// A Google sign-in stores no tokens, and the clear_oauth_tokens migration clears earlier rows.
 const TOKENS = {
   accessToken: "ya29.a0-fake-access-token",
   refreshToken: "1//0fake-refresh-token",

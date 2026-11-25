@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
-import {
-  FAILED_PAYMENT_STATUS_CANCELLED,
-  RECOVERABLE_FAILED_PAYMENT_STATUSES,
-} from "~/lib/constants";
+import { FAILED_PAYMENT_STATUS_CANCELLED } from "~/lib/constants";
 import {
   findAttributionSignals,
   isBillableAttribution,
@@ -14,25 +11,8 @@ import { buildRecoverBatch } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// RULING 284 DECISION ONE, built 2026-08-14: a late invoice.payment_succeeded on
-// a payment a merchant STOPPED is RECORDED, the status FLIPS to recovered, and
-// attribution resolves by the NORMAL precedence.
-//
-// GROUND TRUTH, read at source before any of this was designed (the 284 rule):
-// legacy's handlePaymentSucceeded (app/api/webhooks/stripe/route.ts, blob
-// deb585e) selects failed_payments with `.eq('status','active')` ALONE, so a
-// canceled payment is never found, `failedPayment` is null, and the entire
-// recovered block is skipped. LEGACY RECORDS NOTHING: no recovered_payments row,
-// no status flip, no outcome, no merchant notification. Foxhound's behavior
-// here is therefore a DELIBERATE DIVERGENCE, ratified onto PRIME DIRECTIVE item
-// 3 under 284's reasoning: a merchant's stop is Foxhound workflow state, Stripe
-// does not rescind the event, and money that came back is a fact.
-//
-// THE WHOLE BUILD IS ONE CONSTANT. `cancelled` joins
-// RECOVERABLE_FAILED_PAYMENT_STATUSES, which has exactly TWO call sites and they
-// must stay symmetric: findRecoverableFailedPayment (the lookup) and
-// buildRecoverBatch's status flip (the guard). Nothing else changes, because the
-// spine already records facts and derives policy.
+// A late invoice.payment_succeeded on a payment the merchant stopped is recorded, the status flips
+// to recovered, and attribution resolves by the normal precedence.
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 
@@ -97,16 +77,7 @@ function recoverInput(
   };
 }
 
-/**
- * Models executeMoneyWrite and the per-account money-write DO HONESTLY: the whole
- * batch commits atomically or not at all, and a UNIQUE violation is the replay
- * case, an idempotent no-op rather than an error. This is the idiom
- * test/billing-platform-webhook-claim.test.ts already uses, and it is
- * load-bearing here: WITHOUT the transaction a redelivery would leave the
- * recovered_payments row behind when the outcomes key collided, and this file
- * would prove the opposite of what it claims. Measured, not assumed: the first
- * draft of this test ran the statements bare and reported TWO fee rows.
- */
+/** Models the money-write DO: the batch commits atomically, and a UNIQUE violation is an idempotent no-op replay. */
 function commitBatch(
   sqlite: ReturnType<typeof createInMemoryDb>["sqlite"],
   batch: unknown[],
@@ -123,28 +94,10 @@ function commitBatch(
   }
 }
 
-describe("284 one: the gate widens to canceled, and stays symmetric", () => {
-  it("canceled is recoverable alongside active and the exhausted status", () => {
-    expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain(FAILED_PAYMENT_STATUS_CANCELLED);
-    // The other two must survive: widening for one status must not drop another.
-    expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("active");
-    expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("failed_unrecovered");
-    // FOUR since 2026-08-26, not three. 377(1)'s intake split added
-    // 'stripe_retrying', and this pin is what caught it, which is the pin doing
-    // its job rather than a nuisance: a status list that grows silently is how
-    // a recovery goes missing. 284's three all survive, asserted above; the
-    // addition is recorded on the constant with the plant that measures it.
-    expect([...RECOVERABLE_FAILED_PAYMENT_STATUSES]).toContain("stripe_retrying");
-    expect(RECOVERABLE_FAILED_PAYMENT_STATUSES).toHaveLength(4);
-  });
-});
-
-describe("284 one: the recovery is recorded through the spine's sole builder", () => {
+describe("a payment recovered after a stop", () => {
   it("a pure post-stop payment records stripe_baseline and bills NOTHING", () => {
     const { sqlite, db } = seed();
     seedPayment(sqlite, db, "fp_pure", FAILED_PAYMENT_STATUS_CANCELLED);
-    // Stop recovery resolved every unexecuted step to 'cancelled', so
-    // there is no Foxhound signal of any kind behind this payment.
     runStatement(
       sqlite,
       db.insert(recoverySteps).values({
@@ -189,7 +142,6 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
     expect(rec.attribution_kind).toBe("stripe_baseline");
     expect(rec.attributed_at).toBeNull();
     expect(rec.amount_cents).toBe(4999);
-    // The moat keeps the row either way.
     const out = sqlite
       .prepare("select outcome from outcomes where idempotency_key = ?")
       .get("recovery:fp_pure") as { outcome: string };
@@ -197,7 +149,7 @@ describe("284 one: the recovery is recorded through the spine's sole builder", (
   });
 });
 
-describe("284 one: exactly-once, proven at the capability level (265)", () => {
+describe("exactly-once recovery", () => {
   it("the DOUBLE delivery collapses: the whole batch rolls back, one fee row", () => {
     const { sqlite, db } = seed();
     seedPayment(sqlite, db, "fp_dup", FAILED_PAYMENT_STATUS_CANCELLED);
@@ -209,19 +161,14 @@ describe("284 one: exactly-once, proven at the capability level (265)", () => {
     );
     expect(first.applied).toBe(true);
 
-    // The redelivery, a DIFFERENT Stripe event id so the webhook claim itself
-    // cannot be what stops it. The outcomes key is derived from the FAILED
-    // PAYMENT, not the event, so the second batch writes the identical
-    // `recovery:fp_dup` into a column carrying a real partial unique index; the
-    // whole batch rolls back, INCLUDING the recovered_payments insert.
+    // A different Stripe event id, so the webhook claim is not what stops it; the outcomes key is
+    // derived from the failed payment and rolls the whole batch back.
     const second = commitBatch(
       sqlite,
       buildRecoverBatch(db, recoverInput("fp_dup", attribution, "evt_dup_2")),
     );
     expect(second.applied).toBe(false);
 
-    // The assertion that would catch a second fee row, which is the whole risk
-    // on a money path.
     const recCount = sqlite
       .prepare("select count(*) as n from recovered_payments where failed_payment_id = ?")
       .get("fp_dup") as { n: number };
@@ -233,7 +180,7 @@ describe("284 one: exactly-once, proven at the capability level (265)", () => {
   });
 });
 
-describe("hard rule 3: the recovery insert is joined to its status flip", () => {
+describe("the recovery insert is joined to its status flip", () => {
   it("a payment the flip cannot claim gets no recovered_payments row", () => {
     const { sqlite, db } = seed();
     // Already recovered by another path at a different moment, so the

@@ -5,16 +5,10 @@ import type { Db } from "~/db";
 import { disputeApprovals, disputes } from "~/db";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
 
-// The db.insert()/db.update() query builders for the approve-and-submit flow
-// (see ~/lib/disputes/approval.ts for the phase-ordering rationale). Split into
-// this .server.ts sibling specifically so drizzle-orm and the
-// disputes/dispute_approvals table objects never share a module with
-// canApproveDispute, which the disputes detail page component calls directly and so
-// must stay client-reachable.
-
-// Not a MoneyWriteBatch (app/db/money-write.ts): that type name is reserved for
-// batches routed through the per-account money-write DO. This one deliberately
-// is not (see approval.ts), so it gets its own plain alias.
+// The db.insert()/db.update() builders for the approve-and-submit flow (phase ordering: ~/lib/disputes/approval.ts). A .server.ts sibling so drizzle-orm and the dispute tables never share a module with
+// canApproveDispute, which the detail page calls directly and so must stay client-reachable.
+//
+// Not a MoneyWriteBatch (app/db/money-write.ts): that name is reserved for batches routed through the per-account money-write DO. This one deliberately is not (see approval.ts).
 type OperationalBatch = [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
 
 export interface PendingApprovalInput {

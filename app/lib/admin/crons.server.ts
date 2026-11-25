@@ -1,8 +1,5 @@
-// /admin/platform/crons data layer: cron_config enable/disable, with each job's
-// last run from cron_runs and cron_run_log (site-runtime's, written by
-// runJobs). Not money-adjacent (this toggles operational scheduling, not
-// billing), so this is Pass 1 scope; still audit-logged since it's a real
-// operator action that changes production behavior.
+// /admin/platform/crons data layer: cron_config enable/disable, with each job's last run from cron_runs and cron_run_log (site-runtime's, written by runJobs).
+// Not money-adjacent, but audit-logged: it is an operator action that changes production behavior.
 
 import { and, desc, eq, gte, inArray, max, ne } from "drizzle-orm";
 
@@ -26,10 +23,7 @@ export interface CronRow {
     message: string | null;
   } | null;
   lastSucceededAt: Date | null;
-  /**
-   * This cron's failed runs in the last 24 hours, newest first: the runs the
-   * Overview's cron health counts and links to.
-   */
+  /** This cron's failed runs in the last 24 hours, newest first: the runs the Overview's cron health counts and links to. */
   recentFailures: Array<{ id: string; finishedAt: Date; message: string | null }>;
 }
 
@@ -56,12 +50,7 @@ export async function failedCronRuns(
 }
 
 /**
- * One row per registered job (app/lib/cron/registry.ts is the source of truth
- * for what jobs exist; cron_config only overrides enabled/interval - a missing
- * config row means enabled, per app/lib/cron/gating.ts). Four reads whatever
- * the log's size: the config, each job's newest run, its last success from
- * cron_runs (which keeps it however long ago it was), and the last day's
- * failures.
+ * One row per registered job (app/lib/cron/registry.ts is the source of truth; cron_config only overrides enabled/interval, and a missing row means enabled, per gating.ts). Four reads whatever the log's size: the config, each job's newest run, its last success from cron_runs (which keeps it however long ago it was), and the last day's failures.
  */
 export async function listCronRows(db: Db, now: number = Date.now()): Promise<CronRow[]> {
   const [configRows, newest, runRows, failures] = await Promise.all([
@@ -114,17 +103,11 @@ export async function listCronRows(db: Db, now: number = Date.now()): Promise<Cr
   });
 }
 
-/** True when `cronName` is a job the registry actually dispatches. */
 export function isKnownCronName(cronName: string): boolean {
   return CRON_JOBS.some((job) => job.name === cronName);
 }
 
-/**
- * Upsert-by-hand (D1 supports ON CONFLICT via drizzle's onConflictDoUpdate, but
- * cron_config's primary key is the name itself, so a plain
- * select-then-insert-or-update reads clearer here for a low-frequency admin
- * action). Not a money write: plain db call, no DO.
- */
+/** Upsert by hand: cron_config's primary key is the name itself, so select-then-insert-or-update reads clearer for a low-frequency admin action. Not a money write: plain db call, no DO. */
 export async function setCronEnabled(db: Db, cronName: string, enabled: boolean): Promise<void> {
   if (!isKnownCronName(cronName)) {
     throw new Error(`unknown cron name: ${cronName}`);

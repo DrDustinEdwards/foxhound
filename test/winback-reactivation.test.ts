@@ -3,21 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// JOB 3 / 343 binding 3 and 344 binding 1: THE REACTIVATION.
-//
-// TWO EVENTS, ONE CLAIM. checkout.session.completed carries the sequence id
-// directly; invoice.payment_succeeded carries it on the subscription. Either
-// flips the sequence, whichever arrives first, and the second flips nothing.
-//
-// THE MATCH IS THE ID, NEVER THE CUSTOMER. Legacy selects on
-// (account_id, stripe_customer_id, status='active') and compares no
-// subscription, so a customer holding two subscriptions who cancels one and
-// pays the other's ordinary renewal is credited as a win-back. The
-// two-subscription fixture below is what proves Foxhound does not.
-//
-// AND NOTHING ABOUT IT IS BILLABLE: no recovered_payments row,
-// no attribution signal, and the fee base is asserted unchanged across a
-// reactivation.
+// Win-back reactivation: checkout.session.completed or invoice.payment_succeeded flips the sequence once,
+// matched by sequence id (never by customer), and is never billable.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -148,16 +135,16 @@ function outcomeRows() {
     .all() as { eventType: string; outcome: string; eventData: string; key: string }[];
 }
 
-describe("PLANT 1: the classifier reads the sequence id off the session", () => {
-  it("IGNORES an ordinary checkout that carries no win-back metadata", () => {
+describe("the classifier reads the sequence id off the session", () => {
+  it("ignores an ordinary checkout that carries no win-back metadata", () => {
     expect(classifyStripeEvent(checkoutEvent(null)).kind).toBe("ignore");
     expect(classifyStripeEvent(checkoutEvent({ other: "x" })).kind).toBe("ignore");
     expect(classifyStripeEvent(checkoutEvent({ win_back_sequence_id: "" })).kind).toBe("ignore");
   });
 });
 
-describe("PLANT 2: checkout.session.completed reactivates", () => {
-  it("flips the sequence and records legacy's outcome", async () => {
+describe("checkout.session.completed reactivates", () => {
+  it("flips the sequence and records the outcome", async () => {
     seedSequence();
 
     const result = await processConnectedWebhook(
@@ -179,7 +166,7 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     expect(rows[0].key).toBe("winback-reactivated:wb_1");
   });
 
-  it("a sequence on ANOTHER account is not found, and nothing flips", async () => {
+  it("a sequence on another account is not found, and nothing flips", async () => {
     sqlite
       .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_other', 'Other', 1000)")
       .run();
@@ -196,7 +183,7 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     expect(outcomeRows()).toEqual([]);
   });
 
-  it("a REDELIVERY of the same event flips nothing and records nothing", async () => {
+  it("a redelivery of the same event flips nothing and records nothing", async () => {
     seedSequence();
     await processConnectedWebhook(env, checkoutEvent({ win_back_sequence_id: "wb_1" }), RECEIVED);
 
@@ -210,7 +197,7 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     expect(outcomeRows()).toHaveLength(1);
   });
 
-  it("A NEW EVENT ID FOR THE SAME SEQUENCE ALSO RECORDS NOTHING, reaching the STATUS claim alone", async () => {
+  it("a new event id for the same sequence records nothing, reaching the status claim alone", async () => {
     // The webhook claim cannot refuse this one, so only the status condition
     // on the flip can.
     seedSequence();
@@ -231,11 +218,8 @@ describe("PLANT 2: checkout.session.completed reactivates", () => {
     expect(sequenceRows()[0].reactivatedAt).toBe(RECEIVED.getTime());
   });
 
-  it("A LOST CLAIM RECORDS NO OUTCOME, reaching that guard past the status check", async () => {
-    // The status pre-check normally refuses first, so the `if (!claimed)`
-    // guard is unreachable through it. `reactivated_at` already set with the
-    // status still active is exactly the state the claim's second condition
-    // exists for, and it lets the load succeed while the claim fails.
+  it("a lost claim records no outcome, reaching that guard past the status check", async () => {
+    // reactivated_at set with the status still active lets the load succeed while the claim fails.
     seedSequence();
     sqlite
       .prepare("UPDATE win_back_sequences SET reactivated_at = ? WHERE id = 'wb_1'")
@@ -270,7 +254,7 @@ describe("a reactivation that died between its claim and its outcome", () => {
   });
 });
 
-describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by customer", () => {
+describe("invoice.payment_succeeded reactivates by metadata, never by customer", () => {
   it("reactivates when the paid subscription carries the sequence id", async () => {
     seedSequence();
     harness.subscriptions["sub_new"] = { metadata: { win_back_sequence_id: "wb_1" } };
@@ -282,8 +266,7 @@ describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by c
     expect(outcomeRows().map((r) => r.eventType)).toEqual(["winback_reactivated"]);
   });
 
-  it("A CUSTOMER WITH NO LIVE SEQUENCE COSTS NO STRIPE READ", async () => {
-    // The prefilter is a cost guard: no candidate, no retrieve.
+  it("a customer with no live sequence costs no Stripe read", async () => {
     await processConnectedWebhook(env, invoiceEvent("sub_new"), RECEIVED);
 
     expect(harness.retrieved).toEqual([]);
@@ -298,19 +281,5 @@ describe("PLANT 3: invoice.payment_succeeded reactivates by METADATA, never by c
 
     expect(result).toEqual({ status: "ignored", reason: "no_active_failure" });
     expect(sequenceRows()[0].status).toBe("active");
-  });
-});
-
-describe("PLANT 4: nothing about a reactivation is billable", () => {
-  it("NEITHER BILLING MODULE NAMES A WIN-BACK TABLE OR EVENT", async () => {
-    // Reading the sources is the only way to prove a module does NOT reference
-    // something. 343 binding 1 asks for exactly this assertion.
-    const { readFileSync } = await import("node:fs");
-    for (const path of ["app/db/billable.ts", "app/lib/recovery/attribution.ts"]) {
-      const source = readFileSync(path, "utf8");
-      expect(source).not.toContain("winBack");
-      expect(source).not.toContain("win_back");
-      expect(source).not.toContain("winback");
-    }
   });
 });

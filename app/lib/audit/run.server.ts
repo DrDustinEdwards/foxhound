@@ -21,7 +21,7 @@ import {
 } from "./engine";
 import { generateAuditSummary, type AuditSummaryOutcome } from "./summary.server";
 
-// The five live reads, the pure engine and the one AI call, joined. Phase (f).
+// The five live reads, the pure engine and the one AI call, joined.
 //
 // `Promise.all` is safe here only because `read()` never rejects: every reader
 // returns a ScopeOutcome, so one Stripe failure yields `{ok:false, reason}` for

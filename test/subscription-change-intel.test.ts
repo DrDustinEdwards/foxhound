@@ -9,11 +9,7 @@ import { buildSubscriptionChangeBatch } from "~/lib/webhooks/intelligence-handle
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// Intelligence hears a subscription change the same day (2026-10-29): a
-// connected account's customer.subscription.updated is recorded beside
-// customer_context and the customer is re-scored at once, so the alerts on the
-// next recovery tick count a scheduled cancellation as high risk. Taking the
-// cancellation back undoes it.
+// A subscription change is recorded and the customer re-scored at once; undoing a cancellation reverses it.
 
 const now = new Date("2026-10-29T12:00:00.000Z");
 const periodEnd = Math.floor(Date.UTC(2026, 10, 30) / 1000);

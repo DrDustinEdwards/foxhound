@@ -16,18 +16,6 @@ export function buildAccountProfileUpdate(db: Db, accountId: string, input: Acco
   return db.update(accounts).set({ name: input.name }).where(eq(accounts.id, accountId));
 }
 
-export interface EmailSettingsInput {
-  notificationEmail: string | null;
-}
-
-export function buildEmailSettingsUpdate(db: Db, accountId: string, input: EmailSettingsInput) {
-  // ONE column. Leaving it in the set would keep a write alive for a field no form posts.
-  return db
-    .update(accounts)
-    .set({ notificationEmail: input.notificationEmail })
-    .where(eq(accounts.id, accountId));
-}
-
 export interface NotificationSettingsInput {
   notificationEmail: string | null;
   slackWebhookUrl: string | null;
@@ -45,7 +33,6 @@ export function buildNotificationSettingsUpdate(
   return db.update(accounts).set(input).where(eq(accounts.id, accountId));
 }
 
-/** The two feature toggles, and nothing else. */
 export interface FeatureSettingsInput {
   winbackNotificationsEnabled: boolean;
   expiringCardNotificationsEnabled: boolean;
@@ -55,8 +42,6 @@ export function buildFeatureSettingsUpdate(db: Db, accountId: string, input: Fea
   return db.update(accounts).set(input).where(eq(accounts.id, accountId));
 }
 
-// The three optional Intelligence context fields (SCHEMA.md customer_context): merchant-entered
-// inputs the scoring engine will read once it exists.
 export interface IntelligenceContextInput {
   merchantIndustry: string | null;
   primaryCustomerType: string | null;

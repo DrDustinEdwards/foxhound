@@ -16,10 +16,9 @@ import "capsomer/panel.css";
 import "~/site-header.css";
 import "~/auth.css";
 
-// The parts the sign-in pages share: one 400px card, centered in a full-height column, holding a centered heading, a line under it, the form and a line of links. Capsomer's parts, amber: p-12, the 1.5rem heading, 13px labels, 42px fields and a 47px button at 0.9375rem.
 // The ways in are the family's one sign-in (site-runtime ./sign-in): a passkey first, Google and Apple, and an emailed link with Turnstile on it. No passwords.
 
-/** The frame: a full-height flex column centering a `w-full max-w-[400px]` card. The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws an h2 header band and these pages' one heading is their h1. The wrapper puts the parts in Capsomer's amber family with Foxhound's neutrals (.fh-cap, as /connect and the site header use). The inner div carries a 48px inset on top of the panel's own, less the panel's. */
+/** The frame. The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws an h2 header band and these pages' one heading is their h1. */
 export function AuthCard({ children }: { children: ReactNode }) {
   return (
     <div className="fh-auth-screen">
@@ -38,7 +37,6 @@ export function AuthCard({ children }: { children: ReactNode }) {
   );
 }
 
-/** A centered h1 and the line under it. */
 export function AuthHeading({ title, subtitle }: { title: string; subtitle?: ReactNode }) {
   return (
     <>
@@ -108,7 +106,6 @@ function AuthField({
   );
 }
 
-/** The closing line under the card's form. */
 export function AuthFootnote({ children }: { children: ReactNode }) {
   return <p className="fh-auth-foot fh-small fh-faint">{children}</p>;
 }

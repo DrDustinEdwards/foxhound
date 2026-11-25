@@ -19,12 +19,10 @@ import {
   AUDIT_SECTION_LABEL,
   AUDIT_STEPS,
 } from "~/lib/marketing/audit-copy";
-import { speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
-import { marketingMeta } from "~/lib/seo/meta";
+import { productMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/audit";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/products.css";
 
 // The Audit spoke, in order: the hero, How it works, three feature blocks (the scope card, plain; the AI summary, lifted; the audit history, plain), Pricing, Questions and the closing block (product-sections-cap.tsx, audit-previews.tsx). Every product fact is read from the engine (lib/marketing/audit-copy.ts). No chart here. The path is /product/audit.
@@ -34,25 +32,7 @@ const TITLE = "Audit";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
-  return [
-    ...marketingMeta({
-      title: TITLE,
-      description: AUDIT_META_DESCRIPTION,
-      path: PATH,
-      siteUrl: loaderData?.siteUrl ?? "",
-    }),
-    ...(loaderData
-      ? [
-          jsonLd(
-            speakableWebPageJsonLd(loaderData.siteUrl, {
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        ]
-      : []),
-  ];
+  return productMeta(loaderData, { title: TITLE, description: AUDIT_META_DESCRIPTION, path: PATH });
 }
 
 export const loader = siteUrlLoader;

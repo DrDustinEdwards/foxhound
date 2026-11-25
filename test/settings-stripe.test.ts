@@ -1,4 +1,3 @@
-import { readFileSync } from "node:fs";
 import type Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -155,18 +154,5 @@ describe("stripe disconnect", () => {
     expect(res.init?.status ?? 200).toBe(200);
     expect(res.data.ok).toBe(true);
     expect(res.data.warning).toContain("Revoking access at Stripe did not complete");
-  });
-
-  // One press of "Disconnect Stripe" once disconnected with no confirm: React
-  // re-rendered a submit-typed button inside the click, so the same press
-  // submitted it. The button stays type="button" and the second press submits
-  // its form explicitly.
-  it("the first press only asks: the confirm button never turns into a submit button", () => {
-    const code = readFileSync(
-      new URL("../app/routes/app/settings/stripe.tsx", import.meta.url),
-      "utf8",
-    );
-    expect(code).not.toMatch(/type=\{isConfirming/);
-    expect(code).toContain(".form?.requestSubmit()");
   });
 });

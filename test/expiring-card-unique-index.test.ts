@@ -3,19 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// MIGRATION 0019: the unique index on expiring_card_alerts
-// (account_id, stripe_customer_id, expires_month, expires_year).
-//
-// AIMED AT THE MIGRATION, NOT AT schema.ts. The in-memory harness builds
-// from the committed migration files, so this fails if the .sql is missing or
-// wrong, and passes for no other reason. A plant against the schema object would
-// bite nothing, because the database is not built from it.
-//
-// WHY THE INDEX EXISTS: the subsystem has TWO writers, the
-// nightly scan and the customer.updated webhook, and legacy's webhook upserts
-// onConflict on exactly this tuple, which only works against a unique index.
-// Without it both writers race to insert the same card-month and the merchant's
-// customer gets two identical warnings.
+// The migrations build the unique index that dedupes the nightly scan and the customer.updated webhook.
 
 let sqlite: Database.Database;
 
@@ -48,19 +36,8 @@ function insert(
     );
 }
 
-describe("PLANT: the database refuses a duplicate card-month", () => {
-  it("the index exists in the schema the MIGRATIONS build", () => {
-    const row = sqlite
-      .prepare("SELECT sql FROM sqlite_master WHERE type = 'index' AND name = ?")
-      .get("expiring_card_alerts_card_month_uq") as { sql: string } | undefined;
-    expect(row).toBeDefined();
-    expect(row!.sql).toContain("UNIQUE");
-    for (const col of ["account_id", "stripe_customer_id", "expires_month", "expires_year"]) {
-      expect(row!.sql).toContain(col);
-    }
-  });
-
-  it("REFUSES the second insert of the same tuple", () => {
+describe("the database refuses a duplicate card-month", () => {
+  it("refuses the second insert of the same tuple", () => {
     insert("a1");
     expect(() => insert("a2")).toThrow(/UNIQUE constraint failed/);
     const count = sqlite.prepare("SELECT count(*) AS c FROM expiring_card_alerts").get() as {

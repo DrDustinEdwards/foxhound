@@ -5,16 +5,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// JOB 2b / 341 binding 2: /p/:token gains an ALERT MODE.
-//
-// An expiring-card alert warns a customer before the card lapses, so there is
-// no failed payment to name. The token's failedPaymentId becomes optional and
-// the page resolves the customer from the alert row instead.
-//
-// THE LOAD-BEARING ASSERTION is that alert mode records NO attribution signal:
-// buildCardUpdateSignal writes a recovery_steps row that findAttributionSignals
-// reads as billable `card_update`, and an alert has no failed payment to
-// attribute to.
+// /p/:token alert mode (an expiring-card alert, no failed payment): it must record no attribution signal.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -117,8 +108,8 @@ function stepRows() {
   }[];
 }
 
-describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
-  it("renders ready with NO amount line, because nothing has failed", async () => {
+describe("alert mode saves a card and enters no retry path", () => {
+  it("renders ready with no amount, because nothing has failed", async () => {
     seedAlert();
     const token = await signCardUpdateToken(ENV, {
       expiringCardAlertId: "al_1",
@@ -132,7 +123,7 @@ describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
     expect(state.currency).toBeUndefined();
   });
 
-  it("opens a Checkout session for the ALERT's customer", async () => {
+  it("opens a Checkout session for the alert's customer", async () => {
     seedAlert();
     const token = await signCardUpdateToken(ENV, {
       expiringCardAlertId: "al_1",
@@ -150,7 +141,7 @@ describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
     expect(harness.sessions[0].customerId).toBe("cus_alert");
   });
 
-  it("FINALIZES WITH NO SUBSCRIPTION AND WRITES NO RECOVERY STEP", async () => {
+  it("finalizes with no subscription and writes no recovery step", async () => {
     seedAlert();
     const token = await signCardUpdateToken(ENV, {
       expiringCardAlertId: "al_1",
@@ -160,8 +151,6 @@ describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
     await expect(load(token, "?session_id=cs_1")).rejects.toMatchObject({ status: 302 });
 
     expect(harness.finalized).toHaveLength(1);
-    // finalizeCardUpdateSession updates the CUSTOMER default either way; only a
-    // subscription id would pin a subscription, and an alert has none.
     expect(harness.finalized[0].subscriptionId).toBeNull();
     // No attribution signal: no recovery_steps row of any kind.
     expect(stepRows()).toEqual([]);
@@ -177,7 +166,7 @@ describe("PLANT 2: alert mode saves a card and enters no retry path", () => {
   });
 });
 
-describe("PLANT 3: the failed-payment mode is unchanged", () => {
+describe("the failed-payment mode", () => {
   it("still finalizes WITH the subscription and DOES write the attribution signal", async () => {
     seedFailedPayment();
     const token = await signCardUpdateToken(ENV, { failedPaymentId: "fp_1", accountId: ACCOUNT });

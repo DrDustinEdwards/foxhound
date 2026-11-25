@@ -1,10 +1,8 @@
-import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { getDb } from "~/db";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
-import { hasDemoCookie } from "~/lib/demo/session";
+import { refusePost } from "~/lib/http/account-post";
 import { setAccountTheme } from "~/lib/theme.server";
 import { themeAction } from "capsomer/theme-server";
 
@@ -13,16 +11,8 @@ import type { Route } from "./+types/theme";
 // Persist an authenticated merchant's theme to accounts.theme so it follows them across devices. ACTION ONLY: this route exports no loader, because loaders must not mutate. React Router rejects a GET with 400 before the action runs, so the method check below is for the other non-POST verbs (PUT, PATCH, DELETE).
 // Capsomer's themeAction reads the choice (JSON from the header's button, a form field otherwise, at most 1 KB), answers 204 to a fetch and 303 to a form, and writes no cookie: a signed-in merchant's choice lives on the account. The toggle calls this fire-and-forget: the DOM already flipped, so a failed write must not roll back what the merchant is looking at. The next request reconciles from the DB.
 export async function action({ request, context }: Route.ActionArgs) {
-  const refused = refuseCrossSite(request);
+  const refused = refusePost(request, { demo: true });
   if (refused) return refused;
-  if (request.method !== "POST") {
-    return Response.json({ error: "method_not_allowed" }, { status: 405 });
-  }
-
-  // Hard rule 10: the demo refuses a write before any session or database work.
-  if (hasDemoCookie(request)) {
-    return Response.json({ error: DEMO_READ_ONLY_MESSAGE }, { status: 405 });
-  }
 
   const { env } = context.get(cloudflareContext);
 

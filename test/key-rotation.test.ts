@@ -9,8 +9,7 @@ import {
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// The ciphertext format carries a key id (v1:<keyId>:<ivHex>:<cipherHex>); without it a rotation
-// could not tell which key encrypted a value and every stored token would become undecryptable.
+// The ciphertext carries a key id so a rotation can tell which key encrypted a value.
 
 const KEY_A = "a".repeat(64);
 const KEY_B = "b".repeat(64);

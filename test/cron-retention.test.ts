@@ -16,12 +16,8 @@ import { D1_MAX_BOUND_PARAMS } from "@dustinedwards/site-runtime/d1";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Retention sweeps must stay under D1's bound-parameter ceiling. retention-health-score failed
-// every day for 29 days because `deleteOlderThan` bound one parameter per aged row (417 against D1's
-// 100). The tests run on better-sqlite3, whose limit is orders of magnitude higher, so a behavioral
-// sweep of 417 rows passes with the bug in place. The assertion is therefore on the SQL production
-// would send, captured off the driver. It does not exercise D1 itself; the live proof is a
-// production run in cron_run_log.
+// Retention sweeps must stay under D1's bound-parameter ceiling. better-sqlite3's limit is far higher, so the assertion is on
+// the SQL production would send, captured off the driver.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
@@ -31,7 +27,7 @@ vi.mock("~/db", async (importOriginal) => ({
 
 const retention = await import("~/lib/cron/retention");
 
-/** The exact row count that broke production. Above the ceiling by 4.17x. */
+/** Well above D1's bound-parameter ceiling. */
 const N = 417;
 /** Older than every retention window, the longest of which is 365 days. */
 const AGED = new Date("2020-01-01T00:00:00.000Z");
@@ -41,8 +37,7 @@ const FRESH_COUNT = 3;
 
 type TestDb = ReturnType<typeof createInMemoryDb>["db"];
 
-/** Insert in chunks so the SEEDING itself never trips a parameter limit and
- *  masks what is being measured. */
+/** Insert in chunks so seeding never trips a parameter limit. */
 async function insertMany(
   db: TestDb,
   table: Parameters<TestDb["insert"]>[0],
@@ -57,8 +52,7 @@ function rowsOf(n: number, build: (i: number, when: Date) => Record<string, unkn
   return Array.from({ length: n }, (_, i) => build(i, when));
 }
 
-/** Capture every SQL string the driver is asked to prepare, so the assertion is
- *  against what production would SEND. Installed after seeding. */
+/** Capture every SQL string the driver is asked to prepare. Installed after seeding. */
 function captureStatements(sqlite: Database.Database): string[] {
   const captured: string[] = [];
   const original = sqlite.prepare.bind(sqlite);
@@ -75,8 +69,7 @@ const deletesIn = (captured: string[]) => captured.filter((s) => /^\s*delete/i.t
 interface SweeperCase {
   fn: (env: Env) => Promise<{ rowsProcessed: number }>;
   seed: (db: TestDb, n: number, when: Date) => Promise<void>;
-  /** True where an id list is semantically required, so the delete is BATCHED
-   *  rather than converted to a predicate. */
+  /** True where an id list is required, so the delete is batched. */
   batched?: boolean;
 }
 

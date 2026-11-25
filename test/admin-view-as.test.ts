@@ -14,11 +14,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// "View as merchant" (Recova's Impersonate, read-only) end to end against the
-// real schema: start from /admin, the app shell resolving the merchant, the
-// read-only 405, the Access re-check, Stop, expiry on the next request, and the
-// four audit rows. The admin passes Access through site-runtime accessAdmin's own
-// localhost bypass, so the Access check is the real one.
+// View as merchant, end to end against the real schema: read-only, Access re-check, Stop, expiry, audit rows.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({

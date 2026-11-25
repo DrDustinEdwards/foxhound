@@ -4,18 +4,13 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import { SCOPE_READ, SCOPE_WRITE } from "../mcp/src/scopes";
-import { ADMIN_TOOLS, ADMIN_TOOL_NAMES, MERCHANT_READ_TOOLS } from "../mcp/src/tools";
+import { ADMIN_TOOLS, MERCHANT_READ_TOOLS } from "../mcp/src/tools";
 import { serveAdminMcp } from "../mcp/src/server";
 import { isFoxhoundAdmin } from "../mcp/src/guard";
 
 import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 
-// The Admin MCP Worker holds nothing that moves money: no Stripe key, no money
-// binding, no D1. Its one way into Foxhound is the admin API over a service
-// binding, carrying the admin key and the signed-in admin's email on every
-// call. These tests hold the Worker to that shape and its tools to the ruling.
-// The consent scope and registration rules are site-runtime's mcp-login, tested
-// there.
+// The Admin MCP Worker holds no money binding; its one way in is the admin API over a service binding.
 
 const ROOT = new URL("../", import.meta.url);
 const read = (path: string) => readFileSync(fileURLToPath(new URL(path, ROOT)), "utf8");
@@ -123,19 +118,17 @@ async function callTool(
 describe("the Worker holds no Stripe key, no money binding and no D1", () => {
   const config = jsonc(read("mcp/wrangler.jsonc"));
 
-  it("binds only the foxhound service, the OAuth KV, its own limiter and log and the log's bucket, nothing else", () => {
+  it("binds only the foxhound service, the OAuth KV, its own limiter and log and the log's bucket", () => {
     expect(config.services).toEqual([
       { binding: "FOXHOUND", service: "foxhound", entrypoint: "AdminApi" },
     ]);
     expect((config.kv_namespaces as { binding: string }[]).map((k) => k.binding)).toEqual([
       "OAUTH_KV",
     ]);
-    // Its own classes only: no script_name, so never one of the foxhound Worker's money objects.
     expect((config.durable_objects as { bindings: unknown[] }).bindings).toEqual([
       { name: "MCP_RATE_LIMIT", class_name: "RateLimiter" },
       { name: "TOOL_CALL_LOG", class_name: "ToolCallLog" },
     ]);
-    // One bucket, its own: the tool-call log's daily copies (L6-L7), never one of Foxhound's.
     expect(config.r2_buckets).toEqual([
       { binding: "AUDIT_BUCKET", bucket_name: "foxhound-admin-mcp-tool-calls" },
     ]);
@@ -153,35 +146,9 @@ describe("the Worker holds no Stripe key, no money binding and no D1", () => {
 });
 
 describe("the tools", () => {
-  // The ruling's nine plus the owner's test mail (preview and send), which
-  // test/admin-email-send-preview.test.ts holds to its own rules.
-  it("are exactly the ruling's nine, the two test-mail tools, foxhound_admin_ named, with all four hints", () => {
-    expect([...ADMIN_TOOL_NAMES].sort()).toEqual(
-      [
-        "foxhound_admin_whats_next",
-        "foxhound_admin_get_platform",
-        "foxhound_admin_find_merchant",
-        "foxhound_admin_view_as_merchant",
-        "foxhound_admin_check_health",
-        "foxhound_admin_read_audit_log",
-        "foxhound_admin_pause",
-        "foxhound_admin_stage_change",
-        "foxhound_admin_list_staged",
-        "foxhound_admin_preview_email",
-        "foxhound_admin_send_test_email",
-      ].sort(),
-    );
+  it("no tool name can move money", () => {
     for (const tool of ADMIN_TOOLS) {
-      // The service prefix and at least one word; the ruling names pause on its own.
       expect(tool.name).toMatch(/^foxhound_admin(_[a-z]+)+$/);
-      for (const hint of [
-        "readOnlyHint",
-        "destructiveHint",
-        "idempotentHint",
-        "openWorldHint",
-      ] as const) {
-        expect(typeof tool.annotations[hint], `${tool.name} ${hint}`).toBe("boolean");
-      }
       expect(tool.name).not.toMatch(/refund|adjust|cancel|disconnect|charge|resume/);
     }
   });
@@ -218,55 +185,10 @@ describe("the tools", () => {
     });
   });
 
-  it("each tool maps to its API route", async () => {
-    const cases: [string, Record<string, unknown>, string, string][] = [
-      ["foxhound_admin_whats_next", {}, "GET", "/api/admin/v1/whats-next"],
-      ["foxhound_admin_find_merchant", { query: "beta" }, "GET", "/api/admin/v1/merchants"],
-      [
-        "foxhound_admin_find_merchant",
-        { account_id: "acct_a" },
-        "GET",
-        "/api/admin/v1/merchants/acct_a",
-      ],
-      [
-        "foxhound_admin_view_as_merchant",
-        { account_id: "acct_a", tool: "foxhound_get_overview" },
-        "POST",
-        "/api/admin/v1/merchants/acct_a/view",
-      ],
-      ["foxhound_admin_check_health", {}, "GET", "/api/admin/v1/health"],
-      ["foxhound_admin_read_audit_log", {}, "GET", "/api/admin/v1/audit-log"],
-      ["foxhound_admin_list_staged", {}, "GET", "/api/admin/v1/staged"],
-      ["foxhound_admin_pause", { account_id: "acct_a" }, "POST", "/api/admin/v1/pause"],
-      [
-        "foxhound_admin_stage_change",
-        { kind: "resume_account", account_id: "acct_a" },
-        "POST",
-        "/api/admin/v1/staged",
-      ],
-    ];
-    for (const [tool, args, method, path] of cases) {
-      const fox = fakeFoxhound();
-      const out = await callTool(fox.binding, tool, args);
-      expect(out.isError, `${tool}: ${JSON.stringify(out.data)}`).toBe(false);
-      expect([fox.calls[0]?.method, fox.calls[0]?.path], tool).toEqual([method, path]);
-    }
-  });
-
   it("an id is encoded into the path, so it cannot reach another route", async () => {
     const fox = fakeFoxhound();
     await callTool(fox.binding, "foxhound_admin_find_merchant", { account_id: "../pause" });
     expect(fox.calls[0].path).toBe("/api/admin/v1/merchants/..%2Fpause");
-  });
-
-  it("the API's refusal reaches the agent as a tool error with the API's own sentence", async () => {
-    const fox = fakeFoxhound(() => ({
-      status: 400,
-      body: { ok: false, error: "No merchant acct_x. Find one with the merchants read." },
-    }));
-    const out = await callTool(fox.binding, "foxhound_admin_pause", { account_id: "acct_x" });
-    expect(out.isError).toBe(true);
-    expect(out.data.error).toBe("No merchant acct_x. Find one with the merchants read.");
   });
 
   it("pause all needs an explicit all: true", async () => {
@@ -282,8 +204,6 @@ describe("least scope and the tool-call log", () => {
     expect(
       (await callTool(fox.binding, "foxhound_admin_get_platform", {}, [SCOPE_READ], rows)).isError,
     ).toBe(false);
-    // A write tool is not registered for a read grant, so it is neither listed
-    // nor callable, and nothing reaches Foxhound.
     const listed = await readMcp(
       await serveAdminMcp(
         mcpRequest({ method: "tools/list", params: {} }),

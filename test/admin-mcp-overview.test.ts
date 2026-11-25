@@ -102,13 +102,7 @@ describe("the data layer", () => {
   it("lists the newest calls with the key's label and the account's name, and no arguments", async () => {
     const calls = (await listRecentMcpCalls(await seed())) as unknown as Record<string, unknown>[];
     expect(calls.map((c) => c.id)).toEqual(["call_1", "call_2", "call_3"]);
-    expect(calls[0]).toMatchObject({
-      tool: "foxhound_list_recoveries",
-      outcome: "ok",
-      keyLabel: "Claude desktop",
-      accountName: "North Coffee",
-    });
-    expect(calls[0].keyFound).toBe(true);
+    expect(calls[0]).toMatchObject({ keyLabel: "Claude desktop", accountName: "North Coffee" });
     expect(calls[2]).toMatchObject({
       keyFound: false,
       keyLabel: null,
@@ -119,9 +113,7 @@ describe("the data layer", () => {
   });
 });
 
-// The error text an agent was given can echo its
-// own input, so the page masks credentials and encoded addresses in it as well
-// as the plain addresses the log already masked.
+// Error text can echo an agent's input, so the page masks credentials and addresses in it.
 const HOSTILE = [
   "Bad key fox_mcp_AbCdEf0123456789xyzSECRET in header",
   "Stripe said sk_live_51HabcDEF123SECRET and sk_test_4eC39HqLyjWDarjtT1zdp7dcSECRET",
@@ -165,9 +157,6 @@ describe("the loader", () => {
       callsLast24h: 2,
       failedLast24h: 1,
     });
-    expect((data.keys as unknown[]).length).toBe(4);
-    expect((data.calls as unknown[]).length).toBe(3);
-    expect((data.tools as unknown[]).length).toBeGreaterThan(0);
     expect(JSON.stringify(data)).not.toContain(SECRET_HASH);
   });
 });

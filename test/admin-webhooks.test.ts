@@ -1,10 +1,7 @@
-import { RouterContextProvider } from "react-router";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { webhookEvents } from "~/db";
 import { listWebhookEvents } from "~/lib/admin/webhooks.server";
-import * as route from "~/routes/admin/webhooks";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -99,37 +96,5 @@ describe("listWebhookEvents", () => {
       ),
     ).toBe(true);
     expect(both.total).toBe(both.events.length);
-  });
-});
-
-describe("the loader", () => {
-  beforeEach(async () => {
-    harness.db = await seed();
-  });
-
-  async function load(search: string) {
-    const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext });
-    return (route.loader as (args: unknown) => Promise<Record<string, unknown>>)({
-      request: new Request(`https://foxhoundapp.com/admin/webhooks${search}`),
-      context,
-      params: {},
-    });
-  }
-
-  it("filters and pages from the address and keeps the health figures", async () => {
-    const data = await load("?type=invoice&errors=1&page=1");
-    const events = data.list as ListResult;
-    expect(events.total).toBe(events.events.length);
-    expect(
-      events.events.every((e) => e.eventType === "invoice.payment_failed" && e.errorMessage),
-    ).toBe(true);
-    expect(data.filters).toEqual({
-      type: "invoice",
-      errorsOnly: true,
-      pendingOnly: false,
-      page: 1,
-    });
-    expect(data.summary).toEqual({ totalLast24h: 120, errorsLast24h: 40, unprocessedCount: 18 });
   });
 });

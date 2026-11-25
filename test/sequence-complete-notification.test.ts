@@ -4,13 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// THE SEQUENCE-COMPLETE NOTIFICATION, ported from legacy's process-recovery cron
-// (blob 7015998c), the "Notify merchant - sequence complete, unrecovered" block.
-//
-// Every plant observes email_sends or the sent message. The ones that matter
-// most are the MUTUAL EXCLUSION (a sequence that ends by recovery must get the
-// other notice and never this one) and the CLAIM (a re-run of the terminal tick
-// sends nothing more).
+// The sequence-complete notification: toggle, recipient, tenant scoping, escaping and failure isolation.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -100,8 +94,8 @@ function sendRows() {
     .all(ACCOUNT) as { status: string; template: string | null; error: string | null }[];
 }
 
-describe("PLANT 2: the toggle and the recipient are legacy's", () => {
-  it("FALSE sends nothing and names the refusal", async () => {
+describe("the toggle and the recipient", () => {
+  it("a disabled toggle sends nothing", async () => {
     seedAccount({ enabled: 0 });
     seedPayment({});
     const result = await sendSequenceCompleteNotification(env, {
@@ -113,7 +107,7 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
     expect(sendRows()).toHaveLength(0);
   });
 
-  it("NO notification email means NO send, and there is no owner fallback", async () => {
+  it("no notification email means no send", async () => {
     seedAccount({ notificationEmail: null, enabled: null });
     seedPayment({});
     const result = await sendSequenceCompleteNotification(env, {
@@ -124,7 +118,7 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
     expect(harness.sent).toHaveLength(0);
   });
 
-  it("a payment on ANOTHER account is not found", async () => {
+  it("a payment on another account is not found", async () => {
     seedAccount({ enabled: null });
     seedPayment({});
     sqlite
@@ -140,7 +134,7 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
   });
 });
 
-describe("PLANT 3: the demo refusal and a send failure", () => {
+describe("escaping and send failure", () => {
   it("a customer name is shown as written, never read as markup", async () => {
     seedAccount({});
     seedPayment({ customerName: "Tom & Jerry <Co>" });

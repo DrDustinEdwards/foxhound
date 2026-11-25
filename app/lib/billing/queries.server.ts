@@ -11,11 +11,7 @@ import {
   recoverySteps,
 } from "~/db";
 
-// Billing evidence ledger read models (Phase 5 slice 5d, DESIGN.md flagship
-// surface 1). Every query is account-scoped and strictly read-only: nothing
-// here recomputes a fee or a billable decision, both already live in the stored
-// billing_line_items rows (produced by app/lib/billing/run.ts, which is itself
-// a read consumer of app/db/billable.ts).
+// Billing evidence ledger read models. Account-scoped and strictly read-only: fees and billable decisions are already stored in billing_line_items (app/lib/billing/run.ts).
 
 export type BillingInvoiceRow = typeof billingInvoices.$inferSelect;
 type BillingLineItemRow = typeof billingLineItems.$inferSelect;
@@ -33,11 +29,7 @@ export interface EnrichedLineItem {
   adminAuditEntry: typeof adminAuditLog.$inferSelect | null;
 }
 
-/**
- * Batches the evidence lookups for a set of line items: one query per evidence
- * table (recovered_payments / disputes / admin_audit_log / recovery_steps), not
- * one per row.
- */
+/** Batches the evidence lookups for a set of line items: one query per evidence table, not one per row. */
 async function enrichLineItems(
   db: Db,
   lineItems: BillingLineItemRow[],
@@ -138,9 +130,7 @@ export async function getBillingLedger(db: Db, accountId: string): Promise<Billi
   };
 }
 
-/**
- * Every invoice for the account, newest first (for the /billing invoice list).
- */
+/** Every invoice for the account, newest first. */
 export async function listBillingInvoices(db: Db, accountId: string): Promise<BillingInvoiceRow[]> {
   const rows = await db
     .select()

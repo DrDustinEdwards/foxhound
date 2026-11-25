@@ -124,8 +124,7 @@ export function auditTarget(entry: AuditEntryLike, lookups: AuditLookups): Audit
   const postId = str(m.postId);
   if (postId) {
     const title = lookups.postTitles.get(postId) ?? str(m.title) ?? str(m.slug) ?? postId;
-    // No link: the /admin/blog editor is gone and posts are edited in Carrel,
-    // so a post entry names its title only.
+    // No link: posts are edited in Carrel, so a post entry names its title only.
     return { label: title };
   }
 

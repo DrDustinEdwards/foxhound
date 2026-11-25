@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
 import { d1BackupStatus, runD1Backup } from "~/lib/backup/d1-backup";
-import { CRON_JOBS } from "~/lib/cron/registry";
-import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 
 describe("runD1Backup and d1BackupStatus without a bucket", () => {
   it("the job fails loudly while BACKUPS is unbound", async () => {
@@ -43,12 +41,5 @@ describe("runD1Backup and d1BackupStatus without a bucket", () => {
     );
     expect(status.warning).toMatch(/30h ago/);
     expect(status.age_hours).toBeGreaterThan(26);
-  });
-});
-
-describe("registration", () => {
-  it("d1-backup runs on the existing daily schedule", () => {
-    const job = CRON_JOBS.find((j) => j.name === "d1-backup");
-    expect(job?.schedule).toBe(CRON_SCHEDULE_DAILY);
   });
 });

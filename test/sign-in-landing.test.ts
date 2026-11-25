@@ -3,10 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Where the emailed sign-in link lands (/passkey?next=): an account with no
-// live Stripe connection goes on to /connect, as Recova sent a new signup
-// (app/(auth)/signup/page.tsx, blob 08400b4d), not to an empty console. Found
-// in production on 2026-10-29, the first real signup.
+// The emailed link's landing: an account with no live Stripe connection goes on to /connect.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 

@@ -314,8 +314,8 @@ export interface DisputedRecoveryLink {
 }
 
 /**
- * Resolve the recovery a disputed charge belongs to, if any: the dispute-intake evidence context
- * (TASK-foxhound-dispute-intake.md). Two enrichment paths would be two answers to "which recovery
+ * Resolve the recovery a disputed charge belongs to, if any: the dispute-intake evidence context.
+ * Two enrichment paths would be two answers to "which recovery
  * does this disputed charge belong to", and a manually imported dispute that skipped the recovery
  * link would silently stay billable on a recovery it should have excluded.
  */

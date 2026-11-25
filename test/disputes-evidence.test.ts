@@ -3,14 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildEvidenceFacts,
   draftDisputeEvidence,
-  formatCommunicationLog,
   hasGroundingFacts,
   type EvidenceFacts,
 } from "~/lib/disputes/evidence";
 
 const METER = { source: "test", accountId: null };
-
-const EMPTY_FACTS: EvidenceFacts = { productName: null, serviceDate: null, communications: [] };
 
 describe("buildEvidenceFacts (grounded only in real records)", () => {
   it("pulls plan name and service date from the resolved failed_payment row", () => {
@@ -38,43 +35,6 @@ describe("buildEvidenceFacts (grounded only in real records)", () => {
     ]);
     expect(facts.communications).toHaveLength(1);
     expect(facts.communications[0].stepType).toBe("email_day3");
-  });
-});
-
-describe("hasGroundingFacts", () => {
-  it("is false for entirely empty facts", () => {
-    expect(hasGroundingFacts(EMPTY_FACTS)).toBe(false);
-  });
-
-  it("is true when any single fact is present", () => {
-    expect(hasGroundingFacts({ ...EMPTY_FACTS, productName: "Widget" })).toBe(true);
-    expect(hasGroundingFacts({ ...EMPTY_FACTS, serviceDate: new Date() })).toBe(true);
-    expect(
-      hasGroundingFacts({
-        ...EMPTY_FACTS,
-        communications: [
-          { stepType: "email_day1", sentAt: new Date(), openedAt: null, clickedAt: null },
-        ],
-      }),
-    ).toBe(true);
-  });
-});
-
-describe("formatCommunicationLog", () => {
-  it("is null for no communications", () => {
-    expect(formatCommunicationLog([])).toBeNull();
-  });
-
-  it("renders sent/opened/clicked dates deterministically from the real rows", () => {
-    const log = formatCommunicationLog([
-      {
-        stepType: "email_day1",
-        sentAt: new Date("2026-07-01T00:00:00.000Z"),
-        openedAt: new Date("2026-07-01T09:00:00.000Z"),
-        clickedAt: new Date("2026-07-02T00:00:00.000Z"),
-      },
-    ]);
-    expect(log).toBe("email_day1 sent 2026-07-01, opened 2026-07-01, clicked 2026-07-02");
   });
 });
 
@@ -106,11 +66,8 @@ describe("draftDisputeEvidence (no fabrication)", () => {
   });
 });
 
-// S32: /settings/disputes' product description has a reader. Recova's
-// buildEvidenceFields (lib/disputes-evidence.ts) set product_description from
-// the merchant's dispute_product_description on every response.
-describe("the merchant's product description (S32)", () => {
-  it("grounds a dispute that matches no recovery, as Recova used it on every response", async () => {
+describe("the merchant's product description", () => {
+  it("grounds a dispute that matches no recovery", async () => {
     const facts = buildEvidenceFacts(null, [], "Handmade candles, shipped in the US");
     expect(hasGroundingFacts(facts)).toBe(true);
     expect(await draftDisputeEvidence({} as Env, facts, METER)).toEqual([

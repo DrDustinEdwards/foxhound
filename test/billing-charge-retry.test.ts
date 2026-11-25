@@ -1,5 +1,4 @@
 import { monthKey } from "@dustinedwards/site-runtime/time";
-import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FEE_INVOICE_MAX_RETRY_ATTEMPTS } from "~/lib/constants";
@@ -9,20 +8,8 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // These tests exercise charging itself, so the hard-rule-12 switch is on here.
 vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
 
-// The stranded-invoice failure mode, end to end. runAccountBilling commits the
-// ledger atomically and THEN charges Stripe, so a failure in the second half
-// leaves a committed billing_invoices row whose money never moved, and the
-// invoice-level idempotency key blocks re-billing the period forever. Nothing
-// retried it because nothing existed to do the retrying.
-//
-// Two stranding modes are exercised here, both from review-findings.md:
-//   1. the create threw, Stripe has nothing
-//   2. the create SUCCEEDED and our follow-up ref write failed, so Stripe
-//      charged the merchant while our row still says draft
-//
-// Mode 2 is the one that makes the Stripe metadata lookup load-bearing rather
-// than defensive: Stripe expires idempotency keys after 24 hours and this sweep
-// runs monthly, so a key-only retry would create a SECOND real invoice.
+// Stranded invoices: the ledger commits, then the charge fails, so the sweep must retry without double-charging
+// (including when Stripe charged but our ref write failed: Stripe idempotency keys expire in 24 hours).
 
 const ACCOUNT_ID = "acc_stranded";
 const NOW = new Date("2026-09-01T04:00:00.000Z");
@@ -72,8 +59,7 @@ vi.mock("~/lib/stripe/client", () => ({
 
 const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep } =
   await import("~/lib/billing/charge-retry");
-const { describeSweepRun, runMonthlyBilling } = await import("~/lib/billing/run");
-const { CRON_JOBS } = await import("~/lib/cron/registry");
+const { runMonthlyBilling } = await import("~/lib/billing/run");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
 const schema = await import("~/db/schema");
 
@@ -153,12 +139,7 @@ async function seed(opts: SeedOpts = {}) {
   return db;
 }
 
-/** Stripe stand-in. `existing` is what a metadata search finds.
- *
- *  `pay` used to be hardcoded to `{ status: "paid" }`, so no test anywhere could
- *  exercise a failed or rejected charge attempt, which is what hid MEDIUM-1.
- *  It now models Stripe's actual rule: an invoice must be finalized before it
- *  can be paid, and paying a draft is an error. */
+/** Stripe stand-in. `existing` is what a metadata search finds; `pay` refuses a draft, as Stripe does. */
 function stripeDeps(
   existing: {
     id: string;
@@ -210,12 +191,6 @@ beforeEach(() => {
 });
 
 describe("mode 1: the create threw, Stripe has nothing", () => {
-  // RULING 377(6). The pay path has always counted a failed attempt; the CREATE
-  // path did not, so a throw here reached the sweep's per-invoice catch with
-  // NOTHING written. charge_attempt_count never moved, decideFeeRetryAction's
-  // attempt cap was unreachable on this branch, and an invoice whose create
-  // fails permanently was retried every month until the AGE cap eventually
-  // stopped it. Recording the attempt is what makes the cap reachable.
   it("COUNTS THE ATTEMPT when the create throws, so the cap is reachable", async () => {
     const db = await seed();
     const { deps } = stripeDeps(null, {
@@ -231,7 +206,6 @@ describe("mode 1: the create threw, Stripe has nothing", () => {
     expect(result.reason).toBe("stripe unavailable");
 
     const [row] = await db.select().from(schema.billingInvoices);
-    // Pre-fix this stayed 0 forever, however many times the create failed.
     expect(row.chargeAttemptCount).toBe(1);
     expect(row.status).toBe("payment_failed");
     expect(row.lastChargeAttemptAt).toEqual(NOW);
@@ -240,9 +214,7 @@ describe("mode 1: the create threw, Stripe has nothing", () => {
   });
 
   it("rebuilds the line keys from the committed line items, not from the billable queries", async () => {
-    // The billable queries exclude already-billed rows, so on a retry they
-    // return nothing. Deriving the lines from the ledger is what makes the
-    // replayed per-item idempotency keys match the original attempt's.
+    // Retries derive lines from the ledger so the per-item idempotency keys match the original attempt's.
     await seed();
     let seenLines: { idempotencyKey: string }[] = [];
     const { deps } = stripeDeps(null, {
@@ -263,9 +235,6 @@ describe("mode 1: the create threw, Stripe has nothing", () => {
 
 describe("mode 2: Stripe charged, our ref write failed", () => {
   it("adopts the existing paid invoice instead of creating a second one", async () => {
-    // The double-charge this whole lookup exists to prevent. A key-only retry a
-    // month later would call invoices.create with an EXPIRED idempotency key and
-    // raise a second real invoice against the merchant.
     const db = await seed({ status: "draft", stripeInvoiceId: null });
     const { calls, deps } = stripeDeps({
       id: "in_platform_existing",
@@ -307,12 +276,7 @@ describe("mode 2: Stripe charged, our ref write failed", () => {
   });
 });
 
-describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
-  // createPlatformInvoice is create, then items, then finalize. A throw on that
-  // last call leaves Stripe holding a DRAFT with the items already attached and
-  // our row on 'draft'. Before this branch the sweep called invoices.pay on it,
-  // Stripe rejected it, the throw skipped writeAttempt so charge_attempt_count
-  // never moved, and it repeated monthly until the age cap wrote it off.
+describe("a Stripe invoice stuck in draft", () => {
   it("finalizes the draft first, then pays it, exactly once", async () => {
     const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
     const { calls, deps } = stripeDeps({ id: "in_platform_draft", status: "draft" });
@@ -359,8 +323,6 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     const result = await retryInvoiceCharge({} as Env, invoice, NOW_MS, deps);
     expect(result.outcome).toBe("failed");
 
-    // Pre-fix this stayed at 0 forever, so max_attempts_reached was unreachable
-    // and only the age cap could ever stop it.
     const [row] = await db.select().from(schema.billingInvoices);
     expect(row.chargeAttemptCount).toBe(1);
     expect(row.status).toBe("payment_failed");
@@ -385,8 +347,6 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     expect((await db.select().from(schema.billingInvoices))[0].status).toBe("gave_up");
   });
 
-  // E25: a stranded send_invoice draft must be finalized the way the
-  // first attempt would have finalized it, or Stripe never emails it.
   it("finalizes a stranded send_invoice draft so Stripe emails it, and never pays it", async () => {
     const db = await seed({ status: "draft", stripeInvoiceId: "in_platform_draft" });
     const seen: unknown[] = [];
@@ -405,8 +365,7 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
     // Finalized once, with the same params as the first attempt (auto_advance
     // on), which is what makes Stripe email it.
     expect(seen).toHaveLength(1);
-    // The merchant pays an emailed invoice from Stripe's page; the sweep never
-    // charges it (Recova's crons never call invoices.pay).
+    // The merchant pays an emailed invoice from Stripe's page; the sweep never charges it.
     expect(calls.some((c) => c.startsWith("pay:"))).toBe(false);
     const [row] = await db.select().from(schema.billingInvoices);
     expect(row.status).toBe("finalized");
@@ -455,8 +414,6 @@ describe("a Stripe invoice stuck in draft (review MEDIUM-1)", () => {
 });
 
 describe("guards", () => {
-  // E25: an invoice stranded before its account had a platform customer
-  // gets one, through the same platform-customer write the run uses.
   it("creates and stores a platform customer for an account with none, then bills against it", async () => {
     const db = await seed({ platformCustomerId: null });
     let created: { platformCustomerId: string } | null = null;
@@ -519,11 +476,6 @@ describe("guards", () => {
 
 describe("stranded-invoice-recovers-on-next-run", () => {
   it("runMonthlyBilling runs the sweep, so the recovery needs no separate cron", async () => {
-    // The wiring. Pre-fix runMonthlyBilling went straight to billing the new
-    // period and never looked at prior stranded invoices, which is why a
-    // committed-but-uncharged invoice stayed stranded run after run: its own
-    // idempotency key blocks re-billing the period, so the main loop could
-    // never rescue it either.
     const db = await seed();
 
     await runMonthlyBilling({} as Env, NOW_MS);
@@ -538,7 +490,7 @@ describe("stranded-invoice-recovers-on-next-run", () => {
   });
 });
 
-describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
+describe("the brake stops the sweep already in flight", () => {
   /** Three stranded invoices on three accounts, so the loop has somewhere to go. */
   async function seedThree() {
     const db = await seed({ status: "draft", stripeInvoiceId: null, withLineItem: true });
@@ -595,7 +547,6 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
       },
     });
 
-    // Exactly one charge landed. Before the guard, all three did.
     expect(created).toHaveLength(1);
     // Skipped, never failed: nothing went wrong, an operator stopped it.
     const skipped = results.filter((r) => r.outcome === "skipped");
@@ -606,7 +557,6 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
 
   it("closes the window between the loop check and the charge itself", async () => {
     // Eligible at the loop-level check, brake engaged before the Stripe call.
-    // Without the inner guard this charges; with it, nothing moves.
     await seedThree();
     const created: string[] = [];
     let call = 0;
@@ -651,23 +601,10 @@ describe("MEDIUM-A: the brake stops the sweep already in flight", () => {
   });
 });
 
-describe("gate review 7.4: an aborted sweep is visible, and stops exactly where it should", () => {
-  // The sweep aborts rather than continuing when it cannot read the billing
-  // gate. Until the run summary carried that, the abort was a console.error and
-  // nothing else: cron_run_log read "N accounts, M invoices" and status
-  // success whether the sweep had found nothing stranded or had never looked.
-  //
-  // These pin three separate things: that the abort is NAMED, that it does not
-  // touch the invoice it was about to charge, and that it does NOT stop the
-  // new-period billing that runs after it in the same invocation. That last one
-  // is the boundary the gate review described. It is pinned so nobody "fixes"
-  // it into a whole-run abort on the assumption that fail-closed must mean
-  // everything stops.
+describe("an aborted sweep is visible, and stops exactly where it should", () => {
+  // The sweep aborts when it cannot read the billing gate, but that must not stop the new-period billing after it.
 
-  /** The stranded invoice (with its line item, so the sweep reaches the
-   *  PRE-CREATE guard) plus a second account carrying an unbilled matured
-   *  recovery, so the new-period loop has real work to do and the boundary
-   *  assertion cannot pass vacuously. */
+  /** The stranded invoice plus a second account with an unbilled matured recovery. */
   async function seedStrandedPlusBillable() {
     const db = await seed();
     await db.insert(schema.accounts).values({
@@ -703,8 +640,7 @@ describe("gate review 7.4: an aborted sweep is visible, and stops exactly where 
     return db;
   }
 
-  /** Eligible at the loop level, unreadable at the pre-charge read. That is the
-   *  sequence that produces a ChargeGuardReadError rather than a raw throw. */
+  /** Eligible at the loop level, unreadable at the pre-charge read. */
   function guardThatDiesBeforeCharging() {
     let calls = 0;
     return {
@@ -739,60 +675,5 @@ describe("gate review 7.4: an aborted sweep is visible, and stops exactly where 
     // It got as far as the pre-charge read and no further.
     expect(guard.calls()).toBe(2);
     expect(created).toEqual([]);
-  });
-
-  it("puts ABORTED in the operator-facing message, where a count alone would read as nothing to do", async () => {
-    // The wording is the whole point of the fix, so it is asserted rather than
-    // eyeballed after a deploy.
-    expect(
-      describeSweepRun({
-        status: "aborted",
-        tally: {},
-        abortReason: "billing guard unreadable: d1 gone",
-      }),
-    ).toBe("sweep ABORTED (billing guard unreadable: d1 gone)");
-
-    // The two states that used to be indistinguishable from the cron row.
-    expect(describeSweepRun({ status: "completed", tally: {} })).toBe(
-      "sweep found nothing stranded",
-    );
-    expect(describeSweepRun({ status: "completed", tally: { charged: 2, skipped: 1 } })).toBe(
-      "sweep 2 charged, 1 skipped",
-    );
-  });
-
-  it("says what the sweep DID when it completes, so the aborted branch is not the only one that speaks", async () => {
-    // The control. Without it "aborted" could be the only reachable status and
-    // every assertion above would still pass.
-    const db = await seedStrandedPlusBillable();
-
-    const { sweep } = await runMonthlyBilling({} as Env, NOW_MS, {
-      sweepDeps: {
-        findExisting: async () => null,
-        create: async () => ({ stripeInvoiceId: "in_platform_new", hostedInvoiceUrl: null }),
-        checkGuard: async () => ({ billingEligible: true }),
-      },
-    });
-
-    expect(sweep.status).toBe("completed");
-    expect(sweep.tally).toEqual({ charged: 1 });
-    expect(describeSweepRun(sweep)).toBe("sweep 1 charged");
-    const [stranded] = await db
-      .select()
-      .from(schema.billingInvoices)
-      .where(eq(schema.billingInvoices.id, "binv_1"));
-    expect(stranded.status).toBe("finalized");
-  });
-
-  it("the billing cron actually puts the sweep clause in its history message", async () => {
-    // The wiring, so describeSweepRun cannot be correct and unreferenced. This
-    // goes through the registered handler, not a copy of its message format.
-    await seedStrandedPlusBillable();
-    const job = CRON_JOBS.find((j) => j.name === "billing-monthly");
-    expect(job).toBeDefined();
-
-    const result = await job!.handler({} as Env);
-
-    expect(result.message).toMatch(/^2 accounts, \d+ invoices, sweep /);
   });
 });

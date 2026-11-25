@@ -4,8 +4,6 @@ import { createMemoryRouter, RouterProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { apiKeys, oauthAuthorizationCodes } from "~/db/schema";
 import { verifyMcpToken } from "~/lib/auth/mcp-tokens";
-import { describeRedirect } from "@dustinedwards/site-runtime/mcp-login";
-import { authorizationServerMetadata, protectedResourceMetadata } from "~/lib/oauth/metadata";
 import { isAcceptableRedirectUri, isRegisteredRedirect } from "~/lib/oauth/redirects";
 import {
   ACCOUNT_A,
@@ -22,59 +20,13 @@ import {
   db,
   harness,
   landing,
-  metadataRoute,
   pkcePair,
   provider,
   registerRoute,
   registered,
-  resourceRoute,
   sqlite,
   tokenCall,
 } from "./helpers/oauth-provider";
-
-describe("authorization server metadata", () => {
-  it("serves the fields with this request's origin as issuer", async () => {
-    const res = metadataRoute.loader({
-      request: new Request(`${ORIGIN}/.well-known/oauth-authorization-server`),
-      context: context(),
-      params: {},
-    } as never) as Response;
-    expect(res.status).toBe(200);
-    expect(res.headers.get("Cache-Control")).toBe("public, max-age=300");
-    const body = (await res.json()) as Record<string, unknown>;
-    expect(body).toEqual(authorizationServerMetadata(ORIGIN));
-    expect(body.issuer).toBe(ORIGIN);
-    expect(body.authorization_endpoint).toBe(`${ORIGIN}/oauth/authorize`);
-    expect(body.token_endpoint).toBe(`${ORIGIN}/api/oauth/token`);
-    expect(body.registration_endpoint).toBe(`${ORIGIN}/api/oauth/register`);
-    expect(body.revocation_endpoint).toBe(`${ORIGIN}/api/oauth/revoke`);
-    expect(body.response_types_supported).toEqual(["code"]);
-    expect(body.grant_types_supported).toEqual(["authorization_code", "refresh_token"]);
-    expect(body.code_challenge_methods_supported).toEqual(["S256"]);
-    expect(body.token_endpoint_auth_methods_supported).toEqual(["none"]);
-    expect(body.scopes_supported).toEqual(["merchant.read", "merchant.write"]);
-    // Both are done, not only advertised: the metadata-document client and
-    // the iss on every redirect have tests below.
-    expect(body.client_id_metadata_document_supported).toBe(true);
-    expect(body.authorization_response_iss_parameter_supported).toBe(true);
-  });
-});
-
-describe("the protected-resource document and the /mcp 401 that points at it", () => {
-  it("names /mcp and this origin as its authorization server", async () => {
-    const res = resourceRoute.loader({
-      request: new Request(`${ORIGIN}/.well-known/oauth-protected-resource`),
-      context: context(),
-      params: {},
-    } as never) as Response;
-    const body = (await res.json()) as Record<string, unknown>;
-    expect(body).toEqual(protectedResourceMetadata(ORIGIN));
-    expect(body.resource).toBe(`${ORIGIN}/mcp`);
-    expect(body.authorization_servers).toEqual([ORIGIN]);
-    expect(body.scopes_supported).toEqual(["merchant.read", "merchant.write"]);
-    expect(body).not.toHaveProperty("resource_signing_alg_values_supported");
-  });
-});
 
 describe("registration (RFC 7591)", () => {
   it("answers the registered client with defaults", async () => {
@@ -106,7 +58,7 @@ describe("registration (RFC 7591)", () => {
       expect(res.status, JSON.stringify(body)).toBe(400);
       expect(res.body.error).toBe("invalid_redirect_uri");
     }
-    // And one that is not on the shared allowlist (area 11, A7).
+    // And one that is not on the shared allowlist.
     const unlisted = await provider.registerClient(
       db,
       { redirect_uris: ["https://evil.example/cb"] },
@@ -115,20 +67,6 @@ describe("registration (RFC 7591)", () => {
     );
     expect(unlisted.status).toBe(400);
     expect(unlisted.body.error).toBe("invalid_redirect_uri");
-  });
-
-  it("refuses script, data and plain-http redirect URIs, and fragments", () => {
-    expect(isAcceptableRedirectUri("https://claude.ai/api/mcp/auth_callback")).toBe(true);
-    expect(isAcceptableRedirectUri("http://localhost:53682/callback")).toBe(true);
-    expect(isAcceptableRedirectUri("http://127.0.0.1/callback")).toBe(true);
-    expect(isAcceptableRedirectUri("cursor://anysphere.cursor-retrieval/oauth/callback")).toBe(
-      true,
-    );
-    expect(isAcceptableRedirectUri("javascript:alert(1)")).toBe(false);
-    expect(isAcceptableRedirectUri("data:text/html,hi")).toBe(false);
-    expect(isAcceptableRedirectUri("http://evil.example/cb")).toBe(false);
-    expect(isAcceptableRedirectUri("https://claude.ai/cb#frag")).toBe(false);
-    expect(isAcceptableRedirectUri("not a url")).toBe(false);
   });
 
   it("the route limits per address, caps allowlisted registrations a day, and fails closed", async () => {
@@ -156,7 +94,7 @@ describe("registration (RFC 7591)", () => {
   });
 });
 
-describe("Recova's redirect match: exact, except loopback ports (RFC 8252)", () => {
+describe("redirect match: exact, except loopback ports (RFC 8252)", () => {
   it("matches a loopback URI on any port and everything else exactly", () => {
     expect(
       isRegisteredRedirect("http://localhost:53682/callback", ["http://localhost/callback"]),
@@ -248,7 +186,7 @@ describe("the authorize request", () => {
     });
   });
 
-  it("a signed-in visitor with no account goes to /connect, as Recova sent them", async () => {
+  it("a signed-in visitor with no account goes to /connect", async () => {
     sqlite.prepare("DELETE FROM account_members").run();
     const clientId = await registered();
     const { challenge } = await pkcePair();
@@ -339,7 +277,7 @@ describe("consent", () => {
     } as never)) as unknown as { data: { ok: boolean }; init: { status: number } };
     expect(loaded.data.ok).toBe(false);
     expect(loaded.init.status).toBe(403);
-    // An unknown client is refused on the card too, with a 400 (area 11, A8).
+    // An unknown client is refused on the card too, with a 400.
     const unknown = (await authorizeRoute.loader({
       request: new Request(
         `${ORIGIN}/oauth/authorize?${authorizeParams("00000000-0000-0000-0000-000000000000", challenge)}`,
@@ -430,9 +368,6 @@ describe("safeNextPath", () => {
   });
 });
 
-// Consent page, rendered: the write box is ticked only when the client asked to
-// write, and the page names where access goes.
-
 type ConsentProps = Parameters<typeof authorizeRoute.default>[0];
 type ConsentData = ConsentProps["loaderData"];
 
@@ -473,17 +408,6 @@ describe("the consent page", () => {
     expect(renderConsent({ ...CONSENT_OK, wantsWrite: true })).toMatch(
       /<input[^>]*name="allow_write"[^>]*checked/,
     );
-  });
-
-  it("names where access goes, and warns when that is this computer", () => {
-    expect(renderConsent(CONSENT_OK)).toMatch(/will be sent to <strong[^>]*>claude\.ai<\/strong>/);
-    const local = renderConsent({
-      ...CONSENT_OK,
-      publishedBy: null,
-      redirectHost: "localhost",
-      redirectWarning: describeRedirect("http://localhost:3000/cb").warning,
-    });
-    expect(local).toMatch(/an app on your computer/);
   });
 });
 

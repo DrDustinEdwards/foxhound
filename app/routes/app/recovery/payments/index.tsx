@@ -40,7 +40,6 @@ import "capsomer/segmented.css";
 import "capsomer/select.css";
 import "capsomer/status.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read, as /intelligence/customers and /disputes load them.
 import "~/site-header.css";
 
 import { getDb } from "~/db";
@@ -108,7 +107,7 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { percent } from "capsomer/behavior/meter";
 
-// /recovery/payments, in a 1280px column: the head with Export CSV, the five count cards, the bulk result, the filter panel (search and status, then date, decline, sort, amount, the result count and Clear filters), the rows-per-page links, the table, the pager, and the bulk bar while something is selected. No Foxhound class sits on a Capsomer element: mono figures, sizes and spacing go on elements of the page's own inside or around them. Status pills say the tab word; bulk actions submit exactly what the button counts and only rows on screen can be selected; they report per payment and keep the failures selected, and ask above 25 and refuse above 100. The personal-outreach mark after a name reads the action the nightly scoring stores.
+// /recovery/payments. No Foxhound class sits on a Capsomer element: mono figures, sizes and spacing go on elements of the page's own inside or around them. Bulk actions submit exactly what the button counts and only rows on screen can be selected; they report per payment and keep the failures selected, and ask above 25 and refuse above 100.
 // Every filter is in the URL and runs in the loader. Script applies a filter on change; without script the form still submits on Enter.
 
 export function meta() {
@@ -267,7 +266,6 @@ function clearHref(filters: Filters, bounds: AmountBounds): string {
   return clearedHref(BASE, paramsFor(filters, bounds), ["sort", "perPage", "currency"]);
 }
 
-// The status tabs, in order.
 const STATUS_PILLS = [
   { value: "", label: "All" },
   { value: "active", label: "Active" },
@@ -292,7 +290,6 @@ function countFor(pillCounts: PillCounts, value: string): number {
   return pillCounts.failedUnrecovered;
 }
 
-// The date ranges and sort options, in the page's words.
 const DATE_RANGES: { value: PaymentTimeRange; label: string }[] = [
   { value: "all", label: "All time" },
   { value: "today", label: "Today" },
@@ -323,7 +320,6 @@ const BULK_REASON_LABELS: Record<BulkFailureReason, string> = {
   unexpected: "Unexpected response, nothing changed",
 };
 
-/** Per-intent copy for the bar, the confirmation and the result list. */
 const BULK_INTENTS = {
   trigger: {
     label: "Trigger next step",
@@ -390,7 +386,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     from: undefined,
   }));
   const rows = result.payments;
-  // The pager line ("Showing 1 to 25 of 60 payments"), with All as one page of the whole list.
   const shown = pageEnvelope(result.page, result.pageSize, result.totalCount);
   const showing = statusText(shown.page, shown.perPage, shown.total, "payments");
 
@@ -443,7 +438,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       setSearch(filters.search);
     }
   }, [filters.search]);
-  // Every control shows the address; the bar's submit is what changes it.
   const followsAddress = () => undefined;
   function onFilterSubmit(e: FormEvent<HTMLFormElement>) {
     sentSearch.current = search.trim();
@@ -493,7 +487,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
   ];
 
   return (
-    // max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns the page's one <main>, so this is a plain wrapper.
     <div className="fh-payments cap-admin-page" data-width="page">
       <div className="fh-payments-head">
         <PageHead

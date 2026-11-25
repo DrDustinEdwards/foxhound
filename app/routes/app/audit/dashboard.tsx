@@ -21,7 +21,6 @@ import "capsomer/save-bar.css";
 import "capsomer/segmented.css";
 import "capsomer/switch.css";
 import "capsomer/table.css";
-// Capsomer's tokens and the amber family, which the components above read, as /settings/audit and /settings/alerts load them.
 import "~/site-header.css";
 
 import { AuditSummary } from "~/components/audit/sections";
@@ -40,7 +39,6 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// /audit/dashboard. Populated: the header (Audit history, the last run's date, Run new audit), the AI summary, Since last run when there are two runs, History, and Settings. Empty: the card (No audit runs yet, Run first audit), then Settings. The page keeps a 1280px column and padding.
 // THE SETTINGS CARD IS NOT A SECOND WRITER. It posts to this page's own action, which writes through applyAuditSettings, the one core /settings/audit and the MCP set_audit_settings tool already share, so there is one write path with two forms on it. It saves as each control changes, with no save button, and says Saving, Saved. or Save failed. beside it. The controls stay enabled during a save, with aria-busy on the group and Capsomer's busy state on the switch, and a change made mid-save is queued. The failure line shows no raw error code.
 // A figure that could not be read on a run says so instead of a zero, in the table and in Since last run, which shows no comparison when either side is unread (compareTotals below).
 // ONE LINE PER CURRENCY: each money figure is its totals per currency from money_by_currency, read through toStoredAuditRun as /audit/results/:id reads them, stacked one line per currency in currency-code order. Since last run compares each currency with the same currency on the last run. A run stored before that column has one figure that may have added currencies together, so it shows what it stored and no change is drawn against it.
@@ -214,7 +212,6 @@ function TrendRow({
 
 type SaveResult = { ok: true; lookbackDays: number; autoRun: boolean } | { ok: false } | undefined;
 
-/** The settings form: the lookback period, then the monthly digest, each saving as it changes, and the status line under them. */
 export function AuditSettingsForm({
   defaultLookbackDays,
   defaultAutoRun,
@@ -350,7 +347,6 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   const { runs, settings } = loaderData;
   const result = actionData as SaveResult;
 
-  // max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns the page's one <main>, so this is a plain wrapper.
   if (runs.length === 0) {
     return (
       <div className="fh-auditd-page cap-admin-page" data-width="page">

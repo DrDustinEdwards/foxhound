@@ -63,7 +63,6 @@ export interface McpToolAnnotations {
   openWorldHint: boolean;
 }
 
-/** What a tool exposes to a client (the `tools/list` shape). No executor, so one cannot be serialized. */
 interface McpToolDescriptor {
   name: string;
   title: string;
@@ -94,7 +93,6 @@ export interface McpToolRegistry {
   get(name: string): McpTool | null;
 }
 
-/** True when a name is one the registry must refuse. Exported so the plant can drive it directly. */
 export function isDeniedToolName(name: string): boolean {
   const lower = name.toLowerCase();
   return DENIED_TOOL_FRAGMENTS.some((fragment) => lower.includes(fragment));
@@ -104,7 +102,6 @@ export function isDeniedToolName(name: string): boolean {
  *  so the only one that reaches it (./server.ts). */
 export class ToolInputError extends Error {}
 
-/** Every name is `foxhound_{action}_{resource}`: the service prefix, an action and a resource, snake case. */
 const TOOL_NAME_PATTERN = /^foxhound(_[a-z]+){2,}$/;
 
 /** Build a registry, refusing any denied name at construction. Throws rather than filters (a silently dropped tool would

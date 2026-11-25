@@ -7,20 +7,8 @@ import { defineToolRegistry, ToolInputError, type McpTool } from "~/lib/mcp/regi
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { mcpRequest, readMcp, toolOutput, toolCallLogStub } from "./helpers/mcp-client";
 
-// A TOOL'S ERROR TEXT GOES THROUGH THE SAME MASKING AS ITS RESULT.
-//
-// The redactor walks a tool's RETURN VALUE, and until now a thrown error took
-// a different road: its message went on the wire as written. Two kinds of
-// error, two treatments:
-//
-//   - A REFUSAL (ToolInputError) is a sentence Foxhound wrote to tell the agent
-//     how to fix its input. It goes out, with any email address in it masked:
-//     it can echo the agent's own input, and that input can be an address.
-//   - ANYTHING ELSE is a failure nobody wrote for an agent: a database error can
-//     carry the values of the query it failed on, a customer's name or email
-//     among them. Its message never leaves the server. The agent is told the
-//     call failed and that it can try again, and the real message goes to the
-//     server log.
+// A tool's error text is masked like its result: a ToolInputError goes out with emails masked; any
+// other failure's message stays on the server and the agent is told to retry.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({

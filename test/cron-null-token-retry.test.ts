@@ -2,12 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// A retry step whose account has no usable connected-account token was skipped
-// with no write at all. It stayed unexecuted with a null result, which is
-// precisely what stepDueCondition selects, so the tick re-read and re-skipped
-// the same step every five minutes forever. Two consequences, not one: wasted
-// work every tick, and a sequence that could never finish, because a step that
-// never goes terminal keeps its parent 'active' indefinitely.
+// A retry step with no usable connected-account token gets bounded backoff, then goes terminal, so the tick does not livelock.
 
 const ACCOUNT_ID = "acc_notoken";
 const DETECTED_AT = new Date("2026-07-25T00:00:00.000Z");
@@ -25,8 +20,7 @@ const { queryDueRecoverySteps } = await import("~/lib/cron/due-steps");
 const { RETRY_TOKEN_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } = await import("~/lib/constants");
 const schema = await import("~/db/schema");
 
-/** `mode` picks how the token goes missing: a connection row whose token was
- *  cleared (a disconnect), or no connection row on the payment at all. */
+/** `mode`: a connection whose token was cleared, or no connection on the payment. */
 async function seed(mode: "null-token" | "no-connection", extraSteps: string[] = []) {
   const { db } = createInMemoryDb();
   harness.db = db;
@@ -104,14 +98,9 @@ describe.each(["null-token", "no-connection"] as const)(
       expect(step.result).toBeNull();
       expect(step.executedAt).toBeNull();
       expect(step.lastAttemptError).toBe("no connected stripe token");
-      // Derived from the constant, not a literal: this assertion silently
-      // encoded 5 minutes and had to be hand-edited when CHUNKS item 17 restored the
-      // legacy backoff span. The behavior under test is "reschedules by the
-      // first backoff", not "reschedules by five minutes".
       const firstBackoff = SEND_RETRY_BACKOFF_MINUTES[0];
       expect(step.nextRetryAt).toEqual(minutesAfter(T0, firstBackoff));
 
-      // Not re-selected until the backoff elapses: the livelock stays fixed.
       expect(
         await queryDueRecoverySteps({} as Env, minutesAfter(T0, firstBackoff - 1)),
       ).toHaveLength(0);
@@ -147,8 +136,7 @@ describe.each(["null-token", "no-connection"] as const)(
       expect(step.executedAt).toEqual(T0);
       expect(step.nextRetryAt).toBeNull();
 
-      // Never selected again, and the conditional claim-on-write means a
-      // redelivered tick cannot re-terminate it.
+      // Never selected again; a redelivered tick cannot re-terminate it.
       expect(await queryDueRecoverySteps({} as Env, minutesAfter(T0, 600))).toHaveLength(0);
       await recordMissingTokenAttempt(
         {} as Env,

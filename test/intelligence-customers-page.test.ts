@@ -12,8 +12,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => ({}),
 }));
 
-// listCustomerDirectory is shared with the MCP tool foxhound_list_customers and
-// returns emails; the route must not pass them on to the browser.
+// The route must not pass directory emails on to the browser.
 const mocks = vi.hoisted(() => ({
   listCustomerTiers: vi.fn(),
   listCustomerDirectory: vi.fn(),

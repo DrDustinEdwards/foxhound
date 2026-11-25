@@ -37,7 +37,7 @@ import {
   type DemoCustomer,
 } from "./customer-base";
 
-// Recovery seed (TASK-foxhound-demo-data-engine.md Phase 2): the day-walk
+// Recovery seed: the day-walk
 // failed-payment simulator + win-back + expiring-card alerts. Pure: returns
 // plain insert-row arrays, no DB access, no I/O; app/lib/demo/seed.ts turns
 // these into db.insert(...) batches.

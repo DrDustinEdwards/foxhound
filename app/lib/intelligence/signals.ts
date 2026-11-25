@@ -77,7 +77,7 @@ export function monthlyEquivalentCents(
   return Math.round((unitAmountCents * quantity * INTERVAL_MONTHLY_FACTOR[interval]) / every);
 }
 
-export interface ActiveSubscriptionSummary {
+interface ActiveSubscriptionSummary {
   mrrContributionCents: number;
   activeSubscriptionsCount: number;
   currentPlanName: string | null;
@@ -85,7 +85,7 @@ export interface ActiveSubscriptionSummary {
 
 /** Sums a customer's active subscriptions into an MRR contribution and a current plan label. An empty list is a
  *  real zero (no subscription), not an unknown. */
-export function summarizeActiveSubscriptions(
+function summarizeActiveSubscriptions(
   subs: ActiveSubscriptionSnapshot[],
 ): ActiveSubscriptionSummary {
   if (subs.length === 0) {
@@ -111,7 +111,7 @@ export function summarizeActiveSubscriptions(
 }
 
 /** Days since the customer's Stripe `created`, clamped to >= 0 against clock skew. */
-export function computeSubscriptionAgeDays(customerSinceMs: number, nowMs: number): number {
+function computeSubscriptionAgeDays(customerSinceMs: number, nowMs: number): number {
   return Math.max(0, Math.floor((nowMs - customerSinceMs) / DAY_MS));
 }
 

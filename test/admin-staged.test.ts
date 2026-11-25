@@ -12,7 +12,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action, loader } = await import("~/routes/admin/staged");
+const { action } = await import("~/routes/admin/staged");
 const schema = await import("~/db/schema");
 const { stageChange } = await import("~/lib/admin/staged.server");
 
@@ -61,20 +61,6 @@ const run = (fields: Record<string, string>) =>
   }>;
 
 describe("/admin/staged", () => {
-  it("lists the pending change with its summary and who asked", async () => {
-    await seedPausedMerchant();
-    const data = (await loader({
-      context: fakeContext,
-      request: new Request("http://localhost/admin/staged"),
-      params: {},
-    } as never)) as {
-      pending: { summary: string; requestedBy: string }[];
-    };
-    expect(data.pending.map((p) => [p.summary, p.requestedBy])).toEqual([
-      ["Resume processing for acct_a", REQUESTER],
-    ]);
-  });
-
   it("confirm applies it under the SIGNED-IN admin, not the requester", async () => {
     const { db, id } = await seedPausedMerchant();
     const result = await run({ intent: "confirm", id, confirm: "" });

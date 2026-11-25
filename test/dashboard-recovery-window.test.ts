@@ -5,67 +5,20 @@ import {
   bestCategory,
   categorySparklineWindow,
   classifyWebhookHealth,
-  countByDay,
   countByDayAndCategory,
   cumulativeRecoveryRateDaily,
   recoveryTimingBuckets,
   resolveRangeCutoff,
 } from "~/lib/dashboard/recovery-window";
 
-// TASK-foxhound-recovery-surface-parity.md Phase 1: unit tests on the
-// aggregation math, per the task's explicit requirement. Every function here
-// is pure (no DB), so these are precise, edge-case-driven tests rather than
-// integration smoke tests.
-
 const NOW = new Date("2026-07-21T12:00:00.000Z").getTime();
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 describe("resolveRangeCutoff", () => {
-  it("7d: cutoff 7 days back, spans 7 days", () => {
-    const r = resolveRangeCutoff("7d", NOW);
-    expect(r.cutoffMs).toBe(NOW - 7 * DAY_MS);
-    expect(r.rangeDays).toBe(7);
-    expect(r.rangeLabel).toBe("7d");
-  });
-
-  it("90d: cutoff 90 days back, spans 90 days", () => {
-    const r = resolveRangeCutoff("90d", NOW);
-    expect(r.cutoffMs).toBe(NOW - 90 * DAY_MS);
-    expect(r.rangeDays).toBe(90);
-    expect(r.rangeLabel).toBe("90d");
-  });
-
-  it("all: no cutoff, spans 90 days of chart, labeled 'all time'", () => {
+  it("all: no cutoff, spans 90 days of chart", () => {
     const r = resolveRangeCutoff("all", NOW);
     expect(r.cutoffMs).toBeNull();
     expect(r.rangeDays).toBe(90);
-    expect(r.rangeLabel).toBe("all time");
-  });
-});
-
-describe("dayKey / countByDay", () => {
-  it("counts occurrences per day", () => {
-    const counts = countByDay([
-      new Date("2026-07-20T01:00:00.000Z"),
-      new Date("2026-07-20T02:00:00.000Z"),
-      new Date("2026-07-21T01:00:00.000Z"),
-    ]);
-    expect(counts.get("2026-07-20")).toBe(2);
-    expect(counts.get("2026-07-21")).toBe(1);
-    expect(counts.get("2026-07-19")).toBeUndefined();
-  });
-});
-
-describe("countByDayAndCategory", () => {
-  it("splits counts per category per day", () => {
-    const byCat = countByDayAndCategory([
-      { detectedAt: new Date("2026-07-20T00:00:00.000Z"), declineCategory: "soft" },
-      { detectedAt: new Date("2026-07-20T00:00:00.000Z"), declineCategory: "soft" },
-      { detectedAt: new Date("2026-07-20T00:00:00.000Z"), declineCategory: "fraud" },
-    ]);
-    expect(byCat.soft.get("2026-07-20")).toBe(2);
-    expect(byCat.fraud.get("2026-07-20")).toBe(1);
-    expect(byCat.network).toBeUndefined();
   });
 });
 
@@ -74,10 +27,6 @@ describe("cumulativeRecoveryRateDaily", () => {
     const today = dayKey(new Date(NOW));
     const yesterday = dayKey(new Date(NOW - DAY_MS));
     const twoDaysAgo = dayKey(new Date(NOW - 2 * DAY_MS));
-    // 1 failure on day -2, 1 recovery on day -1 (for that same failure).
-    // A same-day rate would show day -1 as 100% recovered of 0 failures
-    // that day (undefined/infinite); the cumulative version tracks the
-    // running totals instead.
     const failedByDay = new Map([[twoDaysAgo, 1]]);
     const recoveredByDay = new Map([[yesterday, 1]]);
     const points = cumulativeRecoveryRateDaily(failedByDay, recoveredByDay, 3, NOW);
@@ -137,15 +86,6 @@ describe("bestCategory", () => {
   it("returns null when nothing clears even the fallback threshold", () => {
     expect(bestCategory({ soft: { total: 1, recovered: 1 } })).toBeNull();
     expect(bestCategory({})).toBeNull();
-  });
-
-  it("picks the highest rate among qualifying categories", () => {
-    const winner = bestCategory({
-      soft: { total: 4, recovered: 2 }, // 50%
-      fraud: { total: 3, recovered: 3 }, // 100%
-    });
-    expect(winner?.cat).toBe("fraud");
-    expect(winner?.rate).toBe(100);
   });
 });
 

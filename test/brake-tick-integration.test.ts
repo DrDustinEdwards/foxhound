@@ -2,12 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Review LOW-3: the brake's existing tick coverage asserted the account-level
-// PREDICATE in isolation. That is the thing the brake changes, but it is not the
-// thing that decides whether a card gets charged. This file drives the real
-// composed selection query and the real mid-run guard against a migrated
-// in-memory schema, so "a brake-paused account's due steps are not selected" is
-// asserted rather than inferred from a WHERE clause.
+// Drives the real composed selection guard against a migrated in-memory schema: a brake-paused account's due steps are not selected.
 
 const ACCOUNT_ID = "acc_live";
 const T0 = new Date("2026-07-26T00:00:00.000Z");
@@ -94,8 +89,7 @@ describe("the real mid-run guard reads live state", () => {
   it("reports the tick disabled from cron_config, and treats a missing row as enabled", async () => {
     const db = await seed();
 
-    // Missing row means ENABLED (gotcha #44). Getting this backwards would make
-    // the guard halt every tick on a fresh database.
+    // A missing row means enabled.
     expect((await checkTickGuards({} as Env, ACCOUNT_ID)).tickEnabled).toBe(true);
 
     await db
@@ -106,13 +100,9 @@ describe("the real mid-run guard reads live state", () => {
   });
 });
 
-describe("LOW-B: the tick guard fails closed in BOTH halves", () => {
+describe("the tick guard fails closed in both halves", () => {
   it("throws rather than reading a malformed batch result as enabled", async () => {
     await seed();
-    // The fail-open shape the review flagged: `cfgRows[0]?.enabled ?? true`
-    // could not tell "no row" from "the read did not return what I expected",
-    // and resolved both to enabled on the control whose job is stopping a loop
-    // that charges cards.
     const realBatch = (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch;
     (harness.db as { batch: unknown }).batch = async () => [{ notAnArray: true }, []];
     await expect(checkTickGuards({} as Env, ACCOUNT_ID)).rejects.toThrow(/unexpected batch result/);

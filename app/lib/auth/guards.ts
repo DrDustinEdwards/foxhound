@@ -25,10 +25,6 @@ import { authContext } from "./context";
 import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 import { getSession } from "./session";
 
-// Server middleware (runs on the server for initial loads AND client-navigation
-// data requests, where the Cloudflare env is available). These guard the route
-// trees defined in ROUTES.md.
-
 // /admin always resolves from the real session, never the demo cookie (see the
 // precedence rule documented on appShellMiddleware below).
 export function isAdminPath(pathname: string): boolean {
@@ -85,7 +81,6 @@ export const appShellMiddleware: MiddlewareFunction<Response> = async (args, nex
       membership: view.membership,
       memberships: [view.membership],
       activeAccountId: view.membership.accountId,
-      // The merchant's view, so no admin-only affordance inside it.
       isAdmin: false,
       isDemo: false,
       demoSignedIn: false,

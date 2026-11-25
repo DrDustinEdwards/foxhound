@@ -42,8 +42,6 @@ describe("buildPaymentParams carries the amount range", () => {
     expect(params.amountMax).toBe("40000");
   });
 
-  // A handle resting on its own bound is not a filter; emitting it would put a
-  // redundant full-width range on every link.
   it("omits a bound that does not narrow anything", () => {
     const params = build(filters());
     expect(params.amountMin).toBeNull();
@@ -73,9 +71,7 @@ describe("buildPaymentParams carries the amount range", () => {
 });
 
 describe("listExecutedEmailSteps counts sends whose result is not yet recorded", () => {
-  // `result != 'cancelled'` evaluates to NULL for a row whose result IS NULL,
-  // and a WHERE clause treats NULL as false, so those rows were silently
-  // dropped. An executed send with no result yet is a real send and must count.
+  // `result != 'cancelled'` is NULL for a NULL result, so those sends were dropped; they must count.
   async function seed() {
     const { db } = createInMemoryDb();
     const now = new Date();

@@ -5,9 +5,7 @@ import { fetchDisputeContextWith } from "~/lib/disputes/context.server";
 import { createdNotice } from "~/lib/disputes/notices";
 import { calculateTriage, contextEvidenceFields, emptyDisputeContext } from "~/lib/disputes/triage";
 
-// Recova read the disputed charge, the customer's other charges and their
-// subscription from Stripe at intake, and triaged on them (lib/disputes-
-// evidence.ts). This drives the port with a fake connected-account client.
+// Intake reads the charge, prior charges and subscription from a fake connected-account client and triages.
 
 const day = (iso: string) => Math.floor(new Date(iso).getTime() / 1000);
 

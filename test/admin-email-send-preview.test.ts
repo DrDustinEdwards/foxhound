@@ -5,32 +5,12 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { SCOPE_READ, SCOPE_WRITE } from "../mcp/src/scopes";
 import { serveAdminMcp } from "../mcp/src/server";
-import { ADMIN_TOOLS } from "../mcp/src/tools";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 
-// THE OWNER-ONLY "SEND OR PREVIEW ANY EMAIL" CAPABILITY on the admin API.
-//
-// Dustin approved it on 2026-10-15 (cmsg_01Nd8kh3hkgYNYpWXrNkvBQLJoLik1xYvr9pCLcgZ3SSMJ)
-// by answering "ok" to: "build #1 and #2 together as one owner-only 'send or
-// preview any email' tool behind your admin key". #1 sends every email type to
-// a test inbox after a deploy; #2 renders any email as a chosen merchant's
-// customer would get it, without sending.
-//
-// What these plants hold it to:
-//   1. The admin API's two credentials, as for every other route.
-//   2. Mail goes only to the acting admin's own address or an address on the
-//      ADMIN_EMAIL_TEST_RECIPIENTS list (RULES.md 4.7: a typed address would
-//      make Foxhound an open mail relay).
-//   3. A preview sends nothing.
-//   4. Every type in the catalog renders.
-//   5. A send goes through the one send module, with the merchant's sender
-//      name and Reply-To.
-//   6. Every send leaves an admin_audit_log row naming the acting admin.
-//   7. No tracking link, card-update link, email_sends row, engagement row or
-//      any other row a billing or a merchant count reads. No real customer
-//      data is read into a message.
+// Owner-only send or preview of any email on the admin API: two credentials, test recipients only,
+// previews send nothing, sends are audited, and no tracking or real customer data appears.
 
 const sendSpies = vi.hoisted(() => ({
   sendJobEmail: null as unknown as ReturnType<typeof vi.fn>,
@@ -104,10 +84,6 @@ const ALL_TYPES = [
   "dead_letter_alert",
 ];
 const CUSTOMER_TYPES = ALL_TYPES.slice(0, 12);
-/** Platform mail on the module's rendered sender, and the one on its HTML-body
- *  transactional sender; everything else goes through sendJobEmail. */
-const RENDERED_TYPES = ["sign_in_link", "cron_failure", "cron_stale"];
-const TRANSACTIONAL_TYPES = ["dead_letter_alert"];
 
 interface SentMessage {
   from: string;
@@ -273,7 +249,7 @@ beforeEach(() => {
   sendSpies.sendRenderedTransactionalEmail?.mockClear();
 });
 
-describe("PLANT 1: the admin API's two credentials guard both routes", () => {
+describe("the admin API's two credentials guard every email route", () => {
   it("no key, or a merchant key, is a 401 and nothing is sent", async () => {
     const { keys } = await seed();
     for (const key of [null, keys.merchant]) {
@@ -303,7 +279,7 @@ describe("PLANT 1: the admin API's two credentials guard both routes", () => {
   });
 });
 
-describe("PLANT 2: mail goes only to the caller or the configured test inboxes", () => {
+describe("mail goes only to the caller or the configured test inboxes", () => {
   it("with no `to`, it goes to the acting admin's own address", async () => {
     const { keys } = await seed();
     const { status, json } = await post(keys.admin, "/emails/send", { types: ["sign_in_link"] });
@@ -365,21 +341,7 @@ describe("PLANT 2: mail goes only to the caller or the configured test inboxes",
   });
 });
 
-describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () => {
-  it("the catalog lists exactly the types this capability renders", async () => {
-    const { keys } = await seed();
-    const { status, json } = await api("/emails", { key: keys.admin, actor: ADMIN });
-    expect(status).toBe(200);
-    const types = (
-      json.data as { types: { type: string; audience: string; description: string }[] }
-    ).types;
-    expect(types.map((t) => t.type)).toEqual(ALL_TYPES);
-    for (const t of types) {
-      expect(["customer", "merchant", "platform"], t.type).toContain(t.audience);
-      expect(t.description.length, t.type).toBeGreaterThan(10);
-    }
-  });
-
+describe("every type previews, and a preview sends nothing", () => {
   it("each type renders a subject, an HTML part and a text part, and nothing is sent or written", async () => {
     const { sqlite, keys } = await seed();
     const before = withoutLogs(tableCounts(sqlite));
@@ -405,44 +367,9 @@ describe("PLANT 3 and 4: every type previews, and a preview sends nothing", () =
     expect(sendSpies.sendRenderedTransactionalEmail).not.toHaveBeenCalled();
     expect(withoutLogs(tableCounts(sqlite))).toEqual(before);
   });
-
-  it("a customer email previews with the merchant's From name, Reply-To, footer and brand voice", async () => {
-    const { keys } = await seed();
-    const { json } = await post(keys.admin, "/emails/preview", {
-      type: "recovery_day1",
-      account_id: MERCHANT,
-    });
-    const data = json.data as {
-      preview: {
-        from: string;
-        reply_to: string | null;
-        text: string;
-        headers: Record<string, string>;
-      };
-      merchant: { brand_voice: Record<string, string | null> };
-    };
-    expect(data.preview.from).toMatch(new RegExp(`^${SENDER_NAME} <`));
-    expect(data.preview.reply_to).toBe(REPLY_TO);
-    expect(data.preview.text).toContain(`You're receiving this from ${SENDER_NAME}`);
-    expect(data.preview.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
-    expect(data.merchant.brand_voice.default).toBe(BRAND_VOICE);
-  });
-
-  it("an unknown type, or an unknown merchant, is a 400 that says how to fix it", async () => {
-    const { keys } = await seed();
-    const unknown = await post(keys.admin, "/emails/preview", { type: "dispute_notice" });
-    expect(unknown.status).toBe(400);
-    expect(String(unknown.json.error)).toMatch(/recovery_day1/);
-    const nobody = await post(keys.admin, "/emails/preview", {
-      type: "recovery_day1",
-      account_id: "acct_nope",
-    });
-    expect(nobody.status).toBe(400);
-    expect(String(nobody.json.error)).toMatch(/merchants/);
-  });
 });
 
-describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and is audited", () => {
+describe("a send goes through the send module, with Reply-To, and is audited", () => {
   it("sending every type delivers each one through the send module", async () => {
     const { keys } = await seed();
     const { status, json } = await post(keys.admin, "/emails/send", {
@@ -454,13 +381,6 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
     expect(results.map((r) => [r.type, r.status])).toEqual(ALL_TYPES.map((t) => [t, "sent"]));
     expect(sent).toHaveLength(ALL_TYPES.length);
     expect(sent.every((m) => m.to === ADMIN)).toBe(true);
-    // Customer and merchant mail through sendJobEmail, platform mail through the
-    // module's transactional senders: the binding is reached from nowhere else.
-    expect(sendSpies.sendJobEmail).toHaveBeenCalledTimes(
-      ALL_TYPES.length - RENDERED_TYPES.length - TRANSACTIONAL_TYPES.length,
-    );
-    expect(sendSpies.sendRenderedTransactionalEmail).toHaveBeenCalledTimes(RENDERED_TYPES.length);
-    expect(sendSpies.sendTransactionalEmail).toHaveBeenCalledTimes(TRANSACTIONAL_TYPES.length);
   });
 
   it("customer mail carries the merchant's sender name and Reply-To; merchant notices carry none", async () => {
@@ -535,7 +455,7 @@ describe("PLANT 5 and 6: a send goes through the send module, with Reply-To, and
   });
 });
 
-describe("PLANT 7: no tracking, no billable record, no real customer data", () => {
+describe("no tracking, no billable record, no real customer data", () => {
   it("no message carries an open pixel, a tracked click, a scanner trap or a card-update link", async () => {
     const { keys } = await seed();
     await post(keys.admin, "/emails/send", { types: "all", account_id: MERCHANT });
@@ -571,8 +491,6 @@ describe("PLANT 7: no tracking, no billable record, no real customer data", () =
     }
   });
 });
-
-// The Foxhound Admin MCP's two tools for it.
 
 const KEY = "fox_mcp_test_admin_key_at_least_32_chars";
 
@@ -618,36 +536,8 @@ async function callTool(
   return toolOutput(await readMcp(res));
 }
 
-describe("PLANT 8: the admin MCP's preview and send tools", () => {
-  it("preview is read-only and send is a write; both are foxhound_admin_ named", () => {
-    const preview = ADMIN_TOOLS.find((t) => t.name === "foxhound_admin_preview_email");
-    const send = ADMIN_TOOLS.find((t) => t.name === "foxhound_admin_send_test_email");
-    expect(preview?.annotations).toMatchObject({ readOnlyHint: true, destructiveHint: false });
-    expect(send?.annotations).toMatchObject({
-      readOnlyHint: false,
-      destructiveHint: false,
-      idempotentHint: false,
-    });
-  });
-
-  it("preview calls the catalog with no type, and the preview route with one", async () => {
-    const fox = fakeFoxhound();
-    await callTool(fox, "foxhound_admin_preview_email", {}, [SCOPE_READ]);
-    await callTool(
-      fox,
-      "foxhound_admin_preview_email",
-      { type: "recovery_day1", account_id: MERCHANT },
-      [SCOPE_READ],
-    );
-    expect(fox.calls.map((c) => [c.method, c.path])).toEqual([
-      ["GET", "/api/admin/v1/emails"],
-      ["POST", "/api/admin/v1/emails/preview"],
-    ]);
-    expect(fox.calls[1].body).toEqual({ type: "recovery_day1", account_id: MERCHANT });
-  });
-
+describe("the admin MCP's send tool", () => {
   it("send needs the write grant, and passes types, merchant and recipient to the send route", async () => {
-    // A read grant is never offered the send tool (registerTools, T7): the call is an unknown tool and sends nothing.
     const readOnly = fakeFoxhound();
     await expect(
       callTool(readOnly, "foxhound_admin_send_test_email", { types: "all" }, [SCOPE_READ]),

@@ -14,18 +14,8 @@ import {
 import { DAY_MS } from "~/lib/constants";
 import { monthKey } from "@dustinedwards/site-runtime/time";
 
-// Intelligence seed (TASK-foxhound-demo-data-engine.md Phase 3):
-// customer_context + health_score_history + mrr_snapshots + the demo alert
-// rules, built from the same customer roster, recovery rows, and dispute rows
-// the other seed modules produced (never a second, independent narrative).
-// mrr_snapshots reuses the REAL movement math (app/lib/intelligence/mrr.ts
-// computeMrrMovements / buildMrrSnapshotFields) walked across a year of points
-// (daily for the last 90 days), driven by each customer's actual signup/churn
-// date, so movements are derived, not invented. Pure: returns plain insert
-// rows, no DB access.
-
+// Intelligence seed: customer_context, health history, mrr_snapshots and demo alert rules, derived from the other seed modules' rows with the real movement math (computeMrrMovements / buildMrrSnapshotFields), never a second narrative. Pure.
 const MONTH_COUNT = 12;
-/** Days of daily snapshots, the dashboard's window. */
 const DAILY_SNAPSHOT_DAYS = 90;
 
 type CustomerContextInsert = typeof customerContext.$inferInsert;
@@ -260,9 +250,6 @@ function disputeTrajectory(agg: DisputeAggregate, now: Date, seed: string): Traj
     { daysAgo: 3, healthScore: final, reason: "present" },
   ];
 }
-
-// mrr_snapshots: 12 monthly points, real movement math, driven by each
-// customer's actual signup/churn date (no fabricated growth curve).
 
 interface MrrRosterEntry {
   stripeCustomerId: string;
@@ -540,8 +527,6 @@ export function buildIntelligenceSeed(inputs: IntelligenceSeedInputs): Intellige
     }
   }
 
-  // Net-new dispute-only customers (every seeded dispute whose customer is not
-  // already one of the 200 base customers above, as Harborline's is).
   const disputeOnlyRoster: { id: string; planName: string; joinedAt: Date; mrrCents: number }[] =
     [];
   for (const d of disputes) {

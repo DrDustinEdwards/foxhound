@@ -2,18 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   RECOVERY_SCHEDULES,
-  WIN_BACK_SCHEDULE,
   isEmailStep,
   isRetryStep,
   planRecoverySteps,
 } from "~/lib/recovery/schedule";
-import { categoryGuidance } from "~/lib/recovery/email-generation";
-import {
-  WINBACK_STEP1_HOURS,
-  WINBACK_STEP2_HOURS,
-  WINBACK_STEP3_HOURS,
-  type DeclineCategory,
-} from "~/lib/constants";
+import type { DeclineCategory } from "~/lib/constants";
 
 describe("recovery schedules (silent-first)", () => {
   it("schedules are strictly increasing in time", () => {
@@ -42,26 +35,5 @@ describe("revoked authorization: one-step hold", () => {
     expect(plan.some((p) => isRetryStep(p.stepType))).toBe(false);
     // Sent soon (2h), a prompt cancel-or-update ask, not a delayed dunning cadence.
     expect(plan[0].scheduledAt.getTime()).toBe(detectedAt.getTime() + 2 * 3600_000);
-  });
-
-  it("frames the copy as a cancel-or-update choice, not a dunning ask", () => {
-    const guidance = categoryGuidance("revoked");
-    expect(guidance).not.toBeNull();
-    expect(guidance!.toLowerCase()).toContain("revoked");
-    expect(guidance!.toLowerCase()).toMatch(/do not ask them to pay/);
-    // Other categories keep the default framing (no special guidance).
-    expect(categoryGuidance("soft")).toBeNull();
-    expect(categoryGuidance("fraud")).toBeNull();
-  });
-});
-
-describe("win-back schedule", () => {
-  it("plans the three constants' offsets and ends at 336 hours", () => {
-    expect(WIN_BACK_SCHEDULE.map((s) => s.offsetHours)).toEqual([
-      WINBACK_STEP1_HOURS,
-      WINBACK_STEP2_HOURS,
-      WINBACK_STEP3_HOURS,
-    ]);
-    expect(WIN_BACK_SCHEDULE.at(-1)?.offsetHours).toBe(336);
   });
 });

@@ -4,12 +4,7 @@ import { describe, expect, it } from "vitest";
 import { outcomes } from "~/db";
 import * as schema from "~/db/schema";
 
-// Proves the money-write executor's compilation step (app/lib/money/execute.ts):
-// a Drizzle batch is compiled to plain { sql, params } via .toSQL() and sent to
-// the DO. The crux is that Drizzle encodes column values to driver-ready
-// primitives at compile time - Date -> epoch-ms number, json -> string - so no
-// Drizzle internals or Date objects need to cross the DO boundary. .toSQL() is
-// pure (no DB connection needed).
+// Drizzle encodes values at compile time, so only plain { sql, params } cross the DO boundary.
 
 describe("money-write statement compilation", () => {
   it("compiles an outcomes insert to driver-ready sql + params", () => {

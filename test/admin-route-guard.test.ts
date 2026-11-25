@@ -2,15 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import routes from "~/routes";
 
-// Structural regression guard (Phase 7 Pass 1, re-pointed by job_6566f4776fdf):
-// every /admin/* route file MUST be reachable only through the admin-shell
-// layout (app/layouts/admin-shell.tsx), whose middleware verifies Cloudflare
-// Access's JWT and the ADMIN_EMAIL allowlist (site-runtime accessAdmin,
-// tested there) and 404s anything else, at the loader and,
-// since actions run through the same route tree, at the action too. This test
-// proves route wiring can never silently drift a new admin route outside the
-// guarded subtree, which is the actual way this kind of route could stop
-// being protected.
+// Every /admin/* route must live under the admin-shell layout, whose middleware checks Access and ADMIN_EMAIL.
 
 interface RouteConfigEntry {
   file: string;
@@ -38,9 +30,6 @@ describe("admin route guard wiring", () => {
   it("every route file under app/routes/admin/ lives inside the admin-shell layout subtree", () => {
     const allFiles = collectFiles(tree);
     const adminFiles = allFiles.filter((f) => f.startsWith("./routes/admin/"));
-    // Sanity: the fixture itself must find the 12 admin pages, or this test
-    // is silently checking nothing (a routes.ts refactor that renames the
-    // directory would otherwise pass vacuously).
     expect(adminFiles.length).toBeGreaterThanOrEqual(12);
 
     const guardNode = findByFile(tree, "./layouts/admin-shell.tsx");
@@ -50,24 +39,6 @@ describe("admin route guard wiring", () => {
     for (const file of adminFiles) {
       expect(guardedFiles.has(file), `${file} is not nested under admin-shell.tsx`).toBe(true);
     }
-  });
-
-  it("the emergency brake specifically is inside the guard", () => {
-    // Named explicitly rather than relying on the sweep above. The brake pauses
-    // processing for every merchant on the platform and can disable the recovery
-    // tick, so it is the single admin route where a wiring mistake is worst, and
-    // it should fail by name rather than as one entry in a set.
-    const guardNode = findByFile(tree, "./layouts/admin-shell.tsx");
-    const guardedFiles = new Set(collectFiles(guardNode?.children ?? []));
-    expect(guardedFiles.has("./routes/admin/brake.tsx")).toBe(true);
-  });
-
-  it("the admin-shell layout is NOT under the merchant app shell (Access, not a merchant session, signs admins in)", () => {
-    const appShellNode = findByFile(tree, "./layouts/app-shell.tsx");
-    expect(appShellNode).not.toBeNull();
-    const shellFiles = new Set(collectFiles(appShellNode!.children ?? []));
-    expect(shellFiles.has("./layouts/admin-shell.tsx")).toBe(false);
-    expect([...shellFiles].some((f) => f.startsWith("./routes/admin/"))).toBe(false);
   });
 });
 

@@ -60,7 +60,7 @@ import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding
 // The Foxhound Admin MCP, which runs as its own Worker holding no Stripe key,
 // no money binding and no database, and reaches this API over a service
 // binding. It is served only on the AdminApi entrypoint (workers/admin-api.ts),
-// which that binding names; the public fetch handler never routes it (FH-20).
+// which that binding names; the public fetch handler never routes it.
 
 const ADMIN_API_PREFIX = "/api/admin/v1";
 const ACTING_ADMIN_HEADER = "Foxhound-Acting-Admin";
@@ -128,8 +128,6 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
   return { keyId: verified.keyId, actorEmail: actor };
 }
 
-// Pagination: the same opaque cursor shape the merchant MCP uses.
-
 function page(url: URL, route: string): number {
   const raw = url.searchParams.get("cursor");
   if (!raw) return 1;
@@ -166,7 +164,6 @@ type Handler = (ctx: RouteContext) => Promise<Json>;
 
 interface ApiRoute {
   method: "GET" | "POST";
-  /** Path under the prefix; `:id` matches one segment. */
   pattern: string;
   handler: Handler;
 }
@@ -568,7 +565,6 @@ const ROUTES: ApiRoute[] = [
   },
 ];
 
-/** The method and path of every route, so a plant can assert the surface. */
 const ADMIN_API_ROUTES = ROUTES.map((r) => `${r.method} ${r.pattern}`);
 
 function match(method: string, path: string): { route: ApiRoute; params: string[] } | null {
@@ -619,7 +615,6 @@ async function logCall(
   }
 }
 
-/** Null for any path outside the prefix, so the worker entry falls through. */
 export async function handleAdminApiRequest(request: Request, env: Env): Promise<Response | null> {
   const url = new URL(request.url);
   if (url.pathname !== ADMIN_API_PREFIX && !url.pathname.startsWith(`${ADMIN_API_PREFIX}/`))

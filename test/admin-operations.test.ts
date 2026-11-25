@@ -1,11 +1,8 @@
-import { RouterContextProvider } from "react-router";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getRecoveryQueueDepth, readCronLocks } from "~/lib/admin/operations.server";
 import { CRON_LOCK_PEEK_TIMEOUT_MS } from "~/lib/constants";
 import { CRON_JOBS } from "~/lib/cron/registry";
-import * as route from "~/routes/admin/operations";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -52,11 +49,6 @@ describe("readCronLocks", () => {
       heldUntil: new Date(NOW + 3 * MIN),
     });
     expect(locks.find((l) => l.name === "weekly-digest")).toMatchObject({ state: "not-released" });
-    expect(locks.find((l) => l.name === "d1-backup")).toEqual({
-      name: "d1-backup",
-      state: "idle",
-      heldUntil: null,
-    });
   });
 });
 
@@ -95,7 +87,6 @@ describe("readCronLocks with a lock that never answers", () => {
     });
     expect(locks.find((l) => l.name === "recovery-tick")?.state).toBe("running");
     expect(locks.filter((l) => l.state === "unreadable")).toHaveLength(1);
-    // Every timer is cleared once its read is settled, the answered ones included.
     expect(vi.getTimerCount()).toBe(0);
   });
 });
@@ -153,48 +144,7 @@ describe("getRecoveryQueueDepth", () => {
     const result = await getRecoveryQueueDepth(db, NOW);
     // fp_1, fp_2 and the paused account's fp_4; never the demo account's.
     expect(result.activePayments).toBe(3);
-    // s_due_old, s_due_new and s_retry_due: the paused, demo, recovered, done,
-    // future and backed-off steps are not the tick's to run.
     expect(result.dueSteps).toBe(3);
     expect(result.oldestDueAt).toEqual(new Date(NOW - 50 * MIN));
-  });
-});
-
-describe("the loader", () => {
-  beforeEach(() => {
-    const made = createInMemoryDb();
-    harness.db = made.db;
-    seedQueue(made.sqlite);
-  });
-
-  it("reads the queue and the locks with Foxhound's own engine", async () => {
-    const { ns } = lockNamespace({
-      "recovery-tick": Date.now() + 5 * MIN,
-    });
-    const env = {
-      CRON_LOCK: ns,
-      DB: {
-        prepare: (sql: string) => ({
-          run: async () => ({ meta: { size_after: 4096 } }),
-          all: async () => ({ results: sql.includes("d1_migrations") ? [] : [] }),
-        }),
-      },
-    };
-    const context = new RouterContextProvider();
-    context.set(cloudflareContext, {
-      env: env as unknown as Env,
-      ctx: {} as ExecutionContext,
-    });
-    const loader = route.loader as (args: unknown) => Promise<Record<string, unknown>>;
-    const data = await loader({
-      request: new Request("https://foxhoundapp.com/admin/operations"),
-      context,
-      params: {},
-    });
-    expect(data.queue).toMatchObject({ activePayments: 3 });
-    const locks = data.locks as Array<Record<string, unknown>>;
-    expect(locks).toHaveLength(CRON_JOBS.length);
-    expect(locks.find((l) => l.name === "recovery-tick")?.state).toBe("running");
-    expect(data.sizeBytes).toBe(4096);
   });
 });

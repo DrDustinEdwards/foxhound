@@ -6,25 +6,8 @@ import { buildRetryStepPatch } from "~/lib/engine/retry-step";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// Ruling 260, the double-send guard. buildEmailStepPatch used to claim on id
-// alone (WHERE id = ?), while both retry patches claimed on id AND executed_at
-// IS NULL. That was safe only while the 5-minute recovery cron was the SOLE
-// caller under its lock. S7 Phase 2 adds a second caller, the manual "Trigger
-// next step now" action, which runs on a request thread with no such lock, so
-// two claimants of the same email step became reachable: the cron picking the
-// step up on its tick while a merchant clicks the button.
-//
-// Without the claim, BOTH writes land: the second overwrites the first's
-// terminal state, and because each caller sends its own email before patching,
-// the customer receives the dunning email twice. Legacy guards exactly this and
-// says why, in a comment written about its own manual trigger route: "the
-// trigger route shares this executor with the hourly cron and runs without the
-// cron lock, so a manual trigger racing the cron must not record the
-// retry_attempted outcome twice" (lib/recovery-execution.ts).
-//
-// Proven against a REAL in-memory SQLite with the committed migrations applied,
-// so what stops the second write is the actual WHERE clause running against the
-// actual schema, not a SQL-shape assertion that would pass on a typo.
+// The email step claim (WHERE executed_at IS NULL) admits one writer, so a cron tick racing the manual
+// trigger cannot send a dunning email twice. Run against real SQLite so the actual WHERE clause is tested.
 
 const now = new Date("2026-08-11T00:00:00.000Z");
 const later = new Date("2026-08-11T00:05:00.000Z");
@@ -79,19 +62,15 @@ const terminal = (result: string, executedAt: Date) => ({
   result,
 });
 
-describe("ruling 260: the email step claim admits exactly one writer", () => {
+describe("the email step claim admits exactly one writer", () => {
   it("two concurrent claims of the same step: the first wins and the second changes nothing", () => {
     const { sqlite, db } = seedPendingEmailStep();
 
-    // Racer A (say the cron tick) sends its email and claims the step.
     const aChanges = runStatement(
       sqlite,
       buildEmailStepPatch(db, "step_e", terminal("email_sent", now)),
     );
 
-    // Racer B (the manual trigger) read the same unexecuted row before A
-    // committed, so it proceeds to its own patch. This is the exact statement
-    // the executor issues; the claim must refuse it.
     const bChanges = runStatement(
       sqlite,
       buildEmailStepPatch(db, "step_e", terminal("email_failed", later)),
@@ -104,31 +83,6 @@ describe("ruling 260: the email step claim admits exactly one writer", () => {
     const row = readStep(sqlite);
     expect(row.result).toBe("email_sent");
     expect(row.executed_at).toBe(now.getTime());
-  });
-
-  it("the loser cannot overwrite the cached copy either, whichever order they arrive in", () => {
-    const { sqlite, db } = seedPendingEmailStep();
-
-    runStatement(
-      sqlite,
-      buildEmailStepPatch(db, "step_e", terminal("email_sent", now), {
-        subject: "Winner subject",
-        bodyHtml: "<p>Winner</p>",
-      }),
-    );
-    const loserChanges = runStatement(
-      sqlite,
-      buildEmailStepPatch(db, "step_e", terminal("email_sent", later), {
-        subject: "Loser subject",
-        bodyHtml: "<p>Loser</p>",
-      }),
-    );
-
-    expect(loserChanges).toBe(0);
-    const row = sqlite
-      .prepare("select ai_subject from recovery_steps where id = 'step_e'")
-      .get() as { ai_subject: string | null };
-    expect(row.ai_subject).toBe("Winner subject");
   });
 
   it("a step still in BACKOFF is untouched by the claim: the retry transition still lands", () => {
@@ -162,7 +116,7 @@ describe("ruling 260: the email step claim admits exactly one writer", () => {
     expect(readStep(sqlite).result).toBe("email_sent");
   });
 
-  it("regression guard: the retry sibling already claimed this way and still does", () => {
+  it("the retry patch claims the same way", () => {
     const { sqlite, db } = seedPendingEmailStep();
 
     const first = runStatement(

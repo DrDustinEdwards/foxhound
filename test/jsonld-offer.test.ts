@@ -2,9 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { softwareApplicationJsonLd } from "~/lib/seo/jsonld";
 
-// A machine-readable false price is quoted without the sentence that would
-// qualify it: Intelligence is free, Recovery and Disputes bill a share of created
-// value, so no single price is true of the application.
+// No single price is true of the application, so JSON-LD must publish none.
 
 const URL_BASE = "https://foxhoundapp.com";
 

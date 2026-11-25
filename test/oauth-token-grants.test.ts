@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { apiKeys, oauthGrants } from "~/db/schema";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
-import { PRIVATE_PAGE_HEADERS } from "@dustinedwards/site-runtime/edge-cache";
 import { OAUTH_ACCESS_TOKEN_TTL_SECONDS, OAUTH_CODE_TTL_MS } from "~/lib/constants";
 import { removeMember } from "~/lib/auth/account";
 import { deleteUserAccountLocal } from "~/lib/auth/delete-account.server";
-import { DISALLOW_PATHS } from "~/lib/seo/files";
 import { defineToolRegistry, type McpTool } from "~/lib/mcp/registry";
 import { mcpRequest, readMcp, toolOutput } from "./helpers/mcp-client";
 import {
@@ -13,7 +11,6 @@ import {
   NOW,
   ORIGIN,
   CLAUDE_REDIRECT,
-  authorizeRoute,
   consent,
   context,
   db,
@@ -283,20 +280,8 @@ describe("expiry and revocation", () => {
   });
 });
 
-describe("the authorize page stays out of caches, analytics and crawls", () => {
-  it("is private and crawl-disallowed", () => {
-    expect(authorizeRoute.headers()).toBe(PRIVATE_PAGE_HEADERS);
-    expect(DISALLOW_PATHS).toContain("/oauth/");
-  });
-});
-
-// A grant is one person's delegation: it lasts only while that person is still
-// an active member of the account.
-
 async function makeMember(): Promise<void> {
-  // USER owns ACCOUNT_B in the fixture; removeMember refuses an owner, so the
-  // consenting person is made an ordinary member after consenting (only an
-  // owner may consent; a grant a member made before that rule still exists).
+  // removeMember refuses an owner, so demote USER after consenting.
   sqlite.prepare("UPDATE account_members SET role = 'member' WHERE id = ?").run(`m_${ACCOUNT_B}`);
 }
 

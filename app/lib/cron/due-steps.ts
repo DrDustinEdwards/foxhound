@@ -42,7 +42,7 @@ import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 //     finished sequences to failed_unrecovered (flipExhaustedSequences), the
 //     only writer of that status; 'recovered' still belongs solely to the webhook.
 //   - Gating: demo accounts, processing-paused accounts, and canceled accounts
-//     (admin Pass 2: accounts.cancelledAt) are excluded in the query itself.
+//     (accounts.cancelledAt) are excluded in the query itself.
 //     billing_exempt is NOT a processing gate: an exempt merchant still gets
 //     their money recovered, they are only never billed Foxhound's fee (that
 //     gate lives in the billing query, app/db/billable.ts). cancelledAt is
@@ -51,7 +51,7 @@ import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 
 /**
  * Account-level PROCESSING gate: never process a demo account (non-negotiable
- * #7), a processing-paused account, or a canceled account (admin Pass 2).
+ * #7), a processing-paused account, or a canceled account.
  * Distinct from the BILLING gate: a billing_exempt account is still processed
  * (recovery moves the MERCHANT's money; only Foxhound's fee is waived), and a
  * canceled account's already-matured, unbilled recoveries still bill

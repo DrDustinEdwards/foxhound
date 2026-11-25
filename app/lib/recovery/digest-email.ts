@@ -135,7 +135,7 @@ function intelligenceSection(input: DigestInput): Block[] {
 }
 
 /** Pure. */
-export function buildDigestBlocks(input: DigestInput): Block[] {
+function buildDigestBlocks(input: DigestInput): Block[] {
   const rate = percent(input.totalRecovered, input.totalFailed);
   const weekEnding = input.now.toLocaleDateString("en-US", {
     weekday: "long",

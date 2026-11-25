@@ -4,9 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// account.updated: the connected Stripe account's own health. Stored per
-// connection, the merchant told once when a problem appears, and retry steps
-// held while Stripe has charges off.
+// account.updated stores connection health, notifies once, and holds retries while charges are off.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,

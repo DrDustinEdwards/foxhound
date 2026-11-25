@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// WRITER TWO: the Stripe webhook's customer.updated handler.
-//
-// IT RECORDS AND NEVER SENDS. Legacy's handleCustomerUpdated writes the
-// candidate row and the nightly cron owns every send, so a card update cannot
-// email a customer directly. Half a subsystem is not parity, which is why this
-// writer exists at all.
+// The customer.updated webhook records a candidate and never sends; the nightly cron owns every send.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -97,7 +92,7 @@ function alertRows() {
   }[];
 }
 
-describe("PLANT 1: the classifier reads the card both ways legacy does", () => {
+describe("the classifier reads the card inline or by payment method", () => {
   it("ignores a customer with no card and one with no email", () => {
     expect(classifyStripeEvent(customerEvent({})).kind).toBe("ignore");
     expect(
@@ -111,7 +106,7 @@ describe("PLANT 1: the classifier reads the card both ways legacy does", () => {
   });
 });
 
-describe("PLANT 2: the webhook records a candidate and sends nothing", () => {
+describe("the webhook records a candidate and sends nothing", () => {
   it("writes the candidate from an inline card", async () => {
     const result = await processConnectedWebhook(
       env,
@@ -146,10 +141,8 @@ describe("PLANT 2: the webhook records a candidate and sends nothing", () => {
     expect(alertRows()[0]).toMatchObject({ brand: "amex", last4: "0005", m: 12, y: 2026 });
   });
 
-  it("AN ALREADY EXPIRED CARD RECORDS NOTHING, closing legacy's asymmetry", async () => {
-    // Legacy's webhook guards only the upper bound, so it records expired cards
-    // its own cron would never alert on, and the send pass would then email
-    // about a card that already lapsed. Both writers share one band here.
+  it("an already expired card records nothing", async () => {
+    // Both writers share one band, so the send pass never emails about a card that already lapsed.
     const result = await processConnectedWebhook(
       env,
       customerEvent({
@@ -175,7 +168,7 @@ describe("PLANT 2: the webhook records a candidate and sends nothing", () => {
   });
 });
 
-describe("PLANT 3: the two writers share one dedupe", () => {
+describe("the two writers share one dedupe", () => {
   it("a repeated customer.updated for the same card-month writes one row", async () => {
     const event = (id: string) =>
       customerEvent(
@@ -204,9 +197,6 @@ describe("PLANT 3: the two writers share one dedupe", () => {
       RECEIVED,
     );
 
-    // Live sends default OFF for a new account, which would make the send a
-    // logged "blocked" rather than a send. This assertion is about the HANDOFF
-    // between the two writers, so the gate is opened deliberately.
     sqlite.prepare("UPDATE accounts SET live_sends_enabled = 1 WHERE id = ?").run(ACCOUNT);
     const { sendExpiringCardAlerts } = await import("~/lib/cron/expiring-cards");
     const sendEnv = {

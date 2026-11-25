@@ -1,6 +1,3 @@
-// The retry step: pays the failed invoice through the connected account, records the attempt, and
-// reconciles a success into a recovery. The email step is in execute-step.ts.
-
 import { and, eq, isNull } from "drizzle-orm";
 import type Stripe from "stripe";
 import { changedRows, type Db, getDb, recoverySteps } from "~/db";
@@ -27,7 +24,6 @@ import { buildDeclineRefreshBatch } from "~/lib/webhooks/batches";
 import { type CardChangeVerdict, checkCardChanged, retryNeedsChangedCard } from "./card-change";
 import { decideRetryStep, type RetryAttempt } from "./step-runner";
 
-// The live recovery-step executor: wraps the pure deciders (step-runner.ts) with real side effects and persistence.
 // Money-path rules: the recovery_steps write is operational (plain db.batch); only reconcileRetryRecovery
 // rides the per-account money-write DO. Exactly-once under overlapping or redelivered ticks: the charge
 // carries a Stripe idempotency key, and the step patch is conditional (WHERE executed_at IS NULL). The
@@ -90,7 +86,7 @@ export function buildRetryAttemptPatch(db: Db, stepId: string, patch: StepStateP
 
 /** The reconcileRetryRecovery input for a landed silent retry. Pure. foxhound_retry's ref is the strongest
  *  proof of causation, so a reverse-race correction upgrades to the right attribution. */
-export function buildRetryReconciliationInput(
+function buildRetryReconciliationInput(
   ctx: RetryStepContext,
   recoveredAt: Date,
 ): RetryReconciliationInput {
@@ -131,19 +127,15 @@ export async function payInvoiceWithClient(
 
 export interface RetryStepDeps {
   payInvoice: (env: Env, ctx: RetryStepContext) => Promise<RetryAttempt>;
-  /** Persist the operational step patch (plain db.batch). Resolves false when the claim matched no row. */
   persistPatch: (
     env: Env,
     stepId: string,
     patch: Pick<StepStatePatch, "executedAt" | "result"> & { retryResult: string },
   ) => Promise<boolean>;
-  /** Reconcile the foxhound_retry attribution against what the webhook already recorded, through the money DO. */
   reconcileRecovery: (env: Env, input: RetryReconciliationInput) => Promise<boolean>;
   /** Whether the card changed since the decline; asked only for a category whose retry needs it (expired). */
   checkCardChanged: (env: Env, ctx: RetryStepContext) => Promise<CardChangeVerdict>;
-  /** Store a declined retry's decline on the failed payment, through the money DO. */
   recordDecline: (env: Env, ctx: RetryStepContext, reading: RetryDeclineReading) => Promise<void>;
-  /** End recovery for a payment whose invoice was voided, through the money DO. */
   stopRecovery: (env: Env, ctx: RetryStepContext, now: Date) => Promise<void>;
 }
 

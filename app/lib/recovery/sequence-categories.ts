@@ -43,9 +43,9 @@ export const SEQUENCE_CATEGORY_DESCRIPTIONS: Record<DeclineCategory, string> = {
     "Decline codes Foxhound does not recognize. Foxhound sends emails only, on the same days as the expired card emails. Retries are not attempted.",
 };
 
-export type SequenceRateTone = "green" | "caution" | "red";
+type SequenceRateTone = "green" | "caution" | "red";
 
-export function sequenceRateTone(pct: number, kind: "open" | "click"): SequenceRateTone {
+function sequenceRateTone(pct: number, kind: "open" | "click"): SequenceRateTone {
   const [green, caution] = kind === "open" ? [50, 20] : [20, 5];
   if (pct > green) return "green";
   if (pct >= caution) return "caution";

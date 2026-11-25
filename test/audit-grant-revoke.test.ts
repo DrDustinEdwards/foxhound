@@ -6,12 +6,7 @@ import { handleQueueBatch } from "~/lib/queue/consumer";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The anonymous audit's Stripe grant is read_write (Stripe gives read_only only
-// to Extensions), so Foxhound revokes it when the window ends. The callback
-// queues the revoke (test/audit-oauth.test.ts); this drives its delivery
-// through the real queue consumer. oauth.deauthorize cuts the platform's whole
-// connection to the Stripe account, so it must never run while any Foxhound
-// account holds that Stripe account live.
+// The audit grant revoke runs through the queue consumer, and never while a Foxhound account holds the Stripe account live.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, deauthorized: [] as string[], ok: true }));
 vi.mock("~/db", async (importOriginal) => ({

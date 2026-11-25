@@ -227,8 +227,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // report is dropped, still 204.
     ["CSP_REPORT_RATE_LIMIT", "binding"],
     ["TOOL_CALL_LOG", "binding"],
-    // The nightly D1 dump bucket (job_f7f35d4b7ac7, bound under
-    // job_7bbec6ab48d1). Unset means the d1-backup cron throws on every run and
+    // The nightly D1 dump bucket. Unset means the d1-backup cron throws on every run and
     // /health reports no backup.
     ["BACKUPS", "binding"],
     // The monthly audit queue producer. Unset means the monthly-audit cron

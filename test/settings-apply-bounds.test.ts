@@ -4,9 +4,7 @@ import { applyAlertCreate, applyNotificationSettings } from "~/lib/settings/appl
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// lib3 F4: the settings appliers (the forms and the MCP tools both) refuse a
-// notification address that is not one address, and free text past its bound,
-// before anything reaches a mail header or an AI prompt. Fake data.
+// The settings appliers refuse a non-single notification address and over-long free text.
 const env = { ENCRYPTION_KEY: "ab".repeat(32) } as unknown as Env;
 
 describe("settings bounds", () => {

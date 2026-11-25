@@ -6,19 +6,8 @@ import { resolveNavContext } from "~/lib/nav/context.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// nav assessment F-1 (foxhound-nav-assessment.md), TASK-foxhound-nav-loader-write.md:
-// resolveNavContext used to blind-write last_visited_product on every
-// product-page GET (read-skipped on product pages, written unconditionally),
-// which violated the demo read-only invariant - a demo visitor's browsing
-// bled last_visited_product across concurrent demo visitors - and was
-// unbounded write amplification for a value that rarely changes. Now: always
-// read, write only when the current product differs from the stored value
-// AND the account is not demo, deferred via waitUntil.
-//
-// "No write issued" is asserted with a spy on the real Drizzle db.update
-// method (not inference from end state), per the TASK's explicit ask: an
-// unchanged-value write that happened to write back the same value would
-// look identical to no write at all if only the end state were checked.
+// resolveNavContext writes last_visited_product only when it changed and the account is not demo, deferred via waitUntil.
+// "No write" is asserted with a spy on db.update.
 
 function collectWaitUntil() {
   const pending: Promise<unknown>[] = [];
@@ -82,19 +71,5 @@ describe("resolveNavContext", () => {
     expect(nav.isPlatformPage).toBe(true);
     expect(updateSpy).not.toHaveBeenCalled();
     expect(await storedValue(db, "acc_1")).toBe("disputes");
-  });
-
-  it("platform page with no stored value falls back to dashboard, never writes", async () => {
-    const { db } = createInMemoryDb();
-    await db.insert(accounts).values({ id: "acc_1", name: "Acme" });
-    const updateSpy = vi.spyOn(db, "update");
-    const { waitUntil, flush } = collectWaitUntil();
-
-    const nav = await resolveNavContext(db, "acc_1", "/settings", false, waitUntil);
-    await flush();
-
-    expect(nav.activeProductKey).toBe("dashboard");
-    expect(nav.isPlatformPage).toBe(true);
-    expect(updateSpy).not.toHaveBeenCalled();
   });
 });

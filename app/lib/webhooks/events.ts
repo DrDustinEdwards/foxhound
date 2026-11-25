@@ -278,9 +278,8 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     case "charge.dispute.created": {
       const dispute = event.data.object as Stripe.Dispute;
       if (!dispute.id) return { kind: "ignore", reason: "no_dispute_id" };
-      // The mapping moved to app/lib/disputes/stripe-dispute.ts, because the manual import reads a
-      // Stripe.Dispute too and the two intake paths have to produce the same row from the same
-      // object.
+      // Shared with the manual import (app/lib/disputes/stripe-dispute.ts): both intake paths must
+      // produce the same row from the same object.
       const fields = disputeIntakeFields(dispute, new Date());
       if (!fields) return { kind: "ignore", reason: "no_charge" };
       return { kind: "stamp_dispute", ...fields };

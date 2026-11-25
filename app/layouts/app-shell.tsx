@@ -152,7 +152,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   };
 }
 
-// The merchant app on Capsomer's dashboard shell (AdminShell's user variant), under the same site header as the public site: the business switcher on the left as a square tile, then the product switcher ("Acme Supply Co. / Recovery"); the avatar menu last; amber on the dark band; the product's pages as a 288px menu on the left; a page bar naming the page and how fresh it is; and on a phone one row, a sheet for everything else, and a bottom bar of at most five tabs. Everything under the menu is the page: the shell takes Foxhound's own neutrals (.fh-cap, app.css), so only the accents are amber, and every page keeps its own column.
+// The merchant app on Capsomer's dashboard shell (AdminShell's user variant), under the same site header as the public site. The shell takes Foxhound's own neutrals (.fh-cap, app.css), so only the accents are amber, and every page keeps its own column.
 
 const ICONS: Record<string, string> = {
   "/console": iconOverview,
@@ -202,7 +202,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
   // Capsomer decides when to show the loading state (never during the revalidation after a post), and the app names the paths.
   const splash = shouldShowRouteSplash(useNavigation(), isSplashPath);
 
-  // The menu: the product you are in and its pages. On a settings page it is the settings list instead, under a row back to the product, so a settings page has one menu and not two side by side. Settings, Billing and Team are in the avatar menu. On another platform page (billing, help) the product is the last one you visited, as the switcher already says.
+  // The menu: the product you are in and its pages; on a settings page, the settings list under a row back to the product. On another platform page (billing, help) the product is the last one you visited, as the switcher already says.
   const pages = productPages(nav.activeProductKey);
   // A one-page product (Disputes) marks its one row on every page under it.
   const currentPage = nav.isPlatformPage
@@ -260,7 +260,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
         ? (platformPage?.label ?? "Foxhound")
         : activeProduct.label);
 
-  // The phone's bottom bar: every product then Billing and Settings, up to Capsomer's five (the menu button opens the full list). With Intelligence that is the four products and Settings; Billing is in the avatar menu and the sheet.
+  // The phone's bottom bar: every product then Billing and Settings, up to Capsomer's five.
   const tabLinks: Array<ProductNavLink & { product?: ProductKey }> = [
     ...PRODUCT_ORDER.map((key) => ({
       label: PRODUCT_MANIFEST[key].label,
@@ -286,7 +286,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     current: l === currentTab,
   }));
 
-  // The switchers: the business, then the product. In the demo the business switcher lists the demo businesses (Teamflow, Bolt Analytics) and posts to the demo's own switch (/api/demo/switch-account).
+  // The switchers: the business, then the product. In the demo the business switcher lists the demo businesses and posts to /api/demo/switch-account.
   const business =
     accounts.length > 0
       ? businessSwitcher(
@@ -313,7 +313,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     ],
   };
 
-  // The avatar menu: who you are; the business's rows under its name, Admin for an admin at their end (AdminShell's menu takes one group of the app's rows); Help; Sign out last.
   const accountRows = businessRows(true);
   const currentAccountRow = currentRow(pathname, accountRows);
 
@@ -321,7 +320,7 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
     <div className="fh-cap fh-app" data-cap-site="foxhound" data-family="amber">
       <AdminShell
         variant="user"
-        // The app's name, for the logo and the phone sheet's heading ("Foxhound menu"). The browser title stays each route's own meta title, so the shell never writes it.
+        // The app's name, for the logo and the phone sheet's heading; the browser title stays each route's own meta title.
         title="Foxhound"
         documentTitle={false}
         nav={menu}

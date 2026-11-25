@@ -62,7 +62,6 @@ export async function sendSignInLinkEmail(
   return sendRenderedTransactionalEmail(env, { to, rendered, redact: [url, token, code, to] });
 }
 
-/** Where a merchant manages how they sign in; the notice's button opens it. */
 const SIGN_IN_SETTINGS_PATH = "/settings/account";
 
 /**

@@ -9,8 +9,7 @@ import { UNSUBSCRIBE_REASON } from "~/lib/email/suppression";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
-// CAN-SPAM one-click unsubscribe (/u/:token): the HMAC token that carries the account-scoped
-// recipient, the idempotent suppression write, the page's states and its per-IP limit.
+// The /u/:token unsubscribe page: signed token, idempotent suppression write, per-IP limit.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({

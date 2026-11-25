@@ -11,7 +11,7 @@ export interface SwitcherAccount {
 }
 
 /** Name, else the Stripe account id, else the first eight characters of the Foxhound account id, so a nameless, unconnected account still renders something a human can tell apart from another one. */
-export function accountLabel(a: SwitcherAccount): string {
+function accountLabel(a: SwitcherAccount): string {
   return a.name || a.stripeUserId || a.id.slice(0, 8);
 }
 

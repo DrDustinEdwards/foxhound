@@ -43,7 +43,7 @@ describe("hashEvidence", () => {
   });
 });
 
-describe("buildPendingApprovalBatch (Phase A: durable record BEFORE Stripe)", () => {
+describe("buildPendingApprovalBatch", () => {
   it("writes ONLY the dispute_approvals row and does not advance dispute state", () => {
     const batch = buildPendingApprovalBatch(db, {
       disputeId: "dsp_1",
@@ -66,7 +66,7 @@ describe("buildPendingApprovalBatch (Phase A: durable record BEFORE Stripe)", ()
   });
 });
 
-describe("buildSubmissionConfirmationBatch (Phase C: submitted marker AFTER Stripe)", () => {
+describe("buildSubmissionConfirmationBatch", () => {
   it("sets submitted_at once, keeping a resolved dispute's state", () => {
     const batch = buildSubmissionConfirmationBatch(db, {
       disputeId: "dsp_1",
@@ -85,10 +85,7 @@ describe("buildSubmissionConfirmationBatch (Phase C: submitted marker AFTER Stri
   });
 });
 
-describe("approveAndSubmit (record and submission can never diverge: review MEDIUM)", () => {
-  // A recording harness for the three ordered phases. Each phase pushes its
-  // name so the test can assert exact call order and that later phases never
-  // run when an earlier one short-circuits.
+describe("approveAndSubmit", () => {
   function harness(
     over: Partial<{
       pending: PendingApprovalOutcome;

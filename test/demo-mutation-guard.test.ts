@@ -11,23 +11,11 @@ import { DEMO_SESSION_COOKIE, DEMO_SESSION_COOKIE_VALUE } from "~/lib/demo/const
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { getSession } from "~/lib/auth/session";
 
-// getSession makes a real Better Auth call (app/lib/auth/session.ts); the
-// test below only cares that appShellMiddleware still refuses a mutating
-// request when there is no session, so the session lookup is mocked to that
-// one case rather than standing up Better Auth.
+// The session lookup is mocked to "no session"; the test only needs the refusal.
 vi.mock("~/lib/auth/session", () => ({ getSession: vi.fn(async () => null) }));
 
-// TASK-foxhound-demo-system-completion.md Phase 1: a demo visitor must never
-// be able to mutate anything, enforced server-side. The guard itself
-// (appShellMiddleware, app/lib/auth/guards.ts) is a single choke point wired
-// onto the whole app-shell route tree (app/layouts/app-shell.tsx), not a
-// per-route check - so the actual way this protection could silently break
-// is a NEW action route landing outside that subtree, or an existing one
-// moving out of it. This is a structural regression guard for exactly that,
-// mirroring test/admin-route-guard.test.ts's proven pattern: it does not
-// re-test the guard predicate (demo-mode.test.ts already covers
-// demoBlocksMethod/resolvesToDemo as pure functions); it proves route wiring
-// can never drift a mutating route out from under the guard.
+// A demo visitor must never mutate anything. appShellMiddleware is the single choke point on the app-shell
+// subtree, so the risk is an action route landing outside that subtree; this scans for it.
 
 interface RouteConfigEntry {
   file: string;
@@ -49,12 +37,6 @@ function findByFile(entries: RouteConfigEntry[], file: string): RouteConfigEntry
   return null;
 }
 
-// Scans app/routes/app/ (the app-shell subtree's source directory) for any
-// route module that exports an action - the ONLY kind of request the demo
-// guard needs to stop. Reading real files (same pattern as
-// test/helpers/inmemory-db.ts reading migration SQL) so a new action added
-// later is picked up automatically; nobody has to remember to update a
-// hardcoded list here.
 const APP_ROUTES_DIR = fileURLToPath(new URL("../app/routes/app", import.meta.url));
 const ACTION_EXPORT_PATTERN = /export\s+(async\s+)?function\s+action\b/;
 
@@ -81,11 +63,7 @@ describe("every action route in the app shell is guarded by appShellMiddleware",
 
   it("finds action-exporting route files under app/routes/app/ (sanity: the scan itself works)", () => {
     const actionFiles = findActionRouteFiles(APP_ROUTES_DIR, APP_ROUTES_DIR);
-    // Known today: disputes/detail, billing/index, settings/index,
-    // settings/team, welcome (plus whatever admin/* actions exist - those are
-    // double-guarded, see admin-route-guard.test.ts). A refactor that moves
-    // or renames these should still find at least this many, or the scan
-    // itself has gone stale and this test would otherwise pass vacuously.
+    // Guards the scan itself against going stale and passing vacuously.
     expect(actionFiles.length).toBeGreaterThanOrEqual(5);
   });
 
@@ -104,13 +82,7 @@ describe("every action route in the app shell is guarded by appShellMiddleware",
   });
 });
 
-// TASK-foxhound-demo-inline-refusal.md: the client-side interception
-// (ReadOnlyForm) added in this task is deliberately NOT the security
-// boundary, only a better experience for the common case. This proves the
-// real boundary - appShellMiddleware's demoBlocksMethod check and its
-// throw data(DEMO_READ_ONLY_MESSAGE, {status: 405}) - is byte-for-byte
-// unchanged and still refuses a mutating request server-side, independent
-// of anything the client does.
+// The client-side interception is not the boundary; the server-side 405 is.
 describe("appShellMiddleware still refuses a mutating request in demo mode", () => {
   it("throws the read-only 405 for a POST carrying the demo cookie with no session", async () => {
     const request = new Request("http://localhost/recovery/payments/pay_1", {
@@ -135,7 +107,7 @@ describe("appShellMiddleware still refuses a mutating request in demo mode", () 
     ).rejects.toEqual(data(DEMO_READ_ONLY_MESSAGE, { status: 405 }));
 
     expect(next).not.toHaveBeenCalled();
-    // Hard rule 10: refused before any session work, not after it.
+    // Refused before any session work.
     expect(getSession).not.toHaveBeenCalled();
   });
 

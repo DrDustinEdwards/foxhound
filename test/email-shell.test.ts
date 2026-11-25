@@ -219,8 +219,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
   });
 
   it("a link the frame cannot carry is dropped to its words, and the send still goes", async () => {
-    // Review fix 1. A cached AI body is reused on every retry, so a throw here
-    // would fail the step every time and never reach the template fallback.
+    // A cached AI body is reused on every retry, so a throw here would fail the step every time.
     await sendJobEmail(env, customerJob(`<p><a href="javascript:alert(1)">Pay</a> today.</p>`));
     const m = only();
     expectBothParts(m, ["Pay today."]);

@@ -51,7 +51,7 @@ const CARREL_SITE = {
 } as const;
 
 const KIND = "post";
-/** The signed-in person Carrel sends with a write (site-api C2). */
+/** The signed-in person Carrel sends with a write. */
 type Actor = { name: string };
 const DEFAULT_AUTHOR = "Foxhound";
 const REVISION_PREFIX = "rev-";

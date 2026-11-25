@@ -390,7 +390,7 @@ export interface DisputeIntakeInput {
 }
 
 /**
- * charge.dispute.created (dispute intake, TASK-foxhound-dispute-intake.md): claim + insert the
+ * charge.dispute.created (dispute intake): claim + insert the
  * disputes row (state: pending_review, "awaiting merchant review", never auto-submitted) + insert
  * the drafted dispute_evidence rows + (when the disputed charge resolves to a known recovery) stamp
  * recovered_payments.disputed_at so the maturity-window billable predicate excludes it. All atomic

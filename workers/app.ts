@@ -44,8 +44,8 @@ export class RateLimiterDurableObject extends RateLimiter {}
 // The merchant MCP's append-only tool-call log, bound as TOOL_CALL_LOG
 // (app/lib/mcp/call-log.server.ts).
 export { ToolCallLog } from "@dustinedwards/site-runtime/audit-log";
-// The admin API, served only to a service binding that names this entrypoint
-// (FH-20); the public fetch below does not route it.
+// The admin API, served only to a service binding that names this entrypoint;
+// the public fetch below does not route it.
 export { AdminApi } from "./admin-api";
 
 const serverBuild = () => import("virtual:react-router/server-build") as Promise<ServerBuild>;

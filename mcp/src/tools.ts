@@ -447,5 +447,3 @@ export const ADMIN_TOOLS: AdminTool[] = [
       }),
   },
 ];
-
-export const ADMIN_TOOL_NAMES = ADMIN_TOOLS.map((tool) => tool.name);

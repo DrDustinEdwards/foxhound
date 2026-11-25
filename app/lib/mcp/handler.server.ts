@@ -143,7 +143,6 @@ async function authenticate(
   };
 }
 
-/** The endpoint. Returns null when the request is not for /mcp, so the worker entry falls through to the router. */
 export async function handleMcpRequest(
   request: Request,
   env: Env,
@@ -152,7 +151,6 @@ export async function handleMcpRequest(
   const url = new URL(request.url);
   if (url.pathname !== "/mcp") return null;
 
-  // Everything that is not POST gets 405: the endpoint supports exactly one method.
   if (request.method !== "POST") {
     return jsonResponse(
       mcpErrorBody(null, MCP_ERROR.INVALID_REQUEST, "The MCP endpoint accepts POST only"),

@@ -6,14 +6,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// JOB 3 / ruling 336 binding 3. `digest_email` is a Foxhound invention: legacy
-// has no such column, no such field, and no reader, and Foxhound's own audit
-// digest sends to `notification_email`. It was rendered on /settings, so it was
-// a false promise twice over, a field nothing reads AND a control legacy never
-// had.
-//
-// The COLUMN stays. Dropping it is a migration and none is owed here, which is
-// exactly why the plant below asserts the WRITE is gone rather than the column.
+// A posted digest_email writes nothing: the notifications action no longer names the column.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 
@@ -22,11 +15,6 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-// SESSION 59 MOVED THE SUBJECT, NOT THE PROPERTY. The Email card this suite
-// pinned lived on the /settings index; session 56 gave `notification_email` a
-// purpose-built page and session 59 removed the card, which was a SECOND writer
-// for one column. 336 binding 3's property is unchanged and is asserted at the
-// surface that now owns the column.
 const { action } = await import("~/routes/app/settings/notifications");
 
 const ACCOUNT = "acct_1";
@@ -83,7 +71,7 @@ function accountRow(): { notificationEmail: string | null; digestEmail: string |
     .get(ACCOUNT) as { notificationEmail: string | null; digestEmail: string | null };
 }
 
-describe("PLANT 1: a posted digest_email writes nothing", () => {
+describe("a posted digest_email", () => {
   it("the notification email saves and digest_email is untouched", async () => {
     const status = await post({
       notificationEmail: "new@acme.test",
@@ -94,8 +82,6 @@ describe("PLANT 1: a posted digest_email writes nothing", () => {
     expect(status).toBe(200);
     const row = accountRow();
     expect(row.notificationEmail).toBe("new@acme.test");
-    // The pre-existing value stands: the allowlist no longer names the column,
-    // so the post neither writes nor CLEARS it.
     expect(row.digestEmail).toBe("digest@acme.test");
   });
 });

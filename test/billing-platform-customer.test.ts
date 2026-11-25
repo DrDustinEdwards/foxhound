@@ -6,8 +6,7 @@ const { ensurePlatformCustomer, getDefaultCard } = platformCustomer;
 
 describe("ensurePlatformCustomer (reuse vs create)", () => {
   it("returns the existing id without calling Stripe when one is already stored", async () => {
-    // No STRIPE_SECRET_KEY in this fake env: if the function fell through to
-    // getStripe(env), it would throw. Returning cleanly proves the early return.
+    // No STRIPE_SECRET_KEY here: falling through to getStripe would throw.
     const fakeEnv = {} as Env;
     const id = await ensurePlatformCustomer(fakeEnv, {
       existingCustomerId: "cus_existing",
@@ -18,11 +17,6 @@ describe("ensurePlatformCustomer (reuse vs create)", () => {
   });
 });
 
-// J65: Recova's Payment method section shows the card on file (brand,
-// last four, expiry), read from the platform customer's default payment method.
-// Foxhound's page said "A payment method is on file" whenever a platform
-// customer existed, which the setup action creates BEFORE the card is
-// collected, so an abandoned setup read as a card on file.
 describe("getDefaultCard (the card on file, read only)", () => {
   const card = { brand: "visa", last4: "4242", exp_month: 4, exp_year: 2030 };
 
@@ -55,11 +49,7 @@ describe("getDefaultCard (the card on file, read only)", () => {
   });
 });
 
-// E25: Recova's billing customer carries the address Stripe emails the
-// invoice to, chosen in lib/billing-email.ts (blob 312e9177): the connected
-// account's support_email, then its account email, then the login email, with
-// an empty string treated as missing.
-describe("billing email for the platform customer (E25)", () => {
+describe("billing email for the platform customer", () => {
   it("prefers support_email, then the account email, then the login email", () => {
     const resolve = platformCustomer.resolveBillingEmailFromStripeAccount;
     const full = {

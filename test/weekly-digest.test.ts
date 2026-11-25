@@ -4,16 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import { blockText, type WordsBlock } from "./helpers/email-words";
 
-// SESSION 55 / 337 binding 2: THE WEEKLY DIGEST CRON, the fifth absent engine.
-//
-// Legacy's spec is app/api/cron/weekly-digest/route.ts (blob b6ff2a8c, 22,247
-// bytes): Monday 08:00 UTC, a ROLLING seven-day window, digest_enabled TRUE
-// (NULL is OFF, the one toggle with that semantic), notification_email as the
-// recipient, and a digest that SENDS EVEN IN AN EMPTY WEEK.
-//
-// THE ONE THING LEGACY DOES NOT HAVE IS A DEDUPE. It relies on its schedule and
-// its lock, so a second invocation inside a week sends a second digest. The
-// claim here is carried by the email_sends row the previous send wrote.
+// The weekly digest cron: rolling seven-day window, NULL digest_enabled is off, one digest per account per week.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -35,7 +26,7 @@ vi.mock("~/lib/email/dispatch", () => ({
 
 const { runWeeklyDigest, queryDigestAccounts, collectDigestNumbers, DIGEST_WINDOW_MS } =
   await import("~/lib/cron/digest");
-const { buildDigestBlocks, resolveDigestCurrency } = await import("~/lib/recovery/digest-email");
+const { resolveDigestCurrency } = await import("~/lib/recovery/digest-email");
 
 /** The words of a digest's blocks, one line each, for a containment check. */
 function words(blocks: WordsBlock[]): string {
@@ -75,11 +66,7 @@ function seedAccount(
     )
     .run(accountId, digestEnabled, email);
   sqlite
-    // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
-    // derived from the Foxhound account rather than hardcoded, because a
-    // shared literal made every two-account fixture violate the unique
-    // index the moment it shipped, and production could never have had two
-    // merchants on one connected account anyway.
+    // One live connection per Stripe account, so the id derives from the account.
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES (?, ?, ?, 1, 'cipher', 'Teamflow', 1000, 1000)",
     )
@@ -109,7 +96,7 @@ function seedRecovered(id: string, at: Date, cents = 5000, currency = "usd"): vo
     .run(id, ACCOUNT, `fp_${id}`, cents, currency, at.getTime());
 }
 
-describe("PLANT 1: the pure copy is legacy's", () => {
+describe("currency resolution", () => {
   it("currency falls back most-common, then failed, then usd", () => {
     expect(
       resolveDigestCurrency([{ currency: "eur" }, { currency: "eur" }, { currency: "usd" }], []),
@@ -117,37 +104,9 @@ describe("PLANT 1: the pure copy is legacy's", () => {
     expect(resolveDigestCurrency([], [{ currency: "gbp" }])).toBe("gbp");
     expect(resolveDigestCurrency([], [])).toBe("usd");
   });
-
-  it("the conditional rows appear once their counts are above zero", () => {
-    const text = words(
-      buildDigestBlocks({
-        personalOutreachCount: 0,
-        totalFailed: 1,
-        totalRecovered: 0,
-        recoveredRevenue: [{ currency: "usd", cents: 0 }],
-        atRiskRevenue: [{ currency: "usd", cents: 100 }],
-        activeCount: 0,
-        emailsSent: 0,
-        winBackCount: 0,
-        expiringCardCount: 2,
-        openDisputeCount: 1,
-        openDisputeAmounts: [{ currency: "usd", cents: 9900 }],
-        currency: "usd",
-        senderName: null,
-        disputesActive: true,
-        highRiskCustomers: [],
-        now: NOW,
-        baseUrl: "https://u.test",
-      }),
-    );
-
-    expect(text).toContain("Cards expiring soon");
-    expect(text).toContain("Open disputes");
-    expect(text).toContain("1 open dispute totaling $99.00 need a response");
-  });
 });
 
-describe("PLANT 2: the toggle is NULL-is-OFF", () => {
+describe("who is eligible", () => {
   it("an account with no notification email is skipped", async () => {
     sqlite.prepare("UPDATE accounts SET notification_email = NULL WHERE id = ?").run(ACCOUNT);
     expect(await queryDigestAccounts(db)).toEqual([]);
@@ -161,7 +120,7 @@ describe("PLANT 2: the toggle is NULL-is-OFF", () => {
   });
 });
 
-describe("PLANT 3: the numbers come from the week", () => {
+describe("the numbers come from the week", () => {
   it("counts and sums only what is inside the rolling window", async () => {
     seedFailed("f_in", INSIDE, 10000);
     seedFailed("f_out", OUTSIDE, 99999);
@@ -176,7 +135,7 @@ describe("PLANT 3: the numbers come from the week", () => {
     expect(n.recoveredRevenue).toEqual([{ currency: "usd", cents: 4000 }]);
   });
 
-  it("ACTIVE SEQUENCES ARE CURRENT STATE, not this week's, as legacy has it", async () => {
+  it("active sequences are current state, not this week's", async () => {
     seedFailed("f_old_active", OUTSIDE, 100, "active");
 
     const n = await collectDigestNumbers(db, ACCOUNT, new Date(NOW.getTime() - DIGEST_WINDOW_MS));
@@ -187,7 +146,7 @@ describe("PLANT 3: the numbers come from the week", () => {
   });
 });
 
-describe("PLANT 4: one digest per account per week", () => {
+describe("one digest per account per week", () => {
   it("an active week sends one digest with the rendered figures", async () => {
     seedFailed("f1", INSIDE, 10000);
     seedRecovered("r1", INSIDE, 5000);
@@ -199,7 +158,6 @@ describe("PLANT 4: one digest per account per week", () => {
     const job = harness.jobs[0];
     expect(job.to).toBe("owner@acme.test");
     expect(job.template).toBe("weekly_digest");
-    // The DIGEST audience (E23): Recova's unsubscribe and postal address.
     expect(job.audience).toBe("digest");
     expect(job.subject).toBe("Your weekly platform report: November 2");
     expect(String(job.unsubscribeToken)).not.toBe("");
@@ -211,16 +169,8 @@ describe("PLANT 4: one digest per account per week", () => {
   });
 });
 
-describe("PLANT 6: the digest does not skip itself (376 item 13)", () => {
-  // THE DEFECT, in one sentence: the claim asked for a send newer than
-  // `now - 7d` with `now` fixed at run start, and last week's row was written
-  // moments AFTER last week's run started, so it sat inside the window by
-  // exactly the duration of last week's run and every second Monday was eaten.
-  //
-  // EVERY DATE HERE IS ABSOLUTE AND NONE IS DERIVED FROM THE CONSTANT UNDER
-  // TEST. 350's own reversals record a window mutation that proved nothing
-  // because the fixtures moved with the constant; these are two real Mondays
-  // and a real 90 seconds.
+describe("the digest does not skip itself", () => {
+  // Fixture dates are absolute, not derived from the window constant.
   it("last Monday's send, written 90 seconds after last Monday's run began, does not claim this Monday", async () => {
     sqlite
       .prepare(

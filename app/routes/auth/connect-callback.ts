@@ -29,7 +29,7 @@ import type { Route } from "./+types/connect-callback";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Stripe Connect OAuth callback. Stripe redirects here with ?code&state after the merchant authorizes, and every path out of it writes `stripe_connections` through the per-account money-write Durable Object (token encrypted, never logged).
-// TWO BRANCHES, chosen by the state's own action: "add_account" mints a WHOLE NEW account and attaches the Stripe account to it; "connect" attaches to the account the caller is ACTIVELY looking at, resolved through the session marker like every other authenticated surface (never the earliest membership, which would bolt the Stripe account onto the wrong merchant's ledger, where the account-keyed webhook layer would honor it forever).
+// TWO BRANCHES, chosen by the state's own action: "add_account" mints a WHOLE NEW account; "connect" attaches to the account the caller is ACTIVELY looking at, resolved through the session marker (never the earliest membership, which would bolt the Stripe account onto the wrong merchant's ledger, where the account-keyed webhook layer would honor it forever).
 // Reconnecting a Stripe account that belongs to a DIFFERENT Foxhound account is refused, not silently moved.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env, ctx } = context.get(cloudflareContext);
@@ -125,9 +125,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 }
 
-// findLiveAttachment lives in app/lib/stripe/connections.server.ts because the anonymous audit's results page (a `.tsx` route) also calls it, and importing it from this module would put the database, the money-write executor and the token encryption on that page's client graph. It is not re-exported from here: a re-export is a non-loader export of a route module, which the dot-server guard rejects.
+// findLiveAttachment lives in app/lib/stripe/connections.server.ts because the anonymous audit's results page (a `.tsx` route) also calls it, and importing it from this module would put the database, the money-write executor and the token encryption on that page's client graph. Not re-exported: a re-export is a non-loader export of a route module, which the dot-server guard rejects.
 
-/** Where a merchant lands: a NEW connection goes to /welcome?connection=<its id>, anything else (a reconnect, or a Stripe account the caller already holds) to /console. The welcome page needs the id and goes to /console without it. */
+/** Where a merchant lands: a NEW connection goes to /welcome?connection=<its id>, anything else to /console. */
 function destinationFor(newConnectionId: string | null): string {
   return newConnectionId
     ? `/welcome?connection=${encodeURIComponent(newConnectionId)}`
@@ -149,8 +149,8 @@ async function landOn(
 
 /**
  * The `add_account` branch: a new account, its connection, its owner membership, and the active-account marker moved to it.
- * ONE `executeMoneyWrite`, KEYED ON THE NEW ACCOUNT ID, which is why the id is minted here rather than by the database: the money-write Durable Object is named by that id, so the id has to exist before the write that creates the row it names. Every statement lands in that one atomic batch, so a merchant can never end up with an account row that has no owner, or a connection whose account does not exist.
- * NEITHER BILLING NOR PRODUCTS ROWS ARE CREATED: `accounts.platform_stripe_customer_id` is written by the billing-setup path, not at connect. `createAccountForUser` creates exactly an account row and an owner membership, and this creates the same pair plus the connection, so there is one definition of what a new account is.
+ * ONE `executeMoneyWrite`, KEYED ON THE NEW ACCOUNT ID, minted here rather than by the database because the money-write Durable Object is named by that id. Every statement lands in one atomic batch, so an account never exists without an owner or a connection.
+ * NEITHER BILLING NOR PRODUCTS ROWS ARE CREATED: `accounts.platform_stripe_customer_id` is written by the billing-setup path. `createAccountForUser` creates exactly an account row and an owner membership; this adds the connection, so there is one definition of what a new account is.
  */
 async function addAccount(
   env: Env,
@@ -219,7 +219,7 @@ async function addAccount(
   return landOn(db, sessionId, accountId, connectionId);
 }
 
-/** The default branch: attach or reconnect on an account the caller already holds. THE ACCOUNT IS THE ACTIVE ONE, resolved through the session marker by `resolveActiveMembershipFrom` in the loader (which also checks the caller owns it), never the earliest. */
+/** The default branch: attach or reconnect on an account the caller already holds, THE ACTIVE ONE (`resolveActiveMembershipFrom` in the loader, which also checks ownership), never the earliest. */
 async function attachToActiveAccount(
   env: Env,
   db: Db,

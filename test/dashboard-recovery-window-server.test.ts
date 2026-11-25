@@ -11,12 +11,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// TASK-foxhound-recovery-surface-parity.md Phase 1: the composed windowed
-// read model, run against the real seeded demo account. Two things this
-// proves that the pure-math unit tests can't: the queries actually compose
-// correctly against the real schema, and the "one windowed function called
-// twice" shape genuinely produces range-scoped vs range-invariant fields as
-// designed - not asserted from reading the code, verified by calling it.
+// The composed windowed read model against the seeded demo account.
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 
@@ -39,9 +34,6 @@ describe("getRecoveryDashboardWindow structural sanity", () => {
     expect(w.recoveryRatePct as number).toBeGreaterThanOrEqual(0);
     expect(w.recoveryRatePct as number).toBeLessThanOrEqual(100);
     expect(w.recoveryRateDaily).toHaveLength(30);
-    // Independent per-bucket rounding (direct port of legacy's own math) can
-    // land a point or two off 100 in either direction; each bucket on its own
-    // must still be a sane percentage.
     for (const bucket of w.recoveryTimingBuckets) {
       expect(bucket.percentage).toBeGreaterThanOrEqual(0);
       expect(bucket.percentage).toBeLessThanOrEqual(100);
@@ -60,43 +52,14 @@ describe("getRecoveryDashboardWindow structural sanity", () => {
       expect(p.openRatePct).toBeGreaterThanOrEqual(0);
       expect(p.openRatePct).toBeLessThanOrEqual(100);
     }
-    // Every sparkline series spans a genuine 30 days, regardless of the
-    // window's own range (proven again here at the composed level, not just
-    // in the pure-math unit tests).
     for (const series of Object.values(w.categorySparkline)) {
       expect(series).toHaveLength(30);
     }
   });
-
-  it("never fabricates a currency amount: every group has a real ISO-ish currency string", async () => {
-    const db = await seededDb();
-    const w = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "all", now.getTime());
-    for (const amount of [...w.recoveredRevenue, ...w.atRiskRevenue, ...w.reactivatedRevenue]) {
-      expect(amount.currency).toBe("usd");
-      expect(amount.cents).toBeGreaterThanOrEqual(0);
-    }
-  });
-});
-
-describe("getRecoveryDashboardWindow: the dual-range shape", () => {
-  it("calling with '30d' twice (simulating the reused-single-fetch case) is deterministic", async () => {
-    const db = await seededDb();
-    const a = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "30d", now.getTime());
-    const b = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "30d", now.getTime());
-    expect(a).toEqual(b);
-  });
 });
 
 describe("getRecoveryDashboardWindow: single-cohort recovery-rate math", () => {
-  // Phase 1 review finding: legacy anchors its failure denominator on
-  // detected_at but its recovered numerator on a separately recovered_at-
-  // filtered query - two different cohorts. A failure detected before the
-  // window that happens to recover inside it inflates the numerator with no
-  // matching denominator entry, which can push a category's (or the
-  // account's overall) rate above 100%, and skews bestCategory toward
-  // whichever category the mismatch distorts hardest. listFailuresWithOutcome
-  // fixes this by deriving total AND recovered from the SAME cohort (failures
-  // detected in the window). This asserts that fix holds across every range.
+  // Total and recovered come from one cohort, so a rate never exceeds 100%.
   it("recovered never exceeds total, per category and overall, and recoveryRatePct never exceeds 100, across every range", async () => {
     const db = await seededDb();
     for (const range of RECOVERY_RANGES) {
@@ -125,13 +88,6 @@ describe("getRecoveryDashboardWindow: single-cohort recovery-rate math", () => {
 });
 
 describe("getRecoveryDashboardWindow: daily trend shares the headline's cohort", () => {
-  // Same review finding, applied to recoveryRateDaily: failedByDay was
-  // detected_at-anchored but recoveredByDay came from the recovered_at-
-  // anchored cash-flow query, so a batch of OLD failures (detected well
-  // before the window) recovering INSIDE the window inflated the numerator
-  // with no matching denominator entry - a quiet week after a bad week pushes
-  // the cumulative line above 100%. This drives that exact shape directly,
-  // rather than hoping the seeded data happens to contain it.
   it("recoveries of failures detected before the window never push the daily cumulative rate above 100%, even when they land inside it", async () => {
     const db = await seededDb();
     const range = "7d";

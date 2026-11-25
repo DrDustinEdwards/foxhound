@@ -8,7 +8,6 @@ import { data, Form, redirect, useNavigation } from "react-router";
 import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/panel.css";
-// Capsomer's tokens and the amber family (capbase layer), which the Panel, the Button, the Banner and Alert, and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
 import { Header } from "~/components/header";
@@ -31,7 +30,6 @@ import { decryptToken } from "~/lib/stripe/encryption";
 import type { Route } from "./+types/card-update";
 import "~/auth.css";
 
-// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
 
 // Per-recipient, token-bearing, and it resolves to a specific failed payment and a Stripe Checkout session, so it is never cacheable by a shared intermediary (see the same note on unsubscribe.tsx).
@@ -71,7 +69,6 @@ export function resolveConnectionForFailedPayment(
   return candidates.length === 1 ? candidates[0] : null;
 }
 
-/** What both modes resolve to: enough to open a Checkout session and finalize it. */
 interface CardUpdateTarget {
   /** The link's own row: the failed payment, or the alert. A Checkout session
    *  carries it, so the return leg accepts only a session made for this link. */
@@ -86,7 +83,6 @@ interface CardUpdateTarget {
    *  stored can still find the subscription at finalize time. */
   invoiceId?: string | null;
   connection: ConnectionCandidate | null;
-  /** True when there is nothing left to do (a payment already resolved). */
   resolved: boolean;
   amountCents?: number;
   currency?: string;
@@ -394,7 +390,7 @@ export async function action({ request, params, context }: Route.ActionArgs) {
   }
 }
 
-/** The page's frame: one Capsomer card on its own, in a narrow column with a 16px side margin on a phone. The reader is a merchant's customer, not a Foxhound merchant, so the page leaves AuthShell, whose brand panel pitches Foxhound to merchants. The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws an h2 header band and this page's one heading must be its h1. Inside: a Banner for a state the page lands in, an Alert above the button for a failure of that button's action, and the primary Button. The wrapper puts them in Capsomer's amber family with Foxhound's own neutrals (.fh-cap), so the button and its focus ring are amber. Banner and button text is 13px, the label size, and the heading and line under it keep the title and label sizes, so the page stays on the five sizes. */
+/** The page's frame. The reader is a merchant's customer, so the page leaves AuthShell, whose brand panel pitches Foxhound to merchants. The card is Capsomer's panel through its HTML contract, body only, because the React Panel always draws an h2 header band and this page's one heading must be its h1. */
 function CardUpdateFrame({
   title,
   subtitle,
@@ -431,7 +427,6 @@ export default function CardUpdate({ loaderData, actionData }: Route.ComponentPr
     loaderData.currency !== undefined
       ? `A recent payment of ${formatMoney(loaderData.amountCents, loaderData.currency)} did not go through.`
       : undefined;
-  // The fewest words that still tell the customer what they are restarting.
   const resubscribeLine =
     loaderData.state === "resubscribe" && loaderData.planName
       ? `Your ${loaderData.planName} plan.`

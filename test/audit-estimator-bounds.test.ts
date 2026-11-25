@@ -2,9 +2,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RouterContextProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-// app1 F4: the public estimator refuses an MRR past any real one, a fractional
-// or huge customer count and a currency it does not offer, before the
-// Turnstile check or any database write. Fake data.
+// The public estimator refuses out-of-range input before any database write.
 const recorded = vi.hoisted(() => ({ runs: 0 }));
 vi.mock("@dustinedwards/site-runtime/turnstile", async (importOriginal) => ({
   ...(await importOriginal<object>()),

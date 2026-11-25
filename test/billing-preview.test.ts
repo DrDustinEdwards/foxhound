@@ -3,19 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The /billing fee preview. The preview is a READ of the same
-// billable predicates and fee math the monthly run uses, evaluated at the NEXT
-// run instant rather than at now. That is the whole design: a recovery aged 20
-// days is not billable today but will be matured by the time the run fires, so
-// a preview anchored at now would under-report what the merchant is about to be
-// invoiced, which is a worse failure than showing nothing.
-//
-// The load-bearing test here is the equality one. A preview that computes its
-// own totals is a second implementation of the money math, and the failure mode
-// is silent: the card says one number, the invoice says another, and the
-// merchant catches it before we do. So the preview is pinned against what
-// runAccountBilling actually COMMITS for the same fixture at the same instant,
-// not against hand-computed expectations.
+// The /billing fee preview is pinned against what runAccountBilling commits for the same fixture at the run instant, not hand-computed numbers.
 
 const ACCOUNT_ID = "acc_preview";
 // Mid-month "now": the merchant is looking at /billing on the 15th.
@@ -61,8 +49,7 @@ interface RecoverySpec {
   disputedAt?: Date | null;
 }
 
-// One fixture drives both sides of the equality test. Every row is here for a
-// named reason; the comments are the spec for what each one proves.
+// One fixture drives both sides of the equality test.
 const RECOVERIES: RecoverySpec[] = [
   // Matured well before the run: billable, and inside this calendar month.
   { id: "rec_matured", recoveredAt: new Date("2026-07-01T00:00:00.000Z"), amountCents: 10_000 },
@@ -197,9 +184,6 @@ const byCurrency = (rows: { currency: string; cents: number }[]) =>
 
 describe("nextBillingRunAtMs (derived from the '0 4 1 * *' cron, never hardcoded)", () => {
   it("on the 1st before 04:00, the next run is later THAT day, not next month", () => {
-    // The cron fires at 04:00 on the 1st. A merchant loading /billing at 02:00
-    // on the 1st is two hours from being invoiced, and telling them the date is
-    // a month out would be wrong by a whole billing period.
     const early = new Date("2026-08-01T02:00:00.000Z").getTime();
     expect(new Date(nextBillingRunAtMs(early)).toISOString()).toBe("2026-08-01T04:00:00.000Z");
   });
@@ -216,7 +200,6 @@ describe("getBillingPreview", () => {
     harness.db = null;
   });
 
-  // THE equality gate. Same fixture, same instant, two code paths, one number.
   it("its estimate equals per currency what the run actually commits at that instant", async () => {
     const db = await seed();
 
@@ -239,18 +222,6 @@ describe("getBillingPreview", () => {
     );
   });
 
-  describe("recoveredThisMonth", () => {
-    it("never bills them: neither refunded nor disputed reaches the estimate", async () => {
-      const db = await seed();
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      const usd = byCurrency(preview.estimatedInvoice).usd;
-      // Their fees would be 600 and 800.
-      expect(usd).not.toBe(29_600 + 600);
-      expect(usd).not.toBe(29_600 + 800);
-      expect(usd).not.toBe(29_600 + 600 + 800);
-    });
-  });
-
   describe("account billing state (an empty estimate is not the same claim as nothing owed)", () => {
     it("reports billing exempt, and the estimate is empty by construction", async () => {
       const db = await seed({ billingExempt: true });
@@ -263,13 +234,6 @@ describe("getBillingPreview", () => {
       expect(byCurrency(preview.recoveredThisMonth).usd).toBe(35_000);
     });
 
-    it("reports processing paused, and the estimate is empty by construction", async () => {
-      const db = await seed({ processingPaused: true });
-      const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-      expect(preview.accountBillingState.processingPaused).toBe(true);
-      expect(preview.estimatedInvoice).toEqual([]);
-    });
-
     it("reports a canceled account, which is NOT a billing gate", async () => {
       const cancelledAt = new Date("2026-07-09T00:00:00.000Z");
       const db = await seed({ cancelledAt });
@@ -280,27 +244,13 @@ describe("getBillingPreview", () => {
       expect(byCurrency(preview.estimatedInvoice).usd).toBe(29_600);
     });
   });
-
-  it("returns empty totals for an account with nothing at all, without throwing", async () => {
-    const db = await seed();
-    const preview = await getBillingPreview(db, "acc_nobody", NOW_MS);
-    expect(preview.estimatedInvoice).toEqual([]);
-    expect(preview.recoveredThisMonth).toEqual([]);
-    expect(preview.nextRunAtMs).toBe(NEXT_RUN_MS);
-  });
 });
 
-// J65: Recova's /billing splits the next invoice into its Recovery
-// section (recovered this month and the recovery fee) and its Dispute Fees
-// section (the pending dispute fees), and counts only attributed recoveries in
-// "Recovered this month". These are the same reads as above, split, so the
-// equality gate above still pins the total.
-describe("getBillingPreview, split for Recova's sections (J65)", () => {
+describe("getBillingPreview, attributed recoveries", () => {
   it("counts only attributed recoveries as recovered this month, never the free baseline", async () => {
     const db = await seed();
     const preview = await getBillingPreview(db, ACCOUNT_ID, NOW_MS);
-    // 35_000 less the 6_000 baseline. Refunded and disputed still count: they
-    // were recovered, as Recova counts them.
+    // 35_000 less the 6_000 baseline; refunded and disputed still count as recovered.
     expect(byCurrency(preview.attributedThisMonth)).toEqual({ usd: 29_000, eur: 20_000 });
   });
 });

@@ -3,11 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Early fraud warnings (Stripe radar.early_fraud_warning), end to end: the real
-// webhook processor records the warning and notifies the merchant once, and the
-// merchant's Refund asks Stripe first, never refunds a disputed charge, and
-// writes nothing billable. Assertions read the tables, the sent mail and the
-// Stripe calls, never a helper's return alone.
+// Early fraud warnings end to end: the webhook records and notifies once; Refund asks Stripe first,
+// never refunds a disputed charge, and writes nothing billable.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,

@@ -44,8 +44,7 @@ const PRIVATE_LAYOUTS = [
   "./layouts/auth.tsx",
 ];
 
-describe("PLANT 5: every page in the sitemap is stored for every reader", () => {
-  // /security once shipped in the sitemap and was served private, no-store, because nobody listed it.
+describe("every page in the sitemap is stored for every reader", () => {
   it("each STATIC_PAGES path lands on a route whose headers are publicPageHeaders", () => {
     expect(STATIC_PAGES.length).toBeGreaterThan(5);
     for (const { path } of STATIC_PAGES) {
@@ -59,7 +58,7 @@ describe("PLANT 5: every page in the sitemap is stored for every reader", () => 
   });
 });
 
-describe("PLANT 9: nothing drawn for one reader is marked public", () => {
+describe("nothing drawn for one reader is marked public", () => {
   it("the signed-in, admin and sign-in layouts are private and untransformed", () => {
     for (const layout of PRIVATE_LAYOUTS) expect(source(layout), layout).toMatch(PRIVATE);
   });

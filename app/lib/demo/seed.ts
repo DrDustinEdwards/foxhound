@@ -476,7 +476,7 @@ export async function ensureDemoSeededWithLock(db: Db, lock: DemoResetLock): Pro
 /**
  * Ensure the demo account exists before a visitor enters it, serialized against
  * the daily demo-reset cron (and any other concurrent caller) through the same
- * CronLock Durable Object the reset uses. See TASK-foxhound-demo-seed-race.md.
+ * CronLock Durable Object the reset uses.
  */
 export async function ensureDemoSeeded(env: Env): Promise<void> {
   const db = getDb(env);

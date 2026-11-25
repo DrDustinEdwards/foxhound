@@ -11,9 +11,7 @@ import { percent } from "capsomer/behavior/meter";
 
 export interface CurrencyComparison {
   currency: string;
-  /** The cumulative attributed-recovery total, this run. */
   cents: number;
-  /** Change since the prior month's snapshot, or null when there is none. */
   changeCents: number | null;
 }
 
@@ -46,15 +44,13 @@ const MONTHLY_AUDIT_SUBJECT = "Your monthly Foxhound report";
 
 export const MONTHLY_AUDIT_FROM_NAME = "Foxhound";
 
-/** The email_sends template label for this mail. */
 export const MONTHLY_AUDIT_TEMPLATE = "monthly_audit";
 
 /**
  * A figure, or the one sentence every audit surface uses for a scope that could
  * not be read.
  *
- * The engine carries a per-scope status, phase (d) stored it as the NULL and
- * phase (e) rendered it as a sentence; an email that coalesced it back to a
+ * An email that coalesced it back to a
  * zero would tell a merchant they have no open disputes on the strength of a
  * Stripe call that failed.
  */
@@ -66,11 +62,6 @@ function row(label: string, value: string): Block {
   return { type: "paragraph", text: `${label}: ${value}` };
 }
 
-/**
- * A money row, one line per currency. The first currency sits on the labeled
- * row as before; each other currency is its own line straight below it. A
- * single-currency account gets the one row it always did.
- */
 function moneyRows<T>(
   label: string,
   scope: ScopeOutcome<T>,
@@ -88,18 +79,12 @@ function moneyRows<T>(
 
 export interface MonthlyAuditEmailInput {
   result: AuditResult;
-  /** The run's summary, model-written or the fallback. */
   summary: string;
-  /** The stored run this email links to. Account-scoped at the reader. */
   runId: string;
   baseUrl: string;
   comparisons: CurrencyComparison[];
 }
 
-/**
- * The merged email. Pure, so its content is assertable without sending
- * anything, mirroring `buildFailureAlertEmail` and the digest it replaces.
- */
 export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   subject: string;
   blocks: Block[];
@@ -107,11 +92,6 @@ export function buildMonthlyAuditEmail(input: MonthlyAuditEmailInput): {
   const { result, summary, runId, baseUrl, comparisons } = input;
   const cur = result.meta.currency;
 
-  // The absorbed digest line, with the month-over-month delta the claim table's
-  // stored snapshot already makes available.
-  //
-  // The digest this absorbed used `formatMoney` for exactly this figure and
-  // keeps it.
   const addsLines: Block[] = comparisons.length
     ? comparisons.map((c) => {
         const total = formatMoney(c.cents, c.currency);

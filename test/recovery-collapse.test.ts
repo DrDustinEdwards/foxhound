@@ -29,16 +29,9 @@ vi.mock("~/db", async (importOriginal) => {
   };
 });
 
-// Regression cover for the review's Finding 1 + 2 (recovery-executors-review.md):
-// the invoice.payment_succeeded webhook is the sole recovery recorder and sole
-// status-flipper; the retry executor only reconciles attribution (UPDATE-only,
-// never inserts). This exercises the REAL SerialMoneyCommitter (the DO's core,
-// not mocked) against a minimal fake D1 that enforces the two things that matter:
-// the outcomes.idempotency_key UNIQUE constraint, and whole-batch atomicity
-// (a throw discards every statement in that commit, nothing partially lands).
-// This is deliberately NOT a generic SQL engine: it interprets exactly the
-// statement shapes buildRecoverBatch/buildRetryReconciliationBatch compile to,
-// verified against real .toSQL() output.
+// The webhook is the sole recovery recorder; the retry executor only reconciles attribution.
+// Drives the real SerialMoneyCommitter against a minimal fake D1 enforcing the outcomes and
+// webhook_events UNIQUE indexes and whole-batch atomicity.
 
 const now = new Date("2026-07-20T00:00:00.000Z");
 const db = drizzle({} as never, { schema });

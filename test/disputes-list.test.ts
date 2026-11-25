@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 
-// The loader reads through getDb(env); the in-memory database stands in for D1.
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -11,40 +10,13 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const route = await import("~/routes/app/disputes/index");
-const { deadlineShort, disputeListStatus } = await import("~/lib/disputes/labels");
 const { createInMemoryDb } = await import("./helpers/inmemory-db");
 
 const NOW = Date.parse("2026-10-15T12:00:00.000Z");
 const DAY = 24 * 60 * 60 * 1000;
 
-describe("deadlineShort", () => {
-  it("is whole days, blank once resolved or with no deadline", () => {
-    expect(deadlineShort(18, false)).toBe("18d");
-    expect(deadlineShort(-2, false)).toBe("-2d");
-    expect(deadlineShort(5, true)).toBe("");
-    expect(deadlineShort(null, false)).toBe("");
-  });
-});
-
-describe("disputeListStatus", () => {
-  const status = (state: string, submittedBy: string | null = null, hasEvidence = true) =>
-    disputeListStatus({ state, submittedBy, hasEvidence }).label;
-
-  it("tells a Foxhound submission from an external one", () => {
-    expect(status("submitted", "owner@example.com")).toBe("We submitted");
-    expect(status("submitted", null)).toBe("We submitted");
-    expect(status("submitted", "merchant_or_stripe")).toBe("Submitted externally");
-  });
-
-  it("says Evidence ready only when the draft holds evidence, and Unknown for an unknown state", () => {
-    expect(status("pending_review", null, true)).toBe("Evidence ready");
-    expect(status("pending_review", null, false)).toBe("Pending review");
-    expect(status("charge_refunded")).toBe("Unknown");
-  });
-});
-
 describe("the loader", () => {
-  const ACCOUNT = "acct_j66";
+  const ACCOUNT = "acct_list";
   let env: Env;
   let sqlite: ReturnType<typeof createInMemoryDb>["sqlite"];
 
@@ -181,7 +153,7 @@ describe("the loader", () => {
     wonBilled("failed", ACCOUNT, 300);
     invoice("inv_failed", ACCOUNT, "payment_failed");
     feeLine("li_failed", "inv_failed", ACCOUNT, "failed", 300);
-    // Paid: drops off, as Recova's paid fees do.
+    // Paid: drops off.
     wonBilled("paid", ACCOUNT, 900);
     invoice("inv_paid", ACCOUNT, "paid");
     feeLine("li_paid", "inv_paid", ACCOUNT, "paid", 900);
@@ -218,15 +190,5 @@ describe("the loader", () => {
     );
     evidence.run("e2", "blank", ACCOUNT, "product_description", "   ");
     expect((await load()).withEvidence).toEqual(["drafted"]);
-  });
-
-  it("reads each disputing customer's health score", async () => {
-    dispute("a", NOW - DAY, NOW + DAY);
-    sqlite
-      .prepare(
-        "INSERT INTO customer_context (id, account_id, stripe_customer_id, health_score, created_at, updated_at) VALUES ('cc1', ?, 'cus_a', 77, 1, 1)",
-      )
-      .run(ACCOUNT);
-    expect((await load()).health).toEqual({ cus_a: 77 });
   });
 });

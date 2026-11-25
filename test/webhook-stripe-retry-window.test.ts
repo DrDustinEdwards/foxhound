@@ -9,10 +9,8 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Foxhound starts a recovery sequence only after Stripe's own Smart Retries have run and failed (a
-// click on a Foxhound email during Stripe's window would make Stripe's recovery billable). The row is
-// created on the first event as `stripe_retrying` with no steps, so the involuntary-churn guard still
-// sees it. `next_payment_attempt` null and absent both read as "gave up", so every fixture states it.
+// A recovery sequence starts only after Stripe's own retries have run and failed; every fixture states
+// next_payment_attempt, since null and absent both mean "gave up".
 
 const ACCOUNT_ID = "acc_intake";
 const CONNECTION_ID = "conn_intake";

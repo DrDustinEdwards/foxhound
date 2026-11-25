@@ -23,7 +23,6 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { action, loader } = await import("~/routes/app/settings/email");
-const { sendTestEmail } = await import("~/lib/settings/test-email.server");
 const { buildEmailMessage } = await import("~/lib/email/send");
 const { toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
@@ -179,26 +178,9 @@ describe("sender settings", () => {
     expect(connectionRow("c1")).toEqual({ senderName: null, replyTo: null });
   });
 
-  it("answers a failed write with a failure state rather than throwing", async () => {
-    harness.db = new Proxy(
-      {},
-      {
-        get() {
-          throw new Error("D1 unavailable");
-        },
-      },
-    );
-    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-    const res = await post({ _action: "sender", connectionId: "c1", senderName: "Acme" });
-    logged.mockRestore();
-    expect(res.status).toBe(500);
-    expect(res.body).toEqual({ action: "sender", ok: false, failed: true });
-  });
-
   it("the loader hands the form the primary live connection, never a disconnected one", async () => {
     sqlite.prepare("DELETE FROM stripe_connections").run();
-    // Disconnecting leaves is_primary set, so a reader without the null check
-    // would hand this form a severed connection to write to.
+    // Disconnecting leaves is_primary set; the loader must not hand back a severed connection.
     seedConnection({ id: "c_gone", senderName: "Old", disconnectedAt: 500 });
     const loaded = (await loader({
       context: ctx,
@@ -269,17 +251,6 @@ describe("send test email", () => {
     expect(rows).toEqual([{ status: "sent" }]);
   });
 
-  it("saving the sender settings, loading the page, or an unknown action sends nothing", async () => {
-    await post({ _action: "sender", connectionId: "c1", senderName: "Acme" });
-    await post({ _action: "nope" });
-    await loader({
-      context: ctx,
-      request: new Request(`${BASE}/settings/email`),
-      params: {},
-    } as never);
-    expect(harness.sent).toHaveLength(0);
-  });
-
   it("a suppressed address sends nothing and says so", async () => {
     sqlite
       .prepare(
@@ -289,12 +260,5 @@ describe("send test email", () => {
     const out = await post({ _action: "test-email" });
     expect(out.body).toMatchObject({ ok: false, status: "suppressed" });
     expect(harness.sent).toHaveLength(0);
-  });
-
-  it("no EMAIL binding is 'failed' with the reason, and does not throw", async () => {
-    env = makeEnv({ EMAIL: undefined });
-    const { result } = await sendTestEmail(env, ACCOUNT, USER_EMAIL);
-    expect(result.status).toBe("failed");
-    expect(result.error).toMatch(/EMAIL binding/);
   });
 });

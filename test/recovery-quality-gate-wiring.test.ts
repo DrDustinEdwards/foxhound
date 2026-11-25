@@ -10,20 +10,11 @@ import type { EmailJob } from "~/lib/email/types";
 import type { EmailJobResult } from "~/lib/email/dispatch";
 import { findBrandVoiceViolations, type EmailCopy } from "~/lib/recovery/email-generation";
 
-// Part 1: the brand-voice quality gate, wired into the send path.
-//
-// Before this, passesQualityGate and findBrandVoiceViolations were written, unit
-// tested, and called by NOTHING in the send path. Dunning bodies are the only
-// ungrounded AI output with no other backstop: disputes carry mandatory merchant
-// approval, the Intelligence narrative is merchant-read-only, and these go to a
-// merchant's own customers in that merchant's voice.
+// The brand-voice quality gate is wired into the send path: violating generated copy is replaced by the template.
 
 const env = {
   BETTER_AUTH_URL: "https://foxhoundapp.com",
   PHYSICAL_ADDRESS: "1 Test St, Austin TX",
-  // Required by the card-update and engagement token signers, which run before
-  // any copy resolution. Valid hex: hexToBytes does not validate, but a real key
-  // is the honest fixture.
   ENCRYPTION_KEY: "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff",
 } as unknown as Env;
 
@@ -55,8 +46,6 @@ async function stepLink(): Promise<string> {
 async function runWithGenerated(copy: EmailCopy, context: Partial<EmailStepContext> = {}) {
   const jobs: EmailJob[] = [];
   const result = await executeEmailStep(env, ctx(context), {
-    // `{{LINK}}` stands where a model writes the update link it was given, so
-    // passing copy carries the link and the gate is the only thing under test.
     generate: async (_e, updateUrl) => ({
       subject: copy.subject,
       bodyHtml: copy.bodyHtml.replaceAll("{{LINK}}", updateUrl),
@@ -70,9 +59,7 @@ async function runWithGenerated(copy: EmailCopy, context: Partial<EmailStepConte
   return { result, job: jobs[0] };
 }
 
-// One violating sample PER RULE CLASS, not one clean sample. Each of these is a
-// distinct branch of findBrandVoiceViolations, and a gate that catches only em
-// dashes would pass a test built from a single dashed string.
+// One violating sample per rule class.
 const VIOLATIONS: { name: string; copy: EmailCopy; expect: string }[] = [
   {
     name: "em_dash in body",
@@ -112,12 +99,8 @@ const VIOLATIONS: { name: string; copy: EmailCopy; expect: string }[] = [
 ];
 
 describe("the gate is actually wired into the send path", () => {
-  // Sweep every rule class. Each entry must (a) actually violate the rule it
-  // claims, and (b) be replaced by the template in the send path.
   it("replaces violating copy with the template, for every rule class", async () => {
     for (const v of VIOLATIONS) {
-      // The fixture must genuinely violate what it says it does, or this test
-      // would pass while asserting nothing.
       expect(findBrandVoiceViolations(v.copy), `${v.name} fixture`).toContain(v.expect);
 
       const { result, job } = await runWithGenerated(v.copy);

@@ -11,10 +11,7 @@ const invite: InviteView = {
   invitedEmail: "teammate@acme.com",
 };
 
-// A membership ON THE INVITED ACCOUNT. Ruling 327 narrowed the third argument
-// from "any membership this user holds" to "their membership on the account this
-// invite is for", so a fixture pointing at acc_2 no longer tests anything the
-// function looks at.
+// The caller's membership on the invited account.
 const membershipOnInvitedAccount: Membership = {
   memberId: "mem_2",
   accountId: "acc_1",
@@ -38,12 +35,6 @@ describe("evaluateAcceptInvite (the team invite/role decision, pure)", () => {
     });
   });
 
-  // WAS: "rejects a user who already holds an active membership elsewhere
-  // (single-account invariant)", asserting { ok: false, reason: "already_member" }
-  // against a membership on acc_2. That invariant is struck and the
-  // refusal is enforcement layer 2, removed by ruling 327 by CHANGING THE
-  // VERDICT: legacy's app/api/invite/accept/route.ts:47-57 (blob `13708537`)
-  // answers { success: true, redirect: '/console' } on this branch.
   it("treats an invite to an account the user ALREADY holds as success, writing nothing", () => {
     expect(evaluateAcceptInvite(invite, membershipOnInvitedAccount, "teammate@acme.com")).toEqual({
       ok: true,
@@ -53,9 +44,7 @@ describe("evaluateAcceptInvite (the team invite/role decision, pure)", () => {
   });
 
   it("refuses a mismatched email even when the user already holds the account", () => {
-    // Order check: legacy answers `wrong_user` 403 (route.ts:41-44) before it
-    // looks at membership at all, so an invite addressed to someone else is not
-    // rescued by the caller happening to be a member.
+    // An invite addressed to someone else is not rescued by the caller being a member.
     expect(
       evaluateAcceptInvite(invite, membershipOnInvitedAccount, "someone-else@acme.com"),
     ).toEqual({ ok: false, reason: "email_mismatch" });

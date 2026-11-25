@@ -6,7 +6,7 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 // THE SDK DOES NOT TYPE THIS ENDPOINT. stripe@23.0.1 ships no `fxQuotes`
 // resource, so the call goes through `stripe.rawRequest`, which still carries
 // the SDK's auth, retries and idempotency. Adding a dependency to reach a typed
-// wrapper is exactly what 371 binding 1 warns about on a money repo.
+// wrapper is not worth it on a money repo.
 
 export interface ResolvedDisputeCap {
   /** The cap to apply, in the DISPUTE's minor units. */

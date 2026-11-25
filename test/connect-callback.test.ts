@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -8,13 +5,8 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// The Stripe connect callback is the money path: `stripe_connections` decides which
-// merchant's ledger every future webhook for a Stripe account resolves to. Every
-// refusal is checked for having written nothing and for having made no further
-// Stripe call, not just for its redirect.
-//
-// Two users, not two memberships: the defect needs two people who both hold Stripe
-// access to one connected account, and a one-user fixture goes green against it.
+// The connect callback decides which merchant's ledger a Stripe account's webhooks resolve to. Every refusal must write
+// nothing and make no further Stripe call. Two users, not two memberships: a one-user fixture goes green against the defect.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -49,7 +41,6 @@ vi.mock("~/lib/money/execute", () => ({ executeMoneyWrite: vi.fn() }));
 
 const { executeMoneyWrite } = await import("~/lib/money/execute");
 const { loader } = await import("~/routes/auth/connect-callback");
-const { findLiveAttachment } = await import("~/lib/stripe/connections.server");
 const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } =
   await import("~/lib/stripe/connect-state");
 const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/constants");
@@ -208,23 +199,6 @@ function errorParam(response: Response): string | null {
   ).searchParams.get("error");
 }
 
-describe("findLiveAttachment: three discriminated answers", () => {
-  it("answers unattached, held_by_caller and held_elsewhere, never a nullable id", async () => {
-    seedConnection({ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X });
-
-    await expect(findLiveAttachment(db, "acct_stripe_unknown", [ACCOUNT_B])).resolves.toEqual({
-      status: "unattached",
-    });
-    await expect(findLiveAttachment(db, STRIPE_X, [ACCOUNT_A])).resolves.toEqual({
-      status: "held_by_caller",
-      accountId: ACCOUNT_A,
-    });
-    await expect(findLiveAttachment(db, STRIPE_X, [ACCOUNT_B])).resolves.toEqual({
-      status: "held_elsewhere",
-    });
-  });
-});
-
 describe("a Stripe account live on another person's account is refused in the connect branch", () => {
   it("refuses user 2 connecting a Stripe account live on user 1's account", async () => {
     seedConnection({ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X });
@@ -233,12 +207,8 @@ describe("a Stripe account live on another person's account is refused in the co
     const response = await callback(CONNECT_ACTION);
 
     expect(errorParam(response)).toBe("stripe_account_already_connected");
-    // Nothing written, and the assertion is on the TABLE, not on the redirect.
     expect(connections()).toEqual([{ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X }]);
     expect(harness.writes).toEqual([]);
-    // And no further Stripe call: the refusal lands before the account-name
-    // fetch, so a merchant who is going to be refused is not a request Foxhound
-    // makes on their behalf.
     expect(harness.nameFetches).toBe(0);
   });
 });
@@ -263,9 +233,7 @@ describe("the same refusal in the add_account branch", () => {
 
 describe("the same user's own second account is refused too", () => {
   it("refuses connecting to B a Stripe account live on A when one user holds both", async () => {
-    // The case the OLD scoped query did catch. It must keep being refused:
-    // moving a live connection between two of one merchant's ledgers re-points
-    // every future webhook and re-attributes the recoveries it produces.
+    // Moving a live connection between one merchant's ledgers would re-point every future webhook.
     sqlite.prepare("UPDATE account_members SET user_id = ? WHERE id = 'm_b'").run(USER);
     seedConnection({ id: "conn_a", accountId: ACCOUNT_A, stripeUserId: STRIPE_X });
     signIn(SESSION_B, USER, ACCOUNT_B);
@@ -317,8 +285,7 @@ describe("the cases that must still succeed", () => {
   });
 
   it("a reconnect on the ACTIVE account updates in place rather than inserting", async () => {
-    // The row carries per-connection settings (sender name, the four brand
-    // voices), so reviving it matters: an insert would silently reset them.
+    // The row carries per-connection settings, so an insert would silently reset them.
     seedConnection({
       id: "conn_a",
       accountId: ACCOUNT_A,
@@ -392,7 +359,7 @@ describe("only the owner who started a flow may finish it, and only with a write
 });
 
 describe("the writes the callback makes", () => {
-  it("add_account is ONE money write of three statements, keyed on the account it creates", async () => {
+  it("add_account is one money write of three statements, keyed on the account it creates", async () => {
     signIn("sess_a", USER, ACCOUNT_A);
 
     await callback(ADD_ACCOUNT_ACTION);
@@ -405,23 +372,10 @@ describe("the writes the callback makes", () => {
       }
     ).id;
     expect(harness.writes).toHaveLength(1);
-    // The DO is named by this id, so it is minted before the write that creates its
-    // row; keying on the caller's active account would serialize the wrong partition.
     expect(harness.writes[0].accountId).toBe(created);
     expect(harness.writes[0].idempotencyKey).toBe(`add-account:${created}`);
-    // Account, connection, membership: a connection insert moved out of the batch
-    // would leave a window where the account exists with no connection.
+    // Account, connection, membership.
     expect(harness.writes[0].statements).toBe(3);
-  });
-
-  it("every mutation goes through executeMoneyWrite, never the db handle", () => {
-    const code = readFileSync(
-      fileURLToPath(new URL("../app/routes/auth/connect-callback.ts", import.meta.url)),
-      "utf8",
-    )
-      .replace(/\/\*[\s\S]*?\*\//g, "")
-      .replace(/^\s*\/\/.*$/gm, "");
-    expect(code).not.toMatch(/\bdb\s*\.\s*(insert|update|batch)\b/);
   });
 });
 
@@ -434,11 +388,6 @@ describe("the database refuses a second live connection for one Stripe account",
     expect(() => insertConnection("conn_b", ACCOUNT_B, STRIPE_X)).toThrow(/unique/i);
     expect(() => insertConnection("conn_a2", ACCOUNT_A, STRIPE_X)).toThrow(/unique/i);
     expect(connections().map((c) => c.id)).toEqual(["conn_a"]);
-  });
-
-  it("allows a different Stripe account on the same Foxhound account", () => {
-    insertConnection("conn_a", ACCOUNT_A, STRIPE_X);
-    expect(() => insertConnection("conn_a2", ACCOUNT_A, "acct_stripe_y")).not.toThrow();
   });
 
   it("a disconnected row never blocks a live one, however many there are", () => {

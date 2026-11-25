@@ -8,12 +8,7 @@ import { accountProcessingEligible } from "~/lib/intelligence/sync.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// THE non-negotiable firewall: the demo account must NEVER appear in any account
-// enumeration that leads to a Stripe or Anthropic call. Those crons all select
-// accounts through one of three eligibility conditions; every one must exclude the
-// DEMO_ACCOUNT_ID_PREFIX. This proves the prefix alone is the firewall (a demo
-// account with NONE of the pause/exempt flags is STILL excluded), and that the
-// real seeded demo account is excluded too.
+// The demo account never appears in an account enumeration leading to a Stripe or AI call; the id prefix alone excludes it.
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 

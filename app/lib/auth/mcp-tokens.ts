@@ -5,9 +5,8 @@ import type { Db } from "~/db";
 import { accounts, apiKeys, oauthGrants } from "~/db";
 import { keyScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 
-// MCP token model (Phase 3 designs it; Phase 7's Foxhound MCP consumes it).
+// MCP token model.
 //
-// Model:
 //   - A token is a high-entropy secret shown to the operator exactly once. Only
 //     its SHA-256 hash is stored (api_keys.key_hash); the plaintext is never
 //     persisted or logged.
@@ -72,8 +71,7 @@ export function mintMcpTokenValue(): string {
 
 /**
  * Issue an MCP token: generate the secret, store only its hash + scope, return
- * the plaintext once. This is the C6 issuance helper; Phase 7 calls it behind
- * an authenticated, role-checked endpoint.
+ * the plaintext once. Call it only behind an authenticated, role-checked endpoint.
  */
 export async function issueMcpToken(db: Db, input: IssueMcpTokenInput): Promise<IssuedMcpToken> {
   const { issued, statement } = await buildMcpTokenInsert(db, input);
@@ -121,8 +119,7 @@ export interface VerifiedMcpToken {
 
 /**
  * Resolve a presented token to its scope + account, or null if unknown,
- * revoked, or not an MCP token. Stamps last_used_at. Phase 7's MCP request
- * handler calls this; Phase 3 defines it as part of the model.
+ * revoked, or not an MCP token. Stamps last_used_at.
  */
 export async function verifyMcpToken(db: Db, presented: string): Promise<VerifiedMcpToken | null> {
   if (!presented.startsWith(MCP_TOKEN_PREFIX)) return null;

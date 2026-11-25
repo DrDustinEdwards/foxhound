@@ -25,16 +25,9 @@ export interface AcceptDisputeInput {
   accountId: string;
   disputeId: string;
   stripeDisputeId: string;
-  /**
-   * The dispute's state as just read; a submitted or resolved one is refused.
-   */
   state: string;
   amountCents: number;
   currency: string;
-  /**
-   * Encrypted stripe_connections.stripe_access_token of the dispute's
-   * connection.
-   */
   connectionAccessToken: string;
   acceptedAt: Date;
   /** A dispute_approvals row exists for the dispute (read with the state). */
@@ -52,7 +45,6 @@ export const ACCEPT_APPROVED_MESSAGE =
 const ACCEPT_UNKNOWN_MESSAGE =
   "Something went wrong while accepting. Stripe may or may not have closed this dispute, so check it in Stripe before trying again. If Stripe returned a server error, trying again here within 24 hours gets the same answer.";
 
-/** The Stripe idempotency key for closing one dispute. */
 function stripeCloseIdempotencyKey(disputeId: string): string {
   return `dispute-accept:${disputeId}`;
 }
@@ -64,7 +56,6 @@ function acceptIdempotencyKey(disputeId: string): string {
   return `dispute-accepted:${disputeId}`;
 }
 
-/** The accepted state and its outcome, as one batch. */
 function buildDisputeAcceptBatch(
   db: Db,
   input: Pick<
@@ -134,7 +125,6 @@ type CloseResult =
   | { ok: false; refused: true; error: string }
   | { ok: false; refused: false };
 
-/** Close the dispute at Stripe: Stripe's "accept", which concedes it. */
 async function closeDisputeWithClient(
   stripe: Stripe,
   stripeDisputeId: string,

@@ -3,10 +3,6 @@ import type { DisputeState } from "~/lib/constants";
 import type { Tone } from "~/lib/recovery/labels";
 import { DAY_MS } from "~/lib/constants";
 
-// Human-readable labels + status-taxonomy tones for the disputes surfaces
-// (Phase 5 slice 5c). Pure and unit-tested, mirroring
-// app/lib/recovery/labels.ts.
-
 export const DISPUTE_STATE_LABELS: Record<DisputeState, string> = {
   draft: "Draft",
   pending_review: "Pending review",
@@ -39,9 +35,7 @@ export const SUBMITTED_AUTOMATICALLY = "foxhound_auto";
 export interface DisputeListStatusInput {
   state: string;
   submittedBy: string | null;
-  /** Whether Foxhound's draft holds at least one non-blank evidence field. */
   hasEvidence: boolean;
-  /** Stripe's dispute status, which says whether this is an inquiry. */
   stripeStatus?: string | null;
 }
 

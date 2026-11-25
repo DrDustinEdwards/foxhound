@@ -171,7 +171,6 @@ export const earlyFraudWarnings = sqliteTable(
     stripeChargeId: text("stripe_charge_id").notNull(),
     stripePaymentIntentId: text("stripe_payment_intent_id"),
     stripeCustomerId: text("stripe_customer_id"),
-    /** The charge's billing name and email, for the page and the notice. */
     customerEmail: text("customer_email"),
     customerName: text("customer_name"),
     /** The Foxhound recovery this charge was taken in, when it was one. */
@@ -180,10 +179,8 @@ export const earlyFraudWarnings = sqliteTable(
     fraudType: text("fraud_type").notNull(),
     /** Stripe's own flag: false once the charge is fully refunded or disputed. */
     actionable: bool("actionable").notNull(),
-    /** From the charge, read when the warning arrives. */
     amountCents: integer("amount_cents").notNull(),
     currency: text("currency").notNull(),
-    /** When Stripe created the warning. */
     createdAt: ts("created_at").notNull(),
     receivedAt: ts("received_at").notNull(),
     refundedAt: ts("refunded_at"),

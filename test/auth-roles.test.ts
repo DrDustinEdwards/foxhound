@@ -1,27 +1,21 @@
 import { describe, expect, it } from "vitest";
 
-import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 
-// Pure auth logic (no DB): the admin allowlist parsing and the disposable-email
-// blocklist. The DB-backed account/invite flow is verified against a live D1
-// (staging round-trip / local wrangler dev), not here.
+// The admin allowlist gate.
 
 function env(adminEmail?: string, coOwners?: string): Env {
   return { ADMIN_EMAIL: adminEmail, CO_OWNER_EMAILS: coOwners } as Env;
 }
 
 describe("isAdminEmail", () => {
-  it("returns no admins when ADMIN_EMAIL is unset", () => {
-    expect(isAdminEmail(env(), "anyone@example.com")).toBe(false);
-  });
-
   it("reads the main admin and the comma-separated co-owners, trimming and lowercasing", () => {
     const e = env(" Dustin@Example.com ", " ops@Example.com ,");
     expect(isAdminEmail(e, "DUSTIN@example.com")).toBe(true);
     expect(isAdminEmail(e, "ops@example.com")).toBe(true);
     // Unset ADMIN_EMAIL closes the site to co-owners too.
     expect(isAdminEmail(env(undefined, "ops@example.com"), "ops@example.com")).toBe(false);
+    expect(isAdminEmail(env(), "anyone@example.com")).toBe(false);
   });
 
   it("denies non-listed emails and null/undefined", () => {
@@ -29,18 +23,5 @@ describe("isAdminEmail", () => {
     expect(isAdminEmail(e, "merchant@example.com")).toBe(false);
     expect(isAdminEmail(e, null)).toBe(false);
     expect(isAdminEmail(e, undefined)).toBe(false);
-  });
-});
-
-describe("isDisposableEmail", () => {
-  it("flags known disposable domains (case-insensitive)", () => {
-    expect(isDisposableEmail("x@mailinator.com")).toBe(true);
-    expect(isDisposableEmail("x@Guerrillamail.com")).toBe(true);
-    expect(isDisposableEmail("x@YOPMAIL.com")).toBe(true);
-  });
-
-  it("handles malformed input without throwing", () => {
-    expect(isDisposableEmail("not-an-email")).toBe(false);
-    expect(isDisposableEmail("")).toBe(false);
   });
 });

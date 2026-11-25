@@ -12,16 +12,6 @@ export const WINBACK_STATUS = {
 } as const;
 export type WinbackStatus = (typeof WINBACK_STATUS)[keyof typeof WINBACK_STATUS];
 
-const WINBACK_TERMINAL_STATUSES: readonly WinbackStatus[] = [
-  WINBACK_STATUS.REACTIVATED,
-  WINBACK_STATUS.EXHAUSTED,
-  WINBACK_STATUS.RESOLVED,
-];
-
-export function isWinbackTerminal(status: string): boolean {
-  return (WINBACK_TERMINAL_STATUSES as readonly string[]).includes(status);
-}
-
 export interface WinbackTransitionInput {
   /** The subscription reactivated (the win we bill/celebrate). */
   reactivated: boolean;

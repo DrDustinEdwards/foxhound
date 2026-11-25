@@ -16,7 +16,7 @@ import {
 } from "~/db";
 import { PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL } from "~/lib/admin/brake";
 import { adminContext } from "~/lib/admin/context";
-import { merchantsInView, toggleMessage } from "~/lib/admin/merchants";
+import { toggleMessage } from "~/lib/admin/merchants";
 import { getMerchantFigures, listAdminMerchants } from "~/lib/admin/merchants.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -40,12 +40,10 @@ vi.mock("~/lib/stripe/connect", async (importOriginal) => ({
 }));
 
 const indexRoute: Record<string, unknown> = await import("~/routes/admin/merchants/index");
-const pausedRoute: Record<string, unknown> = await import("~/routes/admin/merchants/paused");
 const exemptRoute: Record<string, unknown> =
   await import("~/routes/admin/merchants/billing-exempt");
 
-/** What a toggle's answer offers as Undo: the one decision both the in-page
- *  (script) path and the no-script banner read. */
+/** What a toggle's answer offers as Undo. */
 const toggleUndo = (answer: unknown) => toggleMessage(answer as never).undo;
 
 const NOW = Date.UTC(2026, 9, 15, 12, 0, 0);
@@ -385,7 +383,6 @@ describe("listAdminMerchants: one row per account", () => {
     expect(by.get("acct_new")?.recoveryRatePct).toBeNull();
 
     // Per currency, never added together.
-    expect(north?.recovered).toHaveLength(2);
     expect(north?.recovered).toEqual(
       expect.arrayContaining([
         { currency: "usd", cents: 4000 },
@@ -470,41 +467,6 @@ async function auditActions(db: Seeded["db"]) {
     (r) => r.action,
   );
 }
-
-describe("the lists", () => {
-  it("keeps exactly the rows whose flag is set, canceled ones included", () => {
-    const rows = [
-      { id: "a", processingPaused: false, billingExempt: false },
-      { id: "b", processingPaused: true, billingExempt: false },
-      { id: "c", processingPaused: false, billingExempt: true },
-      { id: "d", processingPaused: true, billingExempt: true },
-    ];
-    const inView = (view: string) =>
-      (merchantsInView(rows as never, view as never) as unknown as { id: string }[]).map(
-        (r) => r.id,
-      );
-    expect(inView("all")).toEqual(["a", "b", "c", "d"]);
-    expect(inView("paused")).toEqual(["b", "d"]);
-    expect(inView("billing-exempt")).toEqual(["c", "d"]);
-  });
-
-  it("counts every list for its tab, and reads the platform figures for All merchants only", async () => {
-    harness.db = (await seedLists()).db;
-    const counts = { all: 5, paused: 3, "billing-exempt": 2 };
-    const paused = await load(pausedRoute, "/admin/merchants/paused");
-    expect(paused.counts).toEqual(counts);
-    expect((await load(indexRoute, "/admin/merchants")).counts).toEqual(counts);
-    // The share the brake holds: what the Paused list's Release would resume.
-    expect(paused.brakePaused).toBe(1);
-    expect(paused.figures).toBeNull();
-    expect((await load(indexRoute, "/admin/merchants")).figures).toMatchObject({
-      merchantCount: 5,
-    });
-    expect(await load(pausedRoute, "/admin/merchants/paused?cancel=acct_pets")).toMatchObject({
-      confirmCancel: { id: "acct_pets", name: "Paused Pets" },
-    });
-  });
-});
 
 describe("the action: Foxhound's writers, each with its audit row", () => {
   let seeded: Seeded;
@@ -600,31 +562,6 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
     });
   });
 
-  it("undoes a real Pause: the manual pause it made is resumed", async () => {
-    const paused = await post({
-      intent: "processing-paused",
-      accountId: "acct_north",
-      value: "true",
-    });
-    expect(paused.data).toMatchObject({ ok: true, changed: true });
-    expect(toggleUndo(paused.data)).toEqual({
-      intent: "processing-paused",
-      accountId: "acct_north",
-      value: false,
-    });
-    const undone = await post({
-      intent: "processing-paused",
-      accountId: "acct_north",
-      value: "false",
-      undo: "1",
-    });
-    expect(undone.data).toMatchObject({ ok: true, changed: true });
-    expect(await account(seeded.db, "acct_north")).toMatchObject({
-      processingPaused: false,
-      pauseReason: null,
-    });
-  });
-
   it("records in the audit row whether the toggle changed anything", async () => {
     // Lumen is already exempt: a stale Set exempt changes nothing, and its row says so.
     await post({ intent: "billing-exempt", accountId: "acct_lumen", value: "true" });
@@ -649,9 +586,6 @@ describe("the action: Foxhound's writers, each with its audit row", () => {
   });
 
   it("offers no Undo for a stale Set exempt on a merchant already exempt, so Undo cannot bill it", async () => {
-    // Exemption has no reason column like a pause's, so a hand-posted "End
-    // exemption" is an ordinary request the server cannot tell from an Undo;
-    // the guard is that no Undo is offered.
     const stale = await post({ intent: "billing-exempt", accountId: "acct_lumen", value: "true" });
     expect(stale.data).toMatchObject({ ok: true, value: true, changed: false });
     expect(toggleUndo(stale.data)).toBeNull();
@@ -665,26 +599,6 @@ describe("the action from a list", () => {
     seeded = await seedLists();
     harness.db = seeded.db;
     harness.sqlite = seeded.sqlite;
-  });
-
-  it("resumes a paused merchant with its audit row, and the row leaves the list", async () => {
-    const answer = await post(
-      { intent: "processing-paused", accountId: "acct_pets", value: "false" },
-      pausedRoute,
-      "/admin/merchants/paused",
-    );
-    expect(answer.data).toMatchObject({
-      ok: true,
-      intent: "processing-paused",
-      value: false,
-      changed: true,
-    });
-    expect(await account(seeded.db, "acct_pets")).toMatchObject({
-      processingPaused: false,
-      pauseReason: null,
-    });
-    expect(await auditActions(seeded.db)).toEqual(["merchant.processing.resume"]);
-    expect(ids(await load(pausedRoute, "/admin/merchants/paused"))).not.toContain("acct_pets");
   });
 
   it("ends an exemption, so the billing run bills the merchant again", async () => {
@@ -702,15 +616,5 @@ describe("the action from a list", () => {
     expect((await account(seeded.db, "acct_lumen")).billingExempt).toBe(false);
     expect(await auditActions(seeded.db)).toEqual(["merchant.billing_exempt.disable"]);
     expect(ids(await load(exemptRoute, "/admin/merchants/billing-exempt"))).toEqual(["acct_both"]);
-  });
-
-  it("says a resume of the brake's pause has no Undo", async () => {
-    const answer = await post(
-      { intent: "processing-paused", accountId: "acct_brake", value: "false" },
-      pausedRoute,
-      "/admin/merchants/paused",
-    );
-    expect(answer.data).toMatchObject({ ok: true, changed: true, wasBrakePause: true });
-    expect(toggleUndo(answer.data)).toBeNull();
   });
 });

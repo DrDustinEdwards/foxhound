@@ -6,9 +6,7 @@ import * as schema from "~/db/schema";
 import { BLOG_DIAGRAMS } from "~/lib/blog/diagrams";
 import { renderPostBody } from "~/lib/blog/markdown.server";
 
-// An empty-D1 stand-in; renderPostBody only
-// touches the db when a body contains ::postlink[...], so most cases below
-// never exercise it.
+// An empty-D1 stand-in: renderPostBody only reads the db for ::postlink.
 function emptyDb(): Db {
   return drizzle(async () => ({ rows: [] }), { schema }) as unknown as Db;
 }
@@ -44,11 +42,6 @@ describe("renderPostBody", () => {
       expect(html, slug).not.toContain("<style");
       expect(html, slug).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     }
-    const recovery = await renderPostBody(emptyDb(), diagram("recovery-sequence"));
-    expect(recovery.html).toContain(">CANCELED<");
-    expect(recovery.html).not.toContain("CANCELLED");
-    expect(recovery.html).toContain('width="680"');
-    expect(recovery.html).toContain('height="820"');
     const withdrawn = await renderPostBody(emptyDb(), diagram("nrr-calculation"));
     expect(withdrawn.html).not.toContain("blog-diagram");
     expect(withdrawn.html).not.toContain("<img");

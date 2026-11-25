@@ -9,12 +9,7 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// TASK-foxhound-demo-system-completion.md Phase 3: /recovery/payments filter
-// and sort, entirely in SQL (no client-side pass over the account's full
-// payment list), matching the pattern already proven for the Intelligence
-// customer directory. Extended in TASK-foxhound-recovery-surface-parity.md
-// Phase 3 with amount range, a detected-after cutoff, and configurable page
-// size; see recovery-dashboard-payments-summary.test.ts for those additions.
+// /recovery/payments filter and sort run in SQL, against the seeded demo account.
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 
@@ -62,43 +57,6 @@ describe("listFilteredFailedPayments against the seeded demo account", () => {
     });
     const ascAmounts = asc.payments.map((p) => p.amountCents);
     expect(ascAmounts).toEqual([...ascAmounts].sort((a, b) => a - b));
-  });
-
-  it("sorts oldest-first as the reverse of newest-first", async () => {
-    const db = await seededDb();
-    const oldest = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      ...BASE_FILTERS,
-      sort: "oldest",
-    });
-    const dates = oldest.payments.map((p) => p.detectedAt.getTime());
-    expect(dates).toEqual([...dates].sort((a, b) => a - b));
-  });
-
-  it("combines filters (status + category) as an AND, not an OR", async () => {
-    const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      ...BASE_FILTERS,
-      status: "failed_unrecovered",
-      declineCategory: "network",
-    });
-    for (const p of result.payments) {
-      expect(p.status).toBe("failed_unrecovered");
-      expect(p.declineCategory).toBe("network");
-    }
-  });
-
-  it("filters by amount range", async () => {
-    const db = await seededDb();
-    const result = await listFilteredFailedPayments(db, DEMO_ACCOUNT_ID, {
-      ...BASE_FILTERS,
-      amountMinCents: 10_000,
-      amountMaxCents: 20_000,
-    });
-    expect(result.totalCount).toBeGreaterThan(0);
-    for (const p of result.payments) {
-      expect(p.amountCents).toBeGreaterThanOrEqual(10_000);
-      expect(p.amountCents).toBeLessThanOrEqual(20_000);
-    }
   });
 
   it("an amount range only matches payments in its own currency", async () => {

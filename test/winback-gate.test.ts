@@ -9,13 +9,7 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The win-back Intelligence gate, end to end through the real webhook processor.
-// Intelligence is free on every account (Dustin), so legacy's
-// entitlement condition always holds and only its body remains: an unflagged
-// customer's first win-back step is delayed to 4h, a winback_priority one keeps 1h.
-//
-// The harness models the production transaction boundary per 286: executeMoneyWrite
-// commits the batch, so a redelivery rolls back rather than double-writing.
+// An unflagged customer's first win-back step is delayed to 4h; a winback_priority one keeps 1h.
 
 const ACCOUNT_ID = "acc_rewire";
 const CONNECTION_ID = "conn_rewire";
@@ -62,7 +56,7 @@ vi.mock("~/lib/stripe/client", () => ({
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
 const schema = await import("~/db/schema");
 
-/** A cancellation event for the seeded customer. Legacy's win-back trigger. */
+/** A cancellation event for the seeded customer.  */
 function deletionEvent(eventId: string): Stripe.Event {
   return {
     id: eventId,
@@ -81,9 +75,7 @@ function deletionEvent(eventId: string): Stripe.Event {
   } as unknown as Stripe.Event;
 }
 
-/** Seed an eligible win-back: an account, a connection, and nothing that would
- *  trip legacy's earlier eligibility gates (no active failed payments, no recently
- *  resolved ones, no existing sequence, and a customer with an email). */
+/** Seed an eligible win-back: an account and a connection. */
 async function seed(opts: {
   recommendedAction?: string;
 }): Promise<ReturnType<typeof createInMemoryDb>> {
@@ -122,15 +114,13 @@ function step1OffsetHours(sqlite: ReturnType<typeof createInMemoryDb>["sqlite"])
 }
 
 describe("the win-back gate on every account, end to end", () => {
-  it("with NO customer_context row the customer is UNFLAGGED, so 4h", async () => {
-    // Legacy reads the recommendation with maybeSingle and compares the absent
-    // value, which is not the priority string, so the delay applies.
+  it("with no customer_context row the customer is unflagged, so 4h", async () => {
     const { sqlite } = await seed({});
     await processConnectedWebhook({} as Env, deletionEvent("evt_c"), NOW);
     expect(step1OffsetHours(sqlite)).toBe(WINBACK_UNFLAGGED_STEP1_HOURS);
   });
 
-  it("FLAGGED winback_priority: keeps the 1h default", async () => {
+  it("flagged winback_priority: keeps the 1h default", async () => {
     const { sqlite } = await seed({ recommendedAction: WINBACK_PRIORITY_ACTION });
     await processConnectedWebhook({} as Env, deletionEvent("evt_d"), NOW);
     expect(step1OffsetHours(sqlite)).toBe(WINBACK_STEP1_HOURS);

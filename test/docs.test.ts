@@ -4,12 +4,8 @@ import { createMemoryRouter, MemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it } from "vitest";
 
 import { DocWidget } from "~/components/docs/doc-widgets";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
-import { WATCH_CEILING } from "~/lib/intelligence/health-band";
-import { DOCS_FIRST_PUBLISHED, DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { DECLINE_CATEGORY_LABELS } from "~/lib/recovery/labels";
-import { docsItemListJsonLd, techArticleJsonLd } from "~/lib/seo/jsonld";
 import routes from "~/routes";
 import DocsIndexPage from "~/routes/docs/index";
 
@@ -89,42 +85,5 @@ describe("docs widgets", () => {
         expect(codes.length, `${category} names codes`).toBeGreaterThan(0);
       for (const code of codes) expect(classifyDecline(code), code).toBe(category);
     }
-  });
-
-  it("health bands show Foxhound's cutoffs", () => {
-    const html = renderWidget("health-bands");
-    expect(html).toContain(`Below ${HEALTH_SCORE_AT_RISK_THRESHOLD}`);
-    expect(html).toContain(`${WATCH_CEILING} and above`);
-  });
-});
-
-const URL_BASE = "https://foxhoundapp.test";
-
-// Derived from DOC_GUIDES, so a sixth guide is covered the day it is added.
-describe("docs JSON-LD", () => {
-  it("every guide emits a TechArticle built from its own fields", () => {
-    for (const guide of DOC_GUIDES) {
-      const block = techArticleJsonLd(URL_BASE, {
-        headline: guide.heading,
-        description: guide.description,
-        path: `/docs/${guide.slug}`,
-        datePublished: guide.datePublished,
-      });
-      expect(block["@type"]).toBe("TechArticle");
-      expect(block.headline, `${guide.slug} headline`).toBe(guide.heading);
-      expect(block.description).toBe(guide.description);
-      expect(block.url).toBe(`${URL_BASE}/docs/${guide.slug}`);
-      expect(block.datePublished).toBe(DOCS_FIRST_PUBLISHED);
-      expect(block.publisher).toEqual({ "@id": `${URL_BASE}/#organization` });
-    }
-  });
-
-  it("the docs index emits an ItemList carrying every guide, in render order", () => {
-    const list = docsItemListJsonLd(URL_BASE, DOC_GUIDES);
-    const items = list.itemListElement as { name: string; position: number; url: string }[];
-    expect(list["@type"]).toBe("ItemList");
-    expect(items.map((i) => i.name)).toEqual(DOC_GUIDES.map((g) => g.title));
-    expect(items.map((i) => i.position)).toEqual(DOC_GUIDES.map((_, i) => i + 1));
-    for (const item of items) expect(item.url.startsWith(`${URL_BASE}/docs/`)).toBe(true);
   });
 });

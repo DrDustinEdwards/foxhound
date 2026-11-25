@@ -308,7 +308,6 @@ async function fetchCustomerStripeSnapshot(
   };
 }
 
-/** Customer upserts per D1 batch. */
 const UPSERTS_PER_BATCH = 100;
 
 export interface AccountSyncResult {
@@ -515,7 +514,6 @@ export function accountProcessingEligible() {
   );
 }
 
-/** The full sync run: every processing-eligible account; one account's failure never aborts the rest. */
 export async function runIntelligenceSyncForAllAccounts(
   env: Env,
   nowMs: number,

@@ -2,8 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
-// The cron failure and cron stale alerts. Sends are faked at the EMAIL binding only, so the real
-// dedupe, render and send seam run.
+// The cron failure and stale alerts; only the EMAIL binding is faked.
 
 const NOW = new Date("2026-08-16T12:00:00.000Z");
 const BASE = "https://foxhound.example.com";
@@ -28,8 +27,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-// The one seam the billing trigger test breaks: an account whose billable read
-// throws, which is how a per-account billing failure reaches the run's catch.
+// An account whose billable read throws, as a per-account billing failure does.
 const billable = vi.hoisted(() => ({ throwFor: null as string | null }));
 vi.mock("~/db/billable", async (importOriginal) => {
   const actual = await importOriginal<typeof import("~/db/billable")>();
@@ -193,7 +191,6 @@ describe("the billing run alerts when any account fails to invoice", () => {
 
 describe("the cron stale alert", () => {
   it("fires when there was no successful run within the interval", async () => {
-    // The last success three days ago on a daily job.
     freshDb();
     const oldSuccess = new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
     (harness.sqlite as Parameters<typeof d1Over>[0])

@@ -317,7 +317,7 @@ export async function auditAccountForMonth(
     );
     ran = true;
 
-    // Phase (d), unchanged. The run is history whether or not the email sends.
+    // The run is history whether or not the email sends.
     const runId = await saveAuditRun(env, audit, {
       accountId,
       isAuthenticated: true,

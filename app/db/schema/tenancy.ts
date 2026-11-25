@@ -41,9 +41,7 @@ export const accounts = sqliteTable("accounts", {
   disputeShipsPhysical: bool("dispute_ships_physical"),
   // Auto-submit disputes (/settings/disputes). NULL reads as off. The disputes cron submits an unsubmitted dispute 24 hours before its deadline only while this is on, and writes the dispute's approval from the standing opt-in below.
   disputeAutoSubmit: bool("dispute_auto_submit"),
-  // Who turned auto-submit on, and when: the merchant's standing approval that
-  // an automatic submission's dispute_approvals row records. Written with the
-  // toggle (applyDisputeSettings), cleared when it is turned off.
+  // Who turned auto-submit on, and when: the standing approval an automatic submission's dispute_approvals row records. Cleared when it is turned off.
   disputeAutoSubmitByUserId: text("dispute_auto_submit_by_user_id"),
   disputeAutoSubmitByEmail: text("dispute_auto_submit_by_email"),
   disputeAutoSubmitAt: ts("dispute_auto_submit_at"),
@@ -54,8 +52,7 @@ export const accounts = sqliteTable("accounts", {
   theme: text("theme").notNull().default("dark"),
 });
 
-/** The tenant column every account-scoped table carries (hard rule 8): the owning
- *  account, required. */
+/** The tenant column every account-scoped table carries (hard rule 8): the owning account, required. */
 export const accountRef = () =>
   text("account_id")
     .notNull()

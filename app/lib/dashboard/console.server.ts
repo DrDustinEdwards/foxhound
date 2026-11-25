@@ -25,9 +25,6 @@ import {
 import { customerCurrency } from "~/lib/intelligence/recommendations.server";
 import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 
-// The console read model: the platform-level hero row, the four product tiles,
-// and the needs-attention feed.
-
 // Money is a CurrencyAmount[] everywhere on this view, one entry per currency,
 // built by groupSumByCurrency.
 
@@ -37,7 +34,6 @@ export interface ConsoleHero {
   atRisk: CurrencyAmount[];
   activeSequenceCount: number;
   openDisputeCount: number;
-  /** null when there is no failure history yet: a zero state, not a 0%. */
   recoveryRatePct: number | null;
 }
 
@@ -65,18 +61,14 @@ type AttentionTone = "urgent" | "warning" | "subtle";
 export interface AttentionRow {
   key: string;
   tone: AttentionTone;
-  /** The customer or subject the row is about. */
   subject: string;
-  /** What is being asked of the merchant, rendered after the subject. */
   detail: string;
-  /** Trailing emphasis phrase (a deadline, an expiry). Optional. */
   emphasis: string | null;
   /**
    * Monetary emphasis in cents, formatted by the component so money formatting
    * stays in one place. Optional.
    */
   mrrCents: number | null;
-  /** The currency mrrCents is in: the customer's own. */
   mrrCurrency: string | null;
   href: string | null;
   ariaLabel: string;
@@ -162,7 +154,6 @@ export async function getConsoleView(
       .select({ n: count() })
       .from(recoveredPayments)
       .where(eq(recoveredPayments.accountId, accountId)),
-    // Uncapped.
     listActiveFailedPayments(db, accountId),
     db
       .select({ n: count() })

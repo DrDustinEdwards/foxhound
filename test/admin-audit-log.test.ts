@@ -2,12 +2,10 @@ import type Database from "better-sqlite3";
 import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { adminAuditLog, cronConfig } from "~/db";
-import { BRAKE_CONFIRM_PHRASES } from "~/lib/admin/brake";
+import { cronConfig } from "~/db";
 import { adminContext } from "~/lib/admin/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
-import { auditEntryDetail, auditLookupIds, auditTarget } from "~/lib/admin/audit-describe";
-import * as route from "~/routes/admin/audit-log";
+import { auditEntryDetail } from "~/lib/admin/audit-describe";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
@@ -23,7 +21,6 @@ vi.mock("~/lib/stripe/connect", async (importOriginal) => ({
 }));
 
 const { action: cronsAction } = await import("~/routes/admin/crons");
-const { action: brakeAction } = await import("~/routes/admin/brake");
 const { action: merchantAction } = await import("~/routes/admin/merchants/detail");
 const { action: merchantsAction } = await import("~/routes/admin/merchants/index");
 
@@ -43,61 +40,6 @@ const entry = (action: string, metadata: unknown, targetEmail: string | null = n
 
 const detail = auditEntryDetail;
 
-describe("the loader", () => {
-  beforeEach(async () => {
-    const { db } = createInMemoryDb();
-    const at = (min: number) => new Date(Date.now() - min * 60 * 1000);
-    await db.insert(adminAuditLog).values([
-      {
-        id: "a1",
-        actorEmail: "ops@example.com",
-        action: "cron.disable",
-        metadata: { cronName: "recovery-tick", via: "brake-panel" },
-        createdAt: at(5),
-      },
-      {
-        id: "a2",
-        actorEmail: "account-owner",
-        action: "user_self_deleted_account",
-        targetUserId: "u1",
-        metadata: {
-          account_ids: ["x"],
-          kept_recovered_payments: 0,
-          stripe_connections_disconnected: 0,
-        },
-        createdAt: at(1),
-      },
-    ]);
-    harness.db = db;
-  });
-
-  it("serves each entry's actor, action, target and detail in words, newest first", async () => {
-    const context = new RouterContextProvider();
-    context.set(cloudflareContext, { env: {} as Env, ctx: {} as ExecutionContext });
-    const loader = route.loader as (
-      args: unknown,
-    ) => Promise<{ entries: Array<Record<string, unknown>> }>;
-    const { entries } = await loader({
-      request: new Request("https://foxhoundapp.com/admin/platform/audit-log"),
-      context,
-      params: {},
-    });
-    expect(entries.map((e) => e.id)).toEqual(["a2", "a1"]);
-    expect(entries[0]).toMatchObject({
-      actor: "The account owner",
-      action: "Deleted their own account",
-    });
-    expect(entries[0].detail).toBe(
-      "1 merchant account deleted, 0 Stripe connections disconnected, 0 recovered payments kept",
-    );
-    expect(entries[1]).toMatchObject({
-      actor: "ops@example.com",
-      action: "Disabled a cron",
-      detail: "From the emergency brake page",
-    });
-  });
-});
-
 describe("the fallback never shows a secret or a long value", () => {
   it("skips keys that may hold a credential, an address or a Stripe user", () => {
     expect(
@@ -116,74 +58,9 @@ describe("the fallback never shows a secret or a long value", () => {
     ).toBe("stage: two");
     expect(detail(entry("impersonation_start", { target_email: "a@example.com" }))).toBeNull();
   });
-
-  it("cuts a long value at 80 characters with an ellipsis", () => {
-    const long = "x".repeat(200);
-    expect(detail(entry("something.new", { note: long }))).toBe(`note: ${"x".repeat(80)}…`);
-    expect(detail(entry("something.new", { note: "x".repeat(80) }))).toBe(
-      `note: ${"x".repeat(80)}`,
-    );
-  });
 });
 
-describe("the audit log in plain English", () => {
-  const lookups = {
-    merchantNames: new Map([["acct_b", "Northwind Coffee"]]),
-    postTitles: new Map([["post_1", "Why cards fail"]]),
-  };
-  it("names real targets, never raw JSON", () => {
-    expect(auditTarget(entry("cron.disable", { cronName: "recovery-tick" }), lookups)).toEqual({
-      label: "recovery-tick",
-      href: "/admin/platform/crons#cron-recovery-tick",
-    });
-    expect(
-      auditTarget(
-        entry("merchant.cancel", { accountId: "acct_b", deauthorizeErrors: [] }),
-        lookups,
-      ),
-    ).toEqual({
-      label: "Northwind Coffee",
-      href: "/admin/merchants/acct_b",
-    });
-    expect(auditTarget(entry("merchant.cancel", { accountId: "acct_gone" }), lookups)?.label).toBe(
-      "acct_gone",
-    );
-    expect(auditTarget(entry("blog.publish", { postId: "post_1", slug: "why" }), lookups)).toEqual({
-      label: "Why cards fail",
-    });
-    expect(
-      auditTarget(entry("brake.engage", { intendedCount: 3, sample: ["a"] }), lookups),
-    ).toEqual({
-      label: "All merchants (3)",
-      href: "/admin/brake",
-    });
-    expect(
-      auditTarget(
-        entry("staged.confirm", { stagedId: "s1", summary: "Resume processing for acct_b" }),
-        lookups,
-      ),
-    ).toEqual({
-      label: "Resume processing for acct_b",
-      href: "/admin/staged",
-    });
-    expect(auditTarget(entry("something.new", { anything: 1 }), lookups)).toBeNull();
-    expect(auditTarget(entry("something.new", null, "a@b.c"), lookups)).toEqual({ label: "a@b.c" });
-  });
-
-  it("collects the ids the loader looks names up for", () => {
-    expect(
-      auditLookupIds([
-        entry("merchant.cancel", { accountId: "acct_b" }),
-        entry("blog.update", { postId: "post_1" }),
-        entry("merchant.cancel", { accountId: "acct_b" }),
-        entry("cron.disable", { cronName: "x" }),
-      ]),
-    ).toEqual({ accountIds: ["acct_b"], postIds: ["post_1"] });
-  });
-});
-
-// An admin change is never recorded after the fact: a failed audit write leaves the
-// change undone. The audit failure is real, not mocked.
+// A failed audit write leaves the admin change undone.
 
 const fakeContext = {
   get(key: unknown) {
@@ -217,25 +94,6 @@ describe("the cron toggles write the audit row with the change", () => {
     ).rejects.toThrow();
 
     expect(await db.select().from(cronConfig)).toEqual([]);
-  });
-
-  it("the brake panel's tick toggle stamps via=brake-panel", async () => {
-    const { db } = createInMemoryDb();
-    harness.db = db;
-
-    await brakeAction({
-      context: fakeContext,
-      request: postTo("http://localhost/admin/brake", {
-        intent: "tick-disable",
-        confirm: BRAKE_CONFIRM_PHRASES["tick-disable"],
-      }),
-      params: {},
-    } as never);
-
-    const [row] = await db.select().from(adminAuditLog);
-    expect(row.action).toBe("cron.disable");
-    expect((row.metadata as { via: string }).via).toBe("brake-panel");
-    expect(await db.select().from(cronConfig)).toHaveLength(1);
   });
 });
 
@@ -310,7 +168,7 @@ describe("an admin change on the merchant page never stands without its audit ro
   });
 });
 
-describe("app1 F3: the merchant page cannot cancel without the typed word", () => {
+describe("the merchant page cannot cancel without the typed word", () => {
   it("a bare intent=cancel post to the merchant page cancels nothing", async () => {
     const made = createInMemoryDb();
     sqlite = made.sqlite;

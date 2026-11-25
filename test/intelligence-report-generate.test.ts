@@ -113,9 +113,8 @@ describe("generateMonthlyReport", () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  it("allows five generations an hour per account and refuses the sixth", async () => {
+  it("allows the hourly limit of generations per account and refuses the next", async () => {
     const db = await seed();
-    expect(INTELLIGENCE_REPORT_HOURLY_LIMIT).toBe(5);
     for (let i = 0; i < INTELLIGENCE_REPORT_HOURLY_LIMIT; i++) {
       expect(await generateMonthlyReport(ENV, db, "acc_1", "2026-10", NOW)).toMatchObject({
         ok: true,

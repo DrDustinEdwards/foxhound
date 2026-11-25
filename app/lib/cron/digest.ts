@@ -31,14 +31,11 @@ import {
 } from "~/lib/recovery/digest-email";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// THE WEEKLY DIGEST CRON.
-
 export const DIGEST_WINDOW_MS = 7 * DAY_MS;
 
 /**
  * THE CLAIM WINDOW, which is the DATA window minus a day, and the reason is a
- * defect this constant exists to fix (376 item 13, a reversal of 350 binding
- * 3).
+ * defect this constant exists to fix.
  *
  * The row is therefore inside the window by exactly the duration of last week's
  * run, the claim reads "already sent", and the digest skips itself.
@@ -84,9 +81,7 @@ export async function queryDigestAccounts(db: Db): Promise<DigestAccount[]> {
   );
   if (withEmail.length === 0) return [];
 
-  // LEGACY'S OWN SHAPE: one batch fetch of the primary connections, then a Map
-  // lookup per account, "instead of N round-trips inside the per-account loop"
-  // as its comment puts it.
+  // One batch fetch of the primary connections, then a Map lookup per account, not a round-trip per account.
   const connections = await db
     .select({
       accountId: stripeConnections.accountId,
@@ -273,7 +268,6 @@ function totalsOf(
   );
 }
 
-/** One weekly run. */
 export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunResult> {
   const db = getDb(env);
   const result: DigestRunResult = { sent: 0, skipped: 0, outcomes: [] };
@@ -312,7 +306,6 @@ export async function runWeeklyDigest(env: Env, now: Date): Promise<DigestRunRes
             baseUrl,
           }),
           template: DIGEST_TEMPLATE,
-          // RECOVA'S UNSUBSCRIBE.
           unsubscribeToken: await signUnsubscribeToken(env, {
             email: account.notificationEmail,
             accountId: account.accountId,

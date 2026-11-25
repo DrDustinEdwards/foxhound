@@ -34,14 +34,12 @@ export function hrefsIn(bodyHtml: string): string[] {
   return out;
 }
 
-/** True when the body links the minted URL exactly. Pure. */
 export function linksTo(bodyHtml: string, mintedUrl: string): boolean {
   if (!mintedUrl) return false;
   return hrefsIn(bodyHtml).includes(mintedUrl);
 }
 
-/** What a dunning send's link must open: this step's click record, wrapping
- *  this payment's card-update page, on this account. */
+/** What a dunning send's link must open: this step's click record, wrapping this payment's card-update page, on this account. */
 export interface RecoveryLinkTarget {
   baseUrl: string;
   mintedUrl: string;
@@ -50,7 +48,6 @@ export interface RecoveryLinkTarget {
   failedPaymentId: string;
 }
 
-/** The token after `${baseUrl}${path}/`, or null for any other URL. */
 function tokenAfter(url: string, baseUrl: string, path: string): string | null {
   const prefix = `${baseUrl}${path}/`;
   if (!url.startsWith(prefix)) return null;
@@ -96,8 +93,7 @@ export async function storedCopyCarriesRecoveryLink(
   return false;
 }
 
-/** What a win-back send's link must open: this sequence's resubscribe page for
- *  this step, on this account. */
+/** What a win-back send's link must open: this sequence's resubscribe page for this step, on this account. */
 export interface ResubscribeLinkTarget {
   baseUrl: string;
   mintedUrl: string;

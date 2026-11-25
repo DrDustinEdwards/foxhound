@@ -10,10 +10,7 @@ import { DAY_MS } from "~/lib/constants";
 import { rollUpByMonth } from "~/lib/intelligence/mrr";
 import { percent } from "capsomer/behavior/meter";
 
-// Dashboard read models (Phase 5 slice 5a). Every query is account-scoped and
-// read-only. "Fee owed" previews what the next billing run would invoice: it
-// reuses the same billable predicate (app/db/billable.ts) and fee function
-// (app/lib/billing/fees.ts) the billing run itself uses, never re-derives them.
+// Dashboard read models. Every query is account-scoped and read-only. "Fee owed" previews what the next billing run would invoice: it reuses the same billable predicate (app/db/billable.ts) and fee function (app/lib/billing/fees.ts) the billing run uses, never re-derives them.
 
 export interface RecoveryStats {
   activeFailedCount: number;
@@ -35,10 +32,7 @@ export async function getRecoveryStats(
   accountId: string,
   nowMs: number,
 ): Promise<RecoveryStats> {
-  // Three independent reads, none depending on another's result: the
-  // dashboard's own outer loader already parallelizes getRecoveryStats against
-  // getMrrAnalytics, but these three were running one after another inside this
-  // function.
+  // Three independent reads, run together.
   const [failures, recovered, billable] = await Promise.all([
     db
       .select({ status: failedPayments.status, isRenewalNoise: failedPayments.isRenewalNoise })

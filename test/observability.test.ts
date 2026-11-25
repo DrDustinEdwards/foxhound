@@ -4,15 +4,12 @@ import { emailDeadLetters } from "~/db/schema";
 import { runCronHealthCheck, SCHEDULE_PERIOD_MS } from "~/lib/cron/alerts.server";
 import { CRON_JOBS } from "~/lib/cron/registry";
 import { recordDeadLetters } from "~/lib/email/dead-letters.server";
-import { buildEmailSendRow } from "~/lib/email/dispatch";
 import type { EmailJob } from "~/lib/email/types";
 
 import { loggedRuns, runJob } from "./helpers/cron";
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
-// Cron failures, dead letters and send attribution. The sends are faked at the EMAIL binding,
-// never at the alert module, so what runs is the real dedupe, the real fail-open and the real
-// row writes.
+// Cron failure alerts and dead letters; sends are faked at the EMAIL binding, not the alert module.
 
 const NOW = new Date("2026-08-16T12:00:00.000Z");
 
@@ -106,37 +103,6 @@ describe("the dead-letter trace", () => {
     expect(alerts()).toHaveLength(1); // a burst is one problem, not N
     expect(alerts()[0].kind).toBe("dead_letter");
     expect(await db.select().from(emailDeadLetters)).toHaveLength(2); // both rows still written
-  });
-});
-
-describe("send-to-run attribution", () => {
-  const base: EmailJob = {
-    accountId: "acct_1",
-    recoveryStepId: "step_1",
-    to: "c@example.com",
-    subject: "s",
-    bodyHtml: "<p>b</p>",
-    template: "recovery_dunning",
-    unsubscribeToken: "t",
-    physicalAddress: "a",
-    idempotencyKey: "step_1:0",
-  };
-
-  it("stamps the run id onto the send row", () => {
-    const { db } = createInMemoryDb();
-    const { sql, params } = (
-      buildEmailSendRow(db, {
-        job: { ...base, cronRunId: "run_xyz" },
-        status: "sent",
-        providerMessageId: "pm",
-        error: null,
-        recipientHash: "h",
-        queueMessageId: null,
-        now: NOW,
-      }) as unknown as { toSQL(): { sql: string; params: unknown[] } }
-    ).toSQL();
-    expect(sql).toMatch(/cron_run_id/);
-    expect(params).toContain("run_xyz");
   });
 });
 

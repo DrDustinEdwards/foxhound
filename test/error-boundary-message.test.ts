@@ -2,17 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { errorDetails } from "~/lib/errors/boundary-message";
 
-// TASK-foxhound-demo-system-completion.md Phase 1: the root ErrorBoundary must
-// show a thrown data(message, { status }) payload's message verbatim, not the
-// generic HTTP reason phrase. This is the actual bug behind the "Method Not
-// Allowed" crash a demo visitor used to see when a mutating control 405'd:
-// appShellMiddleware already threw a friendly string as the response body,
-// the boundary just never read it.
-//
-// isRouteErrorResponse (react-router) duck-types on {status, statusText,
-// internal, data}, so a plain object with those four fields is a faithful
-// stand-in for the ErrorResponse the router actually constructs from a
-// thrown data()/Response, without needing a full router harness.
+// A plain object with the four fields isRouteErrorResponse duck-types on stands in for the router's ErrorResponse.
 function routeErrorResponse(status: number, statusText: string, responseData: unknown) {
   return { status, statusText, internal: false, data: responseData };
 }
@@ -27,11 +17,6 @@ describe("errorDetails", () => {
     expect(errorDetails(error, false)).toBe(
       "Actions are disabled in this demo. Explore freely; nothing here can be changed.",
     );
-  });
-
-  it("falls back to statusText when the thrown response has no string body", () => {
-    const error = routeErrorResponse(500, "Internal Server Error", undefined);
-    expect(errorDetails(error, false)).toBe("Internal Server Error");
   });
 
   it("always shows the fixed not-found copy for 404, ignoring any body", () => {

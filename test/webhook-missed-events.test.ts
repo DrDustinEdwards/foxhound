@@ -4,10 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// The missed-event sweep replays, through the webhook route's own processor,
-// every recent event webhook_events never claimed, and nothing it already did.
-// Real processConnectedWebhook and claim rows; only Stripe and the money DO are
-// stubbed (the DO as one in-memory transaction).
+// The missed-event sweep replays unclaimed recent events through the real processor, once.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,

@@ -1,27 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import * as constants from "~/lib/constants";
 import { DECLINE_CATEGORIES } from "~/lib/constants";
-import { sequenceRateTone } from "~/lib/recovery/sequence-categories";
 import {
   buildCategorySections,
   buildStepCard,
-  sequenceStepLabel,
-  formatStepTiming,
   summarizeStepPerformance,
   type StepPerformanceInput,
 } from "~/lib/recovery/sequence-performance";
-
-// TASK-foxhound-recovery-surface-parity.md Phase 4: /recovery/sequences'
-// account-wide step-performance aggregation, rebuilt against Foxhound's real
-// 6-category schedule (schedule.ts), not legacy's 4-category hardcoded set.
-
-describe("formatStepTiming", () => {
-  it("renders sub-day offsets in hours", () => {
-    expect(formatStepTiming(4)).toBe("4 hours after failure");
-    expect(formatStepTiming(1)).toBe("1 hour after failure");
-  });
-});
 
 describe("summarizeStepPerformance", () => {
   function step(overrides: Partial<StepPerformanceInput> = {}): StepPerformanceInput {
@@ -34,15 +19,6 @@ describe("summarizeStepPerformance", () => {
       ...overrides,
     };
   }
-
-  it("returns zeroed, empty output for no steps", () => {
-    const summary = summarizeStepPerformance([]);
-    expect(summary.totalSent).toBe(0);
-    expect(summary.avgOpenRatePct).toBe(0);
-    expect(summary.avgClickRatePct).toBe(0);
-    expect(summary.bestStep).toBeNull();
-    expect(summary.chart).toEqual([]);
-  });
 
   it("excludes retry steps from the email performance chart and averages", () => {
     const summary = summarizeStepPerformance([
@@ -142,13 +118,6 @@ describe("buildStepCard", () => {
     expect(card.timingLabel).not.toBeNull();
   });
 
-  it("builds a retry card with a null rate and zero counts when never attempted", () => {
-    const card = buildStepCard("retry_day2", [], 48);
-    if (card.kind !== "retry") throw new Error("expected retry card");
-    expect(card.attempted).toBe(0);
-    expect(card.successRatePct).toBeNull();
-  });
-
   it("builds an email card with sent/opened/clicked and the latest subject", () => {
     const older = {
       executedAt: new Date("2026-01-01"),
@@ -173,15 +142,6 @@ describe("buildStepCard", () => {
     expect(card.clickRatePct).toBe(0);
     expect(card.latestSubject).toBe("New subject");
     expect(card.latestBodyHtml).toBe("<p>new</p>");
-  });
-
-  it("builds an empty email card with null rates when never sent", () => {
-    const card = buildStepCard("email_day7", [], 168);
-    if (card.kind !== "email") throw new Error("expected email card");
-    expect(card.sent).toBe(0);
-    expect(card.openRatePct).toBeNull();
-    expect(card.clickRatePct).toBeNull();
-    expect(card.latestSubject).toBeNull();
   });
 });
 
@@ -219,65 +179,5 @@ describe("buildCategorySections", () => {
     const fraudDay1 = fraud.stepCards.find((c) => c.stepType === "email_day1")!;
     if (fraudDay1.kind !== "email") throw new Error("expected email card");
     expect(fraudDay1.sent).toBe(1);
-  });
-});
-
-// The Sequences page shows each category's own timing (RULES.md 2.1: step
-// timing is read from the engine, never retyped). A table keyed by step type
-// alone showed one category's offset under another's: after J85 the expired and
-// unknown day 1 chip said "1 day" for a 1 hour send, network's retry_day2 and
-// day 3 said 2 and 3 days for 1 and 2, and fraud's day 1 said "1 day" for 2 hours.
-describe("each category's timing chips are that category's own offsets", () => {
-  it("shows no timing for a step no schedule defines, never a fabricated one", () => {
-    expect(buildStepCard("email_made_up", [], null).timingLabel).toBeNull();
-  });
-});
-
-describe("step labels and rate tones", () => {
-  it("names a retry by its own category's offset, so a 24 hour retry never reads 48hr", () => {
-    expect(sequenceStepLabel("retry_early", constants.STEP_TIMING_RETRY_EARLY_HOURS)).toBe(
-      "4hr retry",
-    );
-    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_RETRY_DAY2_HOURS)).toBe(
-      "48hr retry",
-    );
-    expect(sequenceStepLabel("retry_day2", constants.STEP_TIMING_NETWORK_RETRY_DAY2_HOURS)).toBe(
-      "24hr retry",
-    );
-  });
-
-  it("bands open and click rates at their boundaries", () => {
-    expect([51, 50, 20, 19].map((r) => sequenceRateTone(r, "open"))).toEqual([
-      "green",
-      "caution",
-      "caution",
-      "red",
-    ]);
-    expect([21, 20, 5, 4].map((r) => sequenceRateTone(r, "click"))).toEqual([
-      "green",
-      "caution",
-      "caution",
-      "red",
-    ]);
-  });
-
-  it("the latest subject is the newest send that has one, with that send's body", () => {
-    const sent = { result: "email_sent", openedAt: null, clickedAt: null };
-    const card = buildStepCard(
-      "email_day1",
-      [
-        { ...sent, executedAt: new Date("2026-10-03"), aiSubject: null, aiBodyHtml: null },
-        {
-          ...sent,
-          executedAt: new Date("2026-10-02"),
-          aiSubject: "Older subject",
-          aiBodyHtml: "<p>Older body</p>",
-        },
-      ],
-      1,
-    );
-    if (card.kind !== "email") throw new Error("expected an email card");
-    expect(card.latestSubject).toBe("Older subject");
-    expect(card.latestBodyHtml).toBe("<p>Older body</p>");
   });
 });

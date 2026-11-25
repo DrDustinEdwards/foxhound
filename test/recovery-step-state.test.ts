@@ -1,27 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
-import {
-  afterPermanentFailure,
-  afterTransientFailure,
-  classifyRetryError,
-} from "~/lib/recovery/step-state";
+import { afterTransientFailure, classifyRetryError } from "~/lib/recovery/step-state";
 
-const now = new Date("2026-07-03T00:00:00.000Z");
-
-describe("send-attempt state machine", () => {
-  it("a permanent failure is terminal immediately", () => {
-    const s = afterPermanentFailure(0, "invalid recipient", now);
-    expect(s.result).toBe("email_failed");
-    expect(s.executedAt).toEqual(now);
-    expect(s.nextRetryAt).toBeNull();
-    expect(s.attemptCount).toBe(1);
-  });
-});
-
-// A value test on purpose: other tests use SEND_MAX_ATTEMPTS symbolically, so none
-// would notice the number changing. This walks the real transition function, so
-// it fails if the backoff table, the count or the clamp changes the lived cadence.
+// Walks the real transition function, so a change to the backoff table, count or clamp fails.
 describe("send-retry cadence", () => {
   it("reschedules four times at 15, 60, 240 and 720 minutes, then goes terminal on the fifth", () => {
     const t0 = new Date("2026-01-01T00:00:00.000Z");

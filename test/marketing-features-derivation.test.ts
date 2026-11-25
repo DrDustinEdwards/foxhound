@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// J60 review: every cadence word on /features is read from the schedule its
-// job runs on, and the health-band example scores follow the thresholds. The
-// constants are moved here so a typed "Nightly" or "monthly", or a typed
-// example score, has nothing to hide behind.
+// Every cadence word on /features is read from the schedule its job runs on, not typed.
 vi.mock("~/lib/constants", async (importOriginal) => {
   const real = await importOriginal<typeof import("~/lib/constants")>();
   return {
@@ -20,7 +17,7 @@ const { featureSections, healthBandExampleScores } =
   await import("~/lib/marketing/features-content");
 const { healthScoreBand } = await import("~/lib/intelligence/health-band");
 
-describe("/features derivation (J60 review)", () => {
+describe("/features derivation", () => {
   it("says no cadence the schedules no longer carry", () => {
     const text = featureSections({ cronJobCount: 1, merchantMcpToolCount: 1 })
       .flatMap((s) => s.features.flatMap((f) => [f.name, f.description]))

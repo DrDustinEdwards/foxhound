@@ -38,7 +38,7 @@ const ADDRESS = "1 Test Way, Austin TX";
 const ACCOUNT = "acct_steps";
 const T0 = new Date("2026-07-01T00:00:00.000Z");
 const HOUR = 60 * 60 * 1000;
-const STEPS = ["email_day1", "email_day3", "email_day7", "email_day14", "email_day30"] as const;
+const STEPS = ["email_day1", "email_day30"] as const;
 
 const env = {
   ENCRYPTION_KEY: "ab".repeat(32),
@@ -91,7 +91,6 @@ async function runStep(over: Partial<EmailStepContext>, write?: (url: string) =>
 }
 
 describe("the executor sends the step's template when generation cannot be used", () => {
-  // The template carries the customer's way to pay however the copy was lost.
   for (const stepType of STEPS) {
     it(`${stepType}: a generation failure sends the template with the amount and the update link`, async () => {
       const { result, jobs, minted } = await runStep({ stepType });

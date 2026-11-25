@@ -31,7 +31,7 @@ import type { Rendered } from "capsomer/email";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 
 /**
- * Cron-failure alerting. Ruling 311 measured that a failing cron records a
+ * Cron-failure alerting. A failing cron records a
  * failed run and notifies NOBODY, so a job that fails every run fails silently
  * until somebody opens /admin/operations.
  *

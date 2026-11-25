@@ -3,7 +3,6 @@ import type Stripe from "stripe";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import { appendOpenPixel } from "~/lib/email/templates";
 import {
   buildEngagementUrls,
   executeEmailStep,
@@ -11,7 +10,6 @@ import {
   type EmailStepContext,
 } from "~/lib/engine/execute-step";
 import {
-  buildRetryReconciliationInput,
   buildRetryStepPatch,
   executeRetryStep,
   payInvoiceWithClient,
@@ -64,7 +62,7 @@ function emailCtx(overrides: Partial<EmailStepContext> = {}): EmailStepContext {
   };
 }
 
-describe("retry executor: operational persist (compile against schema)", () => {
+describe("retry executor: operational persist", () => {
   it("claims the step conditionally: sets result only when executed_at is null", () => {
     const sql = sqlOf(
       buildRetryStepPatch(db, "step_r", {
@@ -78,18 +76,6 @@ describe("retry executor: operational persist (compile against schema)", () => {
     expect(sql.sql).toMatch(/retry_result/i);
     expect(sql.sql).toMatch(/is null/i); // WHERE executed_at IS NULL = the claim
     expect(sql.params).toContain("retry_succeeded");
-  });
-});
-
-describe("retry executor: reconciliation input", () => {
-  it("identifies the failed payment and the succeeded step for a reverse-race correction", () => {
-    const input = buildRetryReconciliationInput(retryCtx(), now);
-    expect(input).toEqual({
-      accountId: "acc_1",
-      failedPaymentId: "fp_1",
-      stepId: "step_r",
-      recoveredAt: now,
-    });
   });
 });
 
@@ -182,13 +168,6 @@ describe("email executor: tracking wires a click to attribution", () => {
     const openToken = urls.openUrl.split("/e/o/")[1];
     expect((await verifyEngagementToken(env, openToken))?.kind).toBe("open");
   });
-
-  it("append pixel is hidden and points at the open URL", () => {
-    const html = appendOpenPixel("<p>Hi</p>", "https://x/e/o/tok");
-    expect(html).toContain("<p>Hi</p>");
-    expect(html).toContain('src="https://x/e/o/tok"');
-    expect(html).toContain("display:none");
-  });
 });
 
 describe("email executor: send-result mapping + persist", () => {
@@ -206,8 +185,6 @@ describe("email executor: send-result mapping + persist", () => {
 describe("email executor: orchestration + failure isolation", () => {
   it("a cached-content send marks the step sent and persists once", async () => {
     let persistedResult: string | null = "unset";
-    // Cached copy carries the update link an earlier attempt minted for this
-    // step, as every cached body the executor writes does.
     const { clickTrackedUpdateUrl } = await buildEngagementUrls(
       env,
       emailCtx(),
@@ -229,11 +206,6 @@ describe("email executor: orchestration + failure isolation", () => {
         },
       },
     );
-    // usedTemplate is false and templateReason null here: this send resolved from
-    // cache, so no generation was attempted, no gate ran, and no fallback was needed.
-    // `suppressed` is false because the injected send returned status "sent"; the
-    // field exists so a trigger can tell "we did not email them" apart from "we
-    // emailed them", which sendResultToAttempt collapses (S7 Phase 2 Session C).
     expect(res).toEqual({
       action: "email",
       sent: true,

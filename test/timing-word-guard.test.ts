@@ -2,18 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const METER = { source: "test", accountId: null };
 
-// JOB J01: no recovery or win-back email says WHEN the customer is reading it.
-//
-// Legacy Recova guards this in four layers (lib/email-generation.ts blob
-// `e28d780e` lines 78 to 101 and 139; app/lib/recovery-execution.ts blob
-// `3a8f8768` lines 313 to 351; process-winback blob `18f20de9` lines 393 to
-// 404): a prompt rule, a nine-phrase detector, one retry when the SUBJECT
-// leaks, and a hard strip of whatever still leaks. These plants prove each
-// layer on both seams.
-//
-// THE MODEL IS STUBBED AT ~/lib/ai/client, the pattern audit-engine
-// uses: every seam calls askStructured, so replacing it scripts each reply in
-// order and records every request that would have left.
+// No recovery or win-back email says when the customer is reading it: detector, one retry, hard strip.
+// The model is stubbed at ~/lib/ai/client.
 
 type Reply = { subject: string; bodyHtml: string } | Error;
 
@@ -54,7 +44,6 @@ const {
 const { buildWinbackPrompt, generateWinbackEmail } =
   await import("~/lib/recovery/winback-generation");
 
-/** Legacy's nine phrases, in the order its regex names them. */
 const NINE = [
   "today",
   "tonight",
@@ -107,7 +96,7 @@ beforeEach(() => {
   harness.replies = [];
 });
 
-describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
+describe("the detector catches each timing phrase", () => {
   it.each(NINE)("'%s' in the SUBJECT is caught by the detector and the gate", (phrase) => {
     const copy = { subject: `Update your card ${phrase}`, bodyHtml: CLEAN_BODY };
     expect(hasTimingWord(copy.subject)).toBe(true);
@@ -125,8 +114,8 @@ describe("LAYER 2: the detector catches each of legacy's nine phrases", () => {
   });
 });
 
-describe("LAYER 4: hardStripTimingWords", () => {
-  it("ports legacy's replacements in order", () => {
+describe("hardStripTimingWords", () => {
+  it("replaces each phrase in order", () => {
     expect(hardStripTimingWords("Your trial closes tonight")).toBe("Your trial will close soon");
     expect(hardStripTimingWords("Your access ends today")).toBe("Your access is ending");
     expect(hardStripTimingWords("Fix it by end of day")).toBe("Fix it soon");
@@ -146,7 +135,7 @@ describe("LAYER 4: hardStripTimingWords", () => {
 });
 
 /** Both seams, driven the same way. `firstUser` is the user message the first
- *  call must carry, so the retry is proven to be the SAME prompt plus legacy's
+ *  call must carry, so the retry is proven to be the SAME prompt plus the
  *  instruction. */
 const SEAMS = [
   {
@@ -161,7 +150,7 @@ const SEAMS = [
   },
 ] as const;
 
-describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
+describe.each(SEAMS)("retry and hard strip on the $name seam", (seam) => {
   it("a clean first response makes EXACTLY ONE call", async () => {
     queue({ subject: "Your Acme payment needs a quick fix", bodyHtml: CLEAN_BODY });
 
@@ -172,7 +161,7 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
     expect(copy.bodyHtml).toBe(CLEAN_BODY);
   });
 
-  it("a SUBJECT leak with a clean retry: two calls, the retry's copy, legacy's instruction", async () => {
+  it("a SUBJECT leak with a clean retry: two calls, the retry's copy, the retry instruction", async () => {
     queue(
       { subject: "Fix your payment today", bodyHtml: "<p>first body</p>" },
       { subject: "Your payment needs a quick fix", bodyHtml: "<p>retry body</p>" },
@@ -254,7 +243,7 @@ describe.each(SEAMS)("LAYERS 3 and 4 on the $name seam", (seam) => {
     );
   });
 
-  it("a first-call failure still throws, so the caller sends the template (RULES.md 3.15)", async () => {
+  it("a first-call failure still throws, so the caller sends the template", async () => {
     queue(new Error("unavailable"));
 
     await expect(seam.run()).rejects.toThrow("generation failed: unavailable");
