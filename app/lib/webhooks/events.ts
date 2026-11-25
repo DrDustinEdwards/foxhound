@@ -27,6 +27,16 @@ function cardAutoUpdated(paymentMethod: Stripe.PaymentMethod): WebhookIntent {
   return { kind: "card_auto_updated", customerId };
 }
 
+/** A subscription's id and customer id, or the ignore intent for the one that is missing. */
+function subscriptionRefs(
+  subscription: Stripe.Subscription,
+): { id: string; customerId: string } | WebhookIntent {
+  if (!subscription.id) return { kind: "ignore", reason: "no_subscription_id" };
+  const customerId = asId(subscription.customer);
+  if (!customerId) return { kind: "ignore", reason: "no_customer" };
+  return { id: subscription.id, customerId };
+}
+
 /** Classify a verified Stripe event into the processor intent. Pure. */
 export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
   // Stripe's name for payment_method.automatically_updated before 2020-08-27, with the same
@@ -141,14 +151,14 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
     case "customer.subscription.deleted": {
       // Win-back intake.
       const subscription = event.data.object as Stripe.Subscription;
-      if (!subscription.id) return { kind: "ignore", reason: "no_subscription_id" };
-      const customerId = asId(subscription.customer);
-      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      const refs = subscriptionRefs(subscription);
+      if ("kind" in refs) return refs;
+      const { id: subscriptionId, customerId } = refs;
       const price = subscription.items?.data?.[0]?.price ?? null;
       const product = price?.product;
       return {
         kind: "winback_start",
-        subscriptionId: subscription.id,
+        subscriptionId,
         customerId,
         cancelReason: subscription.cancellation_details?.reason ?? null,
         planName:
@@ -224,9 +234,9 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       // Stripe lists in previous_attributes count, so an unrelated update
       // records nothing.
       const subscription = event.data.object as Stripe.Subscription;
-      if (!subscription.id) return { kind: "ignore", reason: "no_subscription_id" };
-      const customerId = asId(subscription.customer);
-      if (!customerId) return { kind: "ignore", reason: "no_customer" };
+      const refs = subscriptionRefs(subscription);
+      if ("kind" in refs) return refs;
+      const { id: subscriptionId, customerId } = refs;
       const changes = detectSubscriptionChanges(
         subscription,
         event.data.previous_attributes as Record<string, unknown> | undefined,
@@ -235,7 +245,7 @@ export function classifyStripeEvent(event: Stripe.Event): WebhookIntent {
       return {
         kind: "record_subscription_change",
         customerId,
-        subscriptionId: subscription.id,
+        subscriptionId,
         currency: subscription.currency ?? null,
         occurredAt: stripeDate(event.created),
         changes,

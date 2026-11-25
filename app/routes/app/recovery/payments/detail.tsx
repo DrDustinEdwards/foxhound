@@ -19,9 +19,7 @@ import "capsomer/status.css";
 import "capsomer/link.css";
 import "~/site-header.css";
 
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
 import {
@@ -67,9 +65,7 @@ export function meta() {
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { auth, db } = accountScope(context);
   const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
   const category = detail.failedPayment.declineCategory;
@@ -101,9 +97,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
 }
 
 export async function action({ context, params, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { env, auth, db } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = form.get("intent");
 

@@ -14,9 +14,7 @@ import "capsomer/table.css";
 // Capsomer's tokens and the amber family, which the components above read. The shell loads the same file through its header; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { healthScoreClassName } from "~/lib/intelligence/health-band";
 import type { RecommendedAction } from "~/lib/intelligence/recommend";
 import {
@@ -58,10 +56,7 @@ const ACTION_LABEL: Partial<Record<RecommendedAction, string>> = {
 };
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
 
   const page = parsePage(new URL(request.url).searchParams.get("page"));
   const { rows, totalCount } = await listActionableRecommendations(db, accountId, page);

@@ -7,13 +7,7 @@ import "capsomer/table.css";
 
 import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
-import {
-  auditActor,
-  auditEntryDetail,
-  auditTarget,
-  describeAuditAction,
-} from "~/lib/admin/audit-describe";
-import { listAdminAuditLog, loadAuditLookups } from "~/lib/admin/audit-log.server";
+import { describeAuditRows, listAdminAuditLog } from "~/lib/admin/audit-log.server";
 import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
@@ -30,15 +24,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const rows = await listAdminAuditLog(db);
-  const lookups = await loadAuditLookups(db, rows);
-  const entries = rows.map((e) => ({
-    id: e.id,
-    createdAt: e.createdAt,
-    actor: auditActor(e.actorEmail),
-    action: describeAuditAction(e.action),
-    target: auditTarget(e, lookups),
-    detail: auditEntryDetail(e),
-  }));
+  const entries = await describeAuditRows(db, rows);
   return { entries };
 }
 

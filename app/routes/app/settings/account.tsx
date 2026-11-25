@@ -27,7 +27,7 @@ import {
 import { SettingsLayout } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
 import { account as authAccount, getDb, passkey } from "~/db";
-import { authContext } from "~/lib/auth/context";
+import { accountScope, authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyIntelligenceContext, MRR_ERROR } from "~/lib/settings/apply.server";
 import { buildAccountProfileUpdate } from "~/lib/settings/persist.server";
@@ -154,9 +154,7 @@ async function freshSession(env: Env, request: Request) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
+  const { env, auth, accountId } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 

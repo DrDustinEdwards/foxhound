@@ -2,19 +2,13 @@ import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { classifyEngagementRequest } from "~/lib/engagement/agents";
+import { pixelResponse } from "~/lib/engagement/pixel";
 import { recordOpen } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 
 import type { Route } from "./+types/engagement-open";
 
 // Engagement open pixel (/e/o/:token). A verified token from a person records the open (feeds Intelligence only, never billing): one idempotent engagement_events row per step, and the step's per-open counters (buildOpenStamp). The 1x1 pixel is ALWAYS returned, even on a bad or missing token, so nothing about validity leaks and the email renders cleanly.
-
-// 1x1 fully transparent GIF89a.
-const PIXEL = Uint8Array.from([
-  0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0xff, 0xff, 0xff, 0x21, 0xf9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00,
-  0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3b,
-]);
 
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
@@ -35,11 +29,5 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
       );
     }
   }
-  return new Response(PIXEL, {
-    headers: {
-      "Content-Type": "image/gif",
-      "Content-Length": String(PIXEL.length),
-      "Cache-Control": "no-store, no-cache, must-revalidate, private",
-    },
-  });
+  return pixelResponse();
 }

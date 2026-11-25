@@ -5,11 +5,10 @@ import {
 } from "@dustinedwards/site-runtime/sign-in";
 import { signalCurrentUserDetails } from "@dustinedwards/site-runtime/sign-in-client";
 import { Alert } from "capsomer/react/banner";
-import { Button } from "capsomer/react/button";
 import { useEffect } from "react";
 import { data } from "react-router";
 
-import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
+import { AuthCard, AuthFootnote, AuthHeading, ConfirmForm } from "~/components/auth-card";
 import { AuthLink } from "~/components/auth-link";
 import { getBetterAuth } from "~/lib/auth";
 import { EMAIL_CHANGE_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-words";
@@ -104,15 +103,7 @@ export default function EmailConfirm({ loaderData, actionData }: Route.Component
   return (
     <AuthCard>
       <AuthHeading title="Confirm your email change" subtitle="Both addresses must confirm." />
-      {/* A plain form: it posts to this URL, token and all, and the browser follows the redirect. */}
-      <form method="post" className="fh-auth-form">
-        {actionData?.limited ? (
-          <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert>
-        ) : null}
-        <Button type="submit" variant="primary" size="lg">
-          Confirm
-        </Button>
-      </form>
+      <ConfirmForm limited={Boolean(actionData?.limited)} label="Confirm" />
     </AuthCard>
   );
 }

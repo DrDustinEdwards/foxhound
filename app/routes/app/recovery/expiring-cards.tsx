@@ -3,9 +3,7 @@ import { Table } from "capsomer/react/table";
 import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
 import { formatDate } from "capsomer/behavior/time";
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { isCardExpired, isCardExpiringSoon } from "~/lib/recovery/expiring-card";
 import { listExpiringCardAlerts } from "~/lib/recovery/step-queries.server";
 
@@ -18,9 +16,7 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { auth, db } = accountScope(context);
   const alerts = await listExpiringCardAlerts(db, auth.membership.accountId, {
     includeNoPaymentMethod: true,
   });

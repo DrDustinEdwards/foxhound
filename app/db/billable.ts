@@ -47,8 +47,6 @@ export function accountBillingEligibleCondition(): SQL {
   ) as SQL;
 }
 
-// The correlated subqueries need no db handle, so the row-condition builders
-// keep their signatures and the guarded insert re-checks forgiveness as it writes.
 const qb = new QueryBuilder();
 
 /** The stretch belongs to the row's account and had not ended by `from`. */
@@ -59,9 +57,7 @@ function stretchOfRowNotEndedBy(rowAccountId: AnyColumn, from: AnyColumn | SQL):
   ) as SQL;
 }
 
-/** A recovery is forgiven when an exempt stretch covered the moment it was
- *  recovered (no fee builds up while exempt), or any moment from its maturity
- *  to asOf (it came due, unbilled, while exempt). */
+/** A recovery is forgiven when an exempt stretch covered its recovery moment, or any moment from maturity to asOf. */
 export function exemptionForgaveRecovery(asOfMs: number): SQL {
   const maturedAt = sql`${recoveredPayments.recoveredAt} + ${RECOVERY_MATURITY_MS}`;
   return notExists(
@@ -83,8 +79,7 @@ export function exemptionForgaveRecovery(asOfMs: number): SQL {
   );
 }
 
-/** A dispute win is forgiven when an exempt stretch covered any moment from its
- *  resolution to asOf. */
+/** A dispute win is forgiven when an exempt stretch covered any moment from resolution to asOf. */
 function exemptionForgaveDispute(asOfMs: number): SQL {
   return notExists(
     qb
@@ -99,7 +94,7 @@ function exemptionForgaveDispute(asOfMs: number): SQL {
   );
 }
 
-/** Row-level billable conditions for recoveries (everything except the not-already-billed clause, which is a join in the query below, and the exemption clause, exemptionForgaveRecovery). The exemption clause stays out because it only holds for a fee not yet billed: it asks whether an exemption covered any moment up to asOf, so an exemption set long after a fee was invoiced would match it too. Readers of what to bill next add it (getBillableRecoveries, buildGuardedRecoveryLineInsert); a reader that also keeps billed rows, like the ROI widget, keeps a billed row whatever it says. */
+/** Row-level billable conditions for recoveries, minus the not-already-billed join and exemptionForgaveRecovery. The exemption clause is only valid for unbilled fees (a later exemption would match billed rows), so readers of what to bill next add it. */
 export function billableRecoveryRowConditions(accountId: string, asOfMs: number): SQL {
   const maturityCutoff = new Date(asOfMs - RECOVERY_MATURITY_MS);
   return and(
@@ -112,12 +107,7 @@ export function billableRecoveryRowConditions(accountId: string, asOfMs: number)
   ) as SQL;
 }
 
-/**
- * The canonical billable-recovery query for one account as of `asOfMs`.
- * Inner-joins accounts (billing-eligibility gate) and left-joins billing_line_items,
- * keeping only rows with no existing line item (structural "not previously billed").
- * Returns recovered_payments rows.
- */
+/** The billable recoveries for one account as of `asOfMs`: eligible account, no existing line item. */
 export function getBillableRecoveries(db: Db, accountId: string, asOfMs: number) {
   return db
     .select(getTableColumns(recoveredPayments))
@@ -134,9 +124,7 @@ export function getBillableRecoveries(db: Db, accountId: string, asOfMs: number)
     );
 }
 
-/** A won dispute Foxhound submitted, resolved by asOf, on a billing-eligible
- *  account, and not forgiven by an exemption: everything billing asks of a win
- *  except its account, the stored fee and the not-yet-billed join. */
+/** A won dispute Foxhound submitted, resolved by asOf, not forgiven by an exemption. */
 function wonFoxhoundDisputeConditions(asOfMs: number): SQL {
   return and(
     eq(disputes.state, "resolved_won"),
@@ -147,8 +135,8 @@ function wonFoxhoundDisputeConditions(asOfMs: number): SQL {
 }
 
 /**
- * Row-level billable conditions for disputes: resolved_won by asOf AND Foxhound actually submitted it (disputes.submitted_at set post-Stripe-acceptance). The dispute_approvals-row requirement is the inner join in getBillableDisputes. Disputes have no maturity window (billed at the next run after resolution); the resolved fee snapshot on the row already carries the cap applied at resolution.
- * SKIP UNTIL PRICED: a win whose cap could not be converted at resolution has no stored fee, and is left out rather than billed at the flat 50,000 in its own currency, which is never used. Nothing marks it billed, so once the daily pricing retry (app/lib/disputes/fee-pricing.server.ts) stores its fee, the next run bills exactly that amount.
+ * Row-level billable conditions for disputes: resolved_won by asOf AND Foxhound submitted it (submitted_at set after Stripe accepted). No maturity window; the stored fee already carries the cap.
+ * SKIP UNTIL PRICED: a win with no stored fee (cap not convertible) is left out until the daily pricing retry stores one.
  */
 function billableDisputeRowConditions(accountId: string, asOfMs: number): SQL {
   return and(
@@ -158,16 +146,7 @@ function billableDisputeRowConditions(accountId: string, asOfMs: number): SQL {
   ) as SQL;
 }
 
-/**
- * The canonical billable-dispute query for one account as of `asOfMs`.
- * Inner-joins accounts (billing-eligibility gate) AND dispute_approvals (the
- * Foxhound-submission proof: no approval row = never billed, PRICING.md rev 3),
- * and left-joins billing_line_items, keeping only disputes with no existing
- * dispute_fee line item (structural "not previously billed"; the dispute unique
- * index prevents double-billing on reopen). dispute_approvals is unique per
- * dispute_id, so the inner join cannot fan a dispute into multiple billable
- * rows. Returns disputes rows.
- */
+/** The billable disputes for one account as of `asOfMs`. The dispute_approvals inner join is the Foxhound-submission proof (PRICING.md rev 3); it is unique per dispute_id, so it cannot fan out rows. */
 export function getBillableDisputes(db: Db, accountId: string, asOfMs: number) {
   return db
     .select(getTableColumns(disputes))
@@ -184,11 +163,7 @@ export function getBillableDisputes(db: Db, accountId: string, asOfMs: number) {
     );
 }
 
-/**
- * Won disputes that would bill but for a stored fee, across every account: the
- * daily pricing retry's work list. Same joins and gates as getBillableDisputes,
- * with the fee clause inverted, so a win priced here is one the next run bills.
- */
+/** Won disputes that would bill but for a stored fee, across every account: the daily pricing retry's work list. */
 export function getUnpricedBillableWins(db: Db, asOfMs: number, limit: number) {
   return db
     .select({
@@ -213,9 +188,7 @@ export function getUnpricedBillableWins(db: Db, asOfMs: number, limit: number) {
     .limit(limit);
 }
 
-/** Everything the guarded recovery-fee line insert needs. The fee is computed
- *  in Foxhound code and passed in as a bound constant: the 20% rate stays out
- *  of SQL (PRICING.md, "the rates live in Foxhound code"). */
+/** Input to the guarded recovery-fee line insert. The fee is a bound constant: rates stay out of SQL (PRICING.md). */
 export interface GuardedRecoveryLineInput {
   lineItemId: string;
   invoiceId: string;
@@ -223,25 +196,23 @@ export interface GuardedRecoveryLineInput {
   currency: string;
   recoveredPaymentId: string;
   feeCents: number;
-  /** The recovery's refunded_cents the fee was computed net of. A refund
-   *  that changed it since the read selects zero rows. */
+  /** The refunded_cents the fee was computed net of; a refund that changed it selects zero rows. */
   refundedCents: number;
   description: string;
   createdAt: Date;
-  /** The same asOf the billable read used, so the batch re-evaluates the SAME
-   *  maturity cutoff rather than a slightly later one. */
+  /** The asOf the billable read used, so the batch re-evaluates the same cutoff. */
   asOfMs: number;
 }
 
 /**
- * A recovery-fee line item that RE-CHECKS THE BILLABLE PREDICATE AS IT WRITES. The per-account DO serializes the writes, not the read, so a refund landing between reading the billable set and inserting would otherwise be invoiced. This is an INSERT ... SELECT, so the database evaluates the predicate at write time, inside the batch: a refunded, disputed, deleted, unmatured or no-longer-attributed recovery selects zero rows and inserts zero lines, and the invoice total is derived from the lines that actually landed.
- * Disputes are the same class and deliberately not converted: a dispute's billable state is a state-machine transition rather than a stamped column, and the unique index on dispute_id already stops the double-bill that matters. A named gap, not a silent one.
+ * A recovery-fee line item that RE-CHECKS THE BILLABLE PREDICATE AS IT WRITES. The DO serializes writes, not the read, so a refund landing between read and insert would otherwise be invoiced. As an INSERT ... SELECT, an ineligible recovery inserts zero lines.
+ * Disputes are deliberately not converted: the unique index on dispute_id already stops the double-bill.
  */
 export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLineInput) {
   return db.insert(billingLineItems).select(
     db
       .select({
-        // Projected in the table's own column order. The `id` default is a JS-side $defaultFn and does NOT fire on an insert-select, so the caller supplies a deterministic id.
+        // Table column order. The `id` $defaultFn does not fire on an insert-select, so the caller supplies the id.
         id: sql<string>`${input.lineItemId}`.as("id"),
         invoiceId: sql<string>`${input.invoiceId}`.as("invoice_id"),
         accountId: sql<string>`${input.accountId}`.as("account_id"),
@@ -249,13 +220,13 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
         currency: sql<string>`${input.currency}`.as("currency"),
         amountCents: sql<number>`${input.feeCents}`.as("amount_cents"),
         feeCents: sql<number>`${input.feeCents}`.as("fee_cents"),
-        // Taken from the SELECTED row, not from the caller: if no row survives the predicate there is nothing to point the evidence FK at.
+        // From the selected row: no surviving row means nothing to point the evidence FK at.
         recoveredPaymentId: recoveredPayments.id,
         disputeId: sql<string | null>`null`.as("dispute_id"),
         adminAuditLogId: sql<string | null>`null`.as("admin_audit_log_id"),
         description: sql<string>`${input.description}`.as("description"),
         createdAt: sql<number>`${input.createdAt.getTime()}`.as("created_at"),
-        // A fee line is not a credit, so both are null, but drizzle's insert-select requires EVERY column in table order; an omission is a runtime error, not a type error.
+        // Both null, but drizzle's insert-select requires every column; an omission is a runtime error.
         stripeCreditNoteId: sql<string | null>`null`.as("stripe_credit_note_id"),
         creditsLineItemId: sql<string | null>`null`.as("credits_line_item_id"),
         refundedCents: recoveredPayments.refundedCents,
@@ -284,7 +255,7 @@ export function buildGuardedRecoveryLineInsert(db: Db, input: GuardedRecoveryLin
   );
 }
 
-/** Set an invoice's total from the line items that ACTUALLY COMMITTED. Required beside the guarded insert: a total computed in JS from the pre-write list would overstate the invoice by exactly the fee that was withdrawn. Derived in the same batch so the invoice and its lines can never disagree. */
+/** Set an invoice's total from the line items that ACTUALLY COMMITTED, in the same batch; a JS total from the pre-write list would overstate a withdrawn fee. */
 export function buildInvoiceTotalFromLines(db: Db, invoiceId: string) {
   return db
     .update(billingInvoices)

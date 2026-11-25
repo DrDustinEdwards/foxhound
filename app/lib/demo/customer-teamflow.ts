@@ -1,10 +1,17 @@
 import {
   type DemoCustomer,
+  type DemoEngagementOverride,
   GROWTH_PER_SEAT_CENTS,
   SCALE_PER_SEAT_CENTS,
   TIER_BASE_CENTS,
   daysAgo,
 } from "./customer-base";
+
+const RECENT_RECOVERY_ENGAGEMENT: DemoEngagementOverride = {
+  emailOpened30d: 2,
+  emailClicked30d: 1,
+  lastEmailOpenedAtDaysAgo: 5,
+};
 
 export function teamflowScripted(now: Date): DemoCustomer[] {
   return [
@@ -36,11 +43,7 @@ export function teamflowScripted(now: Date): DemoCustomer[] {
           // Supporting: third event 25 days ago, recovered after 2 days.
           { detectedDaysAgo: 25, declineCategory: "soft", outcome: "recovered", daysToRecover: 2 },
         ],
-        engagementOverride: {
-          emailOpened30d: 2,
-          emailClicked30d: 1,
-          lastEmailOpenedAtDaysAgo: 5,
-        },
+        engagementOverride: RECENT_RECOVERY_ENGAGEMENT,
         healthTrajectory: [
           { daysAgo: 150, healthScore: 78, reason: "baseline" },
           { daysAgo: 120, healthScore: 80, reason: "stable" },
@@ -77,11 +80,7 @@ export function teamflowScripted(now: Date): DemoCustomer[] {
           // Supporting: third event 25 days ago, recovered after 2 days.
           { detectedDaysAgo: 25, declineCategory: "soft", outcome: "recovered", daysToRecover: 2 },
         ],
-        engagementOverride: {
-          emailOpened30d: 2,
-          emailClicked30d: 1,
-          lastEmailOpenedAtDaysAgo: 5,
-        },
+        engagementOverride: RECENT_RECOVERY_ENGAGEMENT,
         healthTrajectory: [
           { daysAgo: 60, healthScore: 75, reason: "baseline_strong" },
           { daysAgo: 45, healthScore: 68, reason: "engagement_dip" },

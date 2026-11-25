@@ -7,6 +7,7 @@ import { parseMoneyInput } from "@dustinedwards/site-runtime/money";
 import { sealSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 
 import { normalizeLookback } from "./audit-settings";
+import { getMerchantContext } from "./queries.server";
 import {
   buildFeatureSettingsUpdate,
   buildIntelligenceContextUpdate,
@@ -282,19 +283,10 @@ export async function applyIntelligenceContext(
   trace?: WriteTrace,
   alongside: BatchItem<"sqlite">[] = [],
 ): Promise<ApplyResult<IntelligenceContextState>> {
-  const found = await db
-    .select({
-      merchantIndustry: accounts.merchantIndustry,
-      primaryCustomerType: accounts.primaryCustomerType,
-      merchantMrrSelfReportedCents: accounts.merchantMrrSelfReported,
-    })
-    .from(accounts)
-    .where(eq(accounts.id, accountId))
-    .limit(1);
+  const stored = await getMerchantContext(db, accountId);
   // The caller's own account, resolved from their credential rather than from
   // an argument, so there is no foreign-id case here to refuse.
-  if (found.length === 0) return { ok: false, error: "This account no longer exists." };
-  const stored = found[0];
+  if (!stored) return { ok: false, error: "This account no longer exists." };
 
   const fields: string[] = [];
   const state: IntelligenceContextState = { ...stored };

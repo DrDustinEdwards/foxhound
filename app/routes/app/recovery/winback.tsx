@@ -3,9 +3,7 @@ import { Pill } from "capsomer/react/status";
 import "capsomer/status.css";
 import { formatDate } from "capsomer/behavior/time";
 import { BADGE_PILL, type BadgeTone } from "~/lib/recovery/labels";
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { listWinbackSequences } from "~/lib/recovery/step-queries.server";
 import { WINBACK_STATUS } from "~/lib/recovery/winback";
@@ -19,9 +17,7 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { auth, db } = accountScope(context);
   const sequences = await listWinbackSequences(db, auth.membership.accountId);
   return { sequences };
 }

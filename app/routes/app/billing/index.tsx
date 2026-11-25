@@ -14,9 +14,8 @@ import {
 } from "~/components/billing-sections";
 import { LedgerFreeRow, LedgerLineItemRow } from "~/components/billing-ledger-row";
 import { accounts, getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { MEMBER_ROLE } from "~/lib/auth";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { buildDisputeFeeRows, buildRecoveryHistory } from "~/lib/billing/page.server";
 import {
   buildPlatformCustomerUpdate,
@@ -52,9 +51,7 @@ async function loadAccountBillingRow(env: Env, accountId: string) {
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
+  const { env, auth, accountId } = accountScope(context);
 
   // Return leg of the Stripe-hosted setup session: finalize once, then redirect to the clean URL so a refresh never re-processes the same session_id. The session_id is an unauthenticated URL param, so finalize verifies it belongs to THIS account: pass our OWN stored platform customer id as the expected owner; a foreign session never mutates a customer.
   const sessionId = new URL(request.url).searchParams.get("session_id");
@@ -93,9 +90,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 }
 
 export async function action({ context, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
+  const { env, auth, accountId } = accountScope(context);
 
   // OWNERS ONLY: the card on file pays every fee the account owes, so only the
   // owner puts one there, as only an owner disconnects Stripe or mints an API key.

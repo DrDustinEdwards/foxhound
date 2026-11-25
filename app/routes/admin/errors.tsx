@@ -11,13 +11,7 @@ import "capsomer/table.css";
 
 import { Time } from "capsomer/react/time";
 import { getDb } from "~/db";
-import {
-  auditActor,
-  auditEntryDetail,
-  auditTarget,
-  describeAuditAction,
-} from "~/lib/admin/audit-describe";
-import { loadAuditLookups } from "~/lib/admin/audit-log.server";
+import { describeAuditRows } from "~/lib/admin/audit-log.server";
 import {
   listFailedAuditEntries,
   readSentry,
@@ -42,15 +36,7 @@ export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const [sentry, rows] = await Promise.all([readSentry(env), listFailedAuditEntries(db)]);
-  const lookups = await loadAuditLookups(db, rows);
-  const failed = rows.map((e) => ({
-    id: e.id,
-    createdAt: e.createdAt,
-    actor: auditActor(e.actorEmail),
-    action: describeAuditAction(e.action),
-    target: auditTarget(e, lookups),
-    detail: auditEntryDetail(e),
-  }));
+  const failed = await describeAuditRows(db, rows);
   return { sentry, failed };
 }
 

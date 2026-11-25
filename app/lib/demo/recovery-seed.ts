@@ -6,7 +6,7 @@ import type {
   winBackSequences,
   winBackSteps,
 } from "~/db";
-import { DAY_MS, DECLINE_CATEGORIES } from "~/lib/constants";
+import { DAY_MS, DECLINE_CATEGORIES, type DeclineCategory } from "~/lib/constants";
 import { classifyDecline } from "~/lib/recovery/decline";
 import { TEAMFLOW_DEMO, type DemoBusiness } from "./constants";
 import { isDayWalkEligible, daysAgo, type DemoCustomer } from "./customer-base";
@@ -127,6 +127,21 @@ export function buildRecoverySeed(
   // Day-walk over every eligible customer.
   const eligible = customers.filter(isDayWalkEligible);
   const recentByCustomer = new Map<string, Date[]>();
+  const placeWalkFailure = (
+    customer: DemoCustomer,
+    category: DeclineCategory,
+    declineCode: string,
+    detectedAt: Date,
+  ) => {
+    idSeq++;
+    const built = buildFailure(biz, customer, category, declineCode, detectedAt, now, idSeq, false);
+    failedPayments.push(built.failedPayment);
+    recoverySteps.push(...built.steps);
+    if (built.recovered) recoveredPayments.push(built.recovered);
+    const arr = recentByCustomer.get(customer.stripeCustomerId) ?? [];
+    arr.push(detectedAt);
+    recentByCustomer.set(customer.stripeCustomerId, arr);
+  };
   for (let dayAgoVal = WALK_DAYS; dayAgoVal >= 0; dayAgoVal--) {
     const day = daysAgo(now, dayAgoVal);
     const intensity = classifyDayIntensity(day);
@@ -139,23 +154,7 @@ export function buildRecoverySeed(
       const declineCode = sampleDeclineCode(pickSeed);
       const category = classifyDecline(declineCode);
       const detectedAt = randomBusinessHour(day, pickSeed);
-      idSeq++;
-      const built = buildFailure(
-        biz,
-        customer,
-        category,
-        declineCode,
-        detectedAt,
-        now,
-        idSeq,
-        false,
-      );
-      failedPayments.push(built.failedPayment);
-      recoverySteps.push(...built.steps);
-      if (built.recovered) recoveredPayments.push(built.recovered);
-      const arr = recentByCustomer.get(customer.stripeCustomerId) ?? [];
-      arr.push(detectedAt);
-      recentByCustomer.set(customer.stripeCustomerId, arr);
+      placeWalkFailure(customer, category, declineCode, detectedAt);
     }
   }
 
@@ -177,14 +176,7 @@ export function buildRecoverySeed(
     if (!customer) continue;
     const declineCode = sampleDeclineCodeForCategory(pickSeed, category);
     const detectedAt = randomBusinessHour(day, pickSeed);
-    idSeq++;
-    const built = buildFailure(biz, customer, category, declineCode, detectedAt, now, idSeq, false);
-    failedPayments.push(built.failedPayment);
-    recoverySteps.push(...built.steps);
-    if (built.recovered) recoveredPayments.push(built.recovered);
-    const arr = recentByCustomer.get(customer.stripeCustomerId) ?? [];
-    arr.push(detectedAt);
-    recentByCustomer.set(customer.stripeCustomerId, arr);
+    placeWalkFailure(customer, category, declineCode, detectedAt);
   }
 
   const { sequences: winBackSequenceRows, steps: winBackStepRows } = buildWinback(

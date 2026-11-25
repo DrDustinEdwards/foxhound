@@ -11,16 +11,14 @@ import { InlineConfirm } from "capsomer/react/inline-confirm";
 import "capsomer/inline-confirm.css";
 import { SettingsLayout } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
-import { getDb } from "~/db";
 import {
-  authContext,
+  accountScope,
   createInvite,
   hasOpenInviteForEmail,
   listAccountMembers,
   removeMember,
   MEMBER_ROLE,
 } from "~/lib/auth";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RATE_LIMIT_INVITE } from "~/lib/http/rate-limit-buckets";
 import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
@@ -42,10 +40,9 @@ export function meta() {
 
 // This page is scoped to ONE account, the active one: invites add a member to the account the caller is currently looking at. Member removal DELETES the row (there is no removal status). The confirm is inline and two-step, the settings section's house pattern; the confirming id rides the URL rather than useState so the form post carries it, as the Stripe disconnect does. Role change is not built.
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const { membership } = context.get(authContext);
-  const auth = context.get(authContext);
-  const members = await listAccountMembers(getDb(env), membership.accountId);
+  const { auth, db, accountId } = accountScope(context);
+  const { membership } = auth;
+  const members = await listAccountMembers(db, accountId);
   const isOwner = membership.role === MEMBER_ROLE.OWNER;
   // No account name: the heading is "Team" alone, and the header's business tile already names the account this page is scoped to.
   return {
@@ -67,9 +64,11 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const { membership } = context.get(authContext);
-  const db = getDb(env);
+  const {
+    env,
+    auth: { membership },
+    db,
+  } = accountScope(context);
 
   const form = await readForm(request, BODY_MAX_BYTES);
   // No `_action` is an invite, so a plain post keeps working.

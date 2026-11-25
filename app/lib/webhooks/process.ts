@@ -1,9 +1,7 @@
 import type Stripe from "stripe";
-import { getDb, webhookEvents } from "~/db";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import { isUniqueConstraintError } from "~/lib/money/serializer";
 
-import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
+import { buildClaimOnlyBatch, claimEventWithoutPayload, type WebhookClaimInput } from "./batches";
 import { classifyStripeEvent } from "./events";
 import type { WebhookContext, WebhookOutcome } from "./handler-context";
 import { handleDisputeResolved, handleStampDispute } from "./dispute-handlers";
@@ -55,7 +53,7 @@ export async function processConnectedWebhook(
       }
       // Unknown account: claim via a plain insert (not a money write) so replays
       // short-circuit, then ignore. The unique index makes the claim idempotent.
-      await claimUnknownAccount(env, event, receivedAt);
+      await claimEventWithoutPayload(env, event, receivedAt);
     } catch (err) {
       return {
         status: "error",
@@ -127,26 +125,5 @@ export async function processConnectedWebhook(
     // Money path: surface so the endpoint 500s and Stripe retries (the batch is
     // atomic + idempotent, so a retry is safe). Never include token material.
     return { status: "error", message: err instanceof Error ? err.message : "webhook error" };
-  }
-}
-
-/** Claim an unknown-account event via a plain insert (not a money write). Idempotent on the unique index. */
-async function claimUnknownAccount(env: Env, event: Stripe.Event, receivedAt: Date): Promise<void> {
-  const db = getDb(env);
-  try {
-    await db.insert(webhookEvents).values({
-      stripeEventId: event.id,
-      eventType: event.type,
-      receivedAt,
-      accountId: null,
-      processed: true,
-      processingStartedAt: receivedAt,
-      // Not our merchant: keep the claim, never the payload.
-      payload: {},
-    });
-  } catch (err) {
-    // Unique-index violation = already claimed; idempotent no-op. Anything else throws, so the
-    // route 500s and Stripe retries.
-    if (!isUniqueConstraintError(err)) throw err;
   }
 }

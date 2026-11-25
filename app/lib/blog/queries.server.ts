@@ -57,18 +57,8 @@ const SUMMARY_COLUMNS = {
   readingMinutes: blogPosts.readingMinutes,
 };
 
-type SummaryRow = {
-  id: string;
-  slug: string;
-  title: string;
-  excerpt: string;
-  coverImageUrl: string | null;
-  coverImageAlt: string | null;
-  publishedAt: Date | null;
-  updatedAt: Date | null;
-  author: string;
+type SummaryRow = Omit<BlogPostSummary, "tags" | "readingTimeMinutes"> & {
   tags: string[] | null;
-  featured: boolean;
   readingMinutes: number;
 };
 
@@ -233,15 +223,16 @@ export async function getSlugRedirect(db: Db, slug: string): Promise<string | nu
 
 // Adjacent-post helpers for the prev/next nav on post detail.
 
-/**
- * The published post immediately before `publishedAt`/`postId` in the
- * chronological order, or null if this is the oldest post.
- */
-export async function getPreviousPost(
+/** The published post next to `publishedAt`/`postId` in the chronological order, or null at that end. */
+async function getAdjacentPost(
   db: Db,
   publishedAt: Date,
   postId: string,
+  direction: "before" | "after",
 ): Promise<BlogPostSummary | null> {
+  const before = direction === "before";
+  const beyond = before ? lt : gt;
+  const order = before ? desc : asc;
   const rows = await db
     .select(SUMMARY_COLUMNS)
     .from(blogPosts)
@@ -249,40 +240,38 @@ export async function getPreviousPost(
       and(
         eq(blogPosts.published, true),
         or(
-          lt(blogPosts.publishedAt, publishedAt),
-          and(eq(blogPosts.publishedAt, publishedAt), lt(blogPosts.id, postId)),
+          beyond(blogPosts.publishedAt, publishedAt),
+          and(eq(blogPosts.publishedAt, publishedAt), beyond(blogPosts.id, postId)),
         ),
       ),
     )
-    .orderBy(desc(blogPosts.publishedAt), desc(blogPosts.id))
+    .orderBy(order(blogPosts.publishedAt), order(blogPosts.id))
     .limit(1);
   return rows[0] ? toSummary(rows[0]) : null;
+}
+
+/**
+ * The published post immediately before `publishedAt`/`postId` in the
+ * chronological order, or null if this is the oldest post.
+ */
+export function getPreviousPost(
+  db: Db,
+  publishedAt: Date,
+  postId: string,
+): Promise<BlogPostSummary | null> {
+  return getAdjacentPost(db, publishedAt, postId, "before");
 }
 
 /**
  * The published post immediately after `publishedAt`/`postId`, or null if this
  * is the newest post.
  */
-export async function getNextPost(
+export function getNextPost(
   db: Db,
   publishedAt: Date,
   postId: string,
 ): Promise<BlogPostSummary | null> {
-  const rows = await db
-    .select(SUMMARY_COLUMNS)
-    .from(blogPosts)
-    .where(
-      and(
-        eq(blogPosts.published, true),
-        or(
-          gt(blogPosts.publishedAt, publishedAt),
-          and(eq(blogPosts.publishedAt, publishedAt), gt(blogPosts.id, postId)),
-        ),
-      ),
-    )
-    .orderBy(asc(blogPosts.publishedAt), asc(blogPosts.id))
-    .limit(1);
-  return rows[0] ? toSummary(rows[0]) : null;
+  return getAdjacentPost(db, publishedAt, postId, "after");
 }
 
 /** Curated "Further reading" links for a post, in editor-set order. */

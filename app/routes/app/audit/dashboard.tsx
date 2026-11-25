@@ -29,7 +29,7 @@ import { accounts, getDb } from "~/db";
 import { listAuditRuns } from "~/lib/audit/persist.server";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { formatTotals, toStoredAuditRun } from "~/lib/audit/render";
-import { authContext } from "~/lib/auth/context";
+import { accountScope, authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
 import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
@@ -48,9 +48,10 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const { membership } = context.get(authContext);
-  const db = getDb(env);
+  const {
+    auth: { membership },
+    db,
+  } = accountScope(context);
 
   // The last ten runs and the account's two settings are read together.
   const [runs, settingsRows] = await Promise.all([

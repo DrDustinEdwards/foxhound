@@ -65,16 +65,9 @@ export interface BuiltInvoiceBatch {
   lines: PlatformInvoiceLineInput[];
 }
 
-/**
- * Re-read one invoice's committed line items and rebuild the Stripe input from
- * them. Used after the money batch commits, because a guarded line can decline
- * to insert itself and the pre-write list would then overstate the invoice.
- */
-export async function readCommittedInvoice(
-  db: Db,
-  opts: { invoiceId: string; accountId: string; currency: string; periodKey: string },
-): Promise<{ totalCents: number; lineItemCount: number; lines: PlatformInvoiceLineInput[] }> {
-  const rows = await db
+/** An invoice's committed line items, with the columns a Stripe line key is derived from. */
+export function readInvoiceLineItems(db: Db, invoiceId: string) {
+  return db
     .select({
       id: billingLineItems.id,
       type: billingLineItems.type,
@@ -84,7 +77,19 @@ export async function readCommittedInvoice(
       disputeId: billingLineItems.disputeId,
     })
     .from(billingLineItems)
-    .where(eq(billingLineItems.invoiceId, opts.invoiceId));
+    .where(eq(billingLineItems.invoiceId, invoiceId));
+}
+
+/**
+ * Re-read one invoice's committed line items and rebuild the Stripe input from
+ * them. Used after the money batch commits, because a guarded line can decline
+ * to insert itself and the pre-write list would then overstate the invoice.
+ */
+export async function readCommittedInvoice(
+  db: Db,
+  opts: { invoiceId: string; accountId: string; currency: string; periodKey: string },
+): Promise<{ totalCents: number; lineItemCount: number; lines: PlatformInvoiceLineInput[] }> {
+  const rows = await readInvoiceLineItems(db, opts.invoiceId);
 
   const lines: PlatformInvoiceLineInput[] = rows.map((row) => ({
     type: row.type,

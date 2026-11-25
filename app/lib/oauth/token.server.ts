@@ -37,6 +37,15 @@ async function verifyPkceS256(verifier: string, challenge: string): Promise<bool
 
 type GrantRow = typeof oauthGrants.$inferSelect;
 
+/** Mark an authorization code used. Returns a row only for the caller that won it while still unused. */
+function burnCode(db: Db, codeId: string, now: Date) {
+  return db
+    .update(oauthAuthorizationCodes)
+    .set({ usedAt: now })
+    .where(and(eq(oauthAuthorizationCodes.id, codeId), isNull(oauthAuthorizationCodes.usedAt)))
+    .returning({ id: oauthAuthorizationCodes.id });
+}
+
 /** End a grant and its key. Both guarded on not-yet-revoked, so a second call
  *  changes nothing. */
 async function revokeGrant(
@@ -105,21 +114,13 @@ async function exchangeCode(db: Db, params: URLSearchParams, now: Date): Promise
   // issued.
   const stillMember = await findActiveMembership(db, row.userId, row.accountId);
   if (!stillMember) {
-    await db
-      .update(oauthAuthorizationCodes)
-      .set({ usedAt: now })
-      .where(and(eq(oauthAuthorizationCodes.id, row.id), isNull(oauthAuthorizationCodes.usedAt)))
-      .returning({ id: oauthAuthorizationCodes.id });
+    await burnCode(db, row.id, now);
     return oauthError(400, "invalid_grant");
   }
 
   // Claim the code before issuing anything. A concurrent redemption that loses
   // this UPDATE matches no row and is refused.
-  const claimed = await db
-    .update(oauthAuthorizationCodes)
-    .set({ usedAt: now })
-    .where(and(eq(oauthAuthorizationCodes.id, row.id), isNull(oauthAuthorizationCodes.usedAt)))
-    .returning({ id: oauthAuthorizationCodes.id });
+  const claimed = await burnCode(db, row.id, now);
   if (claimed.length === 0) return oauthError(400, "invalid_grant");
 
   const [client] = await db

@@ -26,7 +26,10 @@ import {
 } from "~/lib/disputes/approval.server";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { SUBMITTED_AUTOMATICALLY, SUBMITTED_EXTERNALLY } from "~/lib/disputes/labels";
-import { readEvidenceFilesForSubmission } from "~/lib/disputes/evidence-files.server";
+import {
+  buildEvidenceInsert,
+  readEvidenceFilesForSubmission,
+} from "~/lib/disputes/evidence-files.server";
 import {
   buildStripeEvidencePayload,
   disputeSubmittedAtStripe,
@@ -190,25 +193,15 @@ export async function saveDisputeDraft(
           ),
       );
       statements.push(
-        db.insert(disputeEvidence).select(
-          db
-            .select({
-              id: sql<string>`${crypto.randomUUID()}`.as("id"),
-              disputeId: disputes.id,
-              accountId: disputes.accountId,
-              fieldName: sql<string>`${field.fieldName}`.as("field_name"),
-              fieldValue: sql<string>`${field.fieldValue}`.as("field_value"),
-              createdAt: sql<Date>`${now.getTime()}`.as("created_at"),
-            })
-            .from(disputes)
-            .where(
-              and(
-                eq(disputes.id, disputeId),
-                eq(disputes.accountId, accountId),
-                noApproval,
-                noSameField,
-              ),
-            ),
+        buildEvidenceInsert(
+          db,
+          { fieldName: field.fieldName, fieldValue: field.fieldValue, now },
+          and(
+            eq(disputes.id, disputeId),
+            eq(disputes.accountId, accountId),
+            noApproval,
+            noSameField,
+          ),
         ),
       );
     }

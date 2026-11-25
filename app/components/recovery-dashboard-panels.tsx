@@ -31,11 +31,11 @@ import {
 import {
   atRiskPctOfMrr,
   deliverabilityFigures,
-  formatCurrencyTotals,
   RECOVERY_FEE_LABEL,
   type OnboardingChecklistState,
   type RoiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
+import { formatAmounts } from "~/lib/money/totals";
 import { recoveryRateBand, recoveryRateClassName } from "~/lib/dashboard/recovery-rate";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { DECLINE_CATEGORY_LABELS, formatStepType } from "~/lib/recovery/labels";
@@ -151,13 +151,13 @@ export function StatCardsPrimary({ w }: { w: RecoveryDashboardWindow }) {
         primary
         icon={iconTrendingUp}
         label="Recovered (30d)"
-        value={formatCurrencyTotals(w.recoveredRevenue)}
+        value={formatAmounts(w.recoveredRevenue)}
       />
       <StatCard
         primary
         icon={iconAlert}
         label="Currently at risk"
-        value={formatCurrencyTotals(w.atRiskRevenue)}
+        value={formatAmounts(w.atRiskRevenue)}
         sub={atRiskPct !== null ? `${atRiskPct}% of MRR` : undefined}
       />
       {/* A rate with nothing failed is no rate: Foxhound shows "-" and says
@@ -238,23 +238,20 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
           <div>
             <h3 className="fh-recpanel-title fh-tiny fh-medium fh-quiet fh-caps">This month</h3>
             <dl className="cap-stack" data-gap="3">
-              <RoiLine label="Recovered" value={formatCurrencyTotals(roi.thisMonth.recovered)} />
+              <RoiLine label="Recovered" value={formatAmounts(roi.thisMonth.recovered)} />
               <RoiLine
                 label={`Foxhound fee (${RECOVERY_FEE_LABEL}, billed after ${RECOVERY_MATURITY_DAYS} days)`}
-                value={formatCurrencyTotals(roi.thisMonth.fee)}
+                value={formatAmounts(roi.thisMonth.fee)}
               />
-              <RoiLine label="You keep" value={formatCurrencyTotals(roi.thisMonth.kept)} strong />
+              <RoiLine label="You keep" value={formatAmounts(roi.thisMonth.kept)} strong />
             </dl>
           </div>
           <div>
             <h3 className="fh-recpanel-title fh-tiny fh-medium fh-quiet fh-caps">All time</h3>
             <dl className="cap-stack" data-gap="3">
-              <RoiLine
-                label="Total recovered"
-                value={formatCurrencyTotals(roi.allTime.recovered)}
-              />
-              <RoiLine label="Total fees" value={formatCurrencyTotals(roi.allTime.fee)} />
-              <RoiLine label="Net to you" value={formatCurrencyTotals(roi.allTime.kept)} strong />
+              <RoiLine label="Total recovered" value={formatAmounts(roi.allTime.recovered)} />
+              <RoiLine label="Total fees" value={formatAmounts(roi.allTime.fee)} />
+              <RoiLine label="Net to you" value={formatAmounts(roi.allTime.kept)} strong />
             </dl>
           </div>
         </div>
@@ -284,7 +281,7 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
             <div className="fh-recpanel-foot">
               <p className="fh-tiny fh-quiet">Monthly revenue recovered</p>
               <p className="fh-mono fh-title fh-semibold cap-num fh-text">
-                {formatCurrencyTotals(w.reactivatedRevenue)}
+                {formatAmounts(w.reactivatedRevenue)}
               </p>
             </div>
           ) : null}

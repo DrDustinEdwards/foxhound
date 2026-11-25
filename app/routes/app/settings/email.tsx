@@ -9,8 +9,7 @@ import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accountScope } from "~/lib/auth/context";
 import { REPLY_TO_EMAIL_MAX_LENGTH } from "~/lib/settings/reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 import { applyFeatureSettings } from "~/lib/settings/apply.server";
@@ -53,9 +52,7 @@ const TEST_RESULT_MS = 4000;
 const TEST_FORM_ID = "settings-test-email";
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { auth, db } = accountScope(context);
   const [connection, [features]] = await Promise.all([
     getPrimarySenderConnection(db, auth.membership.accountId),
     db
@@ -97,9 +94,7 @@ function fieldOf(error: string): SenderField | undefined {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
+  const { env, auth, accountId } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 

@@ -28,9 +28,9 @@ import { clearOAuthStateCookie, readOAuthStateCookie } from "~/lib/stripe/state-
 import type { Route } from "./+types/connect-callback";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// Stripe Connect OAuth callback. Stripe redirects here with ?code&state after the merchant authorizes, and every path out of it writes `stripe_connections` through the per-account money-write Durable Object (token encrypted, never logged).
-// TWO BRANCHES, chosen by the state's own action: "add_account" mints a WHOLE NEW account; "connect" attaches to the account the caller is ACTIVELY looking at, resolved through the session marker (never the earliest membership, which would bolt the Stripe account onto the wrong merchant's ledger, where the account-keyed webhook layer would honor it forever).
-// Reconnecting a Stripe account that belongs to a DIFFERENT Foxhound account is refused, not silently moved.
+// Stripe Connect OAuth callback; every path writes `stripe_connections` through the money-write DO (token encrypted, never logged).
+// Two branches by the state's action: "add_account" mints a new account; "connect" attaches to the ACTIVE account from the session marker (never the earliest membership, which could bolt the Stripe account onto the wrong ledger).
+// A Stripe account belonging to a different Foxhound account is refused, not moved.
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env, ctx } = context.get(cloudflareContext);
   const url = new URL(request.url);
@@ -44,7 +44,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     });
 
   if (oauthError) {
-    // Stripe's own reason (access_denied when the merchant cancels, or a misconfiguration such as an unregistered redirect_uri), so a failed connect is visible. Only these two params: there is no code on this path, and a code is a credential that is never logged.
+    // Stripe's own reason (access_denied, bad redirect_uri). Only these two params: a code is a credential, never logged.
     const description = url.searchParams.get("error_description") ?? "";
     console.warn(
       "connect callback: Stripe returned an error:",
@@ -55,11 +55,11 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
   if (!code) return bounce("no_code");
 
-  // The whole trust decision, before the code is exchanged and before anything is read or written: the state must be one WE minted (byte-identical to the HttpOnly cookie), must name a known action, and (below, once there is a session) must name the user signed in now. See verifyConnectState for why the comparison is on raw strings.
+  // The trust decision, before the code is exchanged: the state must be one we minted (byte-identical to the HttpOnly cookie), name a known action, and (below) name the signed-in user. See verifyConnectState.
   const minted = verifyConnectState(state, readOAuthStateCookie(request));
   if (!minted) return bounce("invalid_state");
   const { action } = minted;
-  // AND IT MUST NOT BE THE AUDIT'S: a state minted by the anonymous audit flow is refused BEFORE the exchange, so a short-lived audit grant can never reach the branch that attaches a connection or mints an account. The two flows use different cookie names today; this refuses on the payload as well, so the guard does not depend on that staying true.
+  // Not the audit's: an audit-flow state is refused before the exchange, so an audit grant never attaches a connection or mints an account. Checked on the payload too, not just the cookie name.
   if (action === AUDIT_ACTION) return bounce("invalid_state");
 
   const session = await getSession(env, request);
@@ -70,7 +70,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const db = getDb(env);
   const memberships = await listMemberships(db, session.user.id);
 
-  // ONLY AN OWNER ATTACHES A STRIPE ACCOUNT to an existing Foxhound account, and the question is asked before the code is exchanged. "add_account" needs no check: it mints a new account with the caller as its owner.
+  // Only an owner attaches a Stripe account to an existing account, checked before the exchange. "add_account" needs none.
   let target: Membership | null = null;
   if (action !== ADD_ACCOUNT_ACTION) {
     target = await resolveActiveMembershipFrom(
@@ -83,7 +83,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     if (target.role !== MEMBER_ROLE.OWNER) return bounce("owner_required");
   }
 
-  // The first Intelligence sync, right after a connection is written, so the dashboard has data on the first visit. Off the redirect's path (waitUntil) and never fatal: the daily intelligence-sync run covers any account this misses, a large one cut off by the waitUntil limit included.
+  // First Intelligence sync so the dashboard has data on the first visit. waitUntil, never fatal: the daily sync covers a miss.
   const syncSoon = (accountId: string) =>
     ctx.waitUntil(
       import("~/lib/intelligence/sync.server")
@@ -93,7 +93,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
 
   try {
     const oauth = await exchangeConnectCode(env, code);
-    // Both merchant flows retry invoices, so both need the write scope. Stripe grants what the authorize URL asked for, so anything else is refused rather than stored as a connection that would fail on its first retry.
+    // Both merchant flows retry invoices and need the write scope; anything else is refused rather than stored.
     if (!isMerchantConnectScope(oauth.scope)) {
       console.error(
         "connect callback: Stripe granted less than the write scope; refusing the connection",
@@ -113,7 +113,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
           syncSoon,
         );
   } catch (err) {
-    // Log only the error's type, code and message, never the object: it can carry request context. Without this line a misconfigured key or client ID is invisible.
+    // Log only type, code and message, never the object: it can carry request context.
     const e = err as { type?: unknown; code?: unknown; message?: unknown };
     console.error(
       "connect callback failed:",
@@ -125,7 +125,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   }
 }
 
-// findLiveAttachment lives in app/lib/stripe/connections.server.ts because the anonymous audit's results page (a `.tsx` route) also calls it, and importing it from this module would put the database, the money-write executor and the token encryption on that page's client graph. Not re-exported: a re-export is a non-loader export of a route module, which the dot-server guard rejects.
+// findLiveAttachment lives in app/lib/stripe/connections.server.ts so the audit results route can call it without pulling the database and token encryption onto the client graph. Not re-exported: the dot-server guard rejects non-loader route exports.
 
 /** Where a merchant lands: a NEW connection goes to /welcome?connection=<its id>, anything else to /console. */
 function destinationFor(newConnectionId: string | null): string {
@@ -147,10 +147,23 @@ async function landOn(
   });
 }
 
+/** Where this Stripe account is live, reported against the accounts the caller holds. */
+function findCallerLiveAttachment(
+  db: Db,
+  oauth: StripeOAuthResult,
+  memberships: { accountId: string }[],
+) {
+  return findLiveAttachment(
+    db,
+    oauth.stripeUserId,
+    memberships.map((m) => m.accountId),
+  );
+}
+
 /**
- * The `add_account` branch: a new account, its connection, its owner membership, and the active-account marker moved to it.
- * ONE `executeMoneyWrite`, KEYED ON THE NEW ACCOUNT ID, minted here rather than by the database because the money-write Durable Object is named by that id. Every statement lands in one atomic batch, so an account never exists without an owner or a connection.
- * NEITHER BILLING NOR PRODUCTS ROWS ARE CREATED: `accounts.platform_stripe_customer_id` is written by the billing-setup path. `createAccountForUser` creates exactly an account row and an owner membership; this adds the connection, so there is one definition of what a new account is.
+ * The `add_account` branch: a new account, its connection, owner membership, and the active-account marker.
+ * One `executeMoneyWrite` keyed on the new account id (minted here, as the DO is named by it), in one atomic batch, so an account never exists without an owner or a connection.
+ * No billing or products rows: the billing-setup path writes `platform_stripe_customer_id`.
  */
 async function addAccount(
   env: Env,
@@ -161,25 +174,20 @@ async function addAccount(
   oauth: StripeOAuthResult,
   syncSoon: (accountId: string) => void,
 ): Promise<Response> {
-  // Is this Stripe account already live somewhere? Asked BEFORE anything is written and before any further Stripe call, through the one predicate both branches share.
-  const attachment = await findLiveAttachment(
-    db,
-    oauth.stripeUserId,
-    memberships.map((m) => m.accountId),
-  );
+  // Already live somewhere? Asked before any write, through the predicate both branches share.
+  const attachment = await findCallerLiveAttachment(db, oauth, memberships);
 
   if (attachment.status === "held_by_caller") {
-    // Already theirs. Take them to the account and write nothing: a merchant who re-runs add-account for a Stripe account they already added has asked to go there, not to have a second empty account.
+    // Already theirs: go there, write nothing.
     return landOn(db, sessionId, attachment.accountId, null);
   }
 
   if (attachment.status === "held_elsewhere") {
-    // Live on an account this user does NOT hold. Refuse, and say only that it is already connected: naming the account, or even confirming which one, would leak another merchant's tenancy to whoever controls the Stripe account. No account id, no hint.
+    // Held by someone else: refuse with no account id or hint, which would leak another merchant's tenancy.
     return bounceTo("/connect?error=stripe_account_already_connected");
   }
 
   const accountId = crypto.randomUUID();
-  // Minted here, like the account id, so the welcome page can be sent to it.
   const connectionId = crypto.randomUUID();
   const encryptedToken = await encryptToken(env, oauth.accessToken);
   const accountName = await fetchConnectedAccountName(env, oauth.stripeUserId);
@@ -212,14 +220,14 @@ async function addAccount(
       }),
     ],
   });
-  // Continue only on a write that landed: a refusal (another account went live on this Stripe account between the read above and the write) must not move the session onto an account that was never created.
+  // Only a landed write moves the session; a refusal means the account was never created.
   if (!applied) return bounceTo("/connect?error=stripe_account_already_connected");
 
   syncSoon(accountId);
   return landOn(db, sessionId, accountId, connectionId);
 }
 
-/** The default branch: attach or reconnect on an account the caller already holds, THE ACTIVE ONE (`resolveActiveMembershipFrom` in the loader, which also checks ownership), never the earliest. */
+/** The default branch: attach or reconnect on the caller's ACTIVE account (`resolveActiveMembershipFrom`, which checks ownership), never the earliest. */
 async function attachToActiveAccount(
   env: Env,
   db: Db,
@@ -228,17 +236,13 @@ async function attachToActiveAccount(
   oauth: StripeOAuthResult,
   syncSoon: (accountId: string) => void,
 ): Promise<Response> {
-  // THE SAME PREDICATE `addAccount` USES. A lookup scoped to the caller's own accounts could only see those: a Stripe account live on a stranger's Foxhound account would read as unattached and a second live row would be written. Foxhound refuses rather than moving the connection, in both directions.
-  const attachment = await findLiveAttachment(
-    db,
-    oauth.stripeUserId,
-    memberships.map((m) => m.accountId),
-  );
+  // The same predicate `addAccount` uses: a lookup scoped to the caller's accounts would miss a stranger's live row and write a second.
+  const attachment = await findCallerLiveAttachment(db, oauth, memberships);
   const heldOnAnother =
     attachment.status === "held_elsewhere" ||
     (attachment.status === "held_by_caller" && attachment.accountId !== membership.accountId);
   if (heldOnAnother) {
-    // ONE ERROR PARAM FOR BOTH CASES, deliberately. Held by a stranger is a tenancy question and held by this merchant's own second account is not, but the response must not distinguish them: a caller who controls the Stripe account could otherwise learn whether it sits on somebody else's ledger. Moving it would be worse than refusing either way, since it re-points every future webhook for that Stripe account and silently re-attributes the recoveries it produces.
+    // One error param for both cases, deliberately: distinguishing them would tell the caller whether it sits on somebody else's ledger. Moving it would re-point every future webhook.
     return bounceTo("/connect?error=stripe_account_already_connected");
   }
 
@@ -260,7 +264,7 @@ async function attachToActiveAccount(
   const insertId = crypto.randomUUID();
   const newConnectionId = existing.length > 0 ? null : insertId;
 
-  // Reconnect vs first connect: if this Stripe account is already attached to this Foxhound account, refresh its token; otherwise insert. The read is safe under the per-account DO serialization. Connect is not fee-bearing, so a fresh idempotency key per callback lets a genuine reconnect update the token.
+  // Already attached here: refresh the token; otherwise insert. Safe under DO serialization. Not fee-bearing, so a fresh idempotency key per callback is fine.
   const { applied } = await writeConnection(env, {
     accountId: membership.accountId,
     idempotencyKey: `connect:${membership.accountId}:${oauth.stripeUserId}:${now.getTime()}`,
@@ -301,7 +305,7 @@ async function attachToActiveAccount(
   });
 }
 
-/** The connection write, with the live-Stripe-account unique index's refusal read as what it is: this Stripe account went live on another Foxhound account after findLiveAttachment looked. That is reported as not applied, never as a success, and any other failure still throws. */
+/** The connection write; a unique-index refusal (Stripe account went live elsewhere after findLiveAttachment) is reported as not applied; any other failure throws. */
 async function writeConnection(
   env: Env,
   write: Parameters<typeof executeMoneyWrite>[1],

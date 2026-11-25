@@ -1,6 +1,4 @@
-// The recovery tick's reads (recovery-tick.ts split): which accounts may be
-// processed, which steps are due, the per-payment step choice, exhausted
-// sequences, and the row-to-context mapping the step executors take.
+// The recovery tick's reads: processable accounts, due steps, the per-payment step choice, exhausted sequences.
 
 import { primaryConnectionValue } from "~/lib/stripe/connections.server";
 import { and, asc, eq, isNull, lte, notExists, notLike, or, type SQL } from "drizzle-orm";
@@ -16,49 +14,14 @@ import type { RetryStepContext } from "~/lib/engine/retry-step";
 import { isRetryStep } from "~/lib/recovery/schedule";
 import { readVoiceSamples } from "~/lib/recovery/voice-samples";
 
-// The recovery tick: the sweep that runs due recovery_steps. Registered through
-// runScheduledJobs (run.ts), so cron-level overlap safety (the per-cron DO
-// lock), the config-enabled gate, and the min-interval gate are all handled by
-// the wrapper; this handler only does the per-step work.
-//
-// Safety model:
-//   - Overlap: the cron mutex (runScheduledJobs) prevents two whole ticks overlapping.
-//   - Per-step exactly-once: the executors themselves are idempotent (Stripe
-//     idempotency key on the charge, conditional executed_at claim); the
-//     invoice.payment_succeeded webhook is the sole recovery recorder, and the
-//     retry executor only reconciles attribution against it; see execute-step.ts.
-//   - Failure isolation: each step runs in its own try/catch, so one Stripe error
-//     or EMAIL throw never halts the sweep for the other steps/merchants.
-//   - Stop condition: only steps whose parent failed_payment is still 'active' are
-//     selected. A recovery (or a refund/dispute, which can only follow a recovery)
-//     flips the parent off 'active', which halts its remaining steps. At most one
-//     step per failed_payment runs per tick (silent-first ordering is baked into
-//     the schedule, so earliest-due is correct ordering).
-//   - Termination: every selected step must reach a terminal result or be
-//     rescheduled. A step that is neither is re-selected every tick forever, and
-//     its sequence can never finish. That was the null-token retry bug; see
-//     recordMissingTokenAttempt, which reschedules with backoff for a bounded
-//     number of attempts and only then goes terminal. The tick then flips
-//     finished sequences to failed_unrecovered (flipExhaustedSequences), the
-//     only writer of that status; 'recovered' still belongs solely to the webhook.
-//   - Gating: demo accounts, processing-paused accounts, and canceled accounts
-//     (accounts.cancelledAt) are excluded in the query itself.
-//     billing_exempt is NOT a processing gate: an exempt merchant still gets
-//     their money recovered, they are only never billed Foxhound's fee (that
-//     gate lives in the billing query, app/db/billable.ts). cancelledAt is
-//     ALSO not a billing gate, deliberately: an already-matured, unbilled
-//     recovery from before cancellation still bills at the next run.
+// The recovery tick's sweep of due recovery_steps, run through runScheduledJobs (run.ts), which owns overlap, enabled and min-interval gating.
+//   - Exactly-once: executors are idempotent (Stripe idempotency key, conditional executed_at claim); invoice.payment_succeeded is the sole recovery recorder (execute-step.ts).
+//   - Isolation: each step has its own try/catch.
+//   - Stop: only steps whose parent failed_payment is 'active' are selected, at most one per payment per tick (silent-first ordering is in the schedule).
+//   - Termination: a step must reach a terminal result or be rescheduled, or it is re-selected forever (see recordMissingTokenAttempt). Finished sequences flip to failed_unrecovered (flipExhaustedSequences), its only writer.
+//   - Gating: demo, processing-paused and canceled accounts are excluded in the query. billing_exempt is NOT a processing gate (only the fee is waived; see app/db/billable.ts), and cancelledAt is deliberately not a billing gate.
 
-/**
- * Account-level PROCESSING gate: never process a demo account (non-negotiable
- * #7), a processing-paused account, or a canceled account.
- * Distinct from the BILLING gate: a billing_exempt account is still processed
- * (recovery moves the MERCHANT's money; only Foxhound's fee is waived), and a
- * canceled account's already-matured, unbilled recoveries still bill
- * (cancelledAt is deliberately absent from app/db/billable.ts's
- * accountBillingEligibleCondition; see app/lib/admin/merchants.server.ts's
- * cancelMerchant).
- */
+/** Account PROCESSING gate: never a demo, processing-paused or canceled account. Distinct from the billing gate (app/db/billable.ts). */
 export function accountProcessingEligibleCondition(): SQL {
   return and(
     eq(accounts.processingPaused, false),
@@ -67,11 +30,7 @@ export function accountProcessingEligibleCondition(): SQL {
   ) as SQL;
 }
 
-/**
- * A step is due now: unexecuted, no result, not soft-deleted, and its effective
- * time (next_retry_at if a send backoff rescheduled it, else scheduled_at) has
- * arrived.
- */
+/** Due now: unexecuted, no result, not soft-deleted, effective time (next_retry_at, else scheduled_at) arrived. */
 export function stepDueCondition(now: Date): SQL {
   return and(
     isNull(recoverySteps.executedAt),
@@ -84,12 +43,7 @@ export function stepDueCondition(now: Date): SQL {
   ) as SQL;
 }
 
-/**
- * A step that has not run yet. Same two columns stepDueCondition keys on, minus
- * the timing clause: a step rescheduled by the send backoff is still pending
- * (executed_at and result both null, next_retry_at set), so a sequence waiting
- * on a backoff is NOT exhausted.
- */
+/** Not run yet: stepDueCondition minus timing, so a step waiting on a backoff is still pending. */
 export function stepPendingCondition(): SQL {
   return and(
     isNull(recoverySteps.executedAt),
@@ -98,10 +52,7 @@ export function stepPendingCondition(): SQL {
   ) as SQL;
 }
 
-/**
- * failed_payments whose recovery sequence has run out: still 'active', on a
- * processing-eligible account, with no step left to run.
- */
+/** failed_payments still 'active' on a processing-eligible account with no step left. */
 export async function queryExhaustedSequences(env: Env, limit: number): Promise<string[]> {
   const db = getDb(env);
   const rows = await db
@@ -113,7 +64,6 @@ export async function queryExhaustedSequences(env: Env, limit: number): Promise<
         eq(failedPayments.status, "active"),
         isNull(failedPayments.deletedAt),
         accountProcessingEligibleCondition(),
-        // At least one step exists...
         notExists(
           db
             .select({ one: recoverySteps.id })
@@ -130,10 +80,7 @@ export async function queryExhaustedSequences(env: Env, limit: number): Promise<
     )
     .limit(limit);
 
-  // ...and none of them is still pending. The "has any step at all" half is
-  // applied here rather than as a second correlated subquery: the set is
-  // already narrow, and a second EXISTS on the same table reads worse than this
-  // does.
+  // None pending; "has any step" is applied here rather than as a second EXISTS.
   const ids = rows.map((r) => r.id);
   if (ids.length === 0) return [];
   const withSteps = await db
@@ -143,12 +90,7 @@ export async function queryExhaustedSequences(env: Env, limit: number): Promise<
   return withSteps.map((r) => r.id);
 }
 
-/**
- * The terminal flip, conditional on status='active' so it lands exactly once no
- * matter how many ticks observe the same exhausted sequence. OPERATIONAL: a
- * plain batch, never the money-write DO. It records that outreach finished; it
- * moves no money and gates no billing.
- */
+/** The terminal flip, conditional on status='active' so it lands once. Operational: a plain batch, no money. */
 export function buildExhaustedSequenceFlip(db: Db, failedPaymentIds: string[], now: Date) {
   return db
     .update(failedPayments)
@@ -201,19 +143,13 @@ export interface DueStepRow {
   networkAdviceCode?: string | null;
 }
 
-// The sample emails are the account's, saved on its primary connection by
-// /settings/brand-voice, so they are read from there whichever connection the
-// payment came through (as win-back reads them). Inside the subquery its own
-// stripe_connections shadows the outer join's, as SQL scoping has it.
+// Sample emails are saved on the account's primary connection (/settings/brand-voice), read from there whichever connection the payment used.
 const primarySamples = primaryConnectionValue<string>(
   stripeConnections.brandVoiceSamples,
   recoverySteps.accountId,
 );
 
-/**
- * One recovery step joined to its payment, account and connection: the row both
- * selections below read.
- */
+/** One recovery step joined to its payment, account and connection. */
 function selectStepRows(db: Db) {
   return db
     .select({
@@ -256,10 +192,7 @@ function selectStepRows(db: Db) {
     .leftJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId));
 }
 
-/**
- * Fetch due steps for active failed payments on processing-eligible accounts,
- * bounded to RECOVERY_TICK_LIMIT and earliest-scheduled first.
- */
+/** Due steps for active failed payments, up to RECOVERY_TICK_LIMIT, earliest first. */
 export async function queryDueRecoverySteps(env: Env, now: Date): Promise<DueStepRow[]> {
   return selectStepRows(getDb(env))
     .where(
@@ -278,12 +211,7 @@ function dueAtMs(row: DueStepRow): number {
   return (row.nextRetryAt ?? row.scheduledAt).getTime();
 }
 
-/**
- * Reduce the due steps to at most one per failed payment: the earliest-due step
- * (tiebreak by step number). Silent-first ordering is baked into the schedule,
- * so running the single earliest-due step per payment per tick honors it (a due
- * retry always precedes its payment's later emails). Pure.
- */
+/** At most one step per failed payment: earliest-due, tiebreak by step number. Pure. */
 export function chooseStepsPerPayment(rows: DueStepRow[]): DueStepRow[] {
   const best = new Map<string, DueStepRow>();
   for (const row of rows) {
@@ -299,14 +227,7 @@ export function chooseStepsPerPayment(rows: DueStepRow[]): DueStepRow[] {
   return [...best.values()];
 }
 
-/**
- * The same joined row queryDueRecoverySteps builds, for ONE step chosen by a
- * MERCHANT rather than by the schedule.
- *
- * The step must still be UNEXECUTED with no result, which the caller enforces
- * through the shared nextPendingStep selector, the same predicate the button
- * renders from.
- */
+/** The joined row queryDueRecoverySteps builds, for ONE step a merchant chose. The caller enforces it is unexecuted via nextPendingStep. */
 export async function queryStepForManualTrigger(
   db: Db,
   accountId: string,
@@ -325,13 +246,7 @@ export async function queryStepForManualTrigger(
   return rows[0] ?? null;
 }
 
-/**
- * The pending RETRY steps of one customer's active failed payments, for the
- * card updater's retry-now (recovery-tick.ts retryOnUpdatedCard). Like the
- * manual trigger, `stepDueCondition` is NOT applied, because the point is to
- * run the retry before its scheduled time; the account processing gate is kept,
- * for the same reason the manual trigger keeps it.
- */
+/** Pending RETRY steps of one customer's active failed payments, for the card updater's retry-now. stepDueCondition is not applied (it runs early); the processing gate is. */
 export async function queryPendingRetryStepsForCustomer(
   db: Db,
   accountId: string,
@@ -380,8 +295,7 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     amountCents: row.amountCents,
     currency: row.currency,
     merchantName: row.merchantName ?? "your subscription",
-    // RAW for the From header: no copy fallback here, so send.ts applies the
-    // From-appropriate default instead of a body-copy phrase.
+    // Raw for the From header: send.ts applies the default.
     senderName: row.merchantName,
     voiceDescription: row.brandVoice,
     merchantIndustry: row.merchantIndustry,

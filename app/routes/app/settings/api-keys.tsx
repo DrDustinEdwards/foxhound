@@ -19,7 +19,7 @@ import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { NewApiKey } from "~/components/new-api-key";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
-import { authContext } from "~/lib/auth/context";
+import { accountScope, authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import {
   createAccountApiKey,
@@ -105,10 +105,7 @@ interface ActionResult {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
-  const db = getDb(env);
+  const { auth, db, accountId } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 

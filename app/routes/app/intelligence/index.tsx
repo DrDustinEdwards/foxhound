@@ -15,8 +15,7 @@ import "capsomer/panel.css";
 
 import "~/components/charts.css";
 import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import {
   GENERATE_REPORT_ERROR_STATUS,
@@ -58,10 +57,7 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { auth, db, accountId } = accountScope(context);
 
   const nowMs = Date.now();
   const [overview, healthDistribution, mrrSeries, archive] = await Promise.all([
@@ -92,9 +88,7 @@ function refused(error: GenerateReportError) {
 
 /** The Generate report button. The account is the session's, never the form's; the demo never reaches here. */
 export async function action({ context, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
+  const { env, auth, accountId } = accountScope(context);
   // The demo firewall already refuses every non-GET; this keeps the action
   // safe on its own.
   if (auth.isDemo) return refused("demo_read_only");

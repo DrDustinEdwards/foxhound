@@ -12,9 +12,7 @@ import "capsomer/status.css";
 import "capsomer/table.css";
 
 import "~/components/charts.css";
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import {
   healthScoreClassName,
@@ -51,10 +49,7 @@ const BAND_RANGE_LABEL: Record<HealthScoreBand, string> = {
 };
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
 
   const view = await getChurnView(db, accountId, Date.now());
   return { view };

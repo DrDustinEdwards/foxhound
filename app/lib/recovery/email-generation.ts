@@ -11,21 +11,10 @@ import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 
 import { strayContent, voiceSampleLines } from "./voice-samples";
 
-// AI dunning-copy generation. Copy is written in the MERCHANT's brand voice, not
-// Foxhound's, and must carry no AI tells and no em dashes (hard brand rules from
-// the global style guide). The Claude call itself is an isolated seam
-// (`generateDunningEmail`) that stays inert until ANTHROPIC_API_KEY is set; every
-// other export here is pure and unit-tested so the sanitizers and the cache-order
-// resolution are proven without a live model call.
-//
-// Cache order (SCHEMA.md recovery_steps.{custom_body, ai_subject, ai_body_html}):
-//   custom_body (merchant override for the body) wins over cached AI, cached AI
-//   is reused before spending a generation, and generation is the last resort.
-// The subject always comes from cache-or-generation; a merchant custom body never
-// gets regenerated once set.
+// AI dunning copy in the MERCHANT's brand voice, with no AI tells and no em dashes. The Claude call (`generateDunningEmail`) is inert until ANTHROPIC_API_KEY is set; the rest is pure.
+// Cache order (SCHEMA.md recovery_steps): custom_body wins over cached AI, cached AI before generating. The subject always comes from cache-or-generation.
 
-// Em dash / en dash: the most recognizable AI tell. Replace a dash (with any surrounding spaces) by
-// a comma so the pause reads naturally.
+// Em/en dash is the clearest AI tell: replace with a comma.
 const DASH_PATTERN = /\s*[\u2014\u2013]\s*/g;
 
 /** Strip em/en dashes, replacing each with a comma. Pure, deterministic. */
@@ -33,36 +22,25 @@ export function stripEmDashes(text: string): string {
   return text.replace(DASH_PATTERN, ", ");
 }
 
-// Phrasing that reads as machine-written is not cut here: cutting a phrase
-// leaves a broken sentence. The plain-writing check (app/lib/ai/plain-writing.ts)
-// names it and the model writes the draft again.
+// Machine-sounding phrasing is not cut here (it breaks sentences); app/lib/ai/plain-writing.ts names it and the model rewrites.
 
-/**
- * Apply the safe deterministic transforms to generated copy: strip dashes and
- * collapse the whitespace they leave behind.
- */
+/** Strip dashes and collapse the whitespace they leave. */
 export function sanitizeCopy(text: string): string {
   const out = stripEmDashes(text);
-  // Collapse runs of spaces/tabs (not newlines) and trim line-trailing space.
   return out
     .replace(/[ \t]{2,}/g, " ")
     .replace(/[ \t]+\n/g, "\n")
     .trim();
 }
 
-// Internal-schedule leaks: the model must never reveal the dunning cadence to the
-// customer ("day 3", "72 hours since", "3 days ago"). These are DETECTED for the
-// quality gate rather than stripped, because removing them would mangle sentences.
+// Schedule leaks ("day 3", "72 hours since") are detected, not stripped, which would mangle sentences.
 const TIMING_TELL_PATTERNS: readonly RegExp[] = [
   /\bday\s?\d+\b/i,
   /\b\d+\s+(?:hours?|days?)\s+(?:ago|since|later)\b/i,
   /\b(?:since|after)\s+\d+\s+(?:hours?|days?)\b/i,
 ];
 
-// The customer may read the email hours or days after it was sent, so no recovery or win-back email
-// may say WHEN it is being read ("today", "tonight"). The detector and the strip read only TEXT
-// OUTSIDE TAGS, so an href token or an attribute that happens to contain "today" is never read and
-// never altered, and the update-link check downstream is never tripped by the strip.
+// No email may say WHEN it is read ("today", "tonight"). Detector and strip read only text outside tags, so an href token is never altered.
 
 /** Not global, so `.test` carries no lastIndex between calls. */
 const TIMING_WORD_PATTERN =
@@ -71,8 +49,7 @@ const TIMING_WORD_PATTERN =
 export const TIMING_RETRY_INSTRUCTION =
   "\n\nADDITIONAL INSTRUCTION:\nThe previous subject contained a timing word like 'today' or 'tonight'. Rewrite it without any timing-specific words. The customer may read this hours or days after it was sent.";
 
-/** Splits HTML so that odd indexes are tags (`<...>`) and even indexes are the
- *  text between them. A subject has no tags and comes back as one text part. */
+/** Splits HTML: odd indexes are tags, even indexes the text between. */
 const TAG_SPLIT = /(<[^>]*>)/;
 
 function textParts(text: string): string[] {
@@ -96,10 +73,7 @@ const TIMING_WORD_REPLACEMENTS: readonly [RegExp, string][] = [
   [/\bimmediately\b/gi, ""],
 ];
 
-/**
- * Here the tidy is spaces and tabs only, and only in a text part the strip actually changed; tags
- * are never touched and untouched text stays byte for byte.
- */
+/** Tidies spaces and tabs only, in text parts the strip changed. */
 export function hardStripTimingWords(text: string): string {
   const parts = text.split(TAG_SPLIT);
   for (let i = 0; i < parts.length; i += 2) {
@@ -115,10 +89,7 @@ export function hardStripTimingWords(text: string): string {
   return parts.join("").trim();
 }
 
-/**
- * Layers 3 and 4 for one generated email, shared by both model seams. Then whatever still leaks is
- * hard-stripped, subject and body separately.
- */
+/** Layers 3 and 4 for one generated email, shared by both seams; what still leaks is hard-stripped. */
 export async function applyTimingWordGuard(
   first: EmailCopy,
   retry: (instruction: string) => Promise<EmailCopy>,
@@ -128,8 +99,6 @@ export async function applyTimingWordGuard(
   if (hasTimingWord(copy.subject)) {
     try {
       const retried = await retry(TIMING_RETRY_INSTRUCTION);
-      // Never trade a timing word for stock phrasing the first guard took out:
-      // the hard strip below handles the timing word either way.
       const stock = (c: EmailCopy) => findStockPhrasing(readableText(c), allow).length;
       if (retried.subject.trim() && retried.bodyHtml.trim() && stock(retried) <= stock(copy))
         copy = retried;
@@ -161,10 +130,7 @@ export function readGeneratedCopy(
   };
 }
 
-/**
- * The seams' last steps, after both retries: the deterministic sanitizer, then the stray-content
- * check (voice-samples.ts), which throws so the caller sends the template.
- */
+/** Last steps after both retries: sanitizer, then the stray-content check (voice-samples.ts), which throws so the caller sends the template. */
 export function finishCopy(copy: EmailCopy, samples: readonly string[], url: string): EmailCopy {
   const done = { subject: sanitizeCopy(copy.subject), bodyHtml: sanitizeCopy(copy.bodyHtml) };
   const stray = strayContent(done.bodyHtml, readableText(done), samples, url);
@@ -189,10 +155,7 @@ function readableText(copy: EmailCopy): string {
   return `${copy.subject}\n\n${body}`;
 }
 
-/**
- * One retry when the first draft carries stock phrasing; a retry that loses its subject or body is
- * never kept.
- */
+/** One retry on stock phrasing; a retry that loses its subject or body is dropped. */
 export function applyStockPhrasingGuard(
   first: EmailCopy,
   retry: (instruction: string) => Promise<EmailCopy>,
@@ -245,11 +208,7 @@ export type ContentPlan =
   | { source: "cache"; copy: EmailCopy; usedCustomBody: boolean }
   | { source: "generate"; customBody: string | null };
 
-/**
- * Decide whether a step can send from cache/custom content or must generate. If either the resolved
- * body or the subject is missing, we must generate (carrying any custom_body forward so it is never
- * overwritten).
- */
+/** Send from cache/custom content, or generate when the body or subject is missing (custom_body is carried forward). */
 export function resolveContentPlan(cached: CachedStepContent): ContentPlan {
   const body = cached.customBody ?? cached.cachedBodyHtml;
   const subject = cached.cachedSubject;
@@ -263,11 +222,7 @@ export function resolveContentPlan(cached: CachedStepContent): ContentPlan {
   return { source: "generate", customBody: cached.customBody };
 }
 
-/**
- * Combine freshly generated copy with any merchant override: the custom body always wins for the
- * body; the subject is taken from generation. This is applied after `generateDunningEmail` so a
- * generation for a step that has a custom_body only contributes the subject.
- */
+/** Combine generated copy with a merchant override: custom body wins; the subject comes from generation. */
 export function applyCustomBody(generated: EmailCopy, customBody: string | null): EmailCopy {
   return {
     subject: generated.subject,
@@ -306,15 +261,10 @@ function merchantContextLine(merchant: MerchantBrandVoice): string | null {
   return parts.length > 0 ? `Merchant context: ${parts.join(" ")}` : null;
 }
 
-/**
- * The last rung of resolveBrandVoice, used when neither the merchant nor the category sets a voice.
- */
+/** Last rung of resolveBrandVoice, when neither merchant nor category sets a voice. */
 const DEFAULT_VOICE = "Friendly and direct. Write like a real person, not a company.";
 
-/**
- * Resolve the brand-voice descriptor for the prompt. That is what makes "Same as main voice"
- * storable as NULL rather than needing a sentinel.
- */
+/** Resolve the brand-voice descriptor for the prompt; lets "Same as main voice" be NULL. */
 export function resolveBrandVoice(merchant: MerchantBrandVoice, declineCategory: string): string {
   const general = merchant.voiceDescription?.trim();
   const fallback = general && general.length > 0 ? general : DEFAULT_VOICE;
@@ -384,13 +334,7 @@ function buildSystemPrompt(brandVoice: string, samples: readonly string[]): stri
   ].join("\n");
 }
 
-/**
- * Extra, category-specific framing folded into the generation prompt so the copy matches what
- * actually happened, not a generic "your payment failed, please pay". Most categories share the
- * default recovery framing (fix the payment via the link); `revoked` is deliberately different: the
- * customer explicitly revoked authorization, so the note must offer a clean cancel-or-update choice
- * rather than dun them.
- */
+/** Category-specific prompt framing. `revoked` differs: the customer revoked authorization, so offer a cancel-or-update choice rather than dun. */
 function categoryGuidance(declineCategory: string): string | null {
   if (declineCategory === "revoked") {
     return [
@@ -407,9 +351,6 @@ function categoryGuidance(declineCategory: string): string | null {
 
 export function buildUserPrompt(input: GenerateEmailInput): string {
   const guidance = categoryGuidance(input.declineCategory);
-  // Exported so a plant can observe the prompt the model actually receives.
-  // The merchant-context line is the output of merchantContextLine: without it the
-  // three columns reach nothing.
   const merchantContext = merchantContextLine(input.merchant);
   return [
     `Business: ${untrusted("business_name", input.merchant.merchantName)}`,
@@ -449,8 +390,7 @@ export async function generateDunningEmail(
   }
   const prompts = buildPrompts(input);
 
-  // One call shape for the first call and the rewrites: a rewrite is the same
-  // system and user prompt with its instruction appended, and one attempt.
+  // A rewrite is the same prompt with its instruction appended, one attempt.
   const call = async (instruction = ""): Promise<EmailCopy> => {
     const result = await askStructured<{ subject: string; bodyHtml: string }>(
       env,

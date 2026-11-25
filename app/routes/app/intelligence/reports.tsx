@@ -1,7 +1,5 @@
 import { formatDate } from "capsomer/behavior/time";
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { getReportsArchive } from "~/lib/intelligence/views.server";
 
 import type { Route } from "./+types/reports";
@@ -12,10 +10,7 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
 
   return { reports: await getReportsArchive(db, accountId) };
 }

@@ -8,8 +8,7 @@ import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
 import { eq } from "drizzle-orm";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accountScope } from "~/lib/auth/context";
 import { syncPlatformCustomerEmail } from "~/lib/billing/platform-customer";
 import {
   ALERT_INTENTS,
@@ -43,9 +42,7 @@ const NULL_IS_OFF = false;
 const SAVE_FAILED = "Failed to save. Please try again.";
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { env, auth, db } = accountScope(context);
   const alertsSection = loadAlertsSection(env, db, auth.membership.accountId);
   const [row] = await db
     .select({
@@ -88,8 +85,7 @@ function checked(form: FormData, name: string): boolean {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const { env, auth } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
 
   // The alerts' own forms carry an intent; the delivery form carries none.

@@ -26,10 +26,8 @@ import "capsomer/status.css";
 import "capsomer/table.css";
 import "~/site-header.css";
 
-import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { formatDetectedDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import {
@@ -82,10 +80,7 @@ export function meta() {
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
   const nowMs = Date.now();
 
   const { input, filters, time, bounds, amountMinParsed, amountMaxParsed } =
@@ -164,9 +159,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 /** The bulk POST target. Nothing the browser sends is trusted: every id is re-derived through dispatchManualAction's own account-scoped read and per-intent preconditions, one payment and one key at a time, so an unowned id answers not_found exactly as it would singly. A submission over the ceiling is refused whole. */
 export async function action({ context, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { env, auth, db } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
   const ids = form.getAll("ids").map(String).filter(Boolean);

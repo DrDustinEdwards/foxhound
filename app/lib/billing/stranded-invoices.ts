@@ -2,6 +2,7 @@ import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
 import { accounts, billingInvoices, billingLineItems, getDb } from "~/db";
 import { accountBillingEligibleCondition } from "~/db/billable";
+import { readInvoiceLineItems } from "./invoice-batch";
 import {
   lineItemIdempotencyKey,
   STRIPE_CHARGEABLE_TYPES,
@@ -117,17 +118,7 @@ export async function loadLines(
     .where(eq(billingInvoices.id, invoiceId))
     .limit(1);
   if (!invoice) return { lines: [], periodStart: null };
-  const rows = await db
-    .select({
-      id: billingLineItems.id,
-      type: billingLineItems.type,
-      amountCents: billingLineItems.amountCents,
-      description: billingLineItems.description,
-      recoveredPaymentId: billingLineItems.recoveredPaymentId,
-      disputeId: billingLineItems.disputeId,
-    })
-    .from(billingLineItems)
-    .where(eq(billingLineItems.invoiceId, invoiceId));
+  const rows = await readInvoiceLineItems(db, invoiceId);
   const lines = linesFromLineItems(rows, {
     accountId: invoice.accountId,
     // The same key buildBillingInvoiceBatch used when it first derived the line

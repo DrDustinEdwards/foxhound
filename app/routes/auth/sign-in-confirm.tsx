@@ -4,10 +4,9 @@ import {
   signInLinkProblem,
 } from "@dustinedwards/site-runtime/sign-in";
 import { Alert } from "capsomer/react/banner";
-import { Button } from "capsomer/react/button";
 import { data } from "react-router";
 
-import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
+import { AuthCard, AuthFootnote, AuthHeading, ConfirmForm } from "~/components/auth-card";
 import { AuthLink } from "~/components/auth-link";
 import { getBetterAuth } from "~/lib/auth";
 import { getSession } from "~/lib/auth/session";
@@ -72,15 +71,7 @@ export default function SignInConfirm({ loaderData, actionData }: Route.Componen
   return (
     <AuthCard>
       <AuthHeading title="Sign in to Foxhound" />
-      {/* A plain form: it posts to this URL, token and all, and the browser follows the redirect. */}
-      <form method="post" className="fh-auth-form">
-        {actionData?.limited ? (
-          <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert>
-        ) : null}
-        <Button type="submit" variant="primary" size="lg">
-          Sign in
-        </Button>
-      </form>
+      <ConfirmForm limited={Boolean(actionData?.limited)} label="Sign in" />
     </AuthCard>
   );
 }

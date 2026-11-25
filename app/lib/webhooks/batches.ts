@@ -3,6 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db, MoneyWriteBatch } from "~/db";
 import {
   failedPayments,
+  getDb,
   recoveredPayments,
   webhookEvents,
   winBackSequences,
@@ -14,6 +15,7 @@ import {
   RECOVERABLE_FAILED_PAYMENT_STATUSES,
 } from "~/lib/constants";
 import type { DeclineCategory } from "~/lib/constants";
+import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import type { ResolvedAttribution } from "~/lib/recovery/attribution";
 import { buildRecoveryBatch, type RecoveredChargeFee } from "~/lib/recovery/record-recovery";
@@ -43,6 +45,34 @@ export function buildWebhookClaim(db: Db, claim: WebhookClaimInput) {
     processingStartedAt: claim.receivedAt,
     payload: claim.payload ?? {},
   });
+}
+
+/**
+ * Claim an event that resolved to nothing we own via a plain insert (not a money write): the id and
+ * type are the claim, the payload (customer name, email, address) is never kept. Idempotent on the
+ * unique index; returns false when it was already claimed. Anything else throws, so the route 500s
+ * and Stripe retries instead of a 200 that drops the event.
+ */
+export async function claimEventWithoutPayload(
+  env: Env,
+  event: { id: string; type: string },
+  receivedAt: Date,
+): Promise<boolean> {
+  try {
+    await getDb(env).insert(webhookEvents).values({
+      stripeEventId: event.id,
+      eventType: event.type,
+      receivedAt,
+      accountId: null,
+      processed: true,
+      processingStartedAt: receivedAt,
+      payload: {},
+    });
+    return true;
+  } catch (err) {
+    if (!isUniqueConstraintError(err)) throw err;
+    return false;
+  }
 }
 
 /** The declined charge's network and card facts (migration 0049), stored on

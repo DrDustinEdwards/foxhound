@@ -2,9 +2,6 @@
 // customer.subscription.trial_will_end (a trial converts in three days). This file never sends.
 // What differs from the other writers is only the window.
 
-import { eq } from "drizzle-orm";
-
-import { getDb, stripeConnections } from "~/db";
 import {
   buildCandidateUpsert,
   expiresBeforeCharge,
@@ -12,10 +9,9 @@ import {
 } from "~/lib/cron/expiring-cards";
 import { chargePaymentMethodId } from "~/lib/engine/card-change";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import { getConnectedStripe } from "~/lib/stripe/client";
-import { decryptToken } from "~/lib/stripe/encryption";
 
 import { buildClaimOnlyBatch } from "./batches";
+import { connectedStripeFor } from "./connected-reads";
 import {
   claimOnly,
   type IntentOf,
@@ -49,13 +45,8 @@ async function resolveRenewalCharge(
   connectionId: string,
   intent: RenewalIntent,
 ): Promise<RenewalCharge> {
-  const [connection] = await getDb(env)
-    .select({ accessToken: stripeConnections.stripeAccessToken })
-    .from(stripeConnections)
-    .where(eq(stripeConnections.id, connectionId))
-    .limit(1);
-  if (!connection?.accessToken) return { kind: "skip", reason: "no_connection_token" };
-  const stripe = getConnectedStripe(await decryptToken(env, connection.accessToken));
+  const stripe = await connectedStripeFor(env, connectionId);
+  if (!stripe) return { kind: "skip", reason: "no_connection_token" };
 
   const customer = await stripe.customers.retrieve(intent.customerId);
   if (customer.deleted) return { kind: "skip", reason: "customer_deleted" };

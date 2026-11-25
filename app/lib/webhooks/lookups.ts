@@ -2,7 +2,7 @@
 // connection resolution, failed-payment and win-back finds, and the Stripe
 // reads that map a payment intent back to our rows. None of them writes money.
 
-import { and, desc, eq, gte, inArray, isNull } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, isNull, type SQL } from "drizzle-orm";
 import {
   customerContext,
   disputes,
@@ -109,6 +109,14 @@ export async function findActiveFailedPayment(
   return rows[0] ?? null;
 }
 
+/** A query for the ids of one account's failed_payments rows matching every condition. */
+function failedPaymentIds(env: Env, accountId: string, ...conditions: SQL[]) {
+  return getDb(env)
+    .select({ id: failedPayments.id })
+    .from(failedPayments)
+    .where(and(eq(failedPayments.accountId, accountId), ...conditions));
+}
+
 /**
  * The failed_payment a successful invoice payment should be recorded against: still active, OR
  * already flipped to failed_unrecovered by the exhausted-sequence sweep. The second case is a
@@ -120,17 +128,12 @@ export async function findRecoverableFailedPayment(
   accountId: string,
   invoiceId: string,
 ): Promise<string | null> {
-  const db = getDb(env);
-  const rows = await db
-    .select({ id: failedPayments.id })
-    .from(failedPayments)
-    .where(
-      and(
-        eq(failedPayments.accountId, accountId),
-        eq(failedPayments.stripeInvoiceId, invoiceId),
-        inArray(failedPayments.status, [...RECOVERABLE_FAILED_PAYMENT_STATUSES]),
-      ),
-    )
+  const rows = await failedPaymentIds(
+    env,
+    accountId,
+    eq(failedPayments.stripeInvoiceId, invoiceId),
+    inArray(failedPayments.status, [...RECOVERABLE_FAILED_PAYMENT_STATUSES]),
+  )
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
   return rows[0]?.id ?? null;
@@ -141,17 +144,13 @@ export async function listActiveFailedPaymentIds(
   accountId: string,
   stripeCustomerId: string,
 ): Promise<string[]> {
-  const rows = await getDb(env)
-    .select({ id: failedPayments.id })
-    .from(failedPayments)
-    .where(
-      and(
-        eq(failedPayments.accountId, accountId),
-        eq(failedPayments.stripeCustomerId, stripeCustomerId),
-        // LIVE, not just active.
-        inArray(failedPayments.status, LIVE_FAILED_PAYMENT_STATUSES),
-      ),
-    );
+  const rows = await failedPaymentIds(
+    env,
+    accountId,
+    eq(failedPayments.stripeCustomerId, stripeCustomerId),
+    // LIVE, not just active.
+    inArray(failedPayments.status, LIVE_FAILED_PAYMENT_STATUSES),
+  );
   return rows.map((r) => r.id);
 }
 
@@ -190,18 +189,13 @@ export async function hasRecentlyResolvedFailedPayment(
   stripeCustomerId: string,
   cutoffMs: number,
 ): Promise<boolean> {
-  const rows = await getDb(env)
-    .select({ id: failedPayments.id })
-    .from(failedPayments)
-    .where(
-      and(
-        eq(failedPayments.accountId, accountId),
-        eq(failedPayments.stripeCustomerId, stripeCustomerId),
-        inArray(failedPayments.status, ["cancelled", "recovered"]),
-        gte(failedPayments.resolvedAt, new Date(cutoffMs)),
-      ),
-    )
-    .limit(1);
+  const rows = await failedPaymentIds(
+    env,
+    accountId,
+    eq(failedPayments.stripeCustomerId, stripeCustomerId),
+    inArray(failedPayments.status, ["cancelled", "recovered"]),
+    gte(failedPayments.resolvedAt, new Date(cutoffMs)),
+  ).limit(1);
   return rows.length > 0;
 }
 
@@ -260,13 +254,7 @@ export async function resolveRefundedFailedPayment(
 ): Promise<string | null> {
   const invoiceId = await resolveInvoiceIdForPaymentIntent(env, connectionId, paymentIntentId);
   if (!invoiceId) return null;
-  const db = getDb(env);
-  const rows = await db
-    .select({ id: failedPayments.id })
-    .from(failedPayments)
-    .where(
-      and(eq(failedPayments.accountId, accountId), eq(failedPayments.stripeInvoiceId, invoiceId)),
-    )
+  const rows = await failedPaymentIds(env, accountId, eq(failedPayments.stripeInvoiceId, invoiceId))
     .orderBy(desc(failedPayments.detectedAt))
     .limit(1);
   return rows[0]?.id ?? null;

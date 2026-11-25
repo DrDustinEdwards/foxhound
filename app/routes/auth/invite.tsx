@@ -51,13 +51,18 @@ async function accept(db: Db, token: string, session: Session, headers?: Headers
 // Drawn for one reader, and its URL holds a token: kept out of caches and Web Analytics (site-runtime PRIVATE_PAGE_HEADERS).
 export const headers = () => PRIVATE_PAGE_HEADERS;
 
-export async function loader({ request, params, context }: Route.LoaderArgs) {
+async function loadInvite(context: Route.LoaderArgs["context"], request: Request, token: string) {
   const { env } = context.get(cloudflareContext);
   const db = getDb(env);
   const [session, invite] = await Promise.all([
     getSession(env, request),
-    getInviteByToken(db, params.token),
+    getInviteByToken(db, token),
   ]);
+  return { db, session, invite };
+}
+
+export async function loader({ request, params, context }: Route.LoaderArgs) {
+  const { db, session, invite } = await loadInvite(context, request, params.token);
   const carried = readInviteCookie(request) === params.token;
 
   if (!invite) {
@@ -74,12 +79,7 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, params, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const db = getDb(env);
-  const [session, invite] = await Promise.all([
-    getSession(env, request),
-    getInviteByToken(db, params.token),
-  ]);
+  const { db, session, invite } = await loadInvite(context, request, params.token);
   if (!invite) return data({ accountName: null, error: INVALID }, { status: 404 });
 
   if (!session) {

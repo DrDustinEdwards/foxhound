@@ -14,9 +14,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 
 import "~/components/charts.css";
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { planTierPill, scheduledChangeLabel } from "~/lib/intelligence/customer-directory";
 import {
   disputeSignalFields,
@@ -49,10 +47,7 @@ export function meta() {
 // cross-tenant read (the account-scoping audit flagged this route by name).
 // getCustomerActivity carries the same pair on every query.
 export async function loader({ context, params }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { auth, db, accountId } = accountScope(context);
 
   const nowMs = Date.now();
   const [detail, activity] = await Promise.all([

@@ -1,4 +1,4 @@
-import { and, count, eq, exists, notExists, notInArray, sql } from "drizzle-orm";
+import { and, count, eq, exists, notExists, notInArray, sql, type SQL } from "drizzle-orm";
 
 import type { Db } from "~/db";
 import { changedRows, disputeApprovals, disputeEvidence, disputes } from "~/db";
@@ -61,6 +61,45 @@ function fileRowsOf(accountId: string, disputeId: string) {
   );
 }
 
+/**
+ * An evidence row inserted from the disputes row, so `guard` (the caller's conditions on the dispute,
+ * evaluated at write time) decides whether it lands.
+ */
+export function buildEvidenceInsert(
+  db: Db,
+  row: { fieldName: string; fieldValue: string; now: Date },
+  guard: SQL | undefined,
+) {
+  return db.insert(disputeEvidence).select(
+    db
+      .select({
+        id: sql<string>`${crypto.randomUUID()}`.as("id"),
+        disputeId: disputes.id,
+        accountId: disputes.accountId,
+        fieldName: sql<string>`${row.fieldName}`.as("field_name"),
+        fieldValue: sql<string>`${row.fieldValue}`.as("field_value"),
+        createdAt: sql<Date>`${row.now.getTime()}`.as("created_at"),
+      })
+      .from(disputes)
+      .where(guard),
+  );
+}
+
+/** One uploaded file's row for the account's dispute, or undefined. */
+async function findFileRow(
+  db: Db,
+  input: { accountId: string; disputeId: string; evidenceId: string },
+) {
+  const [row] = await db
+    .select({ id: disputeEvidence.id, key: disputeEvidence.fieldValue })
+    .from(disputeEvidence)
+    .where(
+      and(eq(disputeEvidence.id, input.evidenceId), fileRowsOf(input.accountId, input.disputeId)),
+    )
+    .limit(1);
+  return row;
+}
+
 export interface UploadEvidenceFileInput {
   accountId: string;
   disputeId: string;
@@ -106,18 +145,10 @@ export async function uploadEvidenceFile(
     .where(fileRowsOf(input.accountId, input.disputeId))}) < ${DISPUTE_EVIDENCE_MAX_FILES}`;
   let written = 0;
   try {
-    const result = await db.insert(disputeEvidence).select(
-      db
-        .select({
-          id: sql<string>`${crypto.randomUUID()}`.as("id"),
-          disputeId: disputes.id,
-          accountId: disputes.accountId,
-          fieldName: sql<string>`${EVIDENCE_FILE_FIELD}`.as("field_name"),
-          fieldValue: sql<string>`${key}`.as("field_value"),
-          createdAt: sql<Date>`${input.now.getTime()}`.as("created_at"),
-        })
-        .from(disputes)
-        .where(and(evidenceOpen(db, input.accountId, input.disputeId), underLimit)),
+    const result = await buildEvidenceInsert(
+      db,
+      { fieldName: EVIDENCE_FILE_FIELD, fieldValue: key, now: input.now },
+      and(evidenceOpen(db, input.accountId, input.disputeId), underLimit),
     );
     written = changedRows(result);
   } catch (err) {
@@ -141,13 +172,7 @@ export async function deleteEvidenceFile(
   input: { accountId: string; disputeId: string; evidenceId: string },
 ): Promise<EvidenceFileOutcome> {
   if (!bucket) return "uploads_unavailable";
-  const [row] = await db
-    .select({ id: disputeEvidence.id, key: disputeEvidence.fieldValue })
-    .from(disputeEvidence)
-    .where(
-      and(eq(disputeEvidence.id, input.evidenceId), fileRowsOf(input.accountId, input.disputeId)),
-    )
-    .limit(1);
+  const row = await findFileRow(db, input);
   if (!row) return "not_found";
 
   const result = await db.delete(disputeEvidence).where(
@@ -183,13 +208,7 @@ export async function readEvidenceFile(
   input: { accountId: string; disputeId: string; evidenceId: string },
 ): Promise<EvidenceFileRead> {
   if (!bucket) return { outcome: "uploads_unavailable" };
-  const [row] = await db
-    .select({ key: disputeEvidence.fieldValue })
-    .from(disputeEvidence)
-    .where(
-      and(eq(disputeEvidence.id, input.evidenceId), fileRowsOf(input.accountId, input.disputeId)),
-    )
-    .limit(1);
+  const row = await findFileRow(db, input);
   if (!row) return { outcome: "not_found" };
   const object = await bucket.get(row.key);
   if (!object) return { outcome: "not_found" };

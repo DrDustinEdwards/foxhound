@@ -13,9 +13,7 @@ import "capsomer/panel.css";
 import "capsomer/status.css";
 
 import "~/components/charts.css";
-import { getDb } from "~/db";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accountScope } from "~/lib/auth/context";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
 import { listExecutedRecoverySteps } from "~/lib/recovery/step-queries.server";
 import {
@@ -44,10 +42,7 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
 
   const rawSteps = await listExecutedRecoverySteps(db, accountId);
   // Sanitize once, here, server-side: the pure aggregation module never touches raw AI HTML (see email-preview.server.ts).

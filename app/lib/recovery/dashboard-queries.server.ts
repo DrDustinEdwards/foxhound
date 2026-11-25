@@ -44,6 +44,15 @@ import { type FailedPaymentRow } from "./queries.server";
 
 const RECENT_FAILED_PAYMENTS_LIMIT = 8;
 
+/** The account's live, non-renewal-noise failures detected on/after `cutoffMs` (all time when null). */
+function windowedFailures(accountId: string, cutoffMs: number | null) {
+  return and(
+    byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
+    eq(failedPayments.isRenewalNoise, false),
+    cutoffMs === null ? undefined : gte(failedPayments.detectedAt, new Date(cutoffMs)),
+  );
+}
+
 /** The `limit` most recent failed payments detected on/after `cutoffMs` (or
  *  all time when null), renewal noise excluded. Feeds the dashboard's recent-
  *  activity preview (full detail lives at /recovery/payments). */
@@ -53,15 +62,10 @@ export async function listRecentFailedPayments(
   cutoffMs: number | null,
   limit: number = RECENT_FAILED_PAYMENTS_LIMIT,
 ): Promise<FailedPaymentRow[]> {
-  const conditions = [
-    byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
-    eq(failedPayments.isRenewalNoise, false),
-  ];
-  if (cutoffMs !== null) conditions.push(gte(failedPayments.detectedAt, new Date(cutoffMs)));
   return db
     .select()
     .from(failedPayments)
-    .where(and(...conditions))
+    .where(windowedFailures(accountId, cutoffMs))
     .orderBy(desc(failedPayments.detectedAt))
     .limit(limit);
 }
@@ -85,11 +89,6 @@ export async function listFailuresWithOutcome(
   accountId: string,
   cutoffMs: number | null,
 ): Promise<FailureOutcomeRow[]> {
-  const conditions = [
-    byAccountActive(failedPayments.accountId, failedPayments.deletedAt, accountId),
-    eq(failedPayments.isRenewalNoise, false),
-  ];
-  if (cutoffMs !== null) conditions.push(gte(failedPayments.detectedAt, new Date(cutoffMs)));
   const rows = await db
     .select({
       detectedAt: failedPayments.detectedAt,
@@ -98,7 +97,7 @@ export async function listFailuresWithOutcome(
     })
     .from(failedPayments)
     .leftJoin(recoveredPayments, eq(recoveredPayments.failedPaymentId, failedPayments.id))
-    .where(and(...conditions));
+    .where(windowedFailures(accountId, cutoffMs));
   return rows.map((r) => ({ ...r, declineCategory: r.declineCategory as DeclineCategory }));
 }
 

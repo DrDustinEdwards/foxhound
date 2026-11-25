@@ -14,9 +14,7 @@ import { Banner } from "capsomer/react/banner";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
 import { SetupChecklist } from "capsomer/react/setup-checklist";
-import { getDb } from "~/db";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accountScope } from "~/lib/auth/context";
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import {
   getRecoveryDashboardWindow,
@@ -82,10 +80,7 @@ function parseRange(value: string | null): RecoveryRange {
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
   const nowMs = Date.now();
   const range = parseRange(new URL(request.url).searchParams.get("range"));
 
