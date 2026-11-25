@@ -20,7 +20,7 @@ import {
   AUDIT_STEPS,
 } from "~/lib/marketing/audit-copy";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
-import { productMeta } from "~/lib/seo/meta";
+import { productMeta } from "~/lib/marketing/product-meta";
 
 import type { Route } from "./+types/audit";
 import "~/products.css";

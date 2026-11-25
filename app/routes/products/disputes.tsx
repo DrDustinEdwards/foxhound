@@ -26,7 +26,7 @@ import {
 } from "~/lib/marketing/disputes-copy";
 import { disputesPreviewFor } from "~/lib/marketing/disputes-preview.server";
 import { siteUrl } from "~/lib/seo/jsonld";
-import { productMeta } from "~/lib/seo/meta";
+import { productMeta } from "~/lib/marketing/product-meta";
 
 import type { Route } from "./+types/disputes";
 import "~/products.css";

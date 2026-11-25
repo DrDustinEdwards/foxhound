@@ -26,7 +26,7 @@ import {
 } from "~/lib/marketing/intelligence-copy";
 import { intelligencePreviewFor } from "~/lib/marketing/intelligence-preview.server";
 import { siteUrl } from "~/lib/seo/jsonld";
-import { productMeta } from "~/lib/seo/meta";
+import { productMeta } from "~/lib/marketing/product-meta";
 
 import type { Route } from "./+types/intelligence";
 import "~/products.css";

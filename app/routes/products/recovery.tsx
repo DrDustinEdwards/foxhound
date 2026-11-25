@@ -26,7 +26,7 @@ import {
 } from "~/lib/marketing/recovery-copy";
 import { recoveryPreviewFor } from "~/lib/marketing/recovery-preview.server";
 import { siteUrl } from "~/lib/seo/jsonld";
-import { productMeta } from "~/lib/seo/meta";
+import { productMeta } from "~/lib/marketing/product-meta";
 
 import type { Route } from "./+types/recovery";
 import "~/products.css";

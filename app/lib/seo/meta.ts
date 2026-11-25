@@ -1,8 +1,5 @@
 import { defineHead, type HeadImage } from "@drdustinedwards/site-helpers/head";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import type { MiddlewareFunction } from "react-router";
-
-import { speakableWebPageJsonLd } from "~/lib/seo/jsonld";
 
 // Shared meta-tag builder: every marketing route now emits the same tag set instead of each route
 // hand-rolling a subset (title/description only, no canonical, no OG, no Twitter Card, everywhere
@@ -97,24 +94,4 @@ export function marketingMeta({
     pageType,
     noindex,
   });
-}
-
-/** A product spoke's head: its tags plus the speakable selectors product-sections-cap.tsx puts on the sections. */
-export function productMeta(
-  loaderData: { siteUrl: string } | undefined,
-  page: { title: string; description: string; path: string },
-) {
-  return [
-    ...marketingMeta({ ...page, siteUrl: loaderData?.siteUrl ?? "" }),
-    ...(loaderData
-      ? [
-          jsonLd(
-            speakableWebPageJsonLd(loaderData.siteUrl, {
-              path: page.path,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        ]
-      : []),
-  ];
 }
