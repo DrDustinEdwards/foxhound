@@ -17,7 +17,8 @@ const SIGNUP_RULES = [{ limit: 5, windowSeconds: 60 * 60 }];
 export const SIGN_IN_LIMITED = "Too many attempts. Please try again in a minute.";
 export const SIGN_UP_LIMITED = "Too many requests. Please try again later.";
 
-const ON_UNAVAILABLE = "allow" as const;
+// Sign-in and signup refuse when the counter is down: an outage must not open the door to credential guessing.
+const ON_UNAVAILABLE = "refuse" as const;
 
 export type AuthAttempt = "credential" | "signup";
 
@@ -56,6 +57,6 @@ export const RATE_LIMITED_ERROR = "rate_limited";
 export function limitedData<T extends { error: string }>(body: T, refusal: AuthLimitRefusal) {
   return data(body, {
     status: 429,
-    headers: { "Retry-After": String(refusal.retryAfterSeconds) },
+    headers: { "Retry-After": String(Math.max(refusal.retryAfterSeconds, 60)) },
   });
 }

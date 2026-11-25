@@ -80,5 +80,10 @@
     "vite": "8.3.8",
     "vitest": "4.1.12",
     "wrangler": "4.164.0"
+  },
+  "overrides": {
+    "@esbuild-kit/core-utils": {
+      "esbuild": "^0.25.0"
+    }
   }
 }

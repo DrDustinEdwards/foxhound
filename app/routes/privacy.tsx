@@ -61,12 +61,10 @@ const SECTIONS: LegalSection[] = [
           <li>business names</li>
           <li>contact preferences</li>
         </ul>
-        <p>Sensitive Information. We do not process sensitive information.</p>
         <p>
-          Payment Data. We may collect data necessary to process your payment if you choose to make
-          purchases, such as your payment instrument number, and the security code associated with
-          your payment instrument. All payment data is handled and stored by Stripe. You may find
-          their privacy notice link(s) here:{" "}
+          Payment Data. You enter your card number and security code on Stripe, never on Foxhound.
+          For a card we watch for a merchant, we keep the brand, the last four digits and the expiry
+          month and year. Stripe stores the rest. You may find their privacy notice link(s) here:{" "}
           <AwayLink href="https://stripe.com/privacy">https://stripe.com/privacy</AwayLink>.
         </p>
         <p>
@@ -113,6 +111,11 @@ const SECTIONS: LegalSection[] = [
             information. When you sign in, we keep the city, region, and country Cloudflare matches
             to your IP address, for the session list in your account settings. We do not collect
             precise location, such as GPS.
+          </li>
+          <li>
+            Cookies and Analytics. We set a cookie, fh_theme, to remember your light or dark
+            setting, and session cookies to keep you signed in. Public pages load Cloudflare Web
+            Analytics, which measures page views without cookies.
           </li>
           <li>
             Email Engagement Data. When someone opens a recovery or win-back email we send for a
@@ -368,7 +371,7 @@ const SECTIONS: LegalSection[] = [
         <p>
           The Stripe connection carries read and write scope, because retrying a failed invoice is a
           write. Foxhound uses the write half for these things and no others: {STRIPE_WRITES}. It{" "}
-          {STRIPE_WRITES_LIMITS}. Foxhound never stores card numbers, and Stripe access tokens are
+          {STRIPE_WRITES_LIMITS}. Foxhound never stores full card numbers or security codes, and Stripe access tokens are
           encrypted at rest with AES-256.
         </p>
       </>
@@ -380,20 +383,15 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          <em>In Short:</em> We do not knowingly collect data from or market to children under 18
-          years of age or the equivalent age as specified by law in your jurisdiction.
+          <em>In Short:</em> Foxhound is for businesses. We do not knowingly collect data from
+          anyone under 18.
         </p>
         <p>
-          We do not knowingly collect, solicit data from, or market to children under 18 years of
-          age or the equivalent age as specified by law in your jurisdiction, nor do we knowingly
-          sell such personal information. By using the Services, you represent that you are at least
-          18 or the equivalent age as specified by law in your jurisdiction or that you are the
-          parent or guardian of such a minor and consent to such minor dependent&apos;s use of the
-          Services. If we learn that personal information from users less than 18 years of age or
-          the equivalent age as specified by law in your jurisdiction has been collected, we will
-          deactivate the account and take reasonable measures to promptly delete such data from our
-          records. If you become aware of any data we may have collected from children under age 18
-          or the equivalent age as specified by law in your jurisdiction, please contact us at{" "}
+          We do not knowingly collect data from anyone under 18, and the Services are not for them. By
+          using the Services, you represent that you are at least 18. If we learn that we have
+          collected personal information from someone under 18, we will deactivate the account and
+          take reasonable measures to promptly delete the data from our records. If you become
+          aware of any data we may have collected from a person under 18, please contact us at{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </>

@@ -75,10 +75,11 @@ const SECTIONS: LegalSection[] = [
     body: (
       <>
         <p>
-          No card number, expiry or CVC ever reaches Foxhound. Card details are entered on Stripe
-          surfaces and stay with Stripe. When a customer updates a card through a Foxhound link, the
-          page collects nothing: it hands off to Stripe and Foxhound learns only that the payment
-          method changed.
+          The full card number and CVC are entered on Stripe and never reach Foxhound. For a card
+          Foxhound watches, it keeps the brand, the last four digits and the expiry month and year,
+          to warn the merchant before the card expires. When a customer updates a card through a
+          Foxhound link, the page collects nothing: it hands off to Stripe and Foxhound learns only
+          that the payment method changed.
         </p>
       </>
     ),

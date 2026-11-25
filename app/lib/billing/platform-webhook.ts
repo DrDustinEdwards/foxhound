@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts, billingInvoices, getDb, webhookEvents } from "~/db";
+import { finalizeBillingSetupSession, sessionCustomerId } from "~/lib/billing/platform-customer";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 import { buildWebhookClaim, type WebhookClaimInput } from "~/lib/webhooks/batches";
@@ -169,6 +170,9 @@ export async function processPlatformWebhook(
   if (event.account) return { status: "ignored", reason: "connected_account_event" };
 
   try {
+    if (event.type === "checkout.session.completed") {
+      return await processSetupSessionCompleted(env, event, receivedAt);
+    }
     const target = await resolvePlatformBillingTarget(env, event);
 
     if (!target) {
@@ -216,6 +220,56 @@ export async function processPlatformWebhook(
       message: err instanceof Error ? err.message : "platform webhook error",
     };
   }
+}
+
+/**
+ * A completed card setup on our own Checkout makes that card the customer's
+ * default, so a dropped browser return does not leave fee invoices with no card.
+ * The same ownership gate as the return leg: the session's customer must be the
+ * account's platform customer. Setting the default twice is harmless, so the
+ * claim follows the write, and a failure answers 500 for Stripe to redeliver.
+ */
+async function processSetupSessionCompleted(
+  env: Env,
+  event: Stripe.Event,
+  receivedAt: Date,
+): Promise<WebhookOutcome> {
+  const session = event.data.object as Stripe.Checkout.Session;
+  if (session.mode !== "setup") return { status: "ignored", reason: "not_a_setup_session" };
+  const customerId = sessionCustomerId(session.customer);
+  const rows = customerId
+    ? await getDb(env)
+        .select({ id: accounts.id })
+        .from(accounts)
+        .where(eq(accounts.platformStripeCustomerId, customerId))
+        .limit(1)
+    : [];
+  const account = rows[0];
+  if (!customerId || !account) {
+    const claimed = await claimUnroutableEvent(env, event, receivedAt);
+    return claimed ? { status: "ignored", reason: "no_platform_customer" } : { status: "duplicate" };
+  }
+
+  const finalized = await finalizeBillingSetupSession(env, {
+    sessionId: session.id,
+    expectedCustomerId: customerId,
+  });
+  if (!finalized.ok) return { status: "error", message: finalized.error ?? "setup session not finalized" };
+
+  const { applied } = await executeMoneyWrite(env, {
+    accountId: account.id,
+    idempotencyKey: `platform-webhook:${event.id}`,
+    build: (db) => [
+      buildWebhookClaim(db, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        accountId: account.id,
+        receivedAt,
+        payload: {},
+      }),
+    ],
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
 }
 
 /**

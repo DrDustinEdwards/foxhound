@@ -2,7 +2,7 @@ import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { data, redirect } from "react-router";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit, isWithinRateLimit } from "~/lib/http/rate-limit";
 import {
   MARKETING_EMAIL_CATEGORIES,
   type MarketingEmailCategory,
@@ -40,12 +40,23 @@ export async function action({ request, context }: Route.ActionArgs) {
   const categoryInput = String(form.get("category") ?? "");
   const category: MarketingEmailCategory = isValidCategory(categoryInput) ? categoryInput : "soft";
 
-  const allowed = await isIpWithinRateLimit(env, request, "marketing_email_sample", {
-    max: 10,
-    windowMs: 60_000,
-  });
-  if (!allowed) {
-    return data(UNAVAILABLE, { status: 429 });
+  // Every call spends the Anthropic key with no account behind it: both limits fail closed, and the all-visitors
+  // bucket caps the spend when many addresses call at once.
+  try {
+    const allowed =
+      (await isIpWithinRateLimit(
+        env,
+        request,
+        "marketing_email_sample",
+        { max: 10, windowMs: 60_000 },
+        { failClosed: true },
+      )) &&
+      (await isWithinRateLimit(env, "marketing_email_sample_all", "all", 600, 60 * 60_000, {
+        failClosed: true,
+      }));
+    if (!allowed) return data(UNAVAILABLE, { status: 429 });
+  } catch {
+    return data(UNAVAILABLE, { status: 503 });
   }
 
   try {
