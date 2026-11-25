@@ -9,12 +9,7 @@ import {
   type WriteResult,
 } from "@dustinedwards/site-api";
 import { SEARCH_FIELDS } from "@dustinedwards/site-api/frontmatter";
-import {
-  d1ScheduledUpdates,
-  utc,
-  waitingUpdates,
-  type D1Like,
-} from "@dustinedwards/site-api/schedules";
+import { d1ScheduledUpdates, waitingUpdates, type D1Like } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
 import { eq } from "drizzle-orm";
 import { blogPosts, type Db } from "~/db";
@@ -404,7 +399,10 @@ export function carrelAdapter(
         const post = await load(id);
         const waiting = await schedules.get(id);
         if (!post || !waiting || post.row.trashedAt) return null;
-        if (waiting.changeId !== input.changeId || waiting.publishAt !== utc(input.publishAt))
+        if (
+          waiting.changeId !== input.changeId ||
+          waiting.publishAt !== new Date(input.publishAt).toISOString()
+        )
           return null;
         if (Date.parse(waiting.publishAt) > input.now.getTime()) return null;
         if (input.kind === "update") {

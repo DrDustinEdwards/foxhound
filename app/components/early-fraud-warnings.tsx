@@ -9,7 +9,7 @@ import "capsomer/banner.css";
 import "capsomer/button.css";
 import "capsomer/confirm-dialog.css";
 
-import { toDate } from "@drdustinedwards/site-helpers/xml";
+import { feedDate } from "@drdustinedwards/site-helpers/xml";
 
 import {
   EARLY_FRAUD_WARNINGS_ANCHOR,
@@ -143,7 +143,7 @@ export function EarlyFraudWarnings({
                       {fraudTypeWords(w.fraudType)}
                     </td>
                     <td data-label="Date" className="fh-mono fh-small">
-                      {formatDate(toDate(w.createdAt), { style: "medium" }) ?? ""}
+                      {formatDate(feedDate(w.createdAt), { style: "medium" }) ?? ""}
                     </td>
                     <td data-label="Charge" className="fh-mono fh-tiny fh-break fh-soft">
                       {w.stripeChargeId}
