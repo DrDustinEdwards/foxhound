@@ -371,8 +371,8 @@ const SECTIONS: LegalSection[] = [
         <p>
           The Stripe connection carries read and write scope, because retrying a failed invoice is a
           write. Foxhound uses the write half for these things and no others: {STRIPE_WRITES}. It{" "}
-          {STRIPE_WRITES_LIMITS}. Foxhound never stores full card numbers or security codes, and Stripe access tokens are
-          encrypted at rest with AES-256.
+          {STRIPE_WRITES_LIMITS}. Foxhound never stores full card numbers or security codes, and
+          Stripe access tokens are encrypted at rest with AES-256.
         </p>
       </>
     ),
@@ -387,11 +387,11 @@ const SECTIONS: LegalSection[] = [
           anyone under 18.
         </p>
         <p>
-          We do not knowingly collect data from anyone under 18, and the Services are not for them. By
-          using the Services, you represent that you are at least 18. If we learn that we have
+          We do not knowingly collect data from anyone under 18, and the Services are not for them.
+          By using the Services, you represent that you are at least 18. If we learn that we have
           collected personal information from someone under 18, we will deactivate the account and
-          take reasonable measures to promptly delete the data from our records. If you become
-          aware of any data we may have collected from a person under 18, please contact us at{" "}
+          take reasonable measures to promptly delete the data from our records. If you become aware
+          of any data we may have collected from a person under 18, please contact us at{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </>

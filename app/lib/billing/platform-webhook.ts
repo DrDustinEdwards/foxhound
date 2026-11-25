@@ -247,14 +247,17 @@ async function processSetupSessionCompleted(
   const account = rows[0];
   if (!customerId || !account) {
     const claimed = await claimUnroutableEvent(env, event, receivedAt);
-    return claimed ? { status: "ignored", reason: "no_platform_customer" } : { status: "duplicate" };
+    return claimed
+      ? { status: "ignored", reason: "no_platform_customer" }
+      : { status: "duplicate" };
   }
 
   const finalized = await finalizeBillingSetupSession(env, {
     sessionId: session.id,
     expectedCustomerId: customerId,
   });
-  if (!finalized.ok) return { status: "error", message: finalized.error ?? "setup session not finalized" };
+  if (!finalized.ok)
+    return { status: "error", message: finalized.error ?? "setup session not finalized" };
 
   const { applied } = await executeMoneyWrite(env, {
     accountId: account.id,

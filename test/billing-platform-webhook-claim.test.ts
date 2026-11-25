@@ -15,7 +15,9 @@ const harness = vi.hoisted(() => ({
   event: null as unknown,
   signatureValid: true,
   failNextCommit: false,
-  finalize: vi.fn(async (_env: Env, _input: unknown) => ({ ok: true }) as { ok: boolean; error?: string }),
+  finalize: vi.fn(
+    async (_env: Env, _input: unknown) => ({ ok: true }) as { ok: boolean; error?: string },
+  ),
 }));
 
 vi.mock("~/lib/billing/platform-customer", async (importOriginal) => ({
