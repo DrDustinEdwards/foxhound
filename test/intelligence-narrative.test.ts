@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   NOT_ENOUGH_DATA_NARRATIVE,
-  hasNarrativeFacts,
   writeIntelligenceNarrative,
   type NarrativeFacts,
 } from "~/lib/intelligence/narrative";
@@ -19,26 +18,6 @@ const EMPTY_FACTS: NarrativeFacts = {
   atRiskCustomerCount: 0,
   topAtRiskCustomers: [],
 };
-
-describe("hasNarrativeFacts", () => {
-  it("is true when there is an at-risk customer even with zero MRR recorded", () => {
-    expect(
-      hasNarrativeFacts({
-        ...EMPTY_FACTS,
-        topAtRiskCustomers: [
-          {
-            stripeCustomerId: "cus_1",
-            customerName: "Jane",
-            healthScore: 20,
-            mrrContributionCents: 0,
-            currency: "usd",
-            factorDetails: [],
-          },
-        ],
-      }),
-    ).toBe(true);
-  });
-});
 
 describe("writeIntelligenceNarrative", () => {
   it("says there is not enough data, with no assessments, when there are no facts", () => {

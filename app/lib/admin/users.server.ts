@@ -39,7 +39,6 @@ export async function listPlatformUsers(
   env: Env,
   nowMs: number = Date.now(),
 ): Promise<PlatformUserRow[]> {
-  // Three independent reads, run together.
   const [users, sessions, memberRows] = await Promise.all([
     db
       .select({
@@ -51,9 +50,6 @@ export async function listPlatformUsers(
       })
       .from(user)
       .orderBy(desc(user.createdAt)),
-    // A session is created at each sign-in. Better Auth deletes a session on
-    // sign-out as well as on expiry, so the newest start here is the newest
-    // sign-in still on record, not every sign-in there was.
     db
       .select({ userId: session.userId, lastSignInAt: max(session.createdAt) })
       .from(session)

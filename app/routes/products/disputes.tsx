@@ -25,11 +25,10 @@ import {
   DISPUTES_STEPS,
 } from "~/lib/marketing/disputes-copy";
 import { disputesPreviewFor } from "~/lib/marketing/disputes-preview.server";
-import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { productMeta } from "~/lib/marketing/product-meta";
 
 import type { Route } from "./+types/disputes";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/products.css";
 
 // The Disputes spoke, in order: the hero, How it works, three feature blocks (the disputes dashboard, tall; the numbers, lifted; the dispute table, tall), Pricing, Questions and the closing block (product-sections-cap.tsx). Every product fact is read from the engine (lib/marketing/disputes-copy.ts). The previews draw the demo account's seed, never a merchant's rows (lib/marketing/disputes-preview.server.ts). The path is /product/disputes.
@@ -39,25 +38,11 @@ const TITLE = "Disputes";
 const CONNECT = { href: "/connect", label: "Connect Stripe" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
-  return [
-    ...marketingMeta({
-      title: TITLE,
-      description: DISPUTES_META_DESCRIPTION,
-      path: PATH,
-      siteUrl: loaderData?.siteUrl ?? "",
-    }),
-    ...(loaderData
-      ? [
-          jsonLd(
-            speakableWebPageJsonLd(loaderData.siteUrl, {
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        ]
-      : []),
-  ];
+  return productMeta(loaderData, {
+    title: TITLE,
+    description: DISPUTES_META_DESCRIPTION,
+    path: PATH,
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {

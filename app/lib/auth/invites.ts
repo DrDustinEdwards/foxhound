@@ -25,7 +25,6 @@ async function storedTokenForms(token: string): Promise<string[]> {
   return [await sha256Hex(token), token];
 }
 
-/** A pending, unexpired invite for a token, with its account name. */
 export async function getInviteByToken(db: Db, token: string): Promise<InviteView | null> {
   const rows = await db
     .select({
@@ -53,10 +52,6 @@ export async function getInviteByToken(db: Db, token: string): Promise<InviteVie
   };
 }
 
-/**
- * Trim + lowercase, the one normal form an invited/accepting email is compared
- * in.
- */
 export function normalizeInviteEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -80,10 +75,6 @@ export async function hasOpenInviteForEmail(
   return rows.length > 0;
 }
 
-/**
- * Create a pending team-member invite. Returns the token for the invite link;
- * the row keeps only its hash.
- */
 export async function createInvite(
   db: Db,
   accountId: string,
@@ -109,11 +100,6 @@ export async function createInvite(
 export type AcceptInviteResult =
   | { ok: true; accountId: string; alreadyMember: boolean }
   | { ok: false; reason: "invalid" | "email_mismatch" };
-
-/**
- * `already_member` IS GONE AS A REFUSAL, and the shape above is the whole of
- * the change.
- */
 
 /**
  * Pure decision for whether a fetched invite can be accepted by this user: the

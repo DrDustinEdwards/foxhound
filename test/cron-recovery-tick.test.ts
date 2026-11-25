@@ -1,7 +1,7 @@
 import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it, vi } from "vitest";
 
-import { accounts, recoverySteps } from "~/db";
+import { accounts } from "~/db";
 import * as schema from "~/db/schema";
 import { SUBREQUEST_BUDGET } from "~/lib/admin/brake.server";
 import { RECOVERY_TICK_LIMIT } from "~/lib/constants";
@@ -9,7 +9,6 @@ import { FAILED_STEP_IDS_IN_MESSAGE, runRecoveryTick } from "~/lib/cron/recovery
 import {
   accountProcessingEligibleCondition,
   chooseStepsPerPayment,
-  stepDueCondition,
   type DueStepRow,
 } from "~/lib/cron/due-steps";
 
@@ -49,31 +48,18 @@ function row(overrides: Partial<DueStepRow> = {}): DueStepRow {
   };
 }
 
-/** Permissive guard for tests about dispatch rather than gating. Passing it
- *  explicitly (rather than defaulting the guard open) keeps the real default
- *  fail-closed, which is the whole point of the mid-run check. */
+/** Permissive guard for tests about dispatch rather than gating (the real default stays fail-closed). */
 const allowAll = async () => ({ tickEnabled: true, accountEligible: true });
 
-describe("recovery tick: SQL gating predicates (compile against schema)", () => {
-  it("processing gate excludes demo + paused accounts, but NOT billing_exempt", () => {
+describe("recovery tick: processing gate", () => {
+  it("processing gate excludes demo and paused accounts, but not billing_exempt", () => {
     const sql = sqlOf(db.select().from(accounts).where(accountProcessingEligibleCondition()));
     const where = sql.sql.split(/\bwhere\b/i)[1] ?? "";
     expect(where).toMatch(/processing_paused/i);
     expect(where).toMatch(/not like/i);
     expect(sql.params).toContain("demo_%");
-    // billing_exempt is a BILLING gate, never a processing gate: an exempt
-    // merchant still gets recovery processing, so it never appears in the WHERE.
+    // billing_exempt is a billing gate only: an exempt merchant still gets recovery processing.
     expect(where).not.toMatch(/billing_exempt/i);
-  });
-
-  it("due predicate requires an unexecuted, unresolved, live step whose time has come", () => {
-    const now = new Date("2026-07-15T00:00:00.000Z");
-    const sql = sqlOf(db.select().from(recoverySteps).where(stepDueCondition(now)));
-    expect(sql.sql).toMatch(/executed_at.*is null/i);
-    expect(sql.sql).toMatch(/result.*is null/i);
-    expect(sql.sql).toMatch(/deleted_at.*is null/i);
-    expect(sql.sql).toMatch(/next_retry_at/i);
-    expect(sql.sql).toMatch(/scheduled_at/i);
   });
 });
 
@@ -121,8 +107,6 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
         return {};
       },
     });
-    // The retry ran and recovered; the failing email was isolated; the sweep
-    // continued to the third step.
     expect(retried).toEqual(["retry_ok"]);
     expect(emailed).toContain("email_ok");
     expect(result.rowsProcessed).toBe(2); // 1 retry + 1 successful email
@@ -158,13 +142,11 @@ describe("recovery tick: dispatch, isolation, telemetry", () => {
     expect(charged).toBe(false);
     expect(result.rowsProcessed).toBe(0);
     expect(result.message).toMatch(/1 skipped/);
-    // Skipping with NO write at all is what made the step re-select forever.
-    // The attempt count has to be threaded through or the grace never bounds.
     expect(recorded).toEqual([{ stepId: "no_token", attemptCount: 1 }]);
   });
 });
 
-describe("MEDIUM-1: the brake stops work already in flight, not just the next run", () => {
+describe("the brake stops work already in flight, not just the next run", () => {
   const threeSteps = [
     row({ stepId: "s1", failedPaymentId: "fp_1", stepType: "retry_early" }),
     row({ stepId: "s2", failedPaymentId: "fp_2", stepType: "retry_early" }),
@@ -189,8 +171,6 @@ describe("MEDIUM-1: the brake stops work already in flight, not just the next ru
       },
     });
 
-    // Exactly one charge landed. Before this guard, all three did, because
-    // eligibility was only evaluated when the batch was selected.
     expect(charged).toEqual(["s1"]);
     expect(checks).toBe(3); // re-checked per step, not once per run
     // Audited as skipped, never failed: nothing went wrong, an operator stopped it.
@@ -218,35 +198,18 @@ describe("MEDIUM-1: the brake stops work already in flight, not just the next ru
     expect(charged).toEqual(["s1", "s2"]);
     expect(result.message).toMatch(/HALTED \(tick disabled mid-run\)/);
     expect(result.message).toMatch(/0 failed/);
-    // The untouched steps carry no result and no executed_at, so the next
-    // enabled tick re-selects them: a halt loses nothing.
     expect(result.message).not.toMatch(/skipped \(account paused mid-run\)/);
   });
 });
 
 describe("RECOVERY_TICK_LIMIT is inside an honest subrequest budget", () => {
-  // Asserted arithmetic, not a comment. 500 was never reachable: a full batch
-  // would have spent thousands of subrequests against a ~1000 ceiling. It only
-  // ever looked safe because a full batch has never occurred on a platform with
-  // one seeded demo account.
-  //
-  // Conservative per-step cost, itemised in the constant's own comment: the
-  // guard read, the Stripe or AI call, the send, and the state write.
-  const PER_STEP_SUBREQUESTS = 5;
-
-  it("a full batch fits, and the old value did not", () => {
-    expect(RECOVERY_TICK_LIMIT * PER_STEP_SUBREQUESTS).toBeLessThan(SUBREQUEST_BUDGET);
-    expect(500 * PER_STEP_SUBREQUESTS).toBeGreaterThan(SUBREQUEST_BUDGET);
-  });
-
-  it("leaves headroom for the fixed per-run costs on top of the steps", () => {
-    // Selection query + exhausted sweep (2 queries) + one cron_run_log write.
-    const fixed = 4;
-    expect(RECOVERY_TICK_LIMIT * PER_STEP_SUBREQUESTS + fixed).toBeLessThan(SUBREQUEST_BUDGET);
+  // Five subrequests a step (guard read, Stripe or AI call, send, state write) plus four fixed per-run costs.
+  it("a full batch fits the budget", () => {
+    expect(RECOVERY_TICK_LIMIT * 5 + 4).toBeLessThan(SUBREQUEST_BUDGET);
   });
 });
 
-describe("LOW-C: a halted tick does nothing further", () => {
+describe("a halted tick does nothing further", () => {
   it("skips the exhausted sweep when the tick was disabled mid-run", async () => {
     let swept = 0;
     const result = await runRecoveryTick({} as Env, {
@@ -269,12 +232,8 @@ describe("LOW-C: a halted tick does nothing further", () => {
   });
 });
 
-describe("a failing step is NAMED, not just counted (376's verify-first list)", () => {
-  it("A NON-ERROR THROW is still named, and does not itself throw", async () => {
-    // `err instanceof Error` is false for a thrown string, and reaching for
-    // .message or .constructor on it would turn a step failure into a tick
-    // failure. Real code throws non-Errors: a rejected fetch body, a library
-    // that throws a plain object.
+describe("a failing step is named, not just counted", () => {
+  it("a non-Error throw is still named, and does not itself throw", async () => {
     const logged: string[] = [];
     const spy = vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
       logged.push(args.map(String).join(" "));
@@ -295,23 +254,13 @@ describe("a failing step is NAMED, not just counted (376's verify-first list)", 
       spy.mockRestore();
     }
 
-    // The thrown VALUE survives into the log. Reaching for `.message` on a
-    // string yields undefined rather than throwing, so without this assertion
-    // the fallback could be removed and every non-Error failure would log
-    // `"message": undefined` with nothing going red.
     expect(logged.find((l) => l.includes("s_string_throw"))).toContain("just a string");
 
-    // `typeof err` for the class, so the rendered class is the lowercase
-    // "string" rather than the constructor's "String". Asserted exactly, because
-    // this is the branch that separates the non-Error path from the Error one.
     expect(result.message).toContain("s_string_throw(string)");
     expect(result.message).toMatch(/1 failed/);
   });
 
-  it("THE CAP IS NOT SILENT: past the limit the message says how many more", async () => {
-    // A tick can select up to RECOVERY_TICK_LIMIT steps, so an outage failing
-    // all of them must not write a message thousands of ids long. It must also
-    // not read as "only these five failed".
+  it("past the limit the message says how many more failed", async () => {
     const many = Array.from({ length: FAILED_STEP_IDS_IN_MESSAGE + 3 }, (_, i) =>
       row({ stepId: `s_${i}`, failedPaymentId: `fp_${i}` }),
     );

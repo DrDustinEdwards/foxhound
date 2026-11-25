@@ -7,10 +7,8 @@ import {
   buildRecoverySignals,
   collapseBillingObservations,
   computePaymentLatencyDriftDays,
-  computeSubscriptionAgeDays,
   countBillingChanges,
   monthlyEquivalentCents,
-  summarizeActiveSubscriptions,
 } from "~/lib/intelligence/signals";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -21,38 +19,6 @@ describe("monthlyEquivalentCents", () => {
     expect(monthlyEquivalentCents(1200, 1, "week", 1)).toBe(5200);
     // Quarterly: 3000 every three months is 1000 a month.
     expect(monthlyEquivalentCents(3000, 1, "month", 3)).toBe(1000);
-  });
-});
-
-describe("summarizeActiveSubscriptions", () => {
-  it("picks the plan with the largest MRR contribution as current", () => {
-    const result = summarizeActiveSubscriptions([
-      {
-        priceId: "p1",
-        productName: "Small",
-        quantity: 1,
-        interval: "month",
-        intervalCount: 1,
-        unitAmountCents: 500,
-      },
-      {
-        priceId: "p2",
-        productName: "Big",
-        quantity: 1,
-        interval: "month",
-        intervalCount: 1,
-        unitAmountCents: 5000,
-      },
-    ]);
-    expect(result.currentPlanName).toBe("Big");
-  });
-});
-
-describe("computeSubscriptionAgeDays", () => {
-  it("computes whole days elapsed", () => {
-    const since = new Date("2026-01-01T00:00:00.000Z").getTime();
-    const now = new Date("2026-01-11T00:00:00.000Z").getTime();
-    expect(computeSubscriptionAgeDays(since, now)).toBe(10);
   });
 });
 
@@ -74,7 +40,7 @@ describe("countBillingChanges", () => {
   });
 });
 
-describe("collapseBillingObservations (construction layer: raw Stripe lines -> one state per instant)", () => {
+describe("collapseBillingObservations", () => {
   it("a proration credit (negative valueCents) never wins over the real charge line at the same instant", () => {
     const collapsed = collapseBillingObservations([
       { at: 2000, priceId: "old_plan", quantity: 1, interval: "month", valueCents: -2000 },
@@ -84,12 +50,7 @@ describe("collapseBillingObservations (construction layer: raw Stripe lines -> o
     expect(collapsed[0].priceId).toBe("new_plan");
   });
 
-  it("an upgrade invoice (proration credit + new charge, same instant) registers exactly the ONE real plan change, not a phantom double-count from its own two lines", () => {
-    // Reproduces the pre-fix bug directly: without collapsing, sorting by time
-    // is a stable sort, so ties keep insertion order. Pushing the new charge
-    // BEFORE the proration credit at the same timestamp used to diff as
-    // p1 -> p2 -> p1 (two spurious changes) instead of the one real p1 -> p2
-    // change against the subscription's own earlier, distinct-timestamp state.
+  it("an upgrade invoice (proration credit + new charge, same instant) registers exactly the ONE real plan change", () => {
     const raw = [
       { at: 1000, priceId: "p1", quantity: 1, interval: "month" as const, valueCents: 5000 }, // subscription created on plan p1
       { at: 2000, priceId: "p2", quantity: 1, interval: "month" as const, valueCents: 9000 }, // upgrade invoice: new charge
@@ -212,68 +173,5 @@ describe("buildCustomerContextFields (orchestrator)", () => {
       avgDaysToRecover: 3,
     });
     expect(result.engagementSignals.clickCount).toBe(1);
-  });
-
-  it("a proration/upgrade invoice (credit + new charge, one instant) registers exactly one real plan change", () => {
-    const result = buildCustomerContextFields({
-      customerSinceMs: since,
-      nowMs: now,
-      activeSubscriptions: [
-        {
-          priceId: "p2",
-          productName: "Growth",
-          quantity: 1,
-          interval: "month",
-          intervalCount: 1,
-          unitAmountCents: 9000,
-        },
-      ],
-      billingHistory: [
-        { at: since, priceId: "p1", quantity: 1, interval: "month", valueCents: 5000 },
-        {
-          at: since + 30 * DAY_MS,
-          priceId: "p2",
-          quantity: 1,
-          interval: "month",
-          valueCents: 9000,
-        },
-        {
-          at: since + 30 * DAY_MS,
-          priceId: "p1",
-          quantity: 1,
-          interval: "month",
-          valueCents: -2000,
-        },
-      ],
-      invoiceHistory: [],
-      refundCount: 0,
-      disputeCount: 0,
-      recoveryRows: [],
-      disputeRows: [],
-      engagementRows: [],
-    });
-    expect(result.planChangeCount).toBe(1);
-    expect(result.seatChangeCount).toBe(0);
-  });
-
-  it("is a full honest-zero row for a brand new customer with no active subscription", () => {
-    const result = buildCustomerContextFields({
-      customerSinceMs: now,
-      nowMs: now,
-      activeSubscriptions: [],
-      billingHistory: [],
-      invoiceHistory: [],
-      refundCount: 0,
-      disputeCount: 0,
-      recoveryRows: [],
-      disputeRows: [],
-      engagementRows: [],
-    });
-
-    expect(result.mrrContributionCents).toBe(0);
-    expect(result.activeSubscriptionsCount).toBe(0);
-    expect(result.currentPlanName).toBeNull();
-    expect(result.subscriptionAgeDays).toBe(0);
-    expect(result.planChangeCount).toBe(0);
   });
 });

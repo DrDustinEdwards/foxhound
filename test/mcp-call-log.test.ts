@@ -60,7 +60,6 @@ async function seed() {
     keyHash: await sha256Hex(token),
     label: "agent",
     scope: MCP_TOKEN_SCOPE.MERCHANT,
-    // A key that may change the account, as one made in Settings.
     scopes: ["merchant.read", "merchant.write"],
     createdAt: NOW,
   });

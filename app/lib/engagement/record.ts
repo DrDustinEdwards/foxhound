@@ -21,7 +21,7 @@ import type { EngagementTokenPayload } from "./token";
 // defaulting to human) so a new caller fails to compile, and enforced here at the write so no caller
 // can route around ./agents.ts.
 
-export function buildEngagementInsert(
+function buildEngagementInsert(
   db: Db,
   input: {
     accountId: string;
@@ -52,7 +52,7 @@ export function buildEngagementInsert(
  * counter is read and written by the database and racing opens both count; SQLite evaluates every SET
  * against the old row, so time to open reads the OLD opened_at. Timestamps are epoch ms.
  */
-export function buildOpenStamp(db: Db, stepId: string, now: Date) {
+function buildOpenStamp(db: Db, stepId: string, now: Date) {
   const nowMs = now.getTime();
   const firstOpenMs = sql`coalesce(${recoverySteps.openedAt}, ${nowMs})`;
   // Whole minutes as a true floor: SQLite's integer division truncates toward zero, so a negative gap that
@@ -85,7 +85,7 @@ export function buildOpenStamp(db: Db, stepId: string, now: Date) {
  * Reading a missing executed_at as "not too fast" let it bill; reading it as too fast fails safe. A
  * first click that is not too fast never clears an earlier honeypot mark; a repeat never changes it.
  */
-export function buildClickStamp(db: Db, stepId: string, now: Date) {
+function buildClickStamp(db: Db, stepId: string, now: Date) {
   const nowMs = now.getTime();
   return db
     .update(recoverySteps)

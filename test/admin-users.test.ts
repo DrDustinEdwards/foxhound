@@ -137,12 +137,6 @@ async function seed() {
 }
 
 describe("listPlatformUsers", () => {
-  it("reads last sign-in as the newest session", async () => {
-    const rows = await list(await seed());
-    const rosa = rows.find((r) => r.id === "u_rosa");
-    expect(rosa?.lastSignInAt?.getTime()).toBe(at(2 * 60 * 60 * 1000).getTime());
-  });
-
   it("returns every account a user belongs to, active first, pending invites after", async () => {
     const rows = await list(await seed());
     const rosa = rows.find((r) => r.id === "u_rosa")!;

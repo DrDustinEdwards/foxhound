@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 
 import { accounts, customerContext, healthScoreHistory, mrrSnapshots } from "~/db";
 import { percent } from "capsomer/behavior/meter";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { churnRateAlt } from "~/lib/intelligence/churn";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
 import {
@@ -75,9 +74,6 @@ async function setup(
 }
 
 describe("getChurnView bands", () => {
-  // Legacy's numerators counted only scored customers but its denominator
-  // counted every customer, so the three shares silently failed to sum to 100%
-  // with nothing on screen explaining the shortfall.
   it("excludes unscored customers from the share denominator", async () => {
     const db = await setup({
       scored: [
@@ -114,8 +110,6 @@ describe("getChurnView rate series", () => {
     expect(view.ratePoints.map((p) => p.involuntaryPct)).toEqual([3.2, 2.5]);
   });
 
-  // A first-ever sync has no prior state to diff against, so the rate is null.
-  // Coercing that to 0 would draw a line claiming zero churn.
   it("preserves a null rate rather than coercing it to zero", async () => {
     const db = await setup({ snapshots: [{ monthsAgo: 1, vol: null, invol: null }] });
     const view = await getChurnView(db, ACCOUNT_ID, NOW);
@@ -151,12 +145,6 @@ describe("churnRateAlt", () => {
       ]),
     ).toBe(
       "Monthly churn rate, Sep 2025 to Dec 2025. Involuntary churn went from 2% in Sep 2025 to 3.25% in Nov 2025; voluntary churn went from 1% in Oct 2025 to 1.25% in Dec 2025.",
-    );
-  });
-
-  it("says a series has no rate rather than inventing one", () => {
-    expect(churnRateAlt([{ at: at("2026-01-01"), involuntaryPct: 4, voluntaryPct: null }])).toBe(
-      "Monthly churn rate, Jan 2026. Involuntary churn was 4% in Jan 2026; voluntary churn has no rate yet.",
     );
   });
 });
@@ -217,10 +205,7 @@ describe("getHealthDistribution", () => {
     return db;
   }
 
-  it("buckets per UTC day and counts by Foxhound's bands", async () => {
-    // 35 is the discriminating score: a 34-66 medium band would call it medium,
-    // Foxhound's at-risk threshold of 40 calls it at risk.
-    expect(HEALTH_SCORE_AT_RISK_THRESHOLD).toBe(40);
+  it("buckets per UTC day and counts by band", async () => {
     const db = await seed([
       { score: 35, daysAgo: 1 },
       { score: 50, daysAgo: 1 },

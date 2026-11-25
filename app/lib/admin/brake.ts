@@ -1,8 +1,4 @@
-// Pure half of the global emergency brake: the type-to-confirm phrases and the
-// matcher. Deliberately NOT in brake.server.ts, because the phrases are
-// rendered in the panel AND validated in the action, and importing a .server
-// module into a component body ships the server bundle to the browser (a build
-// break, and a secrets problem).
+// Pure half of the brake, not in brake.server.ts: the phrases render in the panel, and importing a .server module into a component ships the server bundle to the browser.
 
 // The accounts.pause_reason vocabulary. Lives in the PURE module because both
 // the brake (brake.server.ts) and the single-merchant toggle
@@ -21,10 +17,6 @@ export const PAUSE_REASON_MANUAL = "manual";
  */
 export const KNOWN_PAUSE_REASONS = [PAUSE_REASON_BRAKE, PAUSE_REASON_MANUAL] as const;
 
-/**
- * Every destructive control on the brake panel is gated on typing its exact
- * phrase. No single-click path exists for any of them.
- */
 export const BRAKE_CONFIRM_PHRASES = {
   engage: "PAUSE ALL",
   release: "RESUME ALL",
@@ -61,16 +53,10 @@ export function cronEnableConfirmPhrase(cronName: string): string {
   return `ENABLE ${cronName}`;
 }
 
-/**
- * Trimmed but case-SENSITIVE and never partial, exactly like
- * isConfirmPhraseValid. Same reasoning: the phrase exists to force a deliberate
- * act, so anything that makes it easier to satisfy by accident defeats it.
- */
 export function isCronEnableConfirmValid(cronName: string, typed: string): boolean {
   return typed.trim() === cronEnableConfirmPhrase(cronName);
 }
 
-/** What the panel says after a clean engage or release. */
 function skippedClause(intendedCount: number, affectedCount: number, what: string): string {
   const skipped = intendedCount - affectedCount;
   if (skipped <= 0) return "";

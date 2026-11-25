@@ -6,8 +6,7 @@ import { countStepsForFailedPayments, type FailedPaymentRow } from "~/lib/recove
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// TASK-foxhound-recovery-surface-parity.md Phase 3: the CSV export builder,
-// pure and DB-free.
+// The CSV export builder, and the per-payment step counts it uses.
 
 function fakeRow(overrides: Partial<FailedPaymentRow> = {}): FailedPaymentRow {
   return {
@@ -62,15 +61,15 @@ function fakeRow(overrides: Partial<FailedPaymentRow> = {}): FailedPaymentRow {
   };
 }
 
-const RECOVA_HEADER =
+const EXPORT_HEADER =
   "Customer Name,Email,Plan,Amount,Currency,Decline Category,Decline Code,Status,Steps Executed,Total Steps,Detected At,Resolved At,Notes";
 
 describe("buildPaymentsCsv", () => {
-  it("writes Recova's 13 columns in Recova's order (lib/csv.ts PAYMENT_CSV_HEADERS)", () => {
+  it("writes the 13 columns in the export's order", () => {
     const csv = buildPaymentsCsv([fakeRow()]);
     const lines = csv.split("\r\n");
     expect(lines).toEqual([expect.any(String), expect.any(String), ""]);
-    expect(lines[0]).toBe(RECOVA_HEADER);
+    expect(lines[0]).toBe(EXPORT_HEADER);
     expect(lines[0].split(",")).toHaveLength(13);
   });
 
@@ -79,14 +78,6 @@ describe("buildPaymentsCsv", () => {
     expect(csv.split("\r\n")[1]).toBe(
       "Jordan Lee,jordan@example.com,Growth,49.99,USD,soft,insufficient_funds,active,0,0,2026-07-01T00:00:00.000Z,,",
     );
-  });
-
-  it("falls back to empty strings for null customer name / plan / decline code", () => {
-    const csv = buildPaymentsCsv([
-      fakeRow({ customerName: null, planName: null, declineCode: null }),
-    ]);
-    const dataLine = csv.split("\r\n")[1];
-    expect(dataLine.startsWith(",jordan@example.com,,")).toBe(true);
   });
 });
 

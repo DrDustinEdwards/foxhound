@@ -194,7 +194,7 @@ const AMOUNT_BOUNDS_STEP_MAJOR = 100;
  * failed-payment amount in it, rounded up to the next 100 major units (a hardcoded ceiling would
  * clip a larger invoice or waste the slider on a small one).
  */
-export async function getAmountBounds(
+async function getAmountBounds(
   db: Db,
   accountId: string,
   wanted?: string | null,

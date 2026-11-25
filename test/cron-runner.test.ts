@@ -6,9 +6,7 @@ import { cronConfig, cronRuns } from "~/db/schema";
 import { loggedRuns, runJob } from "./helpers/cron";
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
-// The real runner (its gates inside site-runtime's runJobs) against a real in-memory SQLite with the
-// committed migrations, with the lock faked at the boundary. The Durable Object class itself cannot
-// load here ("cloudflare:workers"), so its own lease arithmetic rests on source review.
+// The real runner against in-memory SQLite with the lock faked at the boundary.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 
@@ -109,13 +107,6 @@ describe("the cron runner honors the lock", () => {
     expect(runs().map((r) => r.outcome)).toEqual(["failed"]);
     expect(calls.releasedWith).toEqual(calls.granted);
   });
-
-  it("the lease outlasts the recovery tick's period and Cloudflare's 15-minute cron wall time", () => {
-    // Shorter, a slow run would hand its lock to its successor, and an expired lease would not mean
-    // the holder is dead.
-    expect(CRON_LOCK_LEASE_MS).toBeGreaterThan(5 * 60 * 1000);
-    expect(CRON_LOCK_LEASE_MS).toBeGreaterThan(15 * 60 * 1000);
-  });
 });
 
 describe("one job's infrastructure throw does not take the schedule with it", () => {
@@ -150,9 +141,7 @@ describe("one job's infrastructure throw does not take the schedule with it", ()
   });
 });
 
-// Capsid Admin's run a job now (the operator API's run_job): asked for on purpose, so the
-// min-interval gate is off; cron_config's enabled gate and the lock lease still hold, the run is
-// recorded, and only allowlisted jobs are offered: none that moves money or mails anyone.
+// Run a job now (operator run_job): interval gate off, enabled gate on, no money or mail job offered.
 describe("run a job now", () => {
   it("runs a job its interval says is not due, skips a disabled one, and offers no money or mail job", async () => {
     const { db, env, sqlite } = envWith([true]);

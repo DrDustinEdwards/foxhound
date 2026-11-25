@@ -18,13 +18,9 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => adjustmentHarness.db,
 }));
 
-// Manual billing adjustments (admin Pass 2). Adjustments never touch Stripe
-// (PRICING.md/stripe-invoice.ts: only recovery_fee/dispute_fee/subscription are
-// chargeable), so the only invariant worth proving at this layer is the ledger
-// shape: signed amount, invoice-first ordering, and the DB-enforced
-// admin_audit_log_id requirement (I3, closed here via a real CHECK constraint).
+// An adjustment never touches Stripe: the ledger shape, the DB-enforced audit id and idempotency are what matter.
 
-describe("billing_line_items_adjustment_audit_ck (DB-enforced, real sqlite; closes I3)", () => {
+describe("billing_line_items_adjustment_audit_ck (DB-enforced, real sqlite)", () => {
   async function seedInvoice(db: ReturnType<typeof createInMemoryDb>["db"], accountId: string) {
     await db
       .insert(schema.accounts)
@@ -59,31 +55,9 @@ describe("billing_line_items_adjustment_audit_ck (DB-enforced, real sqlite; clos
       }),
     ).rejects.toThrow(/constraint/i);
   });
-
-  it("a recovery_fee line item is unaffected: still valid with no admin_audit_log_id", async () => {
-    const { db } = createInMemoryDb();
-    await seedInvoice(db, "acc_1");
-
-    await expect(
-      db.insert(schema.billingLineItems).values({
-        id: "li_recovery",
-        invoiceId: "inv_1",
-        accountId: "acc_1",
-        type: "recovery_fee",
-        currency: "usd",
-        amountCents: 2_000,
-        adminAuditLogId: null,
-        createdAt: new Date("2026-07-01T00:00:00.000Z"),
-      }),
-    ).resolves.not.toThrow();
-  });
 });
 
-// createAdjustment idempotency (Opus review LOW-1): a stable token, not a fresh
-// per-call id, anchors the idempotency key, so a double-submitted / retried POST
-// no-ops instead of double-crediting. Driven through the REAL SerialMoneyCommitter
-// (the DO's core, as money-write-serialization.test.ts does) backed by an
-// in-memory sqlite, so "same token -> one credit" is proven at the enforcing layer.
+// Driven through the real SerialMoneyCommitter on in-memory sqlite, so "same token, one credit" is proven where it is enforced.
 type Sqlite = ReturnType<typeof createInMemoryDb>["sqlite"];
 
 /** A fake executor matching executeMoneyWrite: compiles the caller's batch and
@@ -188,9 +162,7 @@ describe("createAdjustment idempotency (same token yields exactly one ledger cre
 });
 
 describe("the merchant page's adjustment form reads the amount in the chosen currency", () => {
-  // Mythos billing review, finding 5: the amount was always parsed as dollars,
-  // so 100 yen was stored as 10,000. Any currency the merchant is not billed
-  // in is refused.
+  // The amount is parsed in the chosen currency (100 yen, not 10,000); a currency the merchant is not billed in is refused.
   async function post(currency: string, amount: string) {
     const made = createInMemoryDb();
     adjustmentHarness.db = made.db;

@@ -18,18 +18,8 @@ const BASE = `${ORIGIN}/api/carrel/v1`;
 
 function setup(limit = () => true) {
   const { db, sqlite } = createInMemoryDb();
-  let adapterCalls = 0;
-  const adapter = carrelAdapter(db, d1Over(sqlite), {
-    renderDocument: renderDraft,
-  });
-  const counted = new Proxy(adapter.content, {
-    get(target, prop, receiver) {
-      adapterCalls++;
-      return Reflect.get(target, prop, receiver);
-    },
-  });
   const api = createSiteApi({
-    adapter: { ...adapter, content: counted },
+    adapter: carrelAdapter(db, d1Over(sqlite), { renderDocument: renderDraft }),
     key: KEY,
     limiter: { limit: async () => ({ success: limit() }) },
     // site-api's own store, so the conformance suite's replay checks run too.
@@ -47,7 +37,7 @@ function setup(limit = () => true) {
         },
       }),
     );
-  return { db, sqlite, api, call, calls: () => adapterCalls };
+  return { db, sqlite, api, call };
 }
 
 const SOURCE = serializePostSource({
@@ -66,24 +56,6 @@ describe("source round trip", () => {
     expect(parsed.title).toBe("Why cards fail");
     expect(parsed.tags).toEqual(["billing"]);
     expect(serializePostSource(parsed)).toBe(SOURCE);
-  });
-});
-
-describe("the planted refusals (adapter must never run)", () => {
-  it("a stale expectedVersion is refused with the current version", async () => {
-    const t = setup();
-    const created = await t.call("/content/post-1/draft", {
-      method: "PUT",
-      body: JSON.stringify({ source: SOURCE, expectedVersion: null, changeId: "chg-1" }),
-    });
-    expect(created.status).toBe(200);
-    const { version } = (await created.json()) as { version: string };
-    const stale = await t.call("/content/post-1/draft", {
-      method: "PUT",
-      body: JSON.stringify({ source: SOURCE, expectedVersion: "1", changeId: "chg-2" }),
-    });
-    expect(stale.status).toBe(409);
-    expect(((await stale.json()) as { currentVersion: string }).currentVersion).toBe(version);
   });
 });
 

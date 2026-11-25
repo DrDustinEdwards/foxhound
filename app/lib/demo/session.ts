@@ -14,12 +14,9 @@ import {
   type DemoBusiness,
 } from "./constants";
 
-// Read-only demo view mode. A visitor who enters the demo gets a cookie that
-// the app-shell middleware recognizes; with it (and NO real session) it injects
-// a synthetic membership for the demo account so the REAL app routes render
-// demo data.
+// Read-only demo view mode. A visitor who enters the demo gets a cookie that the app-shell middleware recognizes; with it (and NO real session) it injects a synthetic membership for the demo account so the REAL app routes render demo data.
 
-const DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8; // an 8h look-around is plenty
+const DEMO_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 8;
 
 export function hasDemoCookie(request: Request): boolean {
   const header = request.headers.get("cookie") ?? "";
@@ -71,11 +68,7 @@ export function demoFallbackPath(hasSession: boolean): string {
 }
 
 /**
- * The read-only rule for demo mode, as a pure decision so it is unit-testable:
- * a demo visitor may only issue safe (read) requests. Every mutating action in
- * the app-shell tree is a POST, so blocking non-GET/HEAD makes the ENTIRE demo
- * surface read-only at one choke point (the app-shell middleware), rather than
- * relying on gating each action individually.
+ * The read-only rule for demo mode, as a pure decision: a demo visitor may only issue safe (read) requests. Every mutating action in the app-shell tree is a POST, so blocking non-GET/HEAD makes the whole demo read-only at one choke point (the app-shell middleware).
  */
 export function demoBlocksMethod(method: string): boolean {
   const m = method.toUpperCase();

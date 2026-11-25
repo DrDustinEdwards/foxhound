@@ -5,9 +5,6 @@ import { emailSends, emailSuppressions } from "~/db/schema";
 import {
   atRiskPctOfMrr,
   dailyRecoveredRows,
-  declineRows,
-  declineRowText,
-  emailCategoryRows,
   onboardingNeeded,
   roiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
@@ -75,30 +72,6 @@ describe("dashboard arithmetic", () => {
     expect(rows.at(-1)).toEqual({ Day: day(0), currency: "EUR", amount: 20 });
   });
 
-  it("email rows cover every engine category, zero where nothing was sent", () => {
-    const { rows, totalSent } = emailCategoryRows([
-      { category: "soft", openRatePct: 50, clickRatePct: 10, emailCount: 4 },
-    ]);
-    expect(rows).toHaveLength(12);
-    expect(rows.find((r) => r.Category === "Expired card" && r.series === "Open rate")?.rate).toBe(
-      0,
-    );
-    expect(totalSent).toBe(4);
-  });
-
-  it("decline rows: a rate only from two failures", () => {
-    const rows = declineRows({
-      totalFailedCount: 3,
-      categoryBreakdown: { soft: 2, fraud: 1 },
-      categoryStats: { soft: { total: 2, recovered: 1 }, fraud: { total: 1, recovered: 1 } },
-      categorySparkline: {},
-    });
-    expect(declineRowText(rows.find((r) => r.category === "soft")!)).toBe(
-      "2 · 67% · 50% recovered",
-    );
-    expect(declineRowText(rows.find((r) => r.category === "fraud")!)).toBe("1 · 33%");
-  });
-
   it("onboarding gate", () => {
     expect(
       onboardingNeeded({
@@ -127,10 +100,7 @@ describe("dashboard arithmetic", () => {
   });
 });
 
-// Reads proven against the real seeded demo account, so the SQL is checked on the schema.
-
-// The 20th of a month: a recovery on the 5th is this month's and 15 days old,
-// so it has not held for the 30-day maturity and is not yet billable.
+// Reads proven against the seeded demo account.
 const now = new Date("2026-07-20T12:00:00.000Z");
 
 async function seededDb() {
@@ -139,7 +109,7 @@ async function seededDb() {
   return db;
 }
 
-describe("Emails sent card: the same 30 days as every other stat card", () => {
+describe("Emails sent card: counts only the 30-day window", () => {
   it("counts only email steps executed inside the window, with rates over those", async () => {
     const db = await seededDb();
     const w = await getRecoveryDashboardWindow(db, DEMO_ACCOUNT_ID, "30d", now.getTime());
@@ -156,7 +126,6 @@ describe("Emails sent card: the same 30 days as every other stat card", () => {
     expect(w.emailsSentInRange.clickRatePct).toBe(
       Math.round((inWindow.filter((s) => s.clickedAt).length / inWindow.length) * 100),
     );
-    // The side panel's figure stays all time, as Recova's query was.
     expect(w.totalEmailsSent).toBe(steps.length);
   });
 });

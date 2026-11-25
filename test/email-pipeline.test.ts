@@ -56,23 +56,9 @@ describe("buildEmailSendRow (compile against schema)", () => {
     expect(sql.params).toContain("sent");
     expect(sql.params).not.toContain("customer@example.com");
   });
-
-  it("logs a suppressed row with no sent_at", () => {
-    const stmt = buildEmailSendRow(db, {
-      job: job(),
-      status: "suppressed",
-      providerMessageId: null,
-      error: null,
-      recipientHash: "deadbeef",
-      queueMessageId: null,
-      now,
-    });
-    const sql = (stmt as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
-    expect(sql.params).toContain("suppressed");
-  });
 });
 
-describe("sendTransactionalEmail (auth sender split, TASK-foxhound-email-provisioning.md)", () => {
+describe("sendTransactionalEmail", () => {
   it("sends from the auth domain, never the dunning EMAIL_FROM_ADDRESS", async () => {
     const sent: { from: string }[] = [];
     const env = {

@@ -62,7 +62,6 @@ import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// /settings/account, "My account", in order: the phone-only back link; "My account" and its line; ONE form holding the account name card and the profile card (industry, customer type, MRR) with one SaveBar under them; the Appearance card; the Sign-in panel (passkeys, Google or Apple joined, the one place an account is joined, and the signed-in devices); then the account card, the signed-in address with Sign out, and the Danger zone below a rule in the same card.
 // The three context fields feed the recovery email prompt ("Merchant context: ..." in recovery/email-generation.ts). They are written through applyIntelligenceContext, the one writer the merchant's agent tool shares, and the name through buildAccountProfileUpdate. "Cancel account" keeps billing records, and the record of recovered payments the fees are billed on. Sign out is a button that posts.
 
 export function meta() {
@@ -87,7 +86,6 @@ export async function loader({ request, context }: Route.LoaderArgs) {
     },
     account,
     cancelledAt: account.cancelledAt,
-    // The signed-in address, shown beside the sign-out control.
     userEmail: auth.email,
     // Every account this person owns, which a deletion clears, so the confirmation can say which. From the session's memberships, so this loader reads no other account's rows.
     ownedAccountNames: ownedAccountNames(auth.memberships),
@@ -131,7 +129,6 @@ async function signInSettings(
       .where(eq(authAccount.userId, userId)),
   ]);
   const credentialOf = new Map(stored.map((p) => [p.id, p.credentialId]));
-  // The joined account's own id, which Disconnect names.
   const byProvider = new Map(joined.map((a) => [a.providerId, a.id]));
   return {
     passkeys: passkeyRows(stored, lastUsed).map((p) => ({
@@ -152,7 +149,6 @@ async function devicesOrStale(
   return (await accountSessions(await getBetterAuth(env), request)) ?? "stale";
 }
 
-/** How many of a person's latest security events the Sign-in panel lists. */
 const SECURITY_HISTORY_SHOWN = 10;
 
 type ProfileField = "name" | "merchantMrrSelfReported";
@@ -381,7 +377,6 @@ function industryOptions(stored: string | null) {
   return options;
 }
 
-/** `String(cents / 100)`, so 500000 shows as 5000. */
 function mrrDollars(cents: number | null): string {
   return cents === null ? "" : String(cents / 100);
 }
@@ -631,7 +626,6 @@ function ChangeEmail({ result }: { result?: ActionResult }) {
 const CANCEL_CONSEQUENCE =
   "This stops all recovery processing and disconnects every Stripe account here. Fees on recoveries Foxhound has already attributed remain owed and are still invoiced.";
 
-/** Log in again and come back here (lib/auth/client.ts's signInAgain, as a link). */
 const SIGN_IN_AGAIN_HREF = `/login?${REAUTH_PARAM}&next=${encodeURIComponent("/settings/account")}`;
 
 /** The Danger zone, below a rule in the account card: the label, the controls at the right, and on a press the question with the confirm and "Keep my account" in its place; while it runs, the confirm says so and Keep is withdrawn. TWO CONTROLS: "Cancel account" stops processing and keeps the account and its billing records; "Delete account" deletes the person while keeping the fee evidence. Each is its own InlineConfirm, so focus moves to "Keep my account" when a confirmation opens and back to the control that opened it when it closes. Without script the first step is a link to ?confirm=<action>. */

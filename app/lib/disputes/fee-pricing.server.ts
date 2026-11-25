@@ -10,14 +10,8 @@ import { executeMoneyWrite } from "~/lib/money/execute";
 import { sendDisputeFeeNotice } from "./notices.server";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// THE PRICING RETRY for a won dispute whose fee could not be priced at
-// resolution.
-//
-// Resolution converts the USD 500 cap into the dispute's currency with a Stripe
-// FX quote. A quote that works stores the fee exactly as the resolution writer
-// would have, through the account's money Durable Object, and the merchant is
-// sent the won notice again, now with its fee sentence, so the fee is told
-// before the next run bills it.
+
+// THE PRICING RETRY for a won dispute whose fee could not be priced at resolution (the Stripe FX quote failed): a quote that works stores the fee as the resolution writer would, through the money DO, and re-sends the won notice with its fee sentence before the next run bills it.
 
 /**
  * How many unpriced wins one run prices. Each is one Stripe call and one money
@@ -218,7 +212,6 @@ export async function priceUnpricedDisputeFees(
   return result;
 }
 
-/** The cron_run_log message. */
 export function describeDisputeFeePricing(result: DisputeFeePricingResult): string {
   const base = `${result.priced} dispute fees priced, ${result.notified} merchants told, ${result.failed} still unpriced`;
   return result.mismatched > 0

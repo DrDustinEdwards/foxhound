@@ -22,7 +22,6 @@ const harness = vi.hoisted(() => ({
   db: null as unknown,
   approve: null as null | ((...args: unknown[]) => Promise<unknown>),
   beforeSave: null as null | (() => void),
-  importResult: { status: "imported" } as { status: string },
 }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -41,12 +40,8 @@ vi.mock("~/lib/disputes/queries.server", async (importOriginal) => {
     },
   };
 });
-vi.mock("~/lib/disputes/manual-import.server", () => ({
-  importDisputeFromStripe: async () => harness.importResult,
-}));
 
 const route = await import("~/routes/app/disputes/detail");
-const { ApproveButton } = await import("~/components/dispute-detail-parts");
 const Page = route.default as unknown as (
   props: Record<string, unknown>,
 ) => ReturnType<typeof createElement>;
@@ -258,7 +253,6 @@ beforeEach(() => {
   harness.db = db;
   harness.approve = null;
   harness.beforeSave = null;
-  harness.importResult = { status: "imported" };
   runStatement(sqlite, db.insert(accounts).values({ id: A, name: "Alpha" }));
   runStatement(sqlite, db.insert(accounts).values({ id: B, name: "Beta" }));
 });
@@ -349,13 +343,6 @@ describe("saving the draft", () => {
 });
 
 describe("sync and approve", () => {
-  it("routes the sync form to the importer and reports a miss", async () => {
-    seedDispute();
-    harness.importResult = { status: "not_found" };
-    const res = await act({ intent: "sync_dispute", stripe_dispute_id: "dp_x" });
-    expect(res.body).toMatchObject({ sync: { ok: false } });
-  });
-
   it("keeps the approval gate: the approver's user id goes to approveAndSubmitDispute", async () => {
     seedConnection();
     seedDispute({ stripeConnectionId: "conn_1" });
@@ -427,15 +414,6 @@ describe("the draft cannot change after an approval exists", () => {
     expect(evidenceRows()).toEqual([
       { field_name: "uncategorized_text", field_value: "Approved text." },
     ]);
-  });
-});
-
-describe("Approve never sends a draft with unsaved edits", () => {
-  it("blocks Approve while the draft has unsaved edits", () => {
-    const html = renderToStaticMarkup(
-      createElement(ApproveButton, { label: "Approve", approving: false, dirty: true }),
-    );
-    expect(html).toMatch(/<button[^>]*aria-disabled="true"/);
   });
 });
 

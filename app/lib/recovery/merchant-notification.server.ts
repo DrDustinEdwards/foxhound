@@ -39,10 +39,7 @@ interface NotificationData {
   declineCategory: string;
 }
 
-/**
- * The division is now the currency's own (site-runtime ./money), so a yen amount is not shown a
- * hundred times too small.
- */
+/** The division is the currency's own (site-runtime ./money), so a yen amount is not shown a hundred times too small. */
 export function formatNotifyAmount(amountCents: number, currency: string): string {
   return formatMoney(amountCents, currency || "usd");
 }
@@ -55,7 +52,6 @@ function recoveryNotifySubject(data: {
   return `Payment recovered: ${formatNotifyAmount(data.amountCents, data.currency)} from ${data.customerLabel}`;
 }
 
-/** PLAIN STRINGS, NOT MARKUP. */
 function recoveryNotifyBody(data: {
   amountCents: number;
   currency: string;

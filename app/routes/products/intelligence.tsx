@@ -25,11 +25,10 @@ import {
   intelligenceBlocks,
 } from "~/lib/marketing/intelligence-copy";
 import { intelligencePreviewFor } from "~/lib/marketing/intelligence-preview.server";
-import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { productMeta } from "~/lib/marketing/product-meta";
 
 import type { Route } from "./+types/intelligence";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/products.css";
 
 // The Intelligence spoke, in order: the hero, How it works, three feature blocks (the dashboard, plain; the customer table, lifted; the churn bands, plain), Pricing, Questions and the closing block (product-sections-cap.tsx); the one chart is Enarratio's. Every product fact is read from the engine (lib/marketing/intelligence-copy.ts). The previews draw the demo account's seed, never a merchant's rows (lib/marketing/intelligence-preview.server.ts).
@@ -40,25 +39,11 @@ const TITLE = "Intelligence";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
-  return [
-    ...marketingMeta({
-      title: TITLE,
-      description: INTELLIGENCE_META_DESCRIPTION,
-      path: PATH,
-      siteUrl: loaderData?.siteUrl ?? "",
-    }),
-    ...(loaderData
-      ? [
-          jsonLd(
-            speakableWebPageJsonLd(loaderData.siteUrl, {
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        ]
-      : []),
-  ];
+  return productMeta(loaderData, {
+    title: TITLE,
+    description: INTELLIGENCE_META_DESCRIPTION,
+    path: PATH,
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {

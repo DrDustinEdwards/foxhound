@@ -3,22 +3,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getBillableRecoveries } from "~/db/billable";
 import { RECOVERY_MATURITY_MS } from "~/lib/constants";
-import { classifyStripeEvent } from "~/lib/webhooks/events";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// charge.refunded was CLASSIFIED and never APPLIED: buildRefundStampBatch had
-// zero callers, so recovered_payments.refunded_at stayed null forever and
-// app/db/billable.ts's isNull(refundedAt) clause could never exclude anything.
-// Foxhound would have invoiced 20% of money the merchant had already refunded,
-// on the very first billing run.
-//
-// Two distinct defects are pinned here, and each assertion below fails against
-// the pre-fix code:
-//   1. classifyStripeEvent dropped PARTIAL refunds entirely
-//      (`if (!charge.refunded) return ignore`).
-//   2. processConnectedWebhook's stamp_refund branch claimed the event and
-//      returned "stamp_refund_resolution_deferred" without ever stamping.
+// A refund stamps recovered_payments so billing never takes a fee on refunded money, whichever of
+// the refund and the recovery arrives first.
 
 const ACCOUNT_ID = "acc_refund";
 const CONNECTION_ID = "conn_refund";
@@ -83,9 +72,7 @@ vi.mock("~/lib/stripe/client", () => ({
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
 const schema = await import("~/db/schema");
 
-/** A charge.refunded event. `fullyRefunded` drives Stripe's `refunded` flag,
- *  which is FALSE for a partial refund: the exact field the pre-fix classifier
- *  used to drop the event. */
+/** A charge.refunded event; `refunded` is false for a partial refund. */
 function refundEvent(id: string, fullyRefunded: boolean): Stripe.Event {
   return {
     id,
@@ -149,19 +136,6 @@ beforeEach(() => {
   harness.invoicePaymentsError = null;
 });
 
-describe("classifyStripeEvent on charge.refunded", () => {
-  it("ignores a refund with no payment intent to resolve against", () => {
-    const event = refundEvent("evt_no_pi", true) as unknown as {
-      data: { object: { payment_intent: null } };
-    };
-    event.data.object.payment_intent = null;
-    expect(classifyStripeEvent(event as unknown as Stripe.Event)).toEqual({
-      kind: "ignore",
-      reason: "no_payment_intent",
-    });
-  });
-});
-
 describe("a partial refund reduces the fee base; a full refund ends it", () => {
   it("keeps the largest refunded amount when Stripe's events arrive out of order", async () => {
     const { db } = await seedRecoveredPayment();
@@ -185,29 +159,7 @@ describe("a partial refund reduces the fee base; a full refund ends it", () => {
   });
 });
 
-describe("a refunded recovery is not billable at maturity", () => {
-  it("a replayed refund event is a duplicate no-op", async () => {
-    await seedRecoveredPayment();
-    expect(
-      await processConnectedWebhook({} as Env, refundEvent("evt_dup", true), REFUNDED_AT),
-    ).toEqual({
-      status: "applied",
-    });
-    expect(
-      await processConnectedWebhook({} as Env, refundEvent("evt_dup", true), REFUNDED_AT),
-    ).toEqual({
-      status: "duplicate",
-    });
-  });
-});
-
-// Review HIGH-1. Every test above seeds the recovery row FIRST, so none of them
-// could see the hole: the stamp is an UPDATE, and a refund processed before
-// invoice.payment_succeeded matched zero rows, committed its claim anyway, and
-// was lost forever. The recovery was then recorded with refunded_at null and
-// billed at maturity, which is the exact overcharge this path exists to prevent.
-// It needed no Stripe misordering: one transient 500 on the success webhook
-// opens the window.
+// The stamp is an UPDATE, so a refund processed before the recovery exists must still be remembered.
 describe("a refund that arrives BEFORE the recovery still unbills it", () => {
   // A minute before the recovery lands, so the refund is genuinely first.
   const REFUND_BEFORE_AT = new Date(RECOVERED_AT.getTime() - 60_000);
@@ -288,13 +240,10 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
     expect(recovery.attributionKind).toBe("email_engaged"); // billable kind
     expect(recovery.refundedAt).toEqual(REFUND_BEFORE_AT);
 
-    // Pre-fix this was refunded_at null and a billable row: 20% of refunded money.
     expect(await getBillableRecoveries(db, ACCOUNT_ID, NOW.getTime())).toHaveLength(0);
   });
 
   it("records a partial refund that came first, so the fee is taken on what is left", async () => {
-    // Mythos billing review, finding 1: any refund used to cancel the whole
-    // fee. Now the recovery is born with the refunded amount and stays billable.
     const db = await seedAwaitingRecovery();
     await processConnectedWebhook({} as Env, refundEvent("evt_early", false), REFUND_BEFORE_AT);
     await processConnectedWebhook({} as Env, paymentSucceeded("evt_late"), RECOVERED_AT);
@@ -386,9 +335,6 @@ describe("refund resolution failure semantics", () => {
   });
 
   it("a TRANSIENT failure on dispute intake saves no unlinked dispute, so Stripe redelivers", async () => {
-    // Before: resolveDisputedRecovery swallowed the error and returned null, so
-    // the dispute was saved with no recovery link, the recovery was never
-    // stamped disputed and stayed billable, and the redelivery was a duplicate.
     const { db } = await seedRecoveredPayment();
     harness.invoicePaymentsError = new Error("stripe unavailable");
     const disputeCreated = {

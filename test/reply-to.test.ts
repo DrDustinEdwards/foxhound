@@ -3,8 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Customer mail carries the merchant's Reply-To when one is saved, and only then. Assertions read
-// the message as it reaches env.EMAIL.send.
+// Customer mail carries the merchant's Reply-To when one is saved; read as it reaches env.EMAIL.send.
 
 interface SentMessage {
   from: string;
@@ -155,8 +154,6 @@ describe("Reply-To is the merchant's address on a recovery send", () => {
     expect(only().replyTo).toBe(REPLY);
   });
 });
-
-// The writer: Recova's "Reply-to email" field on /settings/email
 
 function replyToRow(): string | null {
   return (

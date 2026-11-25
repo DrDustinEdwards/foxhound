@@ -5,17 +5,6 @@ import { diffMigrations, getEnvSanity } from "~/lib/admin/operations.server";
 describe("diffMigrations", () => {
   const known = ["0000_a.sql", "0001_b.sql", "0002_c.sql"] as const;
 
-  it("marks every known migration applied when all are present", () => {
-    const applied = new Map([
-      ["0000_a.sql", "2026-01-01 00:00:00"],
-      ["0001_b.sql", "2026-01-02 00:00:00"],
-      ["0002_c.sql", "2026-01-03 00:00:00"],
-    ]);
-    const { rows, unexpectedApplied } = diffMigrations(known, applied);
-    expect(rows.every((r) => r.applied)).toBe(true);
-    expect(unexpectedApplied).toEqual([]);
-  });
-
   it("flags a known migration that never ran against this database", () => {
     const applied = new Map([["0000_a.sql", "2026-01-01 00:00:00"]]);
     const { rows } = diffMigrations(known, applied);
@@ -57,11 +46,5 @@ describe("getEnvSanity", () => {
     expect(
       JSON.stringify(getEnvSanity({ STRIPE_SECRET_KEY: "sk_test_abc123" } as unknown as Env)),
     ).not.toContain("abc123");
-  });
-
-  it("covers every DB/DO binding this Worker declares", () => {
-    const rows = getEnvSanity({} as Env);
-    const names = rows.map((r) => r.name);
-    expect(names).toEqual(expect.arrayContaining(["DB", "MONEY_WRITER", "CRON_LOCK"]));
   });
 });

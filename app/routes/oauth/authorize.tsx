@@ -9,7 +9,7 @@ import "capsomer/button.css";
 import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/consent.css";
-// Capsomer's tokens and the amber family (capbase layer), which the panel, the buttons, the alert and the focus ring read. The site header loads the same file; this page has no header, so it imports it itself, as auth-card.tsx does.
+// Capsomer's tokens and the amber family (capbase layer). This page has no site header to load them, so it imports them itself, as auth-card.tsx does.
 import "~/site-header.css";
 
 import { Wordmark } from "~/components/wordmark";
@@ -34,7 +34,7 @@ import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import "~/auth.css";
 
-// /oauth/authorize: the page where a signed-in merchant lets an external agent connect to one Foxhound account. One 460px card centered on the page, with no site navigation: the wordmark, the h1 naming the client, the line under it, the account box, what the client can do, the error, Allow access and Deny side by side, and the closing line. A refused request is the same card holding the title and message. The engine is app/lib/oauth/provider.server.ts.
+// /oauth/authorize: a signed-in merchant lets an external agent connect to one Foxhound account. The engine is app/lib/oauth/provider.server.ts.
 // - The signed-out round trip keeps EVERY query parameter, iterated rather than picked, because a hand-picked list once dropped RFC 8707's resource. /login honors it through safeNextPath, whose checks are anchored.
 // - A React Router loader runs on every request, this page is private, no-store (its `headers` below), and the login action answers with a server redirect that carries the session cookie, so no cached signed-out render can be served.
 // - The scope a URL asks for can never raise what is granted. Every grant holds merchant.read; merchant.write only when the owner ticks "Allow changes", which starts ticked when the client asked for it (least scope first).
@@ -88,7 +88,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const params = new URL(request.url).searchParams;
   const db = getDb(env);
 
-  // The request is checked before the session: a malformed or unknown-client request is refused without a sign-in detour, with a 400: the card is the same, and the status says it is a refusal.
+  // Checked before the session: a malformed or unknown-client request is refused with a 400, without a sign-in detour.
   const check = await checkAuthorizeRequest(db, params, new URL(request.url).origin);
   if (!check.ok)
     return data<Refusal>(
@@ -214,7 +214,7 @@ export async function action({ request, context }: Route.ActionArgs) {
   return redirect(target);
 }
 
-// One 460px card centered on a full-height page, the wordmark on top, is Capsomer's consent screen, in its amber family with Foxhound's neutrals (.fh-cap), so the buttons and the focus ring are amber. Its words are site-runtime's MCP consent page's (mcp-login.mjs): a metadata-document client's name is vouched for by the host that publishes it, a registered client's is only its own claim.
+// Capsomer's consent screen in its amber family with Foxhound's neutrals (.fh-cap). Its words are site-runtime's MCP consent page's (mcp-login.mjs): a metadata-document client's name is vouched for by the host that publishes it, a registered client's is only its own claim.
 function Frame({ children }: { children: ReactNode }) {
   return (
     <div className="fh-auth-screen-left fh-cap" data-cap-site="foxhound" data-family="amber">
@@ -223,9 +223,7 @@ function Frame({ children }: { children: ReactNode }) {
   );
 }
 
-// React Router's Form, for its pending state. Its props are narrower than a
-// form's (the router's method and encoding names), so the screen's post goes
-// through this wrapper, which passes what the screen sets (it always posts).
+// React Router's Form, for its pending state. Its props are narrower than a form's, so the screen's post goes through this wrapper.
 function PostForm({ className, children }: FormHTMLAttributes<HTMLFormElement>) {
   return (
     <Form method="post" className={className}>

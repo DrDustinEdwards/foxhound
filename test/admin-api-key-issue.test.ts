@@ -6,9 +6,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Mythos billing review, finding 4: the Admin API key is made and revoked on
-// /admin/operations alone, behind Cloudflare Access, and each write commits
-// with its audit row. A revoke that changed nothing records nothing.
+// Admin API keys are issued and revoked on /admin/operations; a no-op revoke records nothing.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 

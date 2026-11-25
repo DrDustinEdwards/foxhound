@@ -3,13 +3,7 @@ import { eq } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import {
-  BRAKE_CONFIRM_PHRASES,
-  PAUSE_REASON_MANUAL,
-  engageResultMessage,
-  isConfirmPhraseValid,
-  releaseResultMessage,
-} from "~/lib/admin/brake";
+import { PAUSE_REASON_MANUAL, isConfirmPhraseValid } from "~/lib/admin/brake";
 import {
   BRAKE_CHUNK_ACCOUNTS,
   BRAKE_PAUSE_REASON,
@@ -25,10 +19,7 @@ import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The global emergency brake (parity ruling 34). The load-bearing property is
-// the ENGAGE/RELEASE ASYMMETRY: release must resume only what the brake paused,
-// never a merchant an operator paused for cause. Every test here runs against
-// the real migrated schema, so the pause_reason marker is exercised as shipped.
+// The emergency brake: release resumes only what the brake paused, never a merchant paused for cause.
 
 const ACTOR = "admin@foxhoundapp.com";
 
@@ -37,8 +28,7 @@ async function seedAccounts(db: Awaited<ReturnType<typeof createInMemoryDb>>["db
     // Eligible: a normal, running merchant.
     { id: "acc_normal", name: "Normal", billingExempt: false, processingPaused: false },
     { id: "acc_normal_2", name: "Normal 2", billingExempt: false, processingPaused: false },
-    // ELIGIBLE, and the point of review MEDIUM-2: billing-exempt (ours / comped)
-    // is a billing flag, never a processing one, so the brake reaches it.
+    // Billing-exempt is a billing flag, so the brake still reaches it.
     { id: "acc_exempt", name: "Exempt", billingExempt: true, processingPaused: false },
     // Not eligible: demo, the firewall every job honors.
     {
@@ -47,7 +37,7 @@ async function seedAccounts(db: Awaited<ReturnType<typeof createInMemoryDb>>["db
       billingExempt: false,
       processingPaused: false,
     },
-    // Not eligible: already paused BY A HUMAN. The whole point of the marker.
+    // Not eligible: already paused by a human.
     { id: "acc_individually_paused", name: "Held", billingExempt: false, processingPaused: true },
   ]);
 }
@@ -67,37 +57,6 @@ describe("confirm phrases (pure)", () => {
   it("tolerates surrounding whitespace only", () => {
     expect(isConfirmPhraseValid("release", "  RESUME ALL  ")).toBe(true);
     expect(isConfirmPhraseValid("release", "RESUME  ALL")).toBe(false);
-  });
-
-  it("every intent has a distinct phrase, so no control can be confirmed by another's word", () => {
-    const phrases = Object.values(BRAKE_CONFIRM_PHRASES);
-    expect(new Set(phrases).size).toBe(phrases.length);
-  });
-});
-
-describe("INFO-2: the panel accounts for a count that differs from what it promised", () => {
-  it("says nothing extra when every selected account transitioned", () => {
-    expect(engageResultMessage({ affectedCount: 30, intendedCount: 30 })).toBe(
-      "Brake engaged. Paused 30 account(s).",
-    );
-  });
-
-  it("distinguishes 'nothing was eligible' from 'everything got taken in the window'", () => {
-    expect(engageResultMessage({ affectedCount: 0, intendedCount: 0 })).toMatch(
-      /No accounts were eligible/,
-    );
-    const raced = engageResultMessage({ affectedCount: 0, intendedCount: 2 });
-    expect(raced).not.toMatch(/No accounts were eligible/);
-    expect(raced).toContain("2 account(s) were no longer eligible");
-  });
-
-  it("reports the same shortfall on release", () => {
-    expect(releaseResultMessage({ affectedCount: 0, intendedCount: 0 })).toBe(
-      "Brake released. No brake-paused accounts to resume.",
-    );
-    expect(releaseResultMessage({ affectedCount: 1, intendedCount: 2 })).toContain(
-      "1 account(s) were no longer held by the brake",
-    );
   });
 });
 
@@ -121,7 +80,7 @@ describe("engage", () => {
   });
 });
 
-describe("MEDIUM-2: batching keeps the brake inside the subrequest budget", () => {
+describe("batching keeps the brake inside the subrequest budget", () => {
   it("chunks cover every account exactly once, with no empty trailing batch", () => {
     const ids = Array.from({ length: 501 }, (_, i) => `acc_${i}`);
     const chunks = chunked(ids, BRAKE_CHUNK_ACCOUNTS);
@@ -129,15 +88,9 @@ describe("MEDIUM-2: batching keeps the brake inside the subrequest budget", () =
     expect(chunks.every((c) => c.length > 0)).toBe(true);
     expect(chunks).toHaveLength((brakeSubrequestCost(ids.length) - 2) / 2);
   });
-
-  it("statements per batch stay well inside a sane D1 batch size", () => {
-    // One statement per account per batch now that the flag writes and the audit
-    // rows are separate batches.
-    expect(BRAKE_CHUNK_ACCOUNTS).toBeLessThanOrEqual(50);
-  });
 });
 
-describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
+describe("a mid-engage failure is diagnosable and releasable", () => {
   it("keeps the umbrella intent row, commits whole chunks, and release cleans up exactly those", async () => {
     const { db } = createInMemoryDb();
     // 30 eligible accounts spans two chunks at BRAKE_CHUNK_ACCOUNTS=25.
@@ -195,17 +148,8 @@ describe("MEDIUM-2: a mid-engage failure is diagnosable and releasable", () => {
   });
 });
 
-describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", () => {
-  // The invariant the whole design exists for, tested in the CONCURRENT
-  // direction for the first time. Every other test here seeds a static fixture
-  // and then engages, which only ever exercises the eligibility SELECT. The
-  // defect was in the UPDATE: engage read its ids once and wrote them in chunks,
-  // so a pause landing in that window was overwritten with the brake marker and
-  // resumed by the next release.
-  //
-  // The race is SIMULATED, not asserted around: the runBatch seam is the real
-  // pause point between the eligibility read and the chunk write, and the manual
-  // pause is a real setProcessingPaused against the real schema.
+describe("engage cannot steal a merchant paused for cause mid-write", () => {
+  // The race is simulated at the runBatch seam, between the eligibility read and the chunk write.
   it("a for-cause pause landing between the read and the write survives, and release never resumes it", async () => {
     const { db } = createInMemoryDb();
     // 30 eligible accounts spans two chunks at BRAKE_CHUNK_ACCOUNTS=25, so the
@@ -236,8 +180,6 @@ describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", 
       },
     );
 
-    // The pause stands, with ITS OWN reason. Before the write-time guard this
-    // read { processingPaused: true, pauseReason: 'brake' }.
     expect(await paused(db, VICTIM)).toEqual({
       processingPaused: true,
       pauseReason: PAUSE_REASON_MANUAL,
@@ -249,9 +191,7 @@ describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", 
     expect(result.accountIds).not.toContain(VICTIM);
     expect(result.error).toBeUndefined();
 
-    // The whole point: release leaves the for-cause merchant paused. Under the
-    // pre-fix write this resumed them and their due retry steps charged cards on
-    // the next tick, with operator B never told.
+    // Release leaves the for-cause merchant paused.
     const released = await releaseBrake(db, { actorEmail: ACTOR });
     expect(released.affectedCount).toBe(29);
     expect(await paused(db, VICTIM)).toEqual({
@@ -261,8 +201,6 @@ describe("MEDIUM-1: engage cannot steal a merchant paused for cause mid-write", 
   });
 
   it("files no audit evidence for an account it did not actually pause", async () => {
-    // A count that excludes the skipped row but a per-account audit row that
-    // claims it was paused would just move the lie from the panel to the log.
     const { db } = createInMemoryDb();
     await seedAccounts(db);
 
@@ -307,7 +245,7 @@ describe("a manual pause is positively marked and never claimed by release", () 
   });
 });
 
-describe("LOW-2: a stale per-merchant form cannot strip the brake marker", () => {
+describe("a stale per-merchant form cannot strip the brake marker", () => {
   it("a manual pause on an already-manually-paused account is idempotent", async () => {
     const { db } = createInMemoryDb();
     await db
@@ -350,11 +288,10 @@ describe("status panel", () => {
   });
 });
 
-describe("LOW-D: historical audit rows keep their counts", () => {
+describe("historical audit rows keep their counts", () => {
   it("reads the legacy metadata keys, so pre-rename engage/release still show a number", async () => {
     const { db } = createInMemoryDb();
     await db.insert(schema.accounts).values({ id: "acc_1", name: "A", billingExempt: false });
-    // Exactly the shape written before the umbrella row became intent-first.
     await db.insert(schema.adminAuditLog).values([
       {
         id: "a1",

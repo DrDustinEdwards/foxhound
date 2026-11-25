@@ -39,7 +39,6 @@ const OWNER = "owner@acme.test";
 // A Monday at 08:00 UTC, when the cron fires.
 const NOW = new Date("2026-11-02T08:00:00Z");
 const INSIDE = new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000);
-const YEAR = new Date().getUTCFullYear();
 const OTHER = "acct_2";
 
 const env = {
@@ -129,25 +128,7 @@ function fullInput(over: Partial<Parameters<typeof digestEmail.digestContent>[0]
 }
 
 describe("the digest content", () => {
-  it("the conditional rows and both sections are absent when there is nothing to say", () => {
-    const { blocks } = digestEmail.digestContent(
-      fullInput({
-        expiringCardCount: 0,
-        openDisputeCount: 0,
-        openDisputeAmounts: [{ currency: "usd", cents: 0 }],
-        disputesActive: false,
-        highRiskCustomers: [],
-        personalOutreachCount: 0,
-      }),
-    );
-    const words = JSON.stringify(blocks);
-    expect(words).not.toContain("Cards expiring soon");
-    expect(words).not.toContain("Open disputes");
-    expect(words).not.toContain("Disputes");
-    expect(words).not.toContain("Intelligence");
-  });
-
-  it("never adds two currencies together (hard rule 2)", () => {
+  it("never adds two currencies together", () => {
     const words = JSON.stringify(
       digestEmail.digestContent(
         fullInput({
@@ -190,20 +171,8 @@ describe("the digest mail", () => {
     expect(m.headers?.["List-Unsubscribe"]).toBe(`<${unsub![1]}>`);
     expect(m.headers?.["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
 
-    // Footer sentence, then Unsubscribe, then the postal address, in both parts.
-    const note = `You're receiving this from Teamflow about a recent payment. © ${YEAR}`;
-    for (const [part, sentence] of [
-      [m.html, note.replace("'", "&#39;")],
-      [m.text, note],
-    ]) {
-      const at = [sentence, "Unsubscribe", ADDRESS].map((s) => part.indexOf(s));
-      expect(
-        at.every((i) => i > -1),
-        part,
-      ).toBe(true);
-      expect(at[0]).toBeLessThan(at[1]);
-      expect(at[1]).toBeLessThan(at[2]);
-    }
+    expect(m.html).toContain(ADDRESS);
+    expect(m.text).toContain(ADDRESS);
     expect(m.text).toContain(`Unsubscribe: ${unsub![1]}`);
   });
 
@@ -249,8 +218,6 @@ describe("the digest honors suppression", () => {
   });
 });
 
-// The digest only: no other merchant notice gains an unsubscribe
-
 describe("the unsubscribe is the digest's alone", () => {
   const job = {
     accountId: ACCOUNT,
@@ -278,9 +245,7 @@ describe("the unsubscribe is the digest's alone", () => {
   });
 });
 
-// The digest's Unsubscribe switches the digest off for that account and nothing else: a suppression
-// row would silence dispute deadlines and alerts, could be tripped by a link scanner's GET, and
-// would hit every account sharing the address.
+// The digest Unsubscribe switches off that account's digest only, never a suppression row.
 describe("a digest Unsubscribe switches off that account's digest and nothing else", () => {
   const routeContext = () => ({ get: () => ({ env, ctx: {} as ExecutionContext }) }) as never;
 

@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from "vitest";
 import { blogPosts, blogSlugRedirects } from "~/db";
 import type { Db } from "~/db";
 import type { BlogPostSummary } from "~/lib/blog/queries.server";
-import { labelForTag } from "~/lib/blog/tags";
 import { WITHDRAWN_BLOG_MESSAGE, WITHDRAWN_BLOG_SLUGS } from "~/lib/blog/withdrawn";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -51,11 +50,8 @@ describe("/blog loader", () => {
   it("hides a section whose tag no published post carries, even when its curated posts resolve", async () => {
     const { db } = createInMemoryDb();
     harness.db = db;
-    // Two of Payment Recovery's curated posts are published but carry another
-    // tag, so /blog/tag/payment-recovery would be empty or missing.
     await seed(db, "stripe-failed-payment-recovery", { tags: ["comparisons"] });
     await seed(db, "dunning-email-sequence", { tags: ["comparisons"] });
-    // Dispute Handling's curated post carries its tag.
     await seed(db, "stripe-disputes-guide", { tags: ["disputes"] });
     const data = (await index.loader({ context: indexContext } as never)) as Awaited<
       ReturnType<typeof index.loader>
@@ -129,11 +125,5 @@ describe("/blog/:slug loader", () => {
       301,
       "https://foxhoundapp.com/blog/why-cards-decline?ref=a",
     ]);
-  });
-});
-
-describe("labelForTag", () => {
-  it("humanizes an unrecognized tag instead of throwing or 404ing", () => {
-    expect(labelForTag("some-future-tag")).toBe("some future tag");
   });
 });

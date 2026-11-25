@@ -50,7 +50,6 @@ export async function listEarlyFraudWarnings(
   return { open: rows.filter(isOpenWarning), any: rows.length > 0 };
 }
 
-/** One warning, pinned to the account. */
 async function findEarlyFraudWarning(
   db: Db,
   accountId: string,
@@ -169,7 +168,6 @@ function refused(reason: RefundRefusal, detail?: string): RefundWarningResult {
   return { status: "error", reason, message: detail ?? REFUND_MESSAGES[reason] };
 }
 
-/** The Stripe idempotency key for refunding one warned charge. */
 function refundIdempotencyKey(stripeWarningId: string): string {
   return `early-fraud-warning-refund:${stripeWarningId}`;
 }
@@ -276,7 +274,6 @@ async function dismissEarlyFraudWarning(
   return true;
 }
 
-/** The intents the disputes dashboard's warning section posts. */
 const WARNING_INTENTS = ["refund_warning_confirm", "refund_warning", "dismiss_warning"] as const;
 type WarningIntent = (typeof WARNING_INTENTS)[number];
 

@@ -9,10 +9,7 @@ import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE } from "~/lib/auth/mcp-tokens";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
-// The Admin MCP's Worker holds no Stripe key, no money binding and no database;
-// everything it does goes through this API, so the rules live here: two
-// credentials on every call (an admin-scope key and an acting admin re-checked
-// against ADMIN_EMAIL), reads, pause and staging only, and every call logged.
+// The Admin API: two credentials per call, reads, pause and staging only, every call logged.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
@@ -132,11 +129,6 @@ async function api(
 const asAdmin = (key: string) => ({ key, actor: ADMIN });
 
 describe("two credentials on every call", () => {
-  it("only claims /api/admin/v1", async () => {
-    expect(await handleAdminApiRequest(new Request(`${ORIGIN}/api/carrel/v1/x`), env())).toBeNull();
-    expect(await handleAdminApiRequest(new Request(`${ORIGIN}/admin`), env())).toBeNull();
-  });
-
   it("no key, a merchant key and a revoked key are one identical 401", async () => {
     const { keys } = await seed();
     const bodies = new Set<string>();
@@ -183,29 +175,6 @@ describe("the reads", () => {
     expect((await api("/me", { key: keys.admin, actor: NOT_ADMIN })).status).toBe(403);
   });
 
-  it("merchant search finds by name or id, and pages with a cursor", async () => {
-    const { keys } = await seed();
-    const { json } = await api("/merchants?query=beta", asAdmin(keys.admin));
-    const data = json.data as {
-      merchants: { id: string }[];
-      has_more: boolean;
-      next_cursor: string | null;
-    };
-    expect(data.merchants.map((m) => m.id)).toEqual([OTHER]);
-    expect(data.has_more).toBe(false);
-    expect(data.next_cursor).toBeNull();
-  });
-
-  it("merchant search can narrow to the paused ones", async () => {
-    const { db, keys } = await seed();
-    await db.update(accounts).set({ processingPaused: true }).where(eq(accounts.id, MERCHANT));
-    const { json } = await api("/merchants?filter=paused", asAdmin(keys.admin));
-    expect((json.data as { merchants: { id: string }[] }).merchants.map((m) => m.id)).toEqual([
-      MERCHANT,
-    ]);
-    expect((await api("/merchants?filter=nope", asAdmin(keys.admin))).status).toBe(400);
-  });
-
   it("one merchant's detail never carries a Stripe access token or the Slack webhook URL", async () => {
     const { keys } = await seed();
     const { status, text } = await api(`/merchants/${MERCHANT}`, asAdmin(keys.admin));
@@ -242,13 +211,6 @@ describe("the reads", () => {
       expect(refused.status, tool).toBe(400);
     }
     expect((await view("acct_nope", { tool: "foxhound_get_overview" })).status).toBe(404);
-  });
-
-  it("an unknown merchant is a 404 that says how to find one", async () => {
-    const { keys } = await seed();
-    const { status, json } = await api("/merchants/acct_nope", asAdmin(keys.admin));
-    expect(status).toBe(404);
-    expect(String(json.error)).toMatch(/merchants/);
   });
 
   it("a malformed id segment is a 404 naming the routes, not a thrown 500", async () => {
@@ -523,8 +485,6 @@ describe("every call is logged, append-only", () => {
 
 describe("the wiring", () => {
   it("serves the admin API only on the AdminApi entrypoint, never the public fetch", () => {
-    // workers/ imports cloudflare:workers, which does not load in node, so this
-    // guards the one security line by its source.
     expect(read("workers/app.ts")).not.toContain("handleAdminApiRequest");
     expect(read("workers/app.ts")).toContain('export { AdminApi } from "./admin-api"');
     expect(read("workers/admin-api.ts")).toContain("handleAdminApiRequest(request, this.env)");

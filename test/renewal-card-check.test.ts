@@ -118,8 +118,6 @@ function rows() {
 
 describe("invoice.upcoming", () => {
   it("records a card that expires before the renewal, even past the 30-day lead window", async () => {
-    // The subscription's default is the card charged. It expires 12/2026, which
-    // is outside the nightly scan's 30 days, but the renewal is in January.
     harness.subscriptions.sub_1 = { default_payment_method: "pm_sub" };
     harness.paymentMethods.pm_sub = {
       card: { exp_month: 12, exp_year: 2026, brand: "visa", last4: "4242" },

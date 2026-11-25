@@ -5,11 +5,7 @@ import { COLUMNS } from "~/components/footer";
 import { MARKETING_PILL_ITEMS } from "~/lib/nav/manifest";
 import routes from "~/routes";
 
-// Drift-prevention guard for the marketing chrome (same pattern as
-// test/nav-manifest.test.ts, which covers only the app-shell subtree):
-// TASK-foxhound-marketing-nav-parity.md asks that every header/footer href
-// resolve in the real route tree, so a future edit to either can't silently
-// point at a route that does not exist.
+// Every header/footer/pill href resolves in the real route tree.
 
 interface RouteConfigEntry {
   path?: string;
@@ -32,10 +28,7 @@ function collectPaths(entries: RouteConfigEntry[], parentPath: string, out: Set<
   }
 }
 
-// The header's non-NAV_LINKS hrefs: the wordmark home link and the
-// auth-state-dependent CTAs (Sign in / Free audit / Dashboard render
-// conditionally, but all four hrefs are real regardless of which branch is
-// active for a given visitor).
+// Wordmark home link and the auth-state CTAs.
 const HEADER_STATIC_LINKS = ["/", "/login", "/audit", "/console"];
 
 describe("marketing header + footer links match routes.ts", () => {
@@ -65,9 +58,6 @@ describe("marketing header + footer links match routes.ts", () => {
     }
   });
 
-  // TASK-foxhound-pill-menu-parity.md: the authenticated SectionPill menu's
-  // item set and order are legacy ground truth, a different shape than
-  // PRODUCT_MANIFEST (already covered by test/nav-manifest.test.ts).
   it("every section-pill item is a real route", () => {
     for (const item of MARKETING_PILL_ITEMS) {
       expect(

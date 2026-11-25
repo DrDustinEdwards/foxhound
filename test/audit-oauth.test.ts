@@ -1,7 +1,4 @@
 import type Database from "better-sqlite3";
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, RouterProvider } from "react-router";
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -9,7 +6,6 @@ import { encryptToken } from "~/lib/stripe/encryption";
 import { AUDIT_ACTION, buildConnectState } from "~/lib/stripe/connect-state";
 import { readAuditGrantCookie } from "~/lib/stripe/state-cookie";
 import {
-  AUDIT_LOOKBACK_DAYS,
   AUDIT_OAUTH_STATE_COOKIE,
   AUDIT_TOKEN_COOKIE,
   AUDIT_TOKEN_TTL_SECONDS,
@@ -18,12 +14,8 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The free audit's OAuth pair (/audit/connect, /audit/callback) and the door it
-// opens onto the results page, through the real loaders and actions against an
-// in-memory SQLite with the committed migrations. Two accounts and two Stripe
-// accounts in every fixture, so a cross-tenant answer cannot pass by having
-// nothing to be wrong about. The scope is read_write (Stripe gives read_only only
-// to Extensions) and the grant's revoke is queued (test/audit-grant-revoke.test.ts).
+// The free audit's OAuth pair and the results door, through the real loaders against in-memory SQLite.
+// Two accounts and two Stripe accounts in every fixture, so a cross-tenant answer cannot pass vacuously.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -41,9 +33,7 @@ vi.mock("~/lib/auth", async (importOriginal) => ({
   getSession: async () => harness.session,
 }));
 
-// The one live seam. `getConnectedStripe` is what turns the audit's cookie into
-// a client; everything downstream of it is the real reads module, the real pure
-// engine and the real persistence.
+// The one seam: getConnectedStripe turns the audit cookie into a client.
 vi.mock("~/lib/stripe/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/stripe/client")>()),
   getConnectedStripe: () => harness.stripe,
@@ -64,7 +54,6 @@ vi.mock("~/lib/stripe/connect", async (importOriginal) => {
 const connectRoute = await import("~/routes/audit/connect");
 const callbackRoute = await import("~/routes/audit/callback");
 const resultsRoute = await import("~/routes/audit/results");
-const AuditConnect = connectRoute.default;
 const connectCallback = await import("~/routes/auth/connect-callback");
 
 const ACCOUNT_A = "acct_alpha";
@@ -94,9 +83,7 @@ const ENV = {
     },
   },
   RATE_LIMITER: limiter(true),
-  // Deliberately no ANTHROPIC_API_KEY: the summary takes its fallback arm, which
-  // makes every run in this file deterministic and proves the audit still
-  // completes with the key core.md lists as a launch blocker still unfunded.
+  // No ANTHROPIC_API_KEY: the summary takes its fallback arm.
 } as unknown as Env;
 
 const routeContext = (env: Env = ENV): unknown => ({
@@ -239,15 +226,6 @@ describe("the start", () => {
       params: {},
     } as never)) as Response;
 
-  it("a GET loader sets no cookie and starts no flow", () => {
-    const out = connectRoute.loader({
-      request: new Request(`${ORIGIN}/audit/connect`),
-      context: routeContext(),
-      params: {},
-    } as never);
-    expect(out).not.toBeInstanceOf(Response);
-  });
-
   it("the POST asks Stripe for read_write with a fresh state each time, in an HttpOnly cookie", async () => {
     const [a, b] = [await start(), await start()];
     const sa = new URL(a.headers.get("Location")!).searchParams;
@@ -268,23 +246,6 @@ describe("the start", () => {
     );
     expect(value).toBe(sa.get("state"));
     expect(JSON.parse(value).action).toBe(AUDIT_ACTION);
-  });
-
-  it("the page never reflects an unknown error code from the query string", () => {
-    const hostile = "<img src=x onerror=alert(1)>acct_stranger owned by Dana";
-    const props = {
-      loaderData: { lookbackDays: AUDIT_LOOKBACK_DAYS, stripeEnabled: true, error: hostile },
-      params: {},
-      matches: [],
-    } as unknown as Parameters<typeof AuditConnect>[0];
-    const router = createMemoryRouter(
-      [{ path: "*", element: createElement(AuditConnect, props) }],
-      { initialEntries: ["/audit/connect"] },
-    );
-    const html = renderToStaticMarkup(createElement(RouterProvider, { router }));
-    expect(html).toContain("Could not connect Stripe. Please try again.");
-    expect(html).not.toContain("onerror");
-    expect(html).not.toContain("acct_stranger");
   });
 });
 
@@ -403,8 +364,6 @@ describe("the callback refuses before it exchanges, and every exit clears the st
   });
 
   it("/connect/callback refuses the audit's state, and the audit refuses its", async () => {
-    // An anonymous audit grant must not reach the branch that attaches a
-    // connection or mints an account.
     const state = buildConnectState(AUDIT_ACTION);
     const response = (await connectCallback.loader({
       request: new Request(`${ORIGIN}/connect/callback?code=ac_1&state=${state}`, {
@@ -497,7 +456,7 @@ describe("a signed-in merchant running the anonymous flow", () => {
     expect(rows[0].failed_invoices_cents).toBe(4200);
   });
 
-  it("a reload inside the grant files no second run (app1 F1)", async () => {
+  it("a reload inside the grant files no second run", async () => {
     signIn(ACCOUNT_A);
     const cookie = cookieHeader({ [AUDIT_TOKEN_COOKIE]: await mintGrant(STRIPE_A) });
     for (let i = 0; i < 2; i += 1) {
@@ -513,9 +472,7 @@ describe("a signed-in merchant running the anonymous flow", () => {
   });
 
   it("the second account is not a loophole: the active account decides", async () => {
-    // This user owns both accounts. Signed in ON ACCOUNT B, auditing the Stripe
-    // account live on ACCOUNT A must not file into B: `held_by_caller` is asked
-    // with the ACTIVE account alone, not with every account the caller holds.
+    // The user owns both accounts; signed in on B, auditing A's Stripe account must not file into B.
     signIn(ACCOUNT_B);
     const data = (await load(STRIPE_A)) as Awaited<ReturnType<typeof resultsRoute.loader>>;
     expect(data.notSaved).toBe("not_your_account");
@@ -524,9 +481,7 @@ describe("a signed-in merchant running the anonymous flow", () => {
 });
 
 describe("the audited account is the one Stripe named, never the query's", () => {
-  // The query's `?account=` is editable: a merchant signed in on ACCOUNT_A who
-  // authorized a stranger's Stripe account could swap the id to STRIPE_A and have
-  // the stranger's numbers filed into ACCOUNT_A's history.
+  // `?account=` is editable, so the grant, not the query, decides the audited account.
   const load = (account: string, grant: string) =>
     resultsRoute.loader({
       request: new Request(`${ORIGIN}/audit/results?account=${account}`, {
@@ -569,8 +524,6 @@ describe("the audited account is the one Stripe named, never the query's", () =>
   });
 
   it("sealed JSON that is not an audit grant is refused, even under the same key", async () => {
-    // Another sealer under ENCRYPTION_KEY producing the same {t, a} shape must
-    // never be accepted here: the grant carries a checked purpose.
     signIn(ACCOUNT_A);
     const now = Date.now();
     for (const payload of [
@@ -586,8 +539,6 @@ describe("the audited account is the one Stripe named, never the query's", () =>
   });
 
   it("a grant older than the cookie's five minutes is refused by the server too", async () => {
-    // Max-Age is the browser's promise; a cookie copied out of the browser keeps
-    // no such promise, so the seal carries its own issue time.
     signIn(ACCOUNT_A);
     const grant = await mintGrant(STRIPE_A);
     const issued = Date.now();

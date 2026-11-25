@@ -50,7 +50,7 @@ for (const schedule of Object.values(RECOVERY_SCHEDULES)) {
 }
 
 /** "1" -> "1 hour after failure"; "72" -> "72 hours after failure". */
-export function formatStepTiming(hours: number): string {
+function formatStepTiming(hours: number): string {
   return `${plural(hours, "hour")} after failure`;
 }
 

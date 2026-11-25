@@ -11,10 +11,6 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Billing-setup. The merchant is a Customer on FOXHOUND'S OWN Stripe account,
 // never charged through their connected account.
-//
-// LIVE redirects are exercised in Phase 8 (needs a live Stripe test-mode
-// session); the seams here typecheck and are unit-proven at the pure-guard
-// level (run.ts's shouldAttemptPlatformCharge).
 
 /**
  * The accounts.platform_stripe_customer_id write. Mirrors the

@@ -4,12 +4,7 @@ import { APIError } from "better-auth/api";
 
 import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 
-// Database-agnostic Better Auth options shared by the runtime factory
-// (auth.server.ts, which adds the family sign-in from site-runtime ./sign-in
-// and the D1-backed Drizzle adapter) and the CLI schema generator
-// (generate.config.ts, which introspects these options to emit the auth
-// tables). Nothing here touches a binding or a secret, so it is safe to import
-// from both contexts.
+// Database-agnostic Better Auth options shared by the runtime factory (auth.server.ts) and the CLI schema generator (generate.config.ts). Nothing here touches a binding or a secret.
 
 /** Session lifetime: 30 days, refreshed at most once per day. */
 const SESSION_EXPIRES_IN_SECONDS = 60 * 60 * 24 * 30;
@@ -58,8 +53,7 @@ export const authOptions = {
     },
   },
   advanced: {
-    // Match the app's id convention (text uuid, crypto.randomUUID) used across
-    // the Phase 2 schema so auth ids read the same as tenant ids.
+    // Match the app's id convention (text uuid, crypto.randomUUID) so auth ids read like tenant ids.
     database: {
       generateId: () => crypto.randomUUID(),
     },
@@ -69,7 +63,7 @@ export const authOptions = {
 /**
  * Foxhound's options over the family sign-in's (site-runtime ./sign-in). The
  * hooks are merged, not replaced: the shared databaseHooks.account store no
- * Google or Apple tokens (FH-5), the shared session keeps freshAge (a sign-in
+ * Google or Apple tokens, the shared session keeps freshAge (a sign-in
  * from the last 10 minutes to add a passkey or unlink), and the shared advanced
  * settings read the client IP from cf-connecting-ip.
  */

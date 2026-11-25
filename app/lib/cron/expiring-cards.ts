@@ -152,7 +152,6 @@ export interface ScanResult {
   overLimit: string[];
 }
 
-/** PASS 1. */
 export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult> {
   const db = getDb(env);
   const result: ScanResult = { scanned: 0, recorded: 0, overLimit: [] };
@@ -185,7 +184,6 @@ export async function scanExpiringCards(env: Env, now: Date): Promise<ScanResult
         if (!pm || typeof pm === "string" || !pm.card) continue;
         const card = pm.card;
         if (!isInsideLeadWindow(card.exp_month, card.exp_year, now)) continue;
-        // No address, no email to send.
         if (!customer.email) continue;
 
         await db.batch([
@@ -223,7 +221,6 @@ export interface SendResult {
   skipped: number;
 }
 
-/** PASS 2. Every unsent candidate, one email each. */
 export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendResult> {
   const db = getDb(env);
   const result: SendResult = { sent: 0, skipped: 0 };
@@ -245,7 +242,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
         stripeConnections.senderName,
         expiringCardAlerts.accountId,
       ),
-      // The Reply-To, from the same primary row as the sender name.
       replyToEmail: primaryConnectionValue<string>(
         stripeConnections.replyToEmail,
         expiringCardAlerts.accountId,
@@ -287,8 +283,6 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
           to: alert.customerEmail,
           fromName: alert.senderName,
           replyTo: alert.replyToEmail,
-          // The card copy, or the no-payment-method variant for a trial with
-          // nothing to charge (the row's reason picks).
           ...expiringCardAlertContent({
             reason: alert.reason,
             customerName: alert.customerName,
@@ -381,7 +375,6 @@ export interface ExpiringCardRunResult {
   send: SendResult;
 }
 
-/** One daily run (09:00 UTC): scan, then send. */
 export async function runExpiringCards(env: Env, now: Date): Promise<ExpiringCardRunResult> {
   const scan = await scanExpiringCards(env, now);
   const send = await sendExpiringCardAlerts(env, now);

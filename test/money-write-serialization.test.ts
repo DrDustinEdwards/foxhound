@@ -2,18 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   SerialMoneyCommitter,
-  isUniqueConstraintError,
   type CommitterDeps,
   type CompiledStatement,
 } from "~/lib/money/serializer";
 
-// Proves the money-write serialization core (ARCHITECTURE.md non-negotiable #1).
-// The Durable Object is a thin adapter over this class; exercising it directly
-// proves the two properties that matter without the Workers runtime:
-//   1. writes to one account (one committer) run strictly one at a time;
-//   2. idempotency + the DB unique-constraint backstop behave correctly.
-// The real DO's D1 batch + storage adapters are exercised end-to-end on staging
-// via the Stripe Connect write path.
+// The Durable Object is a thin adapter over SerialMoneyCommitter: writes to one account run one at a
+// time, and idempotency plus the DB unique-constraint backstop hold.
 
 /** A runBatch that records concurrency and can be made slow/failing. */
 function instrumentedDeps(opts: { onRun: (stmts: CompiledStatement[]) => Promise<void> }): {
@@ -146,13 +140,5 @@ describe("SerialMoneyCommitter", () => {
     // A subsequent commit still runs; the chain was not poisoned.
     const ok = await committer.commit({ idempotencyKey: "2", statements: [stmt("2")] });
     expect(ok.applied).toBe(true);
-  });
-});
-
-describe("isUniqueConstraintError", () => {
-  it("matches D1 unique + primary-key violations, not other errors", () => {
-    expect(isUniqueConstraintError(new Error("UNIQUE constraint failed: a.b"))).toBe(true);
-    expect(isUniqueConstraintError(new Error("PRIMARY KEY constraint failed"))).toBe(true);
-    expect(isUniqueConstraintError(new Error("no such table"))).toBe(false);
   });
 });

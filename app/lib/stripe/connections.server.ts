@@ -4,9 +4,7 @@ import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { stripeConnections } from "~/db";
 import type { Db } from "~/db";
 
-// Where a Stripe account is attached, asked once for the whole repo. This repo's standing rule is
-// that a route module never reaches the database directly and server-only code lives in a
-// `*.server.ts`; the predicate now does.
+// Where a Stripe account is attached, asked once for the whole repo. Server-only code lives in a `*.server.ts` and a route module never reaches the database directly.
 
 /** account_id = :accountId AND disconnected_at IS NULL: the account's live
  *  connections. The one spelling of "active connection" for an account. */
@@ -70,7 +68,7 @@ export async function findActiveConnection(
 /**
  * A DISCRIMINATED OUTCOME, never a bare id or null: "nobody holds it", "the caller holds it here"
  * and "somebody else holds it" are three different answers with three different responses, and
- * collapsing the last two into a nullable id is what made the old call sites easy to get wrong.
+ * collapsing the last two into a nullable id is what makes call sites easy to get wrong.
  */
 export type LiveAttachment =
   | { status: "unattached" }

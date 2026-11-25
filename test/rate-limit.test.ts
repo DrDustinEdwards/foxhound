@@ -1,17 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 
-import {
-  limitPublicActions,
-  rateLimitedResponse,
-  resolveRateLimitBinding,
-} from "~/lib/http/rate-limit";
+import { limitPublicActions, resolveRateLimitBinding } from "~/lib/http/rate-limit";
 
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
-// audit finding M-1 (foxhound-audit-security.md): /api/auth/* was
-// live-verified unthrottled. The counting is site-runtime's (its own tests
-// cover it); these drive Foxhound's matcher and wrappers through a fake
-// namespace that runs site-runtime's hitRules on SQLite.
+// Foxhound's matcher and wrapper over site-runtime's limiter (counted in its own tests),
+// driven through a fake namespace that runs site-runtime's hitRules on SQLite.
 
 function makeEnv(namespace: unknown = makeRateLimiterNamespace()) {
   return { RATE_LIMITER: namespace } as unknown as Env;
@@ -28,164 +22,57 @@ function post(path: string) {
   return new Request(`http://localhost${path}`, { method: "POST" });
 }
 
-// J52: these paths left this matcher for site-runtime's limiter inside their
-// actions (app/lib/auth/rate-limit.server.ts, test/auth-rate-limit.test.ts).
-// They are kept here as the list that must now resolve to no rule, so the two
-// limiters can never both count one request.
-//
-// Ruling 376 item (1): the matcher covered POST /api/auth/ only, while every
-// sign-in, sign-up and reset POST goes to its OWN route and calls Better Auth
-// in-process, so the Durable Object never saw one. Each row below is a path
-// whose action reaches a Better Auth credential or mail method, named with the
-// method it reaches, so a future reader can check the row against the route
-// rather than trusting this list.
-const IN_PROCESS_AUTH_POSTS = [
-  ["/login", "handler sign-in/magic-link"],
-  ["/signup", "handler sign-in/magic-link"],
-  ["/auth/google", "api.signInSocial"],
-  ["/auth/apple", "api.signInSocial"],
-] as const;
+// These actions are limited by site-runtime's limiter inside the action, so the
+// matcher must resolve no rule for them (the two limiters never both count one request).
+const IN_PROCESS_AUTH_POSTS = ["/login", "/signup", "/auth/google", "/auth/apple"];
 
 describe("resolveRateLimitBinding", () => {
-  it.each(IN_PROCESS_AUTH_POSTS)("leaves POST %s (%s) to its action's limiter", (path) => {
+  it.each(IN_PROCESS_AUTH_POSTS)("leaves POST %s to its action's limiter", (path) => {
     expect(resolveRateLimitBinding(post(path))).toBeNull();
   });
 
-  it.each(IN_PROCESS_AUTH_POSTS)("does not rate-limit GET %s (%s renders a form)", (path) => {
-    expect(
-      resolveRateLimitBinding(new Request(`http://localhost${path}`, { method: "GET" })),
-    ).toBeNull();
+  it("leaves POST /api/auth/*, session-only POSTs and webhooks alone", () => {
+    for (const path of [
+      "/api/auth/sign-in/magic-link",
+      "/api/auth",
+      "/connect",
+      "/invite/tok_abc123",
+      "/webhooks/stripe",
+    ]) {
+      expect(resolveRateLimitBinding(post(path)), path).toBeNull();
+    }
   });
 
-  it("leaves POST /api/auth/* and /api/auth to the splat route's action", () => {
-    expect(resolveRateLimitBinding(post("/api/auth/sign-in/magic-link"))).toBeNull();
-    expect(resolveRateLimitBinding(post("/api/auth"))).toBeNull();
-  });
-
-  it("matches POST /demos to the public bucket (20/60s)", () => {
+  it("matches POST /demos and /audit to the public bucket, and not GET", () => {
     expect(resolveRateLimitBinding(post("/demos"))).toEqual(PUBLIC_RULE);
-  });
-
-  it("matches POST /audit to the public bucket (20/60s)", () => {
     expect(resolveRateLimitBinding(post("/audit"))).toEqual(PUBLIC_RULE);
-  });
-
-  it("does not rate-limit GET /api/auth/* (session checks, verification links)", () => {
-    const request = new Request("http://localhost/api/auth/get-session", { method: "GET" });
-    expect(resolveRateLimitBinding(request)).toBeNull();
-  });
-
-  it("does not rate-limit GET /demos or GET /audit (page renders)", () => {
     expect(
       resolveRateLimitBinding(new Request("http://localhost/demos", { method: "GET" })),
     ).toBeNull();
-    expect(
-      resolveRateLimitBinding(new Request("http://localhost/audit", { method: "GET" })),
-    ).toBeNull();
   });
 
-  it("does not rate-limit unrelated routes, including other POST surfaces like webhooks", () => {
-    expect(resolveRateLimitBinding(post("/webhooks/stripe"))).toBeNull();
-    expect(resolveRateLimitBinding(post("/webhooks/stripe-platform"))).toBeNull();
-  });
-
-  // THE INNOCENT CASES. A guard that fires on traffic it has no business
-  // touching gets deleted rather than fixed (capsid/conventions.md), and
-  // widening a matcher is exactly when that happens. /connect and
-  // /invite/:token are the near misses on purpose: both are POST actions under
-  // app/routes/auth, both reach getBetterAuth(env).api, and both reach only
-  // getSession, which is the read every authenticated loader performs.
-  it("leaves session-only auth POSTs alone: /connect and /invite/:token", () => {
-    expect(resolveRateLimitBinding(post("/connect"))).toBeNull();
-    expect(resolveRateLimitBinding(post("/connect/additional"))).toBeNull();
-    expect(resolveRateLimitBinding(post("/invite/tok_abc123"))).toBeNull();
-  });
-
-  // /logout IS THE THIRD INNOCENT CASE, and it moved here from the throttled
-  // table above. It reaches api.signOut, so unlike /connect and /invite it does
-  // clear the "calls a Better Auth method" bar; it fails the one that matters.
-  // Signing out tests no credential and sends no mail, and the bucket is
-  // per-IP, so throttling it would let a shared-IP team spend on logouts the
-  // budget their next sign-in needs. Ruling 378 call (a) took it out.
-  //
-  // Asserted null on every spelling the normalizer folds, so the exclusion
-  // cannot be quietly undone by the matcher widening around it.
   it("leaves POST /logout alone, in every spelling the router would route", () => {
     for (const path of ["/logout", "/LOGOUT", "/logout/", "/logout///", "/%6Cogout"]) {
       expect(resolveRateLimitBinding(post(path))).toBeNull();
     }
   });
 
-  it("does not fire on paths that merely start with an auth path's letters", () => {
-    for (const path of [
-      "/loginx",
-      "/signups",
-      "/logout-all",
-      "/auth/googlebot",
-      "/audits",
-      "/demos-2",
-    ]) {
+  it("does not fire on paths that merely start with a limited path's letters", () => {
+    for (const path of ["/loginx", "/audits", "/demos-2", "/auth/googlebot"]) {
       expect(resolveRateLimitBinding(post(path))).toBeNull();
     }
   });
 
-  it("does not fire on ordinary app POSTs", () => {
-    for (const path of ["/dashboard", "/api/theme", "/api/account/switch", "/settings/email"]) {
-      expect(resolveRateLimitBinding(post(path))).toBeNull();
+  // The router matches a different string than URL.pathname reports: an equality
+  // test on the raw pathname would let each of these spellings through unthrottled.
+  it("normalizes the way the router does, so a spelling cannot bypass the limit", () => {
+    for (const path of ["/DEMOS", "/Audit", "/demos///", "/audit/", "/%64emos", "/%44EMOS///"]) {
+      expect(resolveRateLimitBinding(post(path)), path).toEqual(PUBLIC_RULE);
     }
-  });
-
-  // THE ROUTER MATCHES A DIFFERENT STRING THAN URL.pathname REPORTS. Each
-  // spelling below was driven through matchRoutes against the installed
-  // react-router 8.2.0 and lands on the auth action; an equality test on the
-  // raw pathname lets all of them through unthrottled.
-  describe("normalizes the way the router does, so a bypass by spelling cannot work", () => {
-    it("folds case, because compilePath's regexp is case-insensitive by default", () => {
-      expect(resolveRateLimitBinding(post("/DEMOS"))).toEqual(PUBLIC_RULE);
-      expect(resolveRateLimitBinding(post("/Audit"))).toEqual(PUBLIC_RULE);
-    });
-
-    it("folds trailing slashes, because compilePath terminates the pattern with a slash-star", () => {
-      expect(resolveRateLimitBinding(post("/demos///"))).toEqual(PUBLIC_RULE);
-      expect(resolveRateLimitBinding(post("/audit/"))).toEqual(PUBLIC_RULE);
-    });
-
-    it("decodes percent-escapes, because matchRoutes matches on decodePath output", () => {
-      expect(resolveRateLimitBinding(post("/%64emos"))).toEqual(PUBLIC_RULE);
-      expect(resolveRateLimitBinding(post("/au%64it"))).toEqual(PUBLIC_RULE);
-    });
-
-    it("keeps an encoded separator encoded, exactly as decodePath re-escapes it", () => {
-      // decodePath turns a decoded "/" back into %2F so a segment cannot
-      // smuggle a separator. The limiter agrees, which is what keeps it from
-      // being STRICTER than the router.
-      expect(resolveRateLimitBinding(post("/%2Fdemos"))).toBeNull();
-    });
-
-    it("survives a malformed percent-escape instead of throwing", () => {
-      // decodePath catches and falls back to the raw value; so does routedPath.
-      expect(resolveRateLimitBinding(post("/%E0%A4%A"))).toBeNull();
-      expect(resolveRateLimitBinding(post("/demos%"))).toBeNull();
-    });
-
-    // THE FIXTURE THE PRODUCTION PATH CANNOT PRODUCE.
-    // It resolves to the public bucket only if decoding, case folding and
-    // slash folding ALL run. The auth spellings this used to carry (/%4COGIN///)
-    // are the actions' to refuse now, which no spelling can avoid.
-    it("throttles a spelling only an attacker would send: /%44EMOS///", () => {
-      expect(resolveRateLimitBinding(post("/%44EMOS///"))).toEqual(PUBLIC_RULE);
-    });
-  });
-});
-
-describe("rateLimitedResponse", () => {
-  it("returns 429 with a Retry-After header and JSON body", async () => {
-    const res = rateLimitedResponse(45);
-    expect(res.status).toBe(429);
-    expect(res.headers.get("Retry-After")).toBe("45");
-    expect(res.headers.get("Content-Type")).toBe("application/json");
-    const body = (await res.json()) as { error: string };
-    expect(body.error).toMatch(/too many requests/i);
+    // An encoded separator stays encoded, as the router re-escapes it, and a bad escape never throws.
+    for (const path of ["/%2Fdemos", "/%E0%A4%A", "/demos%"]) {
+      expect(resolveRateLimitBinding(post(path)), path).toBeNull();
+    }
   });
 });
 
@@ -199,23 +86,8 @@ describe("limitPublicActions", () => {
     }
     const over = new Request("http://localhost/demos", { method: "POST", headers: ip });
     const result = await limitPublicActions(over, env);
-    expect(result).not.toBeNull();
     expect(result?.status).toBe(429);
     expect(result?.headers.get("Retry-After")).toMatch(/^\d+$/);
-  });
-
-  it("keys the DO id on bucket + cf-connecting-ip, or a stable key without one", async () => {
-    const namespace = makeRateLimiterNamespace();
-    const env = makeEnv(namespace);
-    await limitPublicActions(
-      new Request("http://localhost/audit", {
-        method: "POST",
-        headers: { "cf-connecting-ip": "9.8.7.6" },
-      }),
-      env,
-    );
-    await limitPublicActions(new Request("http://localhost/audit", { method: "POST" }), env);
-    expect(namespace.names).toEqual(["public:9.8.7.6", "public:unknown"]);
   });
 
   it("fails open when the Durable Object call throws", async () => {

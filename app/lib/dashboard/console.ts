@@ -1,6 +1,3 @@
-// Pure console-cluster logic: the phrases and predicates the hero row, product
-// tiles, and needs-attention feed are built from.
-
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatMoneyShort, fromMajorUnits, toMajorUnits } from "@dustinedwards/site-runtime/money";
 import { DAY_MS, HOUR_MS } from "~/lib/constants";

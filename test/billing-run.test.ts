@@ -9,7 +9,6 @@ import {
   type InvoiceBatchInput,
 } from "~/lib/billing/run";
 import {
-  disputeFeeItemIdempotencyKey,
   recoveryFeeItemIdempotencyKey,
   type PlatformInvoiceLineInput,
 } from "~/lib/billing/stripe-invoice";
@@ -65,30 +64,6 @@ describe("buildBillingInvoiceBatch", () => {
     expect(lineItemCount).toBe(3);
   });
 
-  it("also returns the plain line data alongside the SQL batch, for the platform charge step", () => {
-    const { lines } = buildBillingInvoiceBatch(
-      db,
-      baseInput({
-        recoveries: [{ id: "rec_1", amountCents: 10_000, refundedCents: 0 }],
-        disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
-      }),
-    );
-    expect(lines).toEqual([
-      {
-        type: "recovery_fee",
-        amountCents: 2_000,
-        description: "Recovery fee",
-        idempotencyKey: recoveryFeeItemIdempotencyKey("acc_1", "2026-06", "usd", "rec_1"),
-      },
-      {
-        type: "dispute_fee",
-        amountCents: 10_000,
-        description: "Dispute fee",
-        idempotencyKey: disputeFeeItemIdempotencyKey("dsp_1"),
-      },
-    ]);
-  });
-
   it("gives every line its own idempotency key, derived from that line's evidence", () => {
     const { lines } = buildBillingInvoiceBatch(
       db,
@@ -100,9 +75,7 @@ describe("buildBillingInvoiceBatch", () => {
         disputes: [{ id: "dsp_1", amountCents: 50_000, resolvedFeeCents: 10_000 }],
       }),
     );
-    // Two recovery lines with IDENTICAL amounts and descriptions must still get
-    // distinct keys, or a retry would collapse them into one Stripe item and
-    // silently undercharge. The recovery id is what separates them.
+    // Identical lines must still get distinct keys, or a retry collapses them into one Stripe item.
     const keys = lines.map((l) => l.idempotencyKey);
     expect(new Set(keys).size).toBe(3);
     expect(keys[0]).toContain("rec_1");

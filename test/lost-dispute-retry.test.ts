@@ -4,10 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 import type { RecoveryTickDeps } from "~/lib/cron/recovery-tick";
 
-// Recova stopped card retries for a customer who won a dispute against the
-// merchant (handleDisputeClosed, process-recovery). This drives the real due-step
-// query and the real lost-dispute read against a migrated schema: the retry is
-// never charged, the step goes terminal, and the suppression is recorded.
+// A lost dispute stops card retries: never charged, the step goes terminal, the suppression is recorded.
 
 const T0 = new Date("2026-07-26T00:00:00.000Z");
 

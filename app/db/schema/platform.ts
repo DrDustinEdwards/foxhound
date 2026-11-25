@@ -49,7 +49,6 @@ export const webhookEvents = sqliteTable(
   ],
 );
 
-// global
 export const cronConfig = sqliteTable("cron_config", {
   cronName: text("cron_name").primaryKey(),
   enabled: bool("enabled").notNull().default(true),
@@ -68,7 +67,6 @@ export const aiOutcomes = sqliteTable("ai_outcomes", {
   value: text("value").notNull(),
 });
 
-// global
 export const adminAuditLog = sqliteTable("admin_audit_log", {
   id: id(),
   actorEmail: text("actor_email").notNull(),

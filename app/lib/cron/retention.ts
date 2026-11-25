@@ -27,14 +27,8 @@ import { monthKey } from "@dustinedwards/site-runtime/time";
 
 import type { CronJobResult } from "./run";
 
-// Retention sweepers (ARCHITECTURE.md retention table + non-negotiable #4:
-// these run before the tables they govern take production writes). Each is
-// registered as its own gated cron job (4e-C4).
+// Retention sweepers (ARCHITECTURE.md retention table + non-negotiable #4: these run before the tables they govern take production writes). Each is its own gated cron job.
 
-/**
- * The oldest-allowed timestamp for a window; rows strictly older are swept.
- * Pure.
- */
 export function cutoffFor(days: number, nowMs: number): Date {
   return new Date(nowMs - days * DAY_MS);
 }

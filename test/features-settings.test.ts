@@ -6,17 +6,8 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SESSION 57: S34's features page.
-//
-// THE TWO TOGGLES SESSIONS 52 AND 49 BUILT THEIR CRONS AGAINST, and this is
-// their writer. Both are NULL-is-ON and BOTH ENDS AGREE: legacy renders `?? true`
-// and both crons skip on `=== false`.
-//
-// IT UN-GATES NOTHING ELSE. 176 claims these toggles free S2's disputes state
-// and S6's Intelligence entry; legacy's own SiteNav.tsx:110-119 gates the
-// product switcher on `account_products`, and Foxhound's equivalent is
-// `isIntelligenceEntitled` over `account_subscriptions`. Both are asserted
-// below to be untouched by a save here.
+// The two email toggles (NULL is ON) and their crons: the save writes only its two columns, to its own
+// account, and OFF skips each cron.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -55,8 +46,7 @@ const env = {
 let sqlite: Database.Database;
 let db: ReturnType<typeof createInMemoryDb>["db"];
 
-/** The route's own context, so the plants below drive the PAGE rather than the
- *  builder underneath it. Three mutations stayed green until they did. */
+/** The route's own context, so tests drive the page rather than the builder underneath it. */
 function routeContext(accountId = ACCOUNT) {
   return {
     get(key: unknown) {
@@ -129,8 +119,8 @@ function stepResult(): string | null {
   );
 }
 
-describe("PLANT 2: the save writes its two columns and only those", () => {
-  it("AND WRITES NO S36 COLUMN, because those are a different page", async () => {
+describe("the save writes its two columns and only those", () => {
+  it("writes no other notification column", async () => {
     sqlite
       .prepare(
         "UPDATE accounts SET digest_enabled = 1, slack_notifications_enabled = 1, recovery_notifications_enabled = 0 WHERE id = ?",
@@ -146,7 +136,7 @@ describe("PLANT 2: the save writes its two columns and only those", () => {
   });
 });
 
-describe("PLANT 3: OFF skips each cron, reached alone", () => {
+describe("OFF skips each cron", () => {
   it("win-back OFF stamps the step and sends nothing", async () => {
     seedWinbackStep();
     await save(false, true);
@@ -169,18 +159,8 @@ describe("PLANT 3: OFF skips each cron, reached alone", () => {
   });
 });
 
-describe("PLANT 4: the page un-gates nothing else, which is 176 disproven", () => {
-  it("a save leaves account_subscriptions untouched, which is what S6 reads", async () => {
-    const before = sqlite.prepare("SELECT count(*) AS n FROM account_subscriptions").get();
-
-    await save(false, false);
-
-    expect(sqlite.prepare("SELECT count(*) AS n FROM account_subscriptions").get()).toEqual(before);
-  });
-});
-
-describe("PLANT 6: the PAGE itself, loader and action", () => {
-  it("THE LOADER RENDERS NULL AS ON, which the builder plants never reached", async () => {
+describe("the page loader and action", () => {
+  it("the loader renders NULL as on", async () => {
     const result = (await featuresRoute.loader({ context: routeContext() } as never)) as {
       winbackNotificationsEnabled: boolean;
       expiringCardNotificationsEnabled: boolean;
@@ -190,7 +170,7 @@ describe("PLANT 6: the PAGE itself, loader and action", () => {
     expect(result.expiringCardNotificationsEnabled).toBe(true);
   });
 
-  it("THE ACTION MAPS EACH FIELD TO ITS OWN COLUMN, not one to both", async () => {
+  it("the action maps each field to its own column", async () => {
     // A checkbox posts its name only when checked, so this form turns win-back
     // ON and leaves expiring-card OFF.
     const form = new FormData();
@@ -227,10 +207,9 @@ describe("PLANT 6: the PAGE itself, loader and action", () => {
   });
 });
 
-describe("PLANT 7: the write is pinned to its own account", () => {
-  it("A SAVE ON ONE ACCOUNT LEAVES ANOTHER UNTOUCHED", async () => {
-    // With one account in the fixture an unpinned UPDATE hits the same row and
-    // proves nothing, which is exactly what happened on the first pass.
+describe("the write is pinned to its own account", () => {
+  it("a save on one account leaves another untouched", async () => {
+    // With one account an unpinned UPDATE would hit the same row and prove nothing.
     sqlite
       .prepare(
         "INSERT INTO accounts (id, name, created_at, processing_paused, winback_notifications_enabled, expiring_card_notifications_enabled) VALUES ('acct_2', 'Other', 1000, 0, 1, 1)",

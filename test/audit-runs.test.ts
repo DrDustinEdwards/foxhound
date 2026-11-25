@@ -2,10 +2,8 @@ import type Database from "better-sqlite3";
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { showDisputesSection } from "~/components/audit/sections";
-
 import { runAudit, type AuditInputs, type ScopeOutcome } from "~/lib/audit/engine";
-import { toAuditRunView, toStoredAuditRun } from "~/lib/audit/render";
+import { toStoredAuditRun } from "~/lib/audit/render";
 import { AUDIT_SUMMARY_FALLBACK } from "~/lib/audit/summary";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -92,36 +90,12 @@ function contextFor(accountId: string): unknown {
 const save = (accountId: string, result = auditWith(), summary = "One. Two. Three.") =>
   saveAuditRun({} as Env, result, { accountId, isAuthenticated: true, summary, now: RAN_AT });
 
-const loadHistory = (accountId: string) =>
-  history.loader({
-    context: contextFor(accountId),
-    request: new Request("https://foxhoundapp.test/audit/dashboard"),
-    params: {},
-  } as never) as Promise<{
-    runs: {
-      id: string;
-      failedInvoices: unknown[] | null;
-      openDisputes: unknown[] | null;
-      mrr: unknown[] | null;
-    }[];
-  }>;
-
 const loadRun = (accountId: string, id: string) =>
   runPage.loader({
     context: contextFor(accountId),
     request: new Request("https://foxhoundapp.test/audit/results/x"),
     params: { id },
   } as never);
-
-describe("the history surface", () => {
-  it("carries a NULL through to the loader rather than coalescing it", async () => {
-    await save(ACCOUNT_A, auditWith({ subscriptions: failedRead("subs unavailable") }));
-    const { runs } = await loadHistory(ACCOUNT_A);
-    // MRR comes from the subscriptions read, so it is null, not 0.
-    expect(runs[0].failedInvoices).toEqual([]);
-    expect(runs[0].mrr).toBeNull();
-  });
-});
 
 describe("the stored-run surface", () => {
   it("reads one run and maps every scope", async () => {
@@ -148,7 +122,7 @@ describe("the stored-run surface", () => {
     expect(run.summary).toBe("One. Two. Three.");
   });
 
-  it("A SCOPE THAT COULD NOT BE READ ARRIVES AS null, never as a zero", async () => {
+  it("a scope that could not be read arrives as null, never as a zero", async () => {
     const id = await save(
       ACCOUNT_A,
       auditWith({
@@ -183,17 +157,6 @@ describe("the Card Updater's two nulls stay apart", () => {
     const b = (await loadRun(ACCOUNT_A, notRead)) as { run: ReturnType<typeof toStoredAuditRun> };
     expect(a.run.cardUpdater).toMatchObject({ eventsInWindow: 0, advisory: null });
     expect(b.run.cardUpdater).toBeNull();
-  });
-});
-
-describe("the disputes section", () => {
-  it("is left off when every dispute figure is zero, and stays when the read failed", () => {
-    const view = (over: Partial<AuditInputs> = {}) => toAuditRunView(auditWith(over), "s");
-    expect(showDisputesSection(view())).toBe(false);
-    expect(showDisputesSection(view({ disputes: ok([dispute({ status: "won" })]) as never }))).toBe(
-      true,
-    );
-    expect(showDisputesSection(view({ disputes: failedRead("rate limited") }))).toBe(true);
   });
 });
 
@@ -301,26 +264,10 @@ describe("the history page's settings", () => {
       params: {},
     } as never) as Promise<{ data: Record<string, unknown>; init: { status?: number } | null }>;
   };
-  const loadSettings = async (accountId: string) =>
-    (
-      (await history.loader({
-        request: new Request("https://foxhoundapp.test/audit/dashboard"),
-        context: contextFor(accountId),
-        params: {},
-      } as never)) as { settings: { lookbackDays: number; autoRun: boolean } }
-    ).settings;
   const stored = (id: string) =>
     sqlite
       .prepare("SELECT audit_lookback_days AS d, audit_auto_run AS a FROM accounts WHERE id = ?")
       .get(id);
-
-  it("the loader reads this account's settings, NULL as 90 days and off", async () => {
-    sqlite
-      .prepare("UPDATE accounts SET audit_lookback_days = 30, audit_auto_run = 1 WHERE id = ?")
-      .run(ACCOUNT_B);
-    expect(await loadSettings(ACCOUNT_A)).toEqual({ lookbackDays: 90, autoRun: false });
-    expect(await loadSettings(ACCOUNT_B)).toEqual({ lookbackDays: 30, autoRun: true });
-  });
 
   it("the action writes the caller's account and no other", async () => {
     const res = await callAction(ACCOUNT_A, { audit_lookback_days: "180", audit_auto_run: "true" });

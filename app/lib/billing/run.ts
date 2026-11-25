@@ -491,7 +491,7 @@ export async function runAccountBilling(
         charged = true;
       } catch (err) {
         // The ledger already committed; a Stripe-side failure here never reruns
-        // or rolls back the invoice, it stays 'draft' for retry/Phase 8.
+        // or rolls back the invoice, it stays 'draft' for retry.
         console.error(
           `platform charge failed for account ${accountId} invoice ${invoiceId}:`,
           errorMessage(err),
@@ -515,8 +515,7 @@ export async function runAccountBilling(
 
 /**
  * The full monthly run: every billing-eligible account (not exempt, not paused,
- * not a demo account) billed for the prior period. This is the entry point the
- * Phase 4e Cron Trigger invokes.
+ * not a demo account) billed for the prior period. The Cron Trigger's entry point.
  *
  * The charge-dispatch retry sweep runs FIRST, before any new invoice is raised.
  * A committed invoice whose charge never landed is otherwise stranded forever

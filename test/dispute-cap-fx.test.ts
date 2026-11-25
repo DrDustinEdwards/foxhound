@@ -5,15 +5,8 @@ import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The $500 dispute fee cap is converted to the dispute's currency at resolution.
-// A flat 50,000 minor units is about $320 in yen and $630 in pence, so the
-// invoice and the promised "$500" disagreed in opposite directions.
-//
-// The rates are fake and chosen to land the converted cap on either side of
-// 50,000, so the cap is shown to be computed, not the constant. A quote that
-// cannot be fetched fails closed: the fee stays unsnapshotted with the error
-// recorded, never the flat cap, because a wrong number invoiced silently is
-// worse than a right one invoiced late.
+// The $500 dispute fee cap is converted to the dispute's currency at resolution; a quote that cannot
+// be fetched fails closed (fee unsnapshotted, error recorded), never the flat cap.
 
 const ACCOUNT = "acct_fx";
 const DISPUTE = "dp_fx";

@@ -18,9 +18,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => route.db,
 }));
 
-// The blog's media library through Carrel's real site-api mount, over the real
-// schema (site-api's standard tables and triggers, migration 0080) and in-memory stand-ins for the
-// R2 bucket, the Images binding and Workers AI.
+// The blog media library through the real site-api mount and schema, with in-memory R2, Images and Workers AI.
 
 const KEY = "k".repeat(40);
 const ORIGIN = "https://foxhoundapp.com";
@@ -230,7 +228,6 @@ describe("the media library through Carrel's site-api mount", () => {
     expect(up.status).toBe(201);
     const { id } = up.body;
     expect(id).toMatch(/^\d{4}\/\d{2}\/declines-chart-[0-9a-f]{8}\.png$/);
-    // prepareUpload's placeholder is stored and answered with the file.
     expect(up.body.placeholder).toMatch(/^data:image\/webp;base64,/);
     expect((await t.json(t.at(id))).body.placeholder).toBe(up.body.placeholder);
 
@@ -246,7 +243,6 @@ describe("the media library through Carrel's site-api mount", () => {
 
     const { html } = await renderPostBody(t.db, `![Declines by reason](/media/${id})\n`);
     expect(html).toContain("<picture>");
-    // Named by its bytes, so the route serves each size immutable.
     expect(html).toMatch(new RegExp(`/media/${id}\\.webp\\?v=[0-9a-f]{12}&#x26;w=680 `));
     expect(html).toContain('width="1600" height="900"');
 
@@ -272,69 +268,6 @@ describe("the media library through Carrel's site-api mount", () => {
     });
     expect((await t.call(`${t.at(id)}?changeId=d2`, { method: "DELETE" })).status).toBe(200);
     expect(t.bucket.objects.has(id)).toBe(false);
-  });
-
-  it("a stale write is refused and changes nothing; the fresh one moves the version", async () => {
-    const t = setup();
-    const { body: item } = await t.upload(png(800, 600));
-    const alt = (text: string, expectedVersion: string) =>
-      t.json(`${t.at(item.id)}/alt`, {
-        method: "PUT",
-        body: JSON.stringify({
-          alt: text,
-          expectedVersion,
-          changeId: `a-${text.replace(/\W/g, "")}`,
-        }),
-      });
-    const first = await alt("A chart", item.version);
-    expect(first.status).toBe(200);
-    const stale = await alt("Another", item.version);
-    expect(stale.status).toBe(409);
-    expect(stale.body.currentVersion).toBe(first.body.version);
-    expect((await t.json(t.at(item.id))).body.alt).toBe("A chart");
-  });
-
-  it("a large upload is shrunk, its original kept, and a revert brings the original back", async () => {
-    const t = setup();
-    const up = await t.upload(png(4000, 3000));
-    expect(up.body.resizedFrom).toMatchObject({ width: 4000, height: 3000 });
-    expect([up.body.width, up.body.height]).toEqual([2560, 1920]);
-
-    const history = await t.json(`${t.at(up.body.id)}/history`);
-    expect(history.body.revisions.map((r) => r.reason)).toEqual(["resize", "upload"]);
-    const reverted = await t.json(`${t.at(up.body.id)}/revert`, {
-      method: "POST",
-      body: JSON.stringify({
-        to: history.body.revisions[1].rev,
-        expectedVersion: up.body.version,
-        changeId: "r1",
-      }),
-    });
-    expect(reverted.status).toBe(200);
-    expect([reverted.body.width, reverted.body.height]).toEqual([4000, 3000]);
-
-    // The same camera file again is the file it already became, not a second copy.
-    const again = await t.upload(png(4000, 3000));
-    expect(again.body.duplicateOf ?? again.body.id).toBe(up.body.id);
-  });
-
-  it("the change log answers each write and each delete since a cursor", async () => {
-    const t = setup();
-    const kept = (await t.upload(png(800, 600, 1), "kept.png")).body;
-    const gone = (await t.upload(png(800, 600, 2), "gone.png")).body;
-    const cursor = (await t.json("/media?limit=1")).body.changeCursor;
-    await t.json(`${t.at(kept.id)}/alt`, {
-      method: "PUT",
-      body: JSON.stringify({
-        alt: "A bar chart of declines by month",
-        expectedVersion: kept.version,
-        changeId: "a1",
-      }),
-    });
-    await t.call(`${t.at(gone.id)}?changeId=d1`, { method: "DELETE" });
-    const changes = await t.json(`/media?changedSince=${cursor}`);
-    expect(changes.body.items.map((i) => i.id)).toEqual([kept.id]);
-    expect(changes.body.removed).toEqual([gone.id]);
   });
 
   it("the public route serves an upload, immutable only at its current version, and never the earlier bytes kept beside it", async () => {

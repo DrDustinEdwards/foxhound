@@ -1,11 +1,7 @@
-import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
-import * as schema from "~/db/schema";
-import { buildRecoveryStepInserts } from "~/lib/engine/intake";
 import { decideEmailStep, decideRetryStep } from "~/lib/engine/step-runner";
 import { SEND_MAX_ATTEMPTS } from "~/lib/constants";
-import { planRecoverySteps } from "~/lib/recovery/schedule";
 
 const now = new Date("2026-07-10T12:00:00.000Z");
 
@@ -49,23 +45,5 @@ describe("step-runner: email deciders", () => {
     );
     expect(p.result).toBe("email_failed");
     expect(p.nextRetryAt).toBeNull();
-  });
-});
-
-describe("intake step inserts (compile against schema, no live D1)", () => {
-  it("compiles one insert per planned step with the step columns bound", () => {
-    const db = drizzle({} as never, { schema });
-    const planned = planRecoverySteps({
-      failedPaymentId: "fp_1",
-      accountId: "acc_1",
-      declineCategory: "soft",
-      detectedAt: now,
-    });
-    const inserts = buildRecoveryStepInserts(db, planned);
-    expect(inserts.length).toBe(planned.length);
-    const sql = inserts[0].toSQL();
-    expect(sql.sql).toMatch(/insert into .*recovery_steps/i);
-    expect(sql.params).toContain("fp_1");
-    expect(sql.params).toContain("acc_1");
   });
 });

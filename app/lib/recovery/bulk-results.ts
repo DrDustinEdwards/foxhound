@@ -29,9 +29,7 @@ export type BulkFailureReason =
   | "customer_unsubscribed"
   | "send_retrying"
   | "step_failed"
-  /** The dispatcher answered something this intent is not expected to produce.
-   *  Kept as its own value rather than swallowed: an unexpected outcome is a
-   *  finding, not a silent success. */
+  /** The dispatcher answered something this intent is not expected to produce. Its own value, not swallowed: an unexpected outcome is a finding, not a silent success. */
   | "unexpected";
 
 export interface BulkItemResult {
@@ -53,9 +51,7 @@ export interface BulkActionResult {
 /** The submission was refused as a whole, before any payment was touched. */
 export interface BulkActionRefusal {
   refused: "empty" | "over_ceiling" | "unknown_intent";
-  /** How many ids were submitted, so the surface can name the exact number
-   *  rather than saying "too many" (never silently
-   *  truncated, and the ceiling is stated). */
+  /** How many ids were submitted, so the surface can name the exact number rather than saying "too many". */
   submitted: number;
   ceiling: number;
 }

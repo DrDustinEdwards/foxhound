@@ -11,11 +11,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
-// The Signed-in devices list on /settings/account: Better Auth's /list-sessions,
-// through the family sign-in's options, against the real schema. It wants a
-// sign-in from the last 10 minutes; past that the page still loads and asks for
-// one, which is every merchant who opens it more than 10 minutes after signing
-// in. Fake user, fake secret.
+// The Signed-in devices list on /settings/account: Better Auth's /list-sessions against the real schema; it wants a sign-in from the last 10 minutes.
 
 const ORIGIN = "https://foxhoundapp.test";
 const SECRET = "test-secret-0123456789abcdef0123456789abcdef";

@@ -25,7 +25,7 @@ import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import { percent } from "capsomer/behavior/meter";
 
-// The audit's render sections, shared by the live /audit/results and a saved run at /audit/results/:id. Each section is a Panel with its description; calls to action sit in the panel's footer; the expiring-cards timeline is an Enarratio chart.
+// The audit's render sections, shared by the live /audit/results and a saved run at /audit/results/:id.
 // ONE LINE PER CURRENCY: each money figure is its totals per currency, stacked as /billing stacks its totals.
 // THE NULL: every figure is number | null and says "could not be read" rather than a zero, so a failed Stripe read never reads as a merchant with no disputes.
 // THE RECOVERABLE ESTIMATE is a fixed share (30%) of the failed invoices with its count-up; the line under the figure names it as an assumption and quotes no outside range, which would need a sourced page and date (CLAUDE.md hard rule 1).
@@ -102,7 +102,6 @@ function StatRow({
   );
 }
 
-/** A large figure under a rule: a small uppercase label over a mono number. */
 function Headline({
   label,
   value,

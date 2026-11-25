@@ -6,13 +6,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// S31, the four per-category brand voices. Ruled parity by 337 binding 6:
-// legacy's resolveBrandVoice takes the decline category and Foxhound's did not,
-// which is a Foxhound-internal narrowing of a legacy feature, removed under 324.
-//
-// THE PLANTS OBSERVE THE SYSTEM PROMPT, because that is where Foxhound puts the
-// resolved voice. Legacy puts it in the user message; a plant reading only the
-// user prompt would miss this feature entirely.
+// Per-category brand voices, observed in the system prompt (where Foxhound puts the resolved voice).
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 
@@ -83,7 +77,7 @@ async function systemPromptFor(category: string, v: Voices): Promise<string> {
   return buildPrompts(buildGenerateEmailInput("https://foxhoundapp.test/u/1", ctx)).system;
 }
 
-describe("PLANT 1: the category's own voice reaches the prompt for that category", () => {
+describe("the category's own voice reaches the prompt for that category", () => {
   it("each of the four columns is wired to its own category", async () => {
     const cases: [string, Voices, string][] = [
       ["soft", { soft: "voice for soft" }, "voice for soft"],
@@ -101,10 +95,8 @@ describe("PLANT 1: the category's own voice reaches the prompt for that category
   });
 });
 
-describe("PLANT 2: legacy's resolution order, all three rungs", () => {
+describe("voice resolution order", () => {
   it("an EMPTY STRING behaves exactly like NULL and falls through", () => {
-    // Legacy uses `||` on every rung, so "" and null are the same. That is what
-    // lets "Same as main voice" be stored as NULL with no sentinel.
     expect(
       resolveBrandVoice({ merchantName: "A", voiceDescription: "g", voiceSoft: "" }, "soft"),
     ).toBe("g");
@@ -117,7 +109,7 @@ describe("PLANT 2: legacy's resolution order, all three rungs", () => {
   });
 });
 
-describe("PLANT 6: the save writes exactly the four columns", () => {
+describe("the save writes exactly the four columns", () => {
   const ctx = {
     get(key: unknown) {
       if (key === cloudflareContext) return { env: {} as Env, ctx: {} as ExecutionContext };
@@ -164,13 +156,6 @@ describe("PLANT 6: the save writes exactly the four columns", () => {
   }
 
   it("saves the four and leaves the general voice as it is", async () => {
-    // CHANGED BY J36, with legacy as the authority, read whole at its blob:
-    // BrandVoiceSection.tsx (blob 9f4de70c) posts ONLY the four category hidden
-    // inputs (lines 63 to 66) and BrandVoiceForm.tsx (blob 8dd126bf) adds only
-    // connection_id. Nothing on Recova's page posts brand_voice_preset, so its
-    // update route's `has(...)` guard (settings/update/route.ts:115) leaves
-    // brand_voice untouched on this save. Session 59 read the preset constant's
-    // name in BrandVoiceSection as a general picker; there is none.
     seed("soft", { general: "house voice" });
 
     const status = await post({

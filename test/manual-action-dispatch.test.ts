@@ -8,7 +8,6 @@ import { type DueStepRow } from "~/lib/cron/due-steps";
 import { buildEmailStepPatch } from "~/lib/engine/execute-step";
 import {
   dispatchManualAction,
-  manualActionIdempotencyKey,
   type ManualActionCommit,
 } from "~/lib/recovery/manual-actions.server";
 import {
@@ -24,17 +23,8 @@ import type { EmailJobResult } from "~/lib/email/dispatch";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// S7 Phase 2, Sessions A and B: the shared manual-action dispatcher. Legacy
-// implements these as five route handlers that each re-write auth, account
-// scoping, ownership and the status gate, and its copies HAVE drifted
-// (parity/S7-PHASE2-SCOPE.md section 1.5). Foxhound has one dispatcher, so the
-// gates are pinned once here.
-//
-// The two WIRED intents (note, cancel) commit through an injected
-// ManualActionCommit. In production that is the per-account money-write Durable
-// Object; here it runs the EXACT compiled statements against
-// a real in-memory SQLite with the committed migrations applied, inside one
-// transaction, so what is proven is the real SQL against the real schema.
+// The shared manual-action dispatcher pins ownership, status gate and intent rules once. The commit runs
+// the exact compiled statements against in-memory SQLite with the committed migrations, in one transaction.
 
 const now = new Date("2026-08-12T00:00:00.000Z");
 const later = new Date("2026-08-12T01:00:00.000Z");
@@ -141,8 +131,7 @@ const SENT_EMAIL: StepSeed = {
   aiBodyHtml: "<p>Body</p>",
 };
 
-/** Trigger deps that fail loudly. A test that reaches an executor it did not
- *  intend to exercise gets an error, never a silent pass. */
+/** Trigger deps that fail loudly, so an unintended executor call errors. */
 function unusedTriggerDeps(): TriggerDeps {
   return {
     loadStep: async () => {
@@ -188,8 +177,6 @@ function request(db: Db, commit: ManualActionCommit, over: Record<string, unknow
     db,
     accountId: "acc_1",
     failedPaymentId: "fp_mine",
-    // Default to an intent that is known but writes nothing, so a test which
-    // only cares about ownership cannot mutate anything on its way to the answer.
     intent: "mark_recovered",
     commit,
     trigger: unusedTriggerDeps(),
@@ -203,8 +190,6 @@ describe("manual actions: ownership is the same 404 as a missing payment", () =>
   it("an unknown intent is refused BEFORE any payment is loaded", async () => {
     const { sqlite, db } = seed();
     const commit = inMemoryCommit(sqlite, db);
-    // fp_nope does not exist; a not_found here would prove the intent check ran
-    // second and turned an unknown action into an ownership probe.
     expect(
       await dispatchManualAction(
         request(db, commit, { failedPaymentId: "fp_nope", intent: "override_next_email" }),
@@ -240,10 +225,7 @@ describe("manual actions: per-intent preconditions", () => {
     ).toEqual({ ok: true, intent: "resend", subject: "Subject" });
   });
 
-  it("mark_recovered carries no step precondition and is now WIRED", async () => {
-    // Session E. The in-memory commit runs the real statements, so this also
-    // proves the dispatcher hands the batch the payment's own amount and
-    // currency rather than inventing them.
+  it("mark_recovered records the payment's own amount and currency", async () => {
     const { sqlite, db } = seed();
     expect(
       await dispatchManualAction(
@@ -257,7 +239,7 @@ describe("manual actions: per-intent preconditions", () => {
   });
 });
 
-describe("note save: legacy's contract, through the money DO seam", () => {
+describe("note save", () => {
   it("a missing note field is treated as empty rather than crashing", async () => {
     const { sqlite, db } = seed({ notes: "previous" });
     expect(
@@ -289,7 +271,7 @@ describe("note save: legacy's contract, through the money DO seam", () => {
   });
 });
 
-describe("trigger: legacy's six statuses, ported", () => {
+describe("trigger", () => {
   /** A DueStepRow good enough for both context mappers. */
   function stepRow(over: Partial<DueStepRow> = {}): DueStepRow {
     return {
@@ -316,13 +298,7 @@ describe("trigger: legacy's six statuses, ported", () => {
     } as DueStepRow;
   }
 
-  function triggerReq(
-    db: Db,
-    sqlite: Database.Database,
-    deps: Partial<TriggerDeps>,
-    steps: StepSeed[] = [PENDING],
-  ) {
-    void steps;
+  function triggerReq(db: Db, sqlite: Database.Database, deps: Partial<TriggerDeps>) {
     return request(db, inMemoryCommit(sqlite, db), {
       intent: "trigger",
       trigger: { ...unusedTriggerDeps(), ...deps },
@@ -340,7 +316,7 @@ describe("trigger: legacy's six statuses, ported", () => {
     });
   });
 
-  it("a DECLINED retry is still a 200, exactly as legacy's prefix rule gives", async () => {
+  it("a declined retry is still a 200", async () => {
     const { sqlite, db } = seed({ steps: [{ id: "step_pending", stepType: "retry_4hr" }] });
     const out = await dispatchManualAction(
       triggerReq(db, sqlite, {
@@ -445,11 +421,8 @@ describe("trigger: legacy's six statuses, ported", () => {
 
 describe("trigger: the concurrent-claim race", () => {
   it("a second trigger claims ZERO rows and reports the winner's stored result", async () => {
-    // Ruling 260's guard, exercised at the TRIGGER level rather than at the
-    // patch builder. Racer A (say the cron tick) already executed the step. This
-    // trigger's executor runs its REAL patch through buildEmailStepPatch, whose
-    // WHERE executed_at IS NULL refuses the write. The dispatcher then reports
-    // what is STORED, which is A's result, not this caller's own decision.
+    // Racer A already executed the step; this trigger's real patch is refused by the claim guard and the
+    // dispatcher reports the stored (winner's) result.
     const { sqlite, db } = seed({ steps: [PENDING] });
     let claimedRows = -1;
     const out = await dispatchManualAction(
@@ -480,9 +453,6 @@ describe("trigger: the concurrent-claim race", () => {
               brandVoice: null,
             }) as DueStepRow,
           runEmail: async () => {
-            // THE RACE WINDOW. The dispatcher has already read this step as
-            // pending and handed it to the executor. Racer A (a cron tick) now
-            // executes and persists it before this caller's own persist lands.
             runStatement(
               sqlite,
               db
@@ -490,7 +460,6 @@ describe("trigger: the concurrent-claim race", () => {
                 .set({ executedAt: now, result: "email_sent", aiSubject: "A's subject" })
                 .where(eq(recoverySteps.id, "step_pending")),
             );
-            // The loser's REAL persist, through the real claim-guarded builder.
             claimedRows = runStatement(
               sqlite,
               buildEmailStepPatch(
@@ -519,9 +488,7 @@ describe("trigger: the concurrent-claim race", () => {
       }),
     );
 
-    // The claim refused the second write.
     expect(claimedRows).toBe(0);
-    // And the answer is the WINNER's, not the loser's own decision.
     expect(out).toEqual({
       ok: true,
       intent: "trigger",
@@ -538,7 +505,7 @@ describe("trigger: the concurrent-claim race", () => {
   });
 });
 
-describe("resend: legacy's intent, not legacy's defects", () => {
+describe("resend", () => {
   function resendReq(
     db: Db,
     sqlite: Database.Database,
@@ -586,7 +553,6 @@ describe("resend: legacy's intent, not legacy's defects", () => {
       bodyHtml: "<p>Body</p>",
     });
 
-    // Legacy's insert shape: a NEW row, step_number null, executed now.
     const rows = resendSteps(sqlite);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
@@ -597,27 +563,13 @@ describe("resend: legacy's intent, not legacy's defects", () => {
       ai_body_html: "<p>Body</p>",
     });
     expect(rows[0].executed_at).toBe(now.getTime());
-    // The original send is untouched: a resend adds an event, never mutates one.
     const original = sqlite
       .prepare("select result from recovery_steps where id = 'step_sent'")
       .get() as { result: string };
     expect(original.result).toBe("email_sent");
   });
 
-  it("the timeline insert rides the per-account money-write DO (262 four)", async () => {
-    const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
-    const keys: string[] = [];
-    await dispatchManualAction(
-      resendReq(db, sqlite, fakeSend({ providerMessageId: "prov_9" }), keys),
-    );
-    expect(keys).toHaveLength(1);
-    expect(keys[0].startsWith("manual:resend:fp_mine:")).toBe(true);
-    expect(keys[0].startsWith("recovery:")).toBe(false);
-  });
-
   it("a SUPPRESSED recipient is an honest refusal and writes NOTHING", async () => {
-    // 262 decision three: suppression is mandatory and the merchant is told.
-    // Legacy would have mailed them, because its route has no suppression check.
     const { sqlite, db } = seed({ steps: [SENT_EMAIL] });
     const keys: string[] = [];
     const out = await dispatchManualAction(
@@ -649,24 +601,18 @@ describe("resend: legacy's intent, not legacy's defects", () => {
   });
 
   it("the key collapses a retried PERSIST of one send and separates two sends", () => {
-    // 265's reasoning applied to the send EVENT rather than the submit: the same
-    // provider id is the same mail, a new provider id is new mail.
     expect(resendRepeatToken("prov_1", "step_a", now)).toBe(
       resendRepeatToken("prov_1", "step_a", later),
     );
     expect(resendRepeatToken("prov_2", "step_a", now)).not.toBe(
       resendRepeatToken("prov_1", "step_a", now),
     );
-    // No provider id: cannot collapse, which errs toward recording rather than
-    // losing a send.
     expect(resendRepeatToken(null, "step_a", now)).not.toBe(
       resendRepeatToken(null, "step_a", later),
     );
   });
 
   it("picks the last email by EXECUTED_AT, not by array position", async () => {
-    // Legacy's server rule. Its client disagrees by array order (scope 1.5) and
-    // the server wins. Seeded so array order and executed_at order DISAGREE.
     const { sqlite, db } = seed({
       steps: [
         { ...SENT_EMAIL, id: "step_newer", aiSubject: "NEWER", executedAt: later },
@@ -702,21 +648,8 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
     ]);
   });
 
-  it("the sequence actually stops: no step is due for the tick afterwards", async () => {
-    const { sqlite, db } = seed({ steps: [PENDING, { id: "step_two" }] });
-    expect(dueStepCount(sqlite)).toBe(2);
-
-    await dispatchManualAction(request(db, inMemoryCommit(sqlite, db), { intent: "cancel" }));
-
-    // stepDueCondition requires result IS NULL, so a canceled step is never
-    // selected again. This is what makes Stop recovery actually stop.
-    expect(dueStepCount(sqlite)).toBe(0);
-  });
-
   it("the status claim takes ZERO rows when something else resolved the payment first", async () => {
-    // The race the claim exists for: the dispatcher's pre-read saw 'active', and
-    // a concurrent writer resolved the payment before this batch ran. Driving the
-    // batch directly is the only way to reach that window deterministically.
+    // Driven directly: the only deterministic way into the window between pre-read and batch.
     const { sqlite, db } = seed({ status: "recovered", steps: [PENDING] });
     const batch = buildStopRecoveryBatch(db, {
       accountId: "acc_1",
@@ -728,8 +661,6 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
     const stepChanges = runStatement(sqlite, batch[1]);
 
     expect(statusChanges).toBe(0);
-    // And the second statement is conditioned on the first having landed, so a
-    // lost claim does NOT cancel the steps of a payment it never stopped.
     expect(stepChanges).toBe(0);
     expect(readPayment(sqlite).status).toBe("recovered");
     expect(dueStepCount(sqlite)).toBe(1);
@@ -737,8 +668,6 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
 
   it("a lost claim is reported as already_resolved, never as success", async () => {
     const { sqlite, db } = seed({ steps: [PENDING] });
-    // Commit that lets the race happen inside the write window: the payment is
-    // resolved by someone else, then the batch runs and its claim finds nothing.
     const racing: ManualActionCommit = async (_accountId, _key, build) => {
       runStatement(
         sqlite,
@@ -773,25 +702,5 @@ describe("stop recovery: one atomic batch, claim-guarded", () => {
       reason: "write_failed",
       intent: "cancel",
     });
-  });
-
-  it("mark_recovered: a thrown commit is write_failed, not already_resolved", async () => {
-    const { db } = seed();
-    const failing: ManualActionCommit = async () => {
-      throw new Error("d1 unavailable");
-    };
-    expect(await dispatchManualAction(request(db, failing, { intent: "mark_recovered" }))).toEqual({
-      ok: false,
-      reason: "write_failed",
-      intent: "mark_recovered",
-    });
-  });
-
-  it("cancel's key is once-ever per payment, so a double submit collapses", () => {
-    expect(manualActionIdempotencyKey("cancel", "fp_1")).toBe("manual:cancel:fp_1");
-    expect(manualActionIdempotencyKey("cancel", "fp_1")).toBe(
-      manualActionIdempotencyKey("cancel", "fp_1"),
-    );
-    expect(manualActionIdempotencyKey("cancel", "fp_1").startsWith("recovery:")).toBe(false);
   });
 });

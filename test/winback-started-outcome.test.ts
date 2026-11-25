@@ -3,13 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// JOB 1 / 343 binding 2: the STARTED outcome, the pre-existing divergence.
-//
-// Legacy records `winback_sequence_started` when it creates the sequence.
-// buildWinbackStartBatch wrote the sequence and its three steps and recorded
-// nothing, so a Foxhound merchant's moat was missing a row legacy has. It is a
-// MOAT row, never a billing row: billable.ts keys on recovered_payments and a
-// win-back writes none.
+// Creating a win-back sequence records one winback_sequence_started outcome, never a billing row.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -29,8 +23,6 @@ vi.mock("~/lib/money/execute", () => ({
       await (harness.db as { batch: (s: unknown[]) => Promise<unknown> }).batch(batch);
       return { applied: true };
     } catch {
-      // A unique-index collision rolls the whole batch back, which is exactly
-      // what the real DO reports as applied:false.
       return { applied: false };
     }
   },
@@ -97,8 +89,8 @@ function outcomeRows() {
     .all() as { eventType: string; outcome: string; eventData: string; key: string }[];
 }
 
-describe("PLANT 1: a started sequence records exactly one started outcome", () => {
-  it("at legacy's event_type, outcome and fields", async () => {
+describe("a started sequence records exactly one started outcome", () => {
+  it("with its event_type, outcome and fields", async () => {
     const result = await processConnectedWebhook(env, deletedEvent(), RECEIVED);
 
     expect(result).toEqual({ status: "applied" });
@@ -116,7 +108,7 @@ describe("PLANT 1: a started sequence records exactly one started outcome", () =
     expect(rows[0].key).toBe("winback-started:sub_1");
   });
 
-  it("NO recovered_payments ROW, so nothing about a win-back enters the fee base", async () => {
+  it("no recovered_payments row, so nothing about a win-back enters the fee base", async () => {
     await processConnectedWebhook(env, deletedEvent(), RECEIVED);
 
     expect(sqlite.prepare("SELECT id FROM recovered_payments").all()).toEqual([]);
@@ -124,8 +116,8 @@ describe("PLANT 1: a started sequence records exactly one started outcome", () =
   });
 });
 
-describe("PLANT 2: a replayed deletion records none", () => {
-  it("the second delivery of the SAME event is a duplicate and records nothing more", async () => {
+describe("a replayed deletion records none", () => {
+  it("the second delivery of the same event is a duplicate and records nothing more", async () => {
     await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
     const after = await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
 
@@ -133,10 +125,7 @@ describe("PLANT 2: a replayed deletion records none", () => {
     expect(outcomeRows()).toHaveLength(1);
   });
 
-  it("A DIFFERENT EVENT FOR THE SAME SUBSCRIPTION IS REFUSED BY THE SEQUENCE GUARD", async () => {
-    // Reaching the pre-check alone: a redelivery under a new event id passes
-    // the webhook claim and is stopped by findWinbackSequence, which returns
-    // `winback_exists` and never reaches the outcome.
+  it("a different event for the same subscription is refused by the sequence guard", async () => {
     await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
     const after = await processConnectedWebhook(env, deletedEvent("evt_2"), RECEIVED);
 
@@ -145,15 +134,9 @@ describe("PLANT 2: a replayed deletion records none", () => {
     expect(outcomeRows()).toHaveLength(1);
   });
 
-  it("AND THE `applied` GATE IS REACHED ALONE, through the index the pre-check cannot see", async () => {
-    // THE ASYMMETRY THIS EXPLOITS IS REAL. findWinbackSequence is scoped to the
-    // ACCOUNT, but win_back_sequences_subscription_uq is on stripe_subscription_id
-    // ALONE and is therefore global. So a subscription id already held by
-    // ANOTHER account passes the pre-check and then collides at the index: the
-    // batch rolls back, applied is false, and the branch is reached with no
-    // sequence created. Nothing else in the system can produce that state, and
-    // it is exactly what the gate exists for. Without it a started outcome
-    // would be recorded for a sequence that does not exist.
+  it("the `applied` gate, reached through the index the pre-check cannot see", async () => {
+    // The pre-check is account-scoped but the subscription index is global, so a subscription held by
+    // another account passes the pre-check and collides at the index.
     sqlite
       .prepare("INSERT INTO accounts (id, name, created_at) VALUES ('acct_2', 'Other', 1000)")
       .run();
@@ -166,17 +149,14 @@ describe("PLANT 2: a replayed deletion records none", () => {
     const result = await processConnectedWebhook(env, deletedEvent("evt_1", "sub_1"), RECEIVED);
 
     expect(result).toEqual({ status: "duplicate" });
-    // No sequence was created on THIS account, so no started outcome may exist.
     expect(
       sqlite.prepare("SELECT id FROM win_back_sequences WHERE account_id = ?").all(ACCOUNT),
     ).toEqual([]);
     expect(outcomeRows()).toEqual([]);
   });
 
-  it("AND THE OUTCOME KEY IS THE SECOND LAYER, reached on its own", async () => {
-    // With the sequence row deleted the pre-check cannot refuse, so only the
-    // outcome's own idempotency key can stop a second started row. Each layer
-    // proven alone.
+  it("the outcome key, reached on its own", async () => {
+    // With the sequence row deleted only the outcome's idempotency key can stop a second started row.
     await processConnectedWebhook(env, deletedEvent("evt_1"), RECEIVED);
     sqlite.prepare("DELETE FROM win_back_steps").run();
     sqlite.prepare("DELETE FROM win_back_sequences").run();

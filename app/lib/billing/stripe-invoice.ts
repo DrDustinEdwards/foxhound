@@ -161,13 +161,11 @@ const FINALIZE_PARAMS: Stripe.InvoiceFinalizeInvoiceParams = { auto_advance: tru
 
 /**
  * Creates + finalizes the platform Stripe invoice for one billing_invoices row.
- * The Stripe seam; deferred live to Phase 8.
  *
- * This means a mid-loop failure (line 2 of 3 throws) can never leave an
- * orphaned "pending" item that a LATER period's invoice.create call silently
- * sweeps in, the bug the previous items-then-invoice ordering was exposed to:
- * our own billing_invoices row would say a period was never billed while
- * Stripe's records showed it was, bundled into a different period's invoice.
+ * A mid-loop failure (line 2 of 3 throws) can never leave an orphaned
+ * "pending" item that a LATER period's invoice.create call silently sweeps in:
+ * our billing_invoices row would say a period was never billed while Stripe's
+ * records showed it was, bundled into a different period's invoice.
  */
 export async function createPlatformInvoice(
   env: Env,

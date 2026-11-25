@@ -66,7 +66,6 @@ interface NoticeRow {
   senderName: string | null;
 }
 
-/** The dispute and its account's notice settings, pinned to the account. */
 async function loadNoticeRow(
   env: Env,
   accountId: string,
@@ -162,7 +161,6 @@ function failed(
   return { kind: "error", message };
 }
 
-/** The new-dispute notice, sent once the intake batch has committed. */
 export async function sendDisputeCreatedNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string },
@@ -316,7 +314,6 @@ async function hasStandingApproval(
   return rows.length > 0;
 }
 
-/** One deadline reminder. The cron chose the dispute and the band. */
 export async function sendDisputeReminderNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string; bucket: ReminderBucket; cronRunId: string | null },
@@ -352,7 +349,6 @@ export async function sendDisputeReminderNotice(
   }
 }
 
-/** A dispute's auto-submitted notice's once-only key. */
 function autoSubmittedKey(disputeId: string): string {
   return `dispute-auto-submitted:${disputeId}`;
 }

@@ -57,7 +57,6 @@ export function classifyDecline(code: string | null | undefined): DeclineCategor
   return "unknown";
 }
 
-/** True for a category whose declines can be silently retried (soft/network). */
 export function isRetryable(category: DeclineCategory): boolean {
   return category === "soft" || category === "network";
 }

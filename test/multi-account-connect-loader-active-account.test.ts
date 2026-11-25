@@ -5,21 +5,8 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SESSION 61, phase (c): the /connect LOADER half of the query re-audit's
-// non-money DEFECTS. The theme pair is in
-// multi-account-theme-active-account.test.ts.
-//
-// EACH ONE IS A SHIM CALLER. `resolveMembership` is the null-marker shim, which
-// resolves the EARLIEST membership and ignores the session marker. That was
-// invisible until phase (e) shipped a switcher, because the earliest and the
-// active membership could not differ. They can now, so every one of these reads
-// or writes the wrong account for a merchant who has switched.
-//
-// TWO ACCOUNTS IN EVERY FIXTURE: an account-scope pin is
-// unprovable with one, because every wrong answer is also the right one.
-//
-// The marked account is deliberately the SECOND by createdAt, so no plant here
-// can pass by accident on the shim's own ordering.
+// The /connect loader must describe the session's active account, not the earliest membership. Two
+// accounts per fixture, the active one second by createdAt, so the shim's ordering cannot pass by accident.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -102,12 +89,8 @@ function signedInRequest(init?: RequestInit): Request {
   return new Request("https://foxhoundapp.test/connect", { ...init, headers });
 }
 
-describe("DEFECT 3: /connect's loader described the earliest account, not the active one", () => {
+describe("/connect loader names the active account", () => {
   it("reports the MARKED account name on the page that grants Stripe access", async () => {
-    // The action this loader renders starts an OAuth flow whose callback
-    // attaches to the ACTIVE account (connect-callback.ts:223). The
-    // loader named a different one, so the screen where a merchant grants a
-    // live payment processor told them the wrong merchant it was for.
     const result = (await connectLoader({
       request: signedInRequest(),
       context: fakeContext,
@@ -121,9 +104,6 @@ describe("DEFECT 3: /connect's loader described the earliest account, not the ac
   });
 
   it("reports the MARKED account connection state, not the earliest one", async () => {
-    // hasConnection is read per account. The earliest holds a live connection
-    // and the marked one holds none, so the shim showed "already connected" for
-    // an account with nothing attached.
     sqlite
       .prepare(
         "INSERT INTO stripe_connections (id, account_id, stripe_user_id, stripe_access_token, connected_at, created_at) VALUES (?, ?, ?, ?, ?, ?)",

@@ -71,10 +71,6 @@ export function buildEmailSendRow(
   });
 }
 
-// Live-send gate: a per-account flag, default OFF, checked here because this is where the send happens.
-// Without it every eligible account would mail at once the day PHYSICAL_ADDRESS is set. A blocked send
-// is reported as a transient failure (no mail left), so sendResultToAttempt retries it with backoff.
-
 /**
  * Process one email job: suppression gate, then send, then log. A suppressed recipient is a terminal
  * success (no send, no retry); a send failure is retryable.
@@ -103,7 +99,7 @@ export async function processEmailJob(
     return { status: "suppressed", providerMessageId: null, error: null, retryable: false };
   }
 
-  // Live-send gate: after suppression, before the send. Preview mail (own address, no customer) and
+  // Live-send gate (per-account flag, default OFF: without it every eligible account would mail at once). Preview mail (own address, no customer) and
   // jobs marked liveSendGate "skip" (platform-to-merchant mail) are not held.
   if (job.audience !== "preview" && job.liveSendGate !== "skip" && !gate.liveSends(job)) {
     await logSend(db, {

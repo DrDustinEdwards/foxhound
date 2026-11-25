@@ -1,5 +1,5 @@
 // /admin/merchants data layer: list + figures + detail (read-only) and the
-// money-adjacent write actions (Pass 2): billing_exempt / processing_paused
+// money-adjacent write actions: billing_exempt / processing_paused
 // toggles and merchant cancel/disconnect. Adjustment creation lives in
 // app/lib/billing/adjustment.ts (it flows through the billing ledger, not this
 // file).

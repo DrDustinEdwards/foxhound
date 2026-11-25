@@ -10,12 +10,7 @@ import {
 
 import { RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
 
-// Single source of truth for the site's public origin and the JSON-LD builders used across
-// marketing pages (TASK-foxhound-phase6.md SITE_URL discipline). Every absolute URL (JSON-LD @id,
-// canonical links) must derive from siteUrl(env), never a hardcoded domain. env.BETTER_AUTH_URL now
-// resolves to https://foxhoundapp.com; the fallback below only matters if that var is ever unset.
-// siteUrl(env) is the only function here that touches Env (it's called once, in a route loader).
-
+// Every absolute URL (JSON-LD @id, canonical links) derives from siteUrl(env), never a hardcoded domain.
 /** The production origin, for code that has no Env to ask (and siteUrl's
  *  fallback). Anything that can read Env uses siteUrl(env). */
 export const SITE_ORIGIN = "https://foxhoundapp.com";
@@ -24,8 +19,6 @@ export function siteUrl(env: Env): string {
   return env.BETTER_AUTH_URL || SITE_ORIGIN;
 }
 
-// Single source of truth for the support contact address, used in JSON-LD (organizationJsonLd
-// below) and in page copy (about.tsx, privacy.tsx, terms.tsx).
 export const SUPPORT_EMAIL = "support@foxhoundapp.com";
 
 // Foxhound operates as Dustin Edwards personally (sole proprietor) until Foxing LLC forms (no date is
@@ -94,8 +87,6 @@ export function websiteJsonLd(url: string) {
   });
 }
 
-// Built now per TASK-foxhound-phase6.md; used more heavily once /blog ships
-// in Pass 2 (author bylines) and on /about in this pass.
 export function personJsonLd(
   url: string,
   opts: { name: string; jobTitle: string; description: string; sameAs?: string[] },
@@ -111,7 +102,7 @@ export function personJsonLd(
   });
 }
 
-// Built for /blog/:slug (Pass 2). @type is BlogPosting (the Article family
+// Built for /blog/:slug. @type is BlogPosting (the Article family
 // member Google's Rich Results docs recommend for blog content specifically).
 // author resolves to the existing Person entity (personJsonLd on /about) by
 // @id when the stored author name is Dustin Edwards, so the two structured

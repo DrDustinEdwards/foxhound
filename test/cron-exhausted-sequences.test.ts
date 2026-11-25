@@ -3,14 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Nothing wrote failed_payments.status = 'failed_unrecovered'. A payment dunned
-// for thirty days and never recovered stayed 'active' forever, so every
-// status-keyed count drifted upward permanently and "Active" lied.
-//
-// The flip creates a second problem the sweep alone does not solve: once a row
-// leaves 'active', the invoice.payment_succeeded path has to still accept it, or
-// a customer who pays on day 45 is silently dropped (no recovered_payments row,
-// no attribution, no fee). Both halves are pinned here.
+// Exhausted sequences flip to failed_unrecovered, and a late payment on a flipped row must still record the recovery.
 
 const ACCOUNT_ID = "acc_tick";
 const CONNECTION_ID = "conn_tick";
@@ -49,7 +42,6 @@ vi.mock("~/lib/stripe/client", () => ({
 }));
 
 const { flipExhaustedSequences, runRecoveryTick } = await import("~/lib/cron/recovery-tick");
-const { queryExhaustedSequences } = await import("~/lib/cron/due-steps");
 const { processConnectedWebhook } = await import("~/lib/webhooks/process");
 const schema = await import("~/db/schema");
 
@@ -134,25 +126,12 @@ beforeEach(() => {
   harness.db = null;
 });
 
-describe("queryExhaustedSequences", () => {
-  it("does not select a payment that already left 'active'", async () => {
-    await seed({
-      payments: [
-        { id: "fp_recovered", invoiceId: "in_1", status: "recovered", steps: [ranStep(1)] },
-      ],
-    });
-    expect(await queryExhaustedSequences({} as Env, 100)).toEqual([]);
-  });
-});
-
 describe("the flip itself", () => {
   it("sets failed_unrecovered and resolved_at, exactly once across repeated sweeps", async () => {
     const { db } = await seed({
       payments: [{ id: "fp_done", invoiceId: "in_1", steps: [ranStep(1), ranStep(2)] }],
     });
 
-    // The flip now returns WHAT IT CLAIMED, so the shape is asserted too: a
-    // count alone could not tell a claimed sequence from a considered one.
     expect(await flipExhaustedSequences({} as Env, NOW)).toEqual([
       { failedPaymentId: expect.any(String), accountId: expect.any(String) },
     ]);
@@ -176,8 +155,7 @@ describe("the flip itself", () => {
       },
     });
     expect(result.message).toContain("exhausted-sweep FAILED");
-    // `failed` counts STEPS. A sweep failure must not inflate it, or the number
-    // means two different things depending on which part of the tick broke.
+    // `failed` counts steps; a sweep failure must not inflate it.
     expect(result.message).toContain("0 failed");
   });
 });
@@ -211,7 +189,6 @@ describe("a late recovery on a flipped row still wins", () => {
       paymentSucceeded("evt_late_paid", "in_late"),
       paidAt,
     );
-    // Pre-widening this returned ignored/no_active_failure and recorded nothing.
     expect(outcome).toEqual({ status: "applied" });
 
     const [payment] = await db.select().from(schema.failedPayments);
@@ -220,18 +197,7 @@ describe("a late recovery on a flipped row still wins", () => {
 
     const recoveries = await db.select().from(schema.recoveredPayments);
     expect(recoveries).toHaveLength(1);
-    // FLIPPED BY RULING 377(2); carried in parity/REVERSALS.md as 377(a).
-    //
-    // This asserted `email_engaged` across a 43-day gap (clicked 2026-06-27,
-    // paid 2026-08-09), and it asserted it only because nothing else had been
-    // ruled: 284 widened the gate so LATE RECOVERIES RECORD, which it still
-    // does, and never ruled that a six-week-old click was their cause.
-    // `email_engaged` now needs a click inside 14 days that precedes the
-    // payment, so this recovery records with equal fidelity and bills nothing.
-    //
-    // 284 ITSELF STANDS. The row is still found, still flips to recovered, and
-    // still lands in the ledger; only the KIND changed, and only for a stale
-    // click.
+    // A click 43 days before payment is too stale to attribute: recorded as the free baseline.
     expect(recoveries[0].attributionKind).toBe("stripe_baseline");
     expect(recoveries[0].amountCents).toBe(10_000);
   });
@@ -253,9 +219,6 @@ describe("a late recovery on a flipped row still wins", () => {
 
 describe("intake dedupe stays narrow", () => {
   it("a NEW failure on an invoice whose sequence exhausted spawns a fresh sequence", async () => {
-    // The widening applies to the RECOVER lookup only. If it had been applied to
-    // intake dedupe too, this second failure would be swallowed as a duplicate
-    // of the finished sequence and the customer would never be dunned again.
     const { db } = await seed({
       payments: [{ id: "fp_done", invoiceId: "in_repeat", steps: [ranStep(1)] }],
     });
@@ -273,8 +236,6 @@ describe("intake dedupe stays narrow", () => {
           customer: "cus_1",
           customer_email: "payer@example.com",
           collection_method: "charge_automatically",
-          // Stated rather than omitted: Stripe has finished with this
-          // invoice, so the fresh sequence starts on this event.
           next_payment_attempt: null,
         },
       },

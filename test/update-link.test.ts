@@ -1,8 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-// The template is mocked to LOSE the link, which it never does in production,
-// so the last line of defense is reached on its own: with no linked copy to
-// fall back to, nothing is sent at all.
+// The template is mocked to lose the link: with no linked copy to fall back to, nothing is sent.
 vi.mock("~/lib/recovery/email-template", () => ({
   buildTemplateEmail: () => ({ subject: "Plain", bodyHtml: "<p>No link here.</p>" }),
 }));

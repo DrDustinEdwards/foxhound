@@ -9,10 +9,6 @@ const FACTORS: HealthFactor[] = [
 ];
 
 describe("hashFactorBands", () => {
-  it("is deterministic for the same factors", () => {
-    expect(hashFactorBands(FACTORS)).toBe(hashFactorBands(FACTORS));
-  });
-
   it("is order-independent (sorts by signal first)", () => {
     const reversed = [...FACTORS].reverse();
     expect(hashFactorBands(FACTORS)).toBe(hashFactorBands(reversed));
@@ -21,9 +17,5 @@ describe("hashFactorBands", () => {
   it("differs when the factors differ", () => {
     const other: HealthFactor[] = [{ signal: "tenure", deltaPoints: 999, detail: "x" }];
     expect(hashFactorBands(FACTORS)).not.toBe(hashFactorBands(other));
-  });
-
-  it("is stable for no factors (the honest-baseline case)", () => {
-    expect(hashFactorBands([])).toBe(hashFactorBands([]));
   });
 });

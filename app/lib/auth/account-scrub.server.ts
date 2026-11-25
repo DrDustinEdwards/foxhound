@@ -48,7 +48,6 @@ import {
 // What counts as fee evidence. Each is a correlated EXISTS on the outer row's
 // column, which is false (never NULL) when that column is NULL.
 
-/** A failed payment is evidence when a recovery was recorded against it. */
 function paymentRecovered(db: Db, failedPaymentId: AnySQLiteColumn): SQL {
   return exists(
     db
@@ -77,7 +76,6 @@ function stepKept(db: Db, stepId: AnySQLiteColumn): SQL {
   );
 }
 
-/** A send is evidence when its step is. */
 function sendKept(db: Db, sendId: AnySQLiteColumn): SQL {
   return exists(
     db
@@ -92,9 +90,6 @@ function sendKept(db: Db, sendId: AnySQLiteColumn): SQL {
   );
 }
 
-/**
- * A dispute was billed when any line item points at it (a fee or its credit).
- */
 function disputeBilled(db: Db, disputeId: AnySQLiteColumn): SQL {
   return exists(
     db

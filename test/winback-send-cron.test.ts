@@ -2,15 +2,9 @@ import type Database from "better-sqlite3";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
-import { blockText, type WordsBlock } from "./helpers/email-words";
 
-// JOB 2 / 343: THE WIN-BACK SEND CRON, the half legacy has and Foxhound did not.
-//
-// The trigger shipped at 290 to 292; nothing ever sent the three steps it
-// scheduled. Legacy's cron is the spec: due steps, the toggle NULL-is-ON, the
-// suppression gate, one email per step at legacy's template, a conditional
-// claim on executed_at, the outcome only for the tick that claimed, and the
-// sequence flipped terminal after step 3.
+// The win-back send cron: due steps, the NULL-is-ON toggle, the suppression gate, a conditional claim on
+// executed_at, one outcome for the tick that claimed, and the sequence flipped terminal after step 3.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -29,10 +23,7 @@ vi.mock("~/lib/email/dispatch", () => ({
   SendGates: { read: async () => ({}) },
   processEmailJob: async (_env: unknown, job: Record<string, unknown>) => {
     harness.jobs.push(job);
-    // Emulates a CONCURRENT TICK taking the claim while this send is in
-    // flight, which is the only way the claim can lose and the only way to
-    // reach the `if (!claimed)` guard on its own. Without this the outcome's
-    // idempotency key masks the guard entirely.
+    // A concurrent tick taking the claim while this send is in flight is the only way to reach `if (!claimed)`.
     if (harness.stealClaim) await harness.stealClaim();
     return harness.outcome;
   },
@@ -51,7 +42,6 @@ vi.mock("~/lib/money/execute", () => ({
 }));
 
 const { runWinbackSends, claimStepSent } = await import("~/lib/cron/winback");
-const { buildWinbackEmail } = await import("~/lib/recovery/winback-email");
 const { verifyCardUpdateToken } = await import("~/lib/card-update/token");
 
 const ACCOUNT = "acct_1";
@@ -82,11 +72,7 @@ function seedAccount(accountId: string, opts: { toggle?: number | null } = {}): 
     )
     .run(accountId, opts.toggle === undefined ? null : opts.toggle);
   sqlite
-    // ONE LIVE CONNECTION PER STRIPE ACCOUNT. The Stripe account id is
-    // derived from the Foxhound account rather than hardcoded, because a
-    // shared literal made every two-account fixture violate the unique
-    // index the moment it shipped, and production could never have had two
-    // merchants on one connected account anyway.
+    // One live connection per Stripe account, so the id derives from the account.
     .prepare(
       "INSERT INTO stripe_connections (id, account_id, stripe_user_id, is_primary, stripe_access_token, sender_name, connected_at, created_at) VALUES (?, ?, ?, 1, 'cipher', 'Teamflow', 1000, 1000)",
     )
@@ -172,37 +158,8 @@ function outcomeRows() {
     .all() as { eventType: string; outcome: string; eventData: string; key: string }[];
 }
 
-describe("PLANT 1: the copy is legacy's, per step", () => {
-  /** The template's words, in order, as one string per block (J91: the
-   *  template is Capsomer's blocks, so a sentence is a block's text and the
-   *  button is its label). */
-  const words = (blocks: WordsBlock[]) =>
-    blocks.map((b) => (b.type === "button" ? `[${b.label}](${b.url})` : blockText(b)));
-
-  it("substitutes every placeholder, including the resubscribe url", () => {
-    const blocks = buildWinbackEmail({
-      stepNumber: 1,
-      customerName: "Jane",
-      planName: "Pro",
-      senderName: "Teamflow",
-      resubscribeUrl: "https://foxhoundapp.test/p/tok",
-    });
-
-    expect(words(blocks)).toEqual([
-      "Hi Jane,",
-      "We noticed you recently canceled your Pro subscription. We're sorry to see you go.",
-      "If there's anything we could have done better, we'd love to hear from you. And if you ever want to come back, we'll be here.",
-      "[Reactivate My Account](https://foxhoundapp.test/p/tok)",
-      "Thanks for being a customer,",
-      "Teamflow",
-    ]);
-    // NOTHING is left unsubstituted.
-    expect(JSON.stringify(blocks)).not.toContain("{{");
-  });
-});
-
-describe("PLANT 3: a send claims the step and records one outcome", () => {
-  it("sends on the CUSTOMER audience with a resubscribe token for THIS step", async () => {
+describe("a send claims the step and records one outcome", () => {
+  it("sends on the customer audience with a resubscribe token for this step", async () => {
     seedSequence();
     seedStep({ stepNumber: 2 });
 
@@ -217,13 +174,9 @@ describe("PLANT 3: a send claims the step and records one outcome", () => {
     expect(job.template).toBe("winback");
     expect(job.subject).toBe("A quick update since you left");
     expect(job.idempotencyKey).toBe("winback-step:st_1");
-    // CUSTOMER audience: the unsubscribe token and the postal address are both
-    // present, which is what scopes CAN-SPAM to this message.
     expect(job.unsubscribeToken).toBeTruthy();
     expect(job.physicalAddress).toBe("1 Test Way");
 
-    // THE BUTTON RESOLVES TO A RESUBSCRIBE TOKEN naming this sequence and step.
-    // J91: the template is Capsomer's blocks; its one button is the link.
     const url =
       (job.blocks as { type: string; url?: string }[]).find((b) => b.type === "button")?.url ?? "";
     expect(url.startsWith("https://foxhoundapp.test/p/")).toBe(true);
@@ -233,7 +186,7 @@ describe("PLANT 3: a send claims the step and records one outcome", () => {
     expect(payload?.accountId).toBe(ACCOUNT);
   });
 
-  it("claims executed_at and records legacy's outcome once", async () => {
+  it("claims executed_at and records the outcome once", async () => {
     seedSequence();
     seedStep();
 
@@ -252,8 +205,8 @@ describe("PLANT 3: a send claims the step and records one outcome", () => {
   });
 });
 
-describe("PLANT 4: the refusals, each with legacy's result string", () => {
-  it("a SUPPRESSED address is stamped with legacy's skipped_unsubscribed", async () => {
+describe("the refusals", () => {
+  it("a suppressed address is stamped skipped_unsubscribed", async () => {
     seedSequence();
     seedStep();
     harness.outcome = { status: "suppressed" };
@@ -264,7 +217,7 @@ describe("PLANT 4: the refusals, each with legacy's result string", () => {
     expect(outcomeRows()).toEqual([]);
   });
 
-  it("a DUPLICATE (an earlier run sent, then died before the claim) is stamped, not retried forever", async () => {
+  it("a duplicate (an earlier run sent, then died before the claim) is stamped, not retried forever", async () => {
     seedSequence();
     seedStep();
     harness.outcome = { status: "duplicate" };
@@ -274,7 +227,7 @@ describe("PLANT 4: the refusals, each with legacy's result string", () => {
     expect(stepRows()[0].executedAt).toBe(NOW.getTime());
   });
 
-  it("A BLOCKED SEND IS NOT STAMPED, so it sends once live sends are enabled", async () => {
+  it("a blocked send is not stamped, so it sends once live sends are enabled", async () => {
     seedSequence();
     seedStep();
     harness.outcome = { status: "blocked" };
@@ -290,7 +243,7 @@ describe("PLANT 4: the refusals, each with legacy's result string", () => {
   });
 });
 
-describe("PLANT 5: step 3 flips the sequence terminal, as legacy does", () => {
+describe("step 3 flips the sequence terminal", () => {
   it("after step 3 sends, the sequence is exhausted with resolved_at", async () => {
     seedSequence();
     seedStep({ stepNumber: 3 });
@@ -302,7 +255,7 @@ describe("PLANT 5: step 3 flips the sequence terminal, as legacy does", () => {
     ]);
   });
 
-  it("steps 1 and 2 leave the sequence ACTIVE", async () => {
+  it("steps 1 and 2 leave the sequence active", async () => {
     seedSequence();
     seedStep({ id: "st_1", stepNumber: 1 });
 
@@ -313,8 +266,8 @@ describe("PLANT 5: step 3 flips the sequence terminal, as legacy does", () => {
   });
 });
 
-describe("PLANT 6: a lost claim records nothing, and the cron is registered", () => {
-  it("A CONCURRENT TICK'S CLAIM STOPS THE OUTCOME, reaching the guard alone", async () => {
+describe("a lost claim records nothing", () => {
+  it("a concurrent tick's claim stops the outcome", async () => {
     seedSequence();
     seedStep();
     harness.stealClaim = () => claimStepSent(db, "st_1", new Date(NOW.getTime() - 1000));

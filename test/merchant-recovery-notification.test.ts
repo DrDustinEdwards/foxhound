@@ -3,12 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// THE MERCHANT RECOVERY NOTIFICATION, ported from legacy's stripe webhook
-// (blob deb585e4), the "Notify merchant" block in handlePaymentSucceeded.
-//
-// EVERY PLANT OBSERVES email_sends OR THE SENT MESSAGE, never a helper's return
-// value: the point of this engine is that a real email leaves, and a mutation
-// that detaches the hook has to go red at the table.
+// Every case observes email_sends or the sent message, so a detached hook goes red at the table.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -92,28 +87,24 @@ function sendRows() {
     .all(ACCOUNT) as { status: string; template: string | null; error: string | null }[];
 }
 
-describe("PLANT 1: a recovery with the toggle NULL sends one email", () => {
-  it("falls back to the customer EMAIL when there is no name, as legacy does", async () => {
+describe("a recovery with the toggle NULL sends one email", () => {
+  it("falls back to the customer EMAIL when there is no name", async () => {
     seed({ enabled: null, customerName: null });
     await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
     expect(harness.sent[0].subject).toBe("Payment recovered: $99.00 from buyer@acme.test");
   });
 });
 
-describe("PLANT 2: the toggle and the recipient are legacy's", () => {
+describe("the toggle and the recipient gate the send", () => {
   it("FALSE sends nothing and logs nothing", async () => {
     seed({ enabled: 0 });
     const result = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
-    // A named REFUSAL, not a swallowed crash. The two used to look identical.
     expect(result).toEqual({ kind: "skipped", reason: "disabled" });
     expect(harness.sent).toHaveLength(0);
     expect(sendRows()).toHaveLength(0);
   });
 
-  it("NO notification email means NO send, and legacy has no owner fallback", async () => {
-    // Legacy's guard is `if (notifyEmail && ...)`. An account that never set one
-    // is simply not notified; inventing a fallback would mail an address the
-    // merchant never nominated.
+  it("no notification email means no send, with no owner fallback", async () => {
     seed({ notificationEmail: null, enabled: null });
     const result = await sendRecoveryNotification(env, { accountId: ACCOUNT, failedPaymentId: FP });
     expect(result).toEqual({ kind: "skipped", reason: "no_recipient" });
@@ -122,7 +113,7 @@ describe("PLANT 2: the toggle and the recipient are legacy's", () => {
   });
 });
 
-describe("PLANT 3: the demo refusal is the same gate every send meets", () => {
+describe("an account without live sends", () => {
   it("an account without live sends is blocked, and the block is logged", async () => {
     seed({ enabled: null, liveSends: 0 });
 
@@ -137,7 +128,7 @@ describe("PLANT 3: the demo refusal is the same gate every send meets", () => {
   });
 });
 
-describe("PLANT 9: the cases a single happy fixture cannot reach", () => {
+describe("scoping and failure", () => {
   it("a payment on ANOTHER account is not found, so the read is account-scoped", async () => {
     seed({ enabled: null });
     sqlite
@@ -146,7 +137,6 @@ describe("PLANT 9: the cases a single happy fixture cannot reach", () => {
       )
       .run();
 
-    // The payment exists; it just is not this account's.
     const result = await sendRecoveryNotification(env, {
       accountId: "acct_other",
       failedPaymentId: FP,
@@ -157,9 +147,6 @@ describe("PLANT 9: the cases a single happy fixture cannot reach", () => {
   });
 
   it("a DATABASE failure is caught and named, never thrown at the webhook", async () => {
-    // processEmailJob swallows send errors itself, so only a failure BEFORE it
-    // exercises the outer catch. That catch is the reason a mail problem cannot
-    // unwind a committed recovery or fail the webhook.
     harness.db = {
       select() {
         throw new Error("d1 exploded");

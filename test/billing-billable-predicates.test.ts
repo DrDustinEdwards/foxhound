@@ -6,12 +6,7 @@ import { seedDemoAccount } from "~/lib/demo/seed";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// TASK-foxhound-demo-engine-review-fixes.md M-2: the row-level billable rules
-// used to be hand-rolled twice (app/db/billable.ts's SQL and a drifted inline
-// filter in app/lib/demo/seed.ts). Both now consume the same pure predicates
-// in app/lib/billing/billable-predicates.ts. These tests cover the predicates
-// directly (including the fail-closed property the allow-list exists for) and
-// cross-check that the seeded ledger is exactly what the predicates select.
+// The seeded demo ledger holds exactly what the billable predicates select.
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 const ACCOUNT_ID = "demo_teamflow";

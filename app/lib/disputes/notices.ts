@@ -12,7 +12,6 @@ export const DISPUTE_REMINDER_TEMPLATE = "merchant_dispute_reminder";
 export const DISPUTE_OUTCOME_TEMPLATE = "merchant_dispute_outcome";
 export const DISPUTE_AUTO_SUBMITTED_TEMPLATE = "merchant_dispute_auto_submitted";
 
-/** The platform's From name, as on the recovery notification. */
 export const DISPUTE_NOTICE_FROM_NAME = "Foxhound";
 
 export function noticeCustomerLabel(name: string | null, email: string | null): string {
@@ -24,7 +23,6 @@ export interface ReminderBucket {
   daysLeft: 3 | 1;
 }
 
-/** The two bands, as hours before the evidence deadline. */
 export const REMINDER_BANDS: readonly (ReminderBucket & { fromHours: number; toHours: number })[] =
   [
     { eventType: "dispute_reminder_3d", daysLeft: 3, fromHours: 72, toHours: 96 },
@@ -76,7 +74,6 @@ export function nextDisputeBillingRun(resolvedAt: Date): Date {
   return new Date(Date.UTC(y, m + 1, day, hour, minute));
 }
 
-/** A notice on Capsomer's `notice` template: the subject and the notice. */
 export interface NoticeMail {
   subject: string;
   notice: EmailNotice;
@@ -102,7 +99,6 @@ export interface CreatedNoticeInput {
   evidenceDeadline: Date | null;
   disputeUrl: string;
   triage?: { recommendation: string; confidence: number | null; reasoning: string | null } | null;
-  /** The account's auto-submit setting (accounts.dispute_auto_submit). */
   autoSubmit: boolean;
 }
 
@@ -146,7 +142,6 @@ export interface ReminderNoticeInput {
    * submission was refused, is in flight, or was never confirmed.
    */
   approved: boolean;
-  /** The account's auto-submit setting (accounts.dispute_auto_submit). */
   autoSubmit: boolean;
 }
 
@@ -155,7 +150,6 @@ const REMINDER_ACTION_LINE =
 const REMINDER_AUTO_LINE =
   "Auto-submit is on. We will submit at the 24-hour mark using the staged evidence unless you cancel or override it.";
 
-/** The line for an approved dispute Stripe has not confirmed as submitted. */
 const REMINDER_APPROVED_LINE =
   "Your evidence is approved, but Stripe has not confirmed the submission. Check this dispute in Stripe, or open it in Foxhound to submit it again.";
 
@@ -209,7 +203,6 @@ export interface OutcomeNoticeInput {
   amountCents: number;
   currency: string;
   reason: string;
-  /** Foxhound submitted the evidence (disputes.submitted_at set). */
   foxhoundSubmitted: boolean;
   /**
    * The fee the resolution writer snapshotted, or null when none is owed

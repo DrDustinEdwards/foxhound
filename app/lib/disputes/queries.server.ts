@@ -34,8 +34,8 @@ import {
 } from "~/lib/disputes/submission";
 import { isUniqueConstraintError } from "~/lib/money/serializer";
 
-// Disputes read models + the plain (non-money) evidence-edit write (Phase 5
-// slice 5c). Every query is account-scoped.
+// Disputes read models + the plain (non-money) evidence-edit write. Every
+// query is account-scoped.
 
 export type DisputeRow = typeof disputes.$inferSelect;
 export type DisputeEvidenceRow = typeof disputeEvidence.$inferSelect;

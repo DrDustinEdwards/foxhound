@@ -48,7 +48,7 @@ export function resolveRateLimitBinding(request: Request): RateLimitRule | null 
   return null;
 }
 
-export function rateLimitedResponse(retryAfterSeconds: number): Response {
+function rateLimitedResponse(retryAfterSeconds: number): Response {
   return new Response(JSON.stringify({ error: "Too many requests. Please try again shortly." }), {
     status: 429,
     headers: {

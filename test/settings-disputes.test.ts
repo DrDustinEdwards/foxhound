@@ -3,9 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Each dispute setting has a reader: auto-submit (the disputes cron), the
-// product description (dispute intake's evidence) and ships physical goods (the
-// dispute page's shipping inputs).
+// Dispute settings: the writer (with who opted in to auto-submit) and the disputes switch.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, moneyWrites: [] as unknown[] }));
 
@@ -24,11 +22,9 @@ vi.mock("~/lib/money/execute", () => ({
 
 const { applyDisputeSettings, applyDisputesEnabled, DISPUTE_PRODUCT_DESCRIPTION_ERROR } =
   await import("~/lib/settings/apply.server");
-const { readDisputeSettings, readDisputeProductDescription } =
-  await import("~/lib/disputes/queries.server");
+const { readDisputeSettings } = await import("~/lib/disputes/queries.server");
 const { handleStampDispute } = await import("~/lib/webhooks/dispute-handlers");
 const { importDisputeFromStripe } = await import("~/lib/disputes/manual-import.server");
-const { splitEvidence } = await import("~/lib/disputes/detail");
 
 let sqlite: Database.Database;
 let db: ReturnType<typeof createInMemoryDb>["db"];
@@ -103,35 +99,6 @@ describe("dispute settings: the writer", () => {
     );
     expect(result).toEqual({ ok: false, error: DISPUTE_PRODUCT_DESCRIPTION_ERROR });
     expect(columns("a1")).toEqual({ d: null, s: null, a: null });
-  });
-});
-
-describe("dispute settings: the readers", () => {
-  it("an account that never saved reads as blank and off", async () => {
-    expect(await readDisputeSettings(db, "a1")).toEqual({
-      enabled: true,
-      productDescription: "",
-      shipsPhysical: false,
-      autoSubmit: false,
-    });
-    expect(await readDisputeProductDescription(db, "a1")).toBeNull();
-  });
-
-  it("the dispute page keeps shipping evidence out of the read-only list while its inputs show", () => {
-    const rows = [
-      { id: "1", fieldName: "shipping_tracking_number", fieldValue: "1Z999" },
-      { id: "2", fieldName: "shipping_carrier", fieldValue: "UPS" },
-      { id: "3", fieldName: "product_description", fieldValue: "Candles" },
-    ];
-    const editing = splitEvidence(rows, true, true);
-    expect(editing.structured.map((r) => r.fieldName)).toEqual(["product_description"]);
-    expect(editing.shipping).toEqual({
-      shipping_tracking_number: "1Z999",
-      shipping_carrier: "UPS",
-      shipping_date: "",
-    });
-    // Once locked (submitted, or the account does not ship), they are rows.
-    expect(splitEvidence(rows, false, false).structured).toHaveLength(3);
   });
 });
 

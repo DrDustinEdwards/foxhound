@@ -21,8 +21,7 @@ import { getCustomerActivity } from "~/lib/intelligence/views.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The route loader runs against an in-memory database in the sync-shaped test
-// below; every other test passes its database explicitly.
+// The route loader runs against an in-memory database.
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/db")>()),
@@ -331,9 +330,7 @@ function text(html: string): string {
     .trim();
 }
 
-// The nightly sync writes customer_context.last_seen_at as its own time for every
-// customer, so the column is not when the customer was last seen. These rows are
-// shaped the way the sync writes them.
+// last_seen_at is the sync time, not when the customer was last seen.
 describe("'Last seen' on rows shaped the way the sync writes them", () => {
   const SYNC = new Date(NOW - 3 * 3_600_000); // tonight's run, 03:00 earlier today
 

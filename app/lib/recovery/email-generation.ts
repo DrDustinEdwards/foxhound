@@ -391,7 +391,7 @@ function buildSystemPrompt(brandVoice: string, samples: readonly string[]): stri
  * customer explicitly revoked authorization, so the note must offer a clean cancel-or-update choice
  * rather than dun them.
  */
-export function categoryGuidance(declineCategory: string): string | null {
+function categoryGuidance(declineCategory: string): string | null {
   if (declineCategory === "revoked") {
     return [
       "IMPORTANT FRAMING: the customer has revoked authorization for this recurring",

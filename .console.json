@@ -1,7 +1,7 @@
 {
   "baseline": {
-    "measured_at": "53dabc2",
-    "calls": 132,
+    "measured_at": "25f1a7a",
+    "calls": 131,
     "files": {
       "app/lib/admin-api/handler.server.ts": 2,
       "app/lib/admin/brake.server.ts": 1,
@@ -46,7 +46,6 @@
       "app/lib/recovery/email-generation.ts": 1,
       "app/lib/recovery/manual-actions.server.ts": 6,
       "app/lib/recovery/merchant-notification.server.ts": 1,
-      "app/lib/recovery/sequence-complete-notification.server.ts": 1,
       "app/lib/stripe/account-health.server.ts": 1,
       "app/lib/stripe/deauthorize-retry.server.ts": 3,
       "app/lib/stripe/reads.ts": 1,

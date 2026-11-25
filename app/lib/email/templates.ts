@@ -205,7 +205,7 @@ function beforeBodyEnd(html: string, markup: string): string {
   return at === -1 ? `${html}${markup}` : `${html.slice(0, at)}${markup}${html.slice(at)}`;
 }
 
-export function appendOpenPixel(html: string, openUrl: string): string {
+function appendOpenPixel(html: string, openUrl: string): string {
   const src = escapeHtml(checkUrl(openUrl));
   return beforeBodyEnd(html, `<img src="${src}" width="1" height="1" alt="" style="display:none">`);
 }

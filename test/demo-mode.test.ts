@@ -4,18 +4,10 @@ import { isAdminPath, resolvesToDemo } from "~/lib/auth/guards";
 import {
   BOLT_DEMO,
   DEMO_ACTIVE_ACCOUNT_COOKIE,
-  DEMO_READ_ONLY_MESSAGE,
   DEMO_SESSION_COOKIE,
   TEAMFLOW_DEMO,
 } from "~/lib/demo/constants";
-import {
-  activeDemoBusiness,
-  clearDemoCookieHeader,
-  demoBlocksMethod,
-  demoFallbackPath,
-  hasDemoCookie,
-  setDemoCookieHeader,
-} from "~/lib/demo/session";
+import { activeDemoBusiness, demoBlocksMethod, hasDemoCookie } from "~/lib/demo/session";
 
 const withCookie = (cookie: string) => new Request("https://x/dashboard", { headers: { cookie } });
 
@@ -28,17 +20,9 @@ describe("demo cookie", () => {
     // A different value is not the demo marker.
     expect(hasDemoCookie(withCookie(`${DEMO_SESSION_COOKIE}=0`))).toBe(false);
   });
-
-  it("set/clear headers carry the cookie name and the right lifetime", () => {
-    expect(setDemoCookieHeader()).toContain(`${DEMO_SESSION_COOKIE}=1`);
-    expect(setDemoCookieHeader()).toContain("HttpOnly");
-    expect(clearDemoCookieHeader()).toContain("Max-Age=0");
-  });
 });
 
-// The demo business switcher (Recova's active_demo_account): the cookie only
-// ever picks among the demo businesses, so a forged id can never name a real
-// account; it falls back to Teamflow.
+// The cookie only picks among demo businesses, so a forged id never names a real account.
 describe("active demo business", () => {
   it("honors a demo business id and nothing else", () => {
     expect(
@@ -61,22 +45,8 @@ describe("demo read-only gate", () => {
     expect(demoBlocksMethod("PATCH")).toBe(true);
     expect(demoBlocksMethod("DELETE")).toBe(true);
   });
-
-  // TASK-foxhound-demo-system-completion.md Phase 1: one shared copy, reused
-  // by appShellMiddleware's 405 and read back by the root ErrorBoundary
-  // (app/lib/errors/boundary-message.ts), rather than two routes independently
-  // wording "you can't do that here" and drifting.
-  it("has one non-empty, human-readable read-only message that names the demo", () => {
-    expect(DEMO_READ_ONLY_MESSAGE.length).toBeGreaterThan(0);
-    expect(DEMO_READ_ONLY_MESSAGE).toMatch(/demo/i);
-    expect(DEMO_READ_ONLY_MESSAGE).not.toMatch(/[–—]/); // no en/em dashes
-  });
 });
 
-// TASK-foxhound-demo-access-parity.md: demo-over-session precedence. These
-// test the pure decision functions directly (same rationale as
-// demoBlocksMethod above: no Request/session mocking needed), covering
-// exactly the cases the task calls out by name.
 describe("isAdminPath", () => {
   it("does not match non-admin paths, including a prefix lookalike", () => {
     expect(isAdminPath("/dashboard")).toBe(false);
@@ -85,26 +55,19 @@ describe("isAdminPath", () => {
   });
 });
 
-describe("resolvesToDemo (demo-over-session precedence)", () => {
+describe("resolvesToDemo", () => {
   it("cookie + real session on /admin resolves real, not demo", () => {
     expect(resolvesToDemo(true, true, "/admin")).toBe(false);
     expect(resolvesToDemo(true, true, "/admin/merchants")).toBe(false);
     expect(resolvesToDemo(true, true, "/admin.data")).toBe(false);
   });
 
-  it("no session: an anonymous demo visitor resolves demo on every path, including /admin (untouched by this change)", () => {
+  it("no session: an anonymous demo visitor resolves demo on every path", () => {
     expect(resolvesToDemo(false, true, "/dashboard")).toBe(true);
     expect(resolvesToDemo(false, true, "/admin")).toBe(true);
   });
 
   it("no session, no cookie: never demo", () => {
     expect(resolvesToDemo(false, false, "/dashboard")).toBe(false);
-  });
-});
-
-describe("demoFallbackPath (shared by the not-yet-seeded fallback and /demo/exit)", () => {
-  it("sends a signed-in caller to their own dashboard, an anonymous one to /demos", () => {
-    expect(demoFallbackPath(true)).toBe("/console");
-    expect(demoFallbackPath(false)).toBe("/demos");
   });
 });

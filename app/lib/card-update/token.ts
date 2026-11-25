@@ -2,13 +2,10 @@ import { CARD_UPDATE_TOKEN_MAX_AGE_MS } from "~/lib/constants";
 import { readSignedToken, signToken } from "@dustinedwards/site-runtime/signed-token";
 import { linkKeys } from "~/lib/http/signed-token";
 
-// Stateless HMAC-signed token for the hosted card-update page (/p/:token,
-// ROUTES.md public-utility). Mirrors the /e/* engagement token pattern
-// (app/lib/engagement/token.ts): HMAC for integrity, not secrecy (the payload
-// carries no PII, only ids), keyed on ENCRYPTION_KEY.
+// Stateless HMAC-signed token for the hosted card-update page (/p/:token). Mirrors the /e/* engagement token pattern (app/lib/engagement/token.ts): HMAC for integrity, not secrecy (the payload carries only ids), keyed on ENCRYPTION_KEY.
 
 /**
- * THREE MODES, exactly one id each (341 binding 2, extended by 343 binding 4).
+ * THREE MODES, exactly one id each.
  *
  * `verifyCardUpdateToken` refuses a token carrying NO id and a token carrying
  * MORE THAN ONE, so the optional fields cannot become a way to mint a token

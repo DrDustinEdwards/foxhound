@@ -4,7 +4,7 @@ import { STRIPE_FILE_SLOTS, type EvidenceFileUpload } from "~/lib/disputes/evide
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
 
-// Dispute evidence submission (TASK-foxhound-dispute-intake.md deliverable 2).
+// Dispute evidence submission.
 // The ONLY place stripe.disputes.update is called.
 
 // The known Stripe dispute-evidence field names (mirrors
@@ -84,12 +84,7 @@ async function uploadEvidenceFilesToStripe(
   return slots;
 }
 
-/**
- * Submit the merchant-approved evidence to Stripe and request immediate
- * submission to the bank (`submit: true`; never staged-only). Isolated so a
- * fake Stripe client can drive it in tests without a live call, mirroring
- * app/lib/engine/execute-step.ts's payInvoiceWithClient.
- */
+/** Submit the merchant-approved evidence to Stripe and request immediate submission to the bank (`submit: true`; never staged-only). Isolated so a fake Stripe client can drive it in tests. */
 export async function submitDisputeEvidenceWithClient(
   stripe: Stripe,
   ctx: {

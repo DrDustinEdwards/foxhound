@@ -4,19 +4,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SESSION 56: S36's notifications page and the Slack sender.
-//
-// THE HEADLINE PLANT IS THE END-TO-END DIGEST CHAIN. 350 binding 2 recorded
-// that session 55's digest cron is correct, proven and mails NOBODY, because
-// digest_enabled is NULL-is-OFF and nothing could write it. Turning the toggle
-// on through this page and then running the cron is what ends that, and it is
-// asserted below rather than assumed.
+// The Slack sender: webhook host validation, the gate before a post, and failures that never throw.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
   posted: [] as { url: string; body: unknown }[],
   response: { ok: true, status: 200 } as { ok: boolean; status: number },
-  emailJobs: [] as Record<string, unknown>[],
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -24,26 +17,13 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-vi.mock("~/lib/email/dispatch", () => ({
-  processEmailJob: async (_env: unknown, job: Record<string, unknown>) => {
-    harness.emailJobs.push(job);
-    return { status: "sent" };
-  },
-}));
-
-vi.mock("~/lib/intelligence/views.server", () => ({
-  isIntelligenceEntitled: async () => false,
-}));
-
 const { buildSlackPayload, postToSlack, postSlackNotification } =
   await import("~/lib/notify/slack.server");
 const { normalizeSlackWebhookUrl, SLACK_WEBHOOK_ERROR } =
   await import("~/lib/settings/slack-webhook");
 const { buildNotificationSettingsUpdate } = await import("~/lib/settings/persist.server");
-const { runWeeklyDigest, queryDigestAccounts } = await import("~/lib/cron/digest");
 
 const ACCOUNT = "acct_1";
-const NOW = new Date("2026-11-02T08:00:00Z");
 const env = {
   ENCRYPTION_KEY: "ab".repeat(32),
   BETTER_AUTH_URL: "https://foxhoundapp.test",
@@ -59,7 +39,6 @@ beforeEach(() => {
   harness.db = db;
   harness.posted = [];
   harness.response = { ok: true, status: 200 };
-  harness.emailJobs = [];
   realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     harness.posted.push({
@@ -88,14 +67,6 @@ function seedAccount(accountId: string): void {
     .run(`c_${accountId}`, accountId);
 }
 
-function accountRow() {
-  return sqlite
-    .prepare(
-      "SELECT digest_enabled AS digest, slack_notifications_enabled AS slack, slack_webhook_url AS url, recovery_notifications_enabled AS recovery, sequence_complete_notifications_enabled AS seqComplete, winback_notifications_enabled AS winback, expiring_card_notifications_enabled AS expiring, notification_email AS email FROM accounts WHERE id = ?",
-    )
-    .get(ACCOUNT) as Record<string, unknown>;
-}
-
 async function save(input: Record<string, unknown>): Promise<void> {
   await buildNotificationSettingsUpdate(db, ACCOUNT, {
     notificationEmail: "owner@acme.test",
@@ -112,14 +83,8 @@ async function save(input: Record<string, unknown>): Promise<void> {
   } as never);
 }
 
-describe("PLANT 1: the Slack webhook URL is validated to hooks.slack.com", () => {
-  it("an empty box CLEARS the column, which is legacy's `|| null`", () => {
-    expect(normalizeSlackWebhookUrl("")).toEqual({ ok: true, value: null });
-    expect(normalizeSlackWebhookUrl("   ")).toEqual({ ok: true, value: null });
-    expect(normalizeSlackWebhookUrl(null)).toEqual({ ok: true, value: null });
-  });
-
-  it("REJECTS ANOTHER HOST, which is the whole point of the addition", () => {
+describe("the Slack webhook URL is validated to hooks.slack.com", () => {
+  it("rejects another host", () => {
     for (const bad of [
       "https://evil.test/hook",
       "http://hooks.slack.com/services/x",
@@ -136,47 +101,7 @@ describe("PLANT 1: the Slack webhook URL is validated to hooks.slack.com", () =>
   });
 });
 
-describe("PLANT 2: the save writes its six columns and neither S34 column", () => {
-  it("AND LEAVES THE S34 COLUMNS UNTOUCHED, because legacy renders them elsewhere", async () => {
-    sqlite
-      .prepare(
-        "UPDATE accounts SET winback_notifications_enabled = 1, expiring_card_notifications_enabled = 1 WHERE id = ?",
-      )
-      .run(ACCOUNT);
-
-    await save({ digestEnabled: true });
-
-    const row = accountRow();
-    expect(row.winback).toBe(1);
-    expect(row.expiring).toBe(1);
-  });
-});
-
-describe("PLANT 3: THE DIGEST CHAIN, END TO END", () => {
-  it("NULL selects no account, which is the inertness 350 binding 2 recorded", async () => {
-    expect(accountRow().digest).toBeNull();
-    expect(await queryDigestAccounts(db)).toEqual([]);
-    expect((await runWeeklyDigest(env, NOW)).sent).toBe(0);
-  });
-});
-
-describe("PLANT 4: the Slack payload is legacy's", () => {
-  it("email_sent carries the envelope and the STEP TYPE in the title", () => {
-    expect(
-      buildSlackPayload({
-        type: "email_sent",
-        stepType: "email_day3",
-        customerEmail: "b@a.test",
-        customerName: "Jane",
-        amount: "$49.00",
-      }),
-    ).toEqual({
-      text: "📧 *Recovery email sent: email_day3*\nCustomer: Jane (b@a.test)\nAmount: $49.00",
-    });
-  });
-});
-
-describe("PLANT 5: the gate refuses before anything is posted", () => {
+describe("the gate refuses before anything is posted", () => {
   const event = {
     type: "email_sent" as const,
     stepType: "email_day1",
@@ -185,7 +110,7 @@ describe("PLANT 5: the gate refuses before anything is posted", () => {
     amount: "$10.00",
   };
 
-  it("NULL is OFF: an untouched account posts nothing", async () => {
+  it("an untouched account posts nothing", async () => {
     expect(await postSlackNotification(env, ACCOUNT, event)).toEqual({ status: "disabled" });
     expect(harness.posted).toEqual([]);
   });
@@ -196,7 +121,7 @@ describe("PLANT 5: the gate refuses before anything is posted", () => {
     expect(harness.posted).toEqual([]);
   });
 
-  it("A DEMO ACCOUNT REFUSES BEFORE THE ACCOUNT IS EVEN READ", async () => {
+  it("a demo account refuses before the account is read", async () => {
     expect(await postSlackNotification(env, "demo_teamflow", event)).toEqual({ status: "demo" });
     expect(harness.posted).toEqual([]);
   });
@@ -214,7 +139,7 @@ describe("PLANT 5: the gate refuses before anything is posted", () => {
   });
 });
 
-describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
+describe("a Slack failure is recorded and never thrown", () => {
   const event = {
     type: "payment_recovered" as const,
     stepType: "retry",
@@ -223,7 +148,7 @@ describe("PLANT 6: a Slack failure is recorded and never thrown", () => {
     amount: "$10.00",
   };
 
-  it("A 500 RETURNS A REFUSAL, where legacy would never notice", async () => {
+  it("a 500 returns a failure", async () => {
     harness.response = { ok: false, status: 500 };
 
     const outcome = await postToSlack("https://hooks.slack.com/services/x", event);

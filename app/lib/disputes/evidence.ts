@@ -5,11 +5,9 @@ import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing
 import { MODEL_RECOVERY_EMAIL } from "~/lib/constants";
 import { sanitizeCopy } from "~/lib/recovery/email-generation";
 
-// AI dispute-evidence drafting (TASK-foxhound-dispute-intake.md deliverable 1).
-// This is the liability core: evidence must be grounded ONLY in real records,
-// never fabricated.
+// AI dispute-evidence drafting. This is the liability core: evidence must be grounded ONLY in real records, never fabricated.
 
-export interface CommunicationRecord {
+interface CommunicationRecord {
   stepType: string;
   sentAt: Date;
   openedAt: Date | null;
@@ -79,7 +77,7 @@ export function hasGroundingFacts(facts: EvidenceFacts): boolean {
  * Deterministic (non-AI) evidence text built directly from real records. This
  * is never phrased by the model, so it cannot be embellished or invented.
  */
-export function formatCommunicationLog(communications: CommunicationRecord[]): string | null {
+function formatCommunicationLog(communications: CommunicationRecord[]): string | null {
   if (communications.length === 0) return null;
   const lines = communications.map((c) => {
     const parts = [`${c.stepType} sent ${c.sentAt.toISOString().slice(0, 10)}`];
@@ -135,13 +133,7 @@ function buildUserPrompt(facts: EvidenceFacts): string {
 }
 
 /**
- * Draft the dispute evidence package, grounded only in real records.
- *
- * Structurally never fabricates: with no grounding facts at all, this returns
- * [] WITHOUT ever calling the model (not merely a prompt instruction). The
- * deterministic fields (product_description, service_date,
- * customer_communication) are read straight off the facts, never phrased by the
- * model.
+ * Draft the dispute evidence package, grounded only in real records. With no grounding facts at all this returns [] WITHOUT calling the model (not merely a prompt instruction). The deterministic fields (product_description, service_date, customer_communication) are read straight off the facts, never phrased by the model.
  */
 export async function draftDisputeEvidence(
   env: Env,

@@ -1,8 +1,3 @@
-// The write path for blog_posts / blog_post_versions. Its one caller is the
-// Carrel site adapter (app/lib/carrel/adapter.server.ts): Carrel is the blog
-// editor, and Foxhound's own /admin/blog editor is gone. The editor's list,
-// version and related-post helpers went with it.
-
 import { and, eq, or } from "drizzle-orm";
 
 import { readingMinutes, wordCount } from "@drdustinedwards/site-helpers/text";
@@ -26,7 +21,6 @@ export interface CreatePostInput {
   ogImageUrl?: string | null;
   ogImageAlt?: string | null;
   noindex?: boolean;
-  /** Caller-chosen id (the Carrel adapter, whose create names the id). */
   id?: string;
 }
 
@@ -186,10 +180,6 @@ export async function setTrashed(db: Db, postId: string, trashed: boolean): Prom
     .where(eq(blogPosts.id, postId));
 }
 
-/**
- * Deletes the post for good, with its versions, the further-reading links to
- * and from it, and the redirects that led to it, as one batch.
- */
 export async function deleteBlogPost(db: Db, postId: string, slug: string): Promise<void> {
   await db.batch([
     db
@@ -201,10 +191,6 @@ export async function deleteBlogPost(db: Db, postId: string, slug: string): Prom
   ]);
 }
 
-/**
- * Moves a post to `newId`, which becomes its slug too, so /blog/<newId> is its
- * address. One batch.
- */
 export async function renamePost(
   db: Db,
   row: typeof blogPosts.$inferSelect,

@@ -109,5 +109,3 @@ export const RECOVA_REDIRECT_MAP: RedirectMapEntry[] = [
     note: "One of Recova's own next.config.ts redirects, mapped straight to Recova's destination so it is one hop.",
   },
 ];
-
-export const RECOVA_MAP_HOSTS: string[] = ["recovamrr.com", "app.recovamrr.com"];

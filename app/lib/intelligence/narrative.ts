@@ -30,7 +30,7 @@ export interface NarrativeFacts {
 }
 
 /** True when there is anything real to narrate; a brand-new account has nothing to say, an honest empty state. */
-export function hasNarrativeFacts(facts: NarrativeFacts): boolean {
+function hasNarrativeFacts(facts: NarrativeFacts): boolean {
   return facts.totalMrrCents > 0 || facts.topAtRiskCustomers.length > 0;
 }
 

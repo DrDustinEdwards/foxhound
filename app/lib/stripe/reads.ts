@@ -8,9 +8,8 @@ import type {
   ReadOutcome,
 } from "~/lib/audit/engine";
 
-// Phase (b) of the audit port, ruled. The Stripe half the pure engine takes as injected input.
-// EVERY ROW IS NARROWED AS IT IS READ. So each page is cut down to the fields the engine reads
-// before the next page arrives, and the full object is never kept.
+// The Stripe half the pure engine takes as injected input.
+// EVERY ROW IS NARROWED AS IT IS READ: each page is cut down to the fields the engine reads before the next page arrives, and the full object is never kept.
 
 /**
  * Walk an auto-paginating Stripe list to the end, keeping only what `narrow` returns for each row.
@@ -186,12 +185,11 @@ export function readSubscriptions(stripe: Stripe): Promise<ReadOutcome<AuditSubs
   );
 }
 
-/** Disputes. */
 export function readDisputes(stripe: Stripe): Promise<ReadOutcome<AuditDispute>> {
   return read("disputes", () => stripe.disputes.list({ limit: 100 }), narrowDispute);
 }
 
-/** Card Updater events in the CAU window. NEW to Foxhound's Stripe surface. */
+/** Card Updater events in the CAU window. */
 export function readCardUpdaterEvents(
   stripe: Stripe,
   windowStartSeconds: number,

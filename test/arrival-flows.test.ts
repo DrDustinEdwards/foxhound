@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { SIGN_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-form";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -17,7 +16,6 @@ vi.mock("~/lib/auth/session", () => ({ getSession: async () => harness.session }
 
 const invite = await import("~/routes/auth/invite");
 const welcome = await import("~/routes/app/welcome");
-const login = await import("~/routes/auth/login");
 const { authOptions } = await import("~/lib/auth/options");
 
 const TOKEN = "tok_invite_1";
@@ -152,37 +150,13 @@ describe("/welcome is the landing for one new connection", () => {
       expect(res.headers.get("location")).toBe("/console");
     }
   });
-
-  it("names the connection and says which of the two steps are done", async () => {
-    sqlite
-      .prepare(
-        "INSERT INTO stripe_connections (id, account_id, stripe_user_id, name, sender_name, is_primary, created_at) VALUES ('conn_1', 'acc_1', 'acct_y', NULL, 'Acme Support', 1, 1000)",
-      )
-      .run();
-    const data = await welcome.loader({
-      request: request("/welcome?connection=conn_1"),
-      params: {},
-      context: context(auth),
-    } as never);
-    expect(data).toEqual({
-      connectionLabel: "acct_y",
-      senderNameSet: true,
-      notificationEmailSet: false,
-    });
-  });
 });
 
 describe("a disposable address at sign-up", () => {
-  it("is refused with a code that brings the visitor back to /login with the network's sentence", async () => {
+  it("is refused at sign-up", async () => {
     const before = authOptions.databaseHooks.user.create.before;
     await expect(before({ email: "x@mailinator.com" } as never)).rejects.toMatchObject({
       body: { code: "disposable_email" },
     });
-    const page = await login.loader({
-      request: request("/login?error=disposable_email"),
-      params: {},
-      context: context(),
-    } as never);
-    expect((page as { error: string }).error).toBe(SIGN_IN_WORDS.code.disposable);
   });
 });

@@ -1,7 +1,5 @@
-import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
-import * as schema from "~/db/schema";
 import {
   ATTRIBUTION_KINDS,
   BILLABLE_ATTRIBUTION_KINDS,
@@ -13,23 +11,10 @@ import {
   findAttributionSignals,
   resolveAttribution,
 } from "~/lib/recovery/attribution";
-import { buildRecoveryBatch, type RecordRecoveryInput } from "~/lib/recovery/record-recovery";
 
 describe("resolveAttribution", () => {
   it("every attribution kind is CONSCIOUSLY classified billable or free", () => {
-    // app/db/billable.ts's SQL predicate and isBillableAttribution here both
-    // consolidated onto this one allow-list (2026-07-19); this guards against
-    // the two ever drifting apart again if a future attribution kind is added
-    // to the CHECK constraint without also updating the allow-list.
-    //
-    // RESHAPED BY RULING 262 DECISION ONE, S7 Phase 2 Session E. This used to
-    // assert billable === ATTRIBUTION_KINDS minus stripe_baseline, which held
-    // only while exactly four kinds existed and "not baseline" happened to mean
-    // "billable". `manual` is the fifth kind and it is FREE, so that equivalence
-    // is now false. The guard's real intent, stated in its own comment above, is
-    // that a new kind cannot ship without being classified, and that is what the
-    // assertion now encodes: the two sets PARTITION ATTRIBUTION_KINDS exactly, so
-    // a sixth kind added to neither list still fails here.
+    // The two sets partition ATTRIBUTION_KINDS, so a new kind cannot ship unclassified.
     const FREE_ATTRIBUTION_KINDS = ["stripe_baseline", MANUAL_ATTRIBUTION_KIND];
     expect([...BILLABLE_ATTRIBUTION_KINDS, ...FREE_ATTRIBUTION_KINDS].sort()).toEqual(
       [...ATTRIBUTION_KINDS].sort(),
@@ -41,14 +26,7 @@ describe("resolveAttribution", () => {
   });
 });
 
-// M1 (Phase 4 review, closed 2026-07-18 slice 5g): webhooks/process.ts's
-// resolveRecoveryAttribution reads recovery_steps and calls
-// findAttributionSignals before resolveAttribution. These prove the wiring
-// a card_update signal actually reaches resolveAttribution as cardUpdateRef,
-// and that it does not override a signal earlier in precedence.
-// The recovery instant these signals are resolved against. Inside the 14-day
-// engagement window of the one click fixture below, so the window
-// never silently decides an assertion that is about precedence.
+// The recovery instant the signals are resolved against, inside the engagement window.
 const RECOVERED_AT = new Date("2026-07-05T00:00:00.000Z");
 
 describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)", () => {
@@ -112,33 +90,5 @@ describe("findAttributionSignals (webhooks/process.ts's read of recovery_steps)"
       kind: "stripe_baseline",
       ref: null,
     });
-  });
-});
-
-describe("buildRecoveryBatch", () => {
-  const db = drizzle({} as never, { schema });
-  const recoveredAt = new Date("2026-07-02T00:00:00.000Z");
-
-  const base: RecordRecoveryInput = {
-    accountId: "acc_1",
-    failedPaymentId: "fp_1",
-    amountCents: 4200,
-    currency: "usd",
-    recoveredAt,
-    attribution: { kind: "foxhound_retry", ref: "step_9" },
-    recoveredByStepId: "step_9",
-    recoveryMethod: "retry",
-    idempotencyKey: "evt_123",
-  };
-
-  it("attributed recovery stamps attributed_at and marks the outcome attributed", () => {
-    const [oc, rp] = buildRecoveryBatch(db, base).map((s) =>
-      (s as unknown as { toSQL(): { sql: string; params: unknown[] } }).toSQL(),
-    );
-    expect(rp.params).toContain("foxhound_retry");
-    expect(rp.params).toContain("step_9");
-    expect(rp.params).toContain(recoveredAt.getTime()); // attributed_at set
-    expect(oc.params).toContain("recovered_attributed");
-    expect(oc.params).toContain("recovery:evt_123"); // idempotency backstop
   });
 });

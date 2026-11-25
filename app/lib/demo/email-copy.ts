@@ -1,9 +1,4 @@
-// Pre-written dunning copy for the seeded demo sequences.
-//
-// The /recovery/sequence "Preview latest email" disclosure only renders when a
-// body exists, so it never appeared anywhere in the demo: a visitor saw
-// engagement percentages for an email product and could not read a single
-// email.
+// Pre-written dunning copy for the seeded demo sequences, so the "Preview latest email" disclosure has a body to show.
 
 import type { DeclineCategory } from "~/lib/constants";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
@@ -29,10 +24,6 @@ export interface DemoEmailCopy {
   bodyHtml: string;
 }
 
-/**
- * First name where there is one, else a neutral greeting. Matches how a real
- * merchant would open: personal when the data supports it, never "Hi null".
- */
 function greeting(customerName: string | null): string {
   if (!customerName) return "Hello";
   const first = customerName.trim().split(/\s+/)[0];

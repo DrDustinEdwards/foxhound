@@ -3,15 +3,7 @@ import { describe, expect, it } from "vitest";
 import { STATIC_PAGES } from "~/routes/files/sitemap";
 import routes from "~/routes";
 
-// Drift-prevention guard for /sitemap.xml (same pattern as
-// test/nav-manifest.test.ts and test/marketing-nav.test.ts):
-// TASK-foxhound-seo-remediation.md M4 fixes foxhound-audit-seo.md's finding
-// that /features existed, rendered real content, and set its own canonical
-// tag, yet was missing from sitemap.ts's STATIC_PAGES - a silent omission,
-// not a deliberate exclusion. This test walks the real route tree and
-// asserts every static (non-parameterized) public marketing route is either
-// in STATIC_PAGES or in the EXCLUDED_PREFIXES list below, so the same class
-// of drift fails CI instead of shipping quietly.
+// Every static public route is in STATIC_PAGES or in the excluded list below.
 
 interface RouteConfigEntry {
   path?: string;
@@ -34,20 +26,10 @@ function collectPaths(entries: RouteConfigEntry[], parentPath: string, out: Set<
   }
 }
 
-// Every route NOT expected to appear in /sitemap.xml, grouped and documented
-// by reason (task rule: "Exclusions ... must be an explicit documented list,
-// not omissions"). Matched by prefix, so a parameterized child (e.g.
-// /recovery/payments/:id) is covered by its parent's entry (/recovery).
+// Routes not expected in /sitemap.xml, matched by prefix.
 const EXCLUDED_PREFIXES = [
-  // Authenticated app shell + admin: never public, never crawlable, and
-  // already Disallow'd in robots.txt.
+  // The authenticated app and admin.
   "/console",
-  // The audit's authenticated surfaces, plus the anonymous OAuth pair and the
-  // live results page. A bare "/audit" would also exclude the
-  // PUBLIC estimator, which is the one page here that should be indexed.
-  // Legacy's own sitemap lists /audit and none of these, which is the same
-  // call: a consent screen, an OAuth return and a cookie-gated render are
-  // steps inside a flow, not pages a crawler should land on.
   "/audit/dashboard",
   "/audit/connect",
   "/audit/callback",
@@ -60,8 +42,7 @@ const EXCLUDED_PREFIXES = [
   "/help",
   "/welcome",
   "/admin",
-  // Auth flow (login/signup/passkey offer/email-change confirm/OAuth/team invite/logout): no SEO
-  // value, and robots.txt Disallows every one of these.
+  // Auth flow.
   "/login",
   "/signup",
   "/passkey",
@@ -71,53 +52,30 @@ const EXCLUDED_PREFIXES = [
   "/invite",
   "/auth/",
   "/logout",
-  // Public-utility, token-signed one-off links (card update, unsubscribe,
-  // engagement-tracking pixels/redirects): not a discoverable page, nothing
-  // to index.
+  // Token-signed links, demo entry actions, POST endpoints, webhooks, APIs.
   "/u/",
   "/p/",
   "/e/",
-  // Demo entry actions: each sets a cookie and redirects into the app shell
-  // (real GET anchors as of TASK-foxhound-demo-entry-parity.md item 1, so
-  // crawlers can follow them, but the redirect target is the same
-  // authenticated-app path excluded above, nothing distinct to index here).
-  // Webhooks are POST-only, signature-verified endpoints.
   "/demo/exit",
   "/demos/dashboard",
   "/demos/recovery",
   "/demos/disputes",
   "/demos/intelligence",
-  // POST-only action route (home page's live email generator); nothing to
-  // index, same reasoning as /demo/exit.
   "/marketing/generate-email-sample",
   "/webhooks/",
-  // API resource routes: action-only JSON endpoints, no HTML, nothing to
-  // index. Covers /api/theme (ruling 59's theme persistence write) and
-  // /api/auth/*. Note the auth one is a wildcard so it was already skipped as
-  // non-static; this prefix is what classifies the STATIC ones, and /api/theme
-  // is the first of those.
   "/api/",
-  // Machine-readable files: either not HTML (llms*.txt, feed.rss, og/*
-  // images) or the sitemap route itself.
+  // Machine-readable files, redirects, monitors and OAuth.
   "/sitemap.xml",
   "/llms.txt",
   "/llms-full.txt",
   "/feed.rss",
   "/og/",
   "/og",
-  // Recova's next.config.ts redirects: /user-guides and
-  // /sitemap_index.xml answer a 308 and are not pages. Recova's own sitemap
-  // lists neither. (/recovery/audit is already covered by "/recovery".)
   "/user-guides",
   "/sitemap_index.xml",
-  // JSON health for monitors, not a page.
   "/health",
-  // The CSP and Reporting API sink, a POST endpoint.
   "/csp-report",
-  // The OAuth consent page: a step inside an agent's connect flow,
-  // disallowed in robots.txt as Recova's is. Recova's sitemap leaves it out.
   "/oauth/",
-  // The OAuth discovery files under /.well-known/: found by convention, not pages.
   "/.well-known/",
 ];
 

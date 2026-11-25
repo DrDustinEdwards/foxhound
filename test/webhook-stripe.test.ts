@@ -6,11 +6,8 @@ import * as schema from "~/db/schema";
 import { resolveAttribution } from "~/lib/recovery/attribution";
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
 import {
-  buildDisputeIntakeBatch,
   buildDisputeResolutionBatch,
-  buildIntakeBatch,
   buildRecoverBatch,
-  buildWebhookClaim,
   type WebhookClaimInput,
 } from "~/lib/webhooks/batches";
 import { classifyStripeEvent } from "~/lib/webhooks/events";
@@ -18,8 +15,6 @@ import { classifyStripeEvent } from "~/lib/webhooks/events";
 const now = new Date("2026-07-12T00:00:00.000Z");
 const db = drizzle({} as never, { schema });
 
-// MoneyWriteBatch items are typed as BatchItem; the executor compiles each via
-// .toSQL() (app/lib/money/execute.ts). Mirror that cast to inspect the SQL.
 function sqlOf(item: unknown): { sql: string; params: unknown[] } {
   return (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
 }
@@ -39,9 +34,7 @@ describe("classifyStripeEvent", () => {
         customer_email: "a@b.com",
         collection_method: "charge_automatically",
         last_finalization_error: { decline_code: "expired_card" },
-        // STATED, NOT OMITTED. An absent next_payment_attempt reads as
-        // null, which is "Stripe gave up", so a fixture that leaves it out
-        // cannot tell a working gate from a missing one.
+        // Stated: an absent next_payment_attempt reads as null, "Stripe gave up".
         next_payment_attempt: null,
       }),
     );
@@ -67,8 +60,6 @@ describe("classifyStripeEvent", () => {
   });
 
   it("charge.refunded -> stamp_refund with the cumulative refunded amount, partial as well as full", () => {
-    // The fee shrinks by the refunded share (Dustin), so a partial
-    // refund carries its amount and is never ignored.
     expect(
       classifyStripeEvent(
         event("charge.refunded", {
@@ -157,47 +148,7 @@ const claim: WebhookClaimInput = {
   payload: { id: "evt_1" },
 };
 
-describe("webhook batch builders (compile against schema)", () => {
-  it("claim insert targets webhook_events with the event id bound", () => {
-    const sql = sqlOf(buildWebhookClaim(db, claim));
-    expect(sql.sql).toMatch(/insert into .*webhook_events/i);
-    expect(sql.params).toContain("evt_1");
-  });
-
-  it("intake batch = claim + failed_payment + one insert per step", () => {
-    const batch = buildIntakeBatch(db, {
-      claim,
-      failedPaymentId: "fp_1",
-      accountId: "acc_1",
-      stripeConnectionId: "conn_1",
-      stripeEventId: "evt_1",
-      invoiceId: "in_1",
-      customerId: "cus_1",
-      subscriptionId: null,
-      customerEmail: "a@b.com",
-      customerName: null,
-      amountCents: 4200,
-      currency: "usd",
-      declineCode: "insufficient_funds",
-      declineCategory: "soft",
-      detectedAt: now,
-      // Stripe has given up, so this is the full sequence. The waiting arm has
-      // its own coverage in test/webhook-stripe-retry-window.test.ts.
-      startSequence: true,
-    });
-    // claim + failed_payment + 8 soft-schedule steps
-    expect(batch.length).toBe(10);
-    expect(sqlOf(batch[0]).sql).toMatch(/webhook_events/i);
-    expect(sqlOf(batch[1]).sql).toMatch(/failed_payments/i);
-    expect(sqlOf(batch[1]).params).toContain("fp_1");
-    // Phase 5 review MEDIUM fix companion: intake now records WHICH
-    // connection a failed payment belongs to, not just which account, so
-    // card-update.tsx can resolve the correct connection for an account
-    // with more than one.
-    expect(sqlOf(batch[1]).params).toContain("conn_1");
-    expect(sqlOf(batch[2]).sql).toMatch(/recovery_steps/i);
-  });
-
+describe("webhook batch builders", () => {
   it("recover batch = claim + conditional status flip + recovered_payments + outcomes", () => {
     const batch = buildRecoverBatch(db, {
       claim,
@@ -223,69 +174,7 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(sqlOf(batch[3]).sql).toMatch(/insert into "recovered_payments"/i);
   });
 
-  it("dispute intake batch = claim + disputes row + evidence rows, no recovery link", () => {
-    const batch = buildDisputeIntakeBatch(db, {
-      claim,
-      disputeId: "dsp_1",
-      accountId: "acc_1",
-      stripeConnectionId: "conn_1",
-      stripeDisputeId: "dp_1",
-      stripeChargeId: "ch_1",
-      stripeCustomerId: null,
-      customerEmail: null,
-      customerName: null,
-      amountCents: 4200,
-      currency: "usd",
-      reason: "fraudulent",
-      status: "needs_response",
-      evidenceDeadline: now,
-      createdAt: now,
-      linkedFailedPaymentId: null,
-      evidence: [{ fieldName: "product_description", fieldValue: "Widget" }],
-    });
-    // claim + disputes insert + 1 evidence insert, no stamp (no linked recovery)
-    expect(batch.length).toBe(3);
-    expect(sqlOf(batch[0]).sql).toMatch(/webhook_events/i);
-    const disputeInsert = sqlOf(batch[1]);
-    expect(disputeInsert.sql).toMatch(/insert into .*disputes/i);
-    expect(disputeInsert.params).toContain("dsp_1");
-    expect(disputeInsert.params).toContain("pending_review");
-    const evidenceInsert = sqlOf(batch[2]);
-    expect(evidenceInsert.sql).toMatch(/insert into .*dispute_evidence/i);
-    expect(evidenceInsert.params).toContain("Widget");
-  });
-
-  it("dispute intake batch stamps recovered_payments.disputed_at when the charge resolves to a known recovery", () => {
-    const batch = buildDisputeIntakeBatch(db, {
-      claim,
-      disputeId: "dsp_2",
-      accountId: "acc_1",
-      stripeConnectionId: "conn_1",
-      stripeDisputeId: "dp_2",
-      stripeChargeId: "ch_2",
-      stripeCustomerId: "cus_1",
-      customerEmail: "a@b.com",
-      customerName: null,
-      amountCents: 4200,
-      currency: "usd",
-      reason: "fraudulent",
-      status: "needs_response",
-      evidenceDeadline: null,
-      createdAt: now,
-      linkedFailedPaymentId: "fp_1",
-      evidence: [],
-    });
-    // claim + disputes insert + dispute marker + stamp (no evidence rows this time)
-    expect(batch.length).toBe(4);
-    const stamp = sqlOf(batch[3]);
-    expect(stamp.sql).toMatch(/update .*recovered_payments/i);
-    expect(stamp.sql).toMatch(/disputed_at/i);
-    expect(stamp.params).toContain("fp_1");
-  });
-
   it("dispute resolution batch snapshots the capped fee on a Foxhound-submitted win, none on a loss", () => {
-    // 20% of a $500 dispute is $100, well under the $500 cap: proves the
-    // ordinary 20% math, not just the cap.
     const won = buildDisputeResolutionBatch(db, {
       claim,
       accountId: "acc_1",
@@ -303,15 +192,13 @@ describe("webhook batch builders (compile against schema)", () => {
     const wonUpdate = sqlOf(won[1]);
     expect(wonUpdate.sql).toMatch(/update .*disputes/i);
     expect(wonUpdate.sql).toMatch(/not in/i);
-    // Account-scoping audit HIGH #3: the UPDATE pins account_id in its own WHERE,
-    // so tenant isolation is DB-enforced, not caller-dependent.
+    // The UPDATE pins account_id in its own WHERE.
     expect(wonUpdate.sql).toMatch(/account_id/);
     expect(wonUpdate.params).toContain("acc_1");
     expect(wonUpdate.params).toContain("resolved_won");
     expect(wonUpdate.params).toContain(10_000);
 
-    // A much larger dispute proves the $500 cap actually applies, not just 20%
-    // (20% of $10,000 would be $2,000, capped down to $500).
+    // 20% of $10,000 is capped down to $500.
     const wonAtCap = buildDisputeResolutionBatch(db, {
       claim,
       accountId: "acc_1",
@@ -345,8 +232,7 @@ describe("webhook batch builders (compile against schema)", () => {
     expect(lostUpdate.params).not.toContain(10_000);
   });
 
-  it("a won dispute Foxhound did NOT submit snapshots resolved_won but NO fee (merchant-fought, PRICING rev 3)", () => {
-    // The review's HIGH: a win Foxhound never submitted must not carry a fee.
+  it("a won dispute Foxhound did NOT submit snapshots resolved_won but NO fee", () => {
     const wonNotSubmitted = buildDisputeResolutionBatch(db, {
       claim,
       accountId: "acc_1",

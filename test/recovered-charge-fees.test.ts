@@ -3,11 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// A recovery records what Stripe actually took: the paying charge's balance
-// transaction gives its fee and net, read before the money batch and stored on
-// the recovered_payments row. The read is best effort: when Stripe fails, the
-// recovery is recorded exactly as before with the fee columns null, and the
-// gross amount billing reads is never touched either way.
+// A recovery stores the paying charge's Stripe fee and net; when the Stripe read fails it is recorded with null fees.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,

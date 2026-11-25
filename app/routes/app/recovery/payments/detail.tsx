@@ -26,7 +26,6 @@ import "capsomer/field.css";
 import "capsomer/panel.css";
 import "capsomer/status.css";
 import "capsomer/link.css";
-// Capsomer's tokens and the amber family, which the components above read, as the payments list and /disputes load them.
 import "~/site-header.css";
 
 import { getDb } from "~/db";
@@ -85,11 +84,11 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   const detail = await getFailedPaymentDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
   const category = detail.failedPayment.declineCategory;
-  // The two action gates, computed HERE from the same selectors the server dispatcher gates on (step-state.ts), over the same step order it reads, so the buttons offered and the POSTs accepted cannot drift. The trigger button names the step it will fire ("Trigger Day 3 email now"), in the engine's own words for the payment's schedule (paymentStepLabel).
+  // The two action gates, computed from the same selectors the server dispatcher gates on (step-state.ts), so the buttons offered and the POSTs accepted cannot drift. The trigger button names the step it will fire (paymentStepLabel).
   const next = nextPendingStep(detail.steps);
   const nextStepLabel = next ? paymentStepLabel(category, next.stepType) : null;
   const canResend = lastResendableEmailStep(detail.steps) !== null;
-  // Sanitize SERVER-SIDE, through the helper the sequences preview already uses, and send ONLY the sanitized body, so no unsanitized HTML is part of the response at all. The timeline is ordered by scheduled time, so a resend, which has no step number, sits last rather than first.
+  // Sanitize SERVER-SIDE through the helper the sequences preview uses and send ONLY the sanitized body. The timeline is ordered by scheduled time, so a resend, which has no step number, sits last.
   const steps = [...detail.steps]
     .sort(
       (a, b) =>
@@ -112,7 +111,7 @@ export async function loader({ context, params }: Route.LoaderArgs) {
   return { ...detail, steps, nextStepLabel, canResend, nowMs, prediction };
 }
 
-// Manual per-payment actions: all five commit through the per-account money-write DO. Mark as recovered enters through the spine's own buildRecoveryBatch and is never a second writer of recovered_payments. This route only reports what the dispatcher decided.
+// Manual per-payment actions: all five commit through the per-account money-write DO. Mark as recovered enters through the spine's buildRecoveryBatch and is never a second writer of recovered_payments.
 
 /** The hold on a success message before it clears. An error stays until the next action. */
 export const ACTION_SUCCESS_CLEAR_MS = 2000;
@@ -257,7 +256,7 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   }
 }
 
-// The action set: trigger the next step, mark recovered, stop the sequence, resend the last email. "Stop recovery", not "Cancel recovery". The trigger button names its step when it renders ("Trigger Day 3 email now"); this label is its fallback only.
+// The action set: trigger the next step, mark recovered, stop the sequence, resend the last email. "Stop recovery", not "Cancel recovery".
 export const MANUAL_ACTIONS = [
   { intent: "trigger", label: "Trigger next step now", variant: "primary", needs: "nextStep" },
   { intent: "mark_recovered", label: "Mark as recovered", variant: "default", needs: null },
@@ -296,15 +295,12 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const busy = navigation.state !== "idle";
   const pressedIntent = navigation.formData?.get("intent") ?? null;
 
-  // A success clears after 2000ms, an error stays until the next press.
   const [shownActionData] = useShownFor(actionData, ACTION_SUCCESS_CLEAR_MS, isNotice);
-  // Pressing an action clears the last result at once.
   const actionResult = visibleActionResult({
     actionData: shownActionData,
     pendingIntent: pressedIntent,
   });
 
-  // A note saves in place: "Saving..." on the button, then "Saved" beside it for 2000ms, or its error line.
   const noteFetcher = useFetcher<typeof action>();
   const noteSaving = noteFetcher.state !== "idle";
   const noteResult = noteFetcher.data;
@@ -651,7 +647,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 const executed = step.executedAt !== null;
                 const pending = !executed && step.result === null;
                 const email = isEmailStep(step.stepType);
-                // The per-step engagement row shows for an executed email step that did not fail to send.
                 const showEngagement = executed && email && step.result !== "email_failed";
                 const showExpander = executed && step.previewHtml !== null;
                 const expanded = expandedStepId === step.id;
@@ -748,8 +743,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                         <div
                           id={`step-email-${step.id}`}
                           className="fh-box fh-payment-preview fh-small fh-text"
-                          // Sanitized in the loader by sanitizeEmailPreviewHtml;
-                          // the raw body is never sent to the browser.
+                          // Sanitized in the loader by sanitizeEmailPreviewHtml; the raw body never reaches the browser.
                           dangerouslySetInnerHTML={markup(step.previewHtml)}
                         />
                       ) : null}
@@ -856,7 +850,6 @@ function StepGlyph({
   );
 }
 
-/** A row: the label left, the value right and cut to 200px, ids small and mono. */
 function DetailRow({
   label,
   value,

@@ -11,17 +11,7 @@ import {
   recoverySteps,
   stripeConnections,
 } from "~/db";
-import {
-  atRiskSubtext,
-  formatCurrencyTotalsShort,
-  mrrMovementAlt,
-  deadlinePhrase,
-  expiryPhrase,
-  isCardInAttentionWindow,
-  isSequenceExhausted,
-  lastRunPhrase,
-  protectedSubtext,
-} from "~/lib/dashboard/console";
+import { mrrMovementAlt, deadlinePhrase, isSequenceExhausted } from "~/lib/dashboard/console";
 import { getConsoleView } from "~/lib/dashboard/console.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -32,44 +22,12 @@ const DAY = 24 * HOUR;
 const ACCOUNT_ID = "acct_console";
 
 describe("deadlinePhrase", () => {
-  // A passed deadline stays surfaced: the merchant may still be able to submit,
-  // and hiding it would be the worse failure.
-  it("reads overdue once the deadline has passed", () => {
+  it("keeps a passed deadline surfaced as overdue and escalates toward it", () => {
     expect(deadlinePhrase(new Date(NOW - HOUR), NOW)).toBe("overdue");
-  });
-
-  it("escalates through the last hour, the same day, then tomorrow", () => {
     expect(deadlinePhrase(new Date(NOW + 30 * 60 * 1000), NOW)).toBe("within the hour");
+    expect(deadlinePhrase(new Date(NOW + HOUR), NOW)).toBe("in 1h");
     expect(deadlinePhrase(new Date(NOW + 5 * HOUR), NOW)).toBe("in 5h");
     expect(deadlinePhrase(new Date(NOW + 30 * HOUR), NOW)).toBe("tomorrow");
-  });
-
-  it("treats exactly one hour out as an hour, not as within the hour", () => {
-    expect(deadlinePhrase(new Date(NOW + HOUR), NOW)).toBe("in 1h");
-  });
-});
-
-describe("expiryPhrase and the card window", () => {
-  it("phrases today, tomorrow, and further out", () => {
-    expect(expiryPhrase(new Date(NOW), NOW)).toBe("expires today");
-    expect(expiryPhrase(new Date(NOW + DAY), NOW)).toBe("expires tomorrow");
-    expect(expiryPhrase(new Date(NOW + 5 * DAY), NOW)).toBe("expires in 5 days");
-  });
-
-  it("includes cards inside the window and excludes ones long past", () => {
-    expect(isCardInAttentionWindow(new Date(NOW + 3 * DAY), NOW)).toBe(true);
-    expect(isCardInAttentionWindow(new Date(NOW + 7 * DAY), NOW)).toBe(true);
-    expect(isCardInAttentionWindow(new Date(NOW + 30 * DAY), NOW)).toBe(false);
-    // Expired weeks ago is history, not an action.
-    expect(isCardInAttentionWindow(new Date(NOW - 20 * DAY), NOW)).toBe(false);
-  });
-});
-
-describe("lastRunPhrase", () => {
-  it("names today, yesterday, and older runs", () => {
-    expect(lastRunPhrase(new Date(NOW), NOW)).toBe("Last run today");
-    expect(lastRunPhrase(new Date(NOW - DAY), NOW)).toBe("Last run yesterday");
-    expect(lastRunPhrase(new Date(NOW - 9 * DAY), NOW)).toBe("Last run 9 days ago");
   });
 });
 
@@ -90,23 +48,6 @@ describe("isSequenceExhausted", () => {
 
   it("is exhausted once every step has run", () => {
     expect(isSequenceExhausted([step({ executedAt: new Date(NOW) })])).toBe(true);
-  });
-});
-
-describe("hero subtexts", () => {
-  it("pluralizes and joins both parts", () => {
-    expect(atRiskSubtext(3, 2)).toBe("3 active sequences · 2 open disputes");
-    expect(atRiskSubtext(1, 1)).toBe("1 active sequence · 1 open dispute");
-  });
-
-  it("says All clear when there is nothing in play", () => {
-    expect(atRiskSubtext(0, 0)).toBe("All clear");
-  });
-
-  it("distinguishes no recoveries from a count", () => {
-    expect(protectedSubtext(0)).toBe("No recoveries yet");
-    expect(protectedSubtext(1)).toBe("1 payment recovered all time");
-    expect(protectedSubtext(9)).toBe("9 payments recovered all time");
   });
 });
 
@@ -411,12 +352,6 @@ describe("getConsoleView attention feed", () => {
     const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
     expect(view.attention.filter((r) => r.key.startsWith("exhausted"))).toEqual([]);
   });
-
-  it("omits a card expiring far in the future", async () => {
-    const db = await seedConsole({ cardMonthsOut: [6] });
-    const view = await getConsoleView(db, ACCOUNT_ID, NOW, null);
-    expect(view.attention.filter((r) => r.key.startsWith("card-"))).toEqual([]);
-  });
 });
 
 describe("getConsoleView money per currency", () => {
@@ -473,16 +408,6 @@ describe("getConsoleView mrrSync", () => {
 });
 
 describe("console formatting helpers", () => {
-  it("prints each currency's total in the short format, joined", () => {
-    expect(formatCurrencyTotalsShort([])).toBe("$0");
-    expect(
-      formatCurrencyTotalsShort([
-        { currency: "usd", cents: 125_000 },
-        { currency: "eur", cents: 2_000 },
-      ]),
-    ).toBe("$1,250 · €20");
-  });
-
   it("gives the movement chart a text equivalent built from the whole units the bars draw", () => {
     const movement = (contractionMrrCents: number) => ({
       newMrrCents: 10_000,

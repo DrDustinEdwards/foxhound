@@ -1,13 +1,9 @@
-// The admin Merchants page's pure helpers (not a .server module: the page
-// renders them), tested without a database. The rows come from
-// listAdminMerchants and the figures from getMerchantFigures
-// (~/lib/admin/merchants.server).
+// The admin Merchants page's pure helpers (not a .server module: the page renders them).
 
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 export const MERCHANTS_PATH = "/admin/merchants";
-/** Where the page's forms post: the index route's own action. */
 const MERCHANTS_ACTION = `${MERCHANTS_PATH}?index`;
 
 export type MerchantView = "all" | "paused" | "billing-exempt";
@@ -39,9 +35,6 @@ export function merchantsActionFor(view: MerchantView): string {
   return view === "all" ? MERCHANTS_ACTION : merchantViewPath(view);
 }
 
-/**
- * The confirm page for canceling one merchant, on the list it was asked from.
- */
 export function merchantCancelHref(accountId: string, view: MerchantView = "all"): string {
   return `${merchantViewPath(view)}?cancel=${encodeURIComponent(accountId)}`;
 }
@@ -121,7 +114,6 @@ export interface ToggleResult {
   intent: ToggleIntent;
   accountId: string;
   name: string | null;
-  /** The value the flag was asked to hold. */
   value: boolean;
   /**
    * Whether the write changed it. A stale row asking for the value the flag
@@ -134,7 +126,6 @@ export interface ToggleResult {
 
 export interface ToggleMessage {
   said: string;
-  /** What the message says once Undo has run. */
   undone: string | null;
   /** The post that undoes it, or null when there is no Undo. */
   undo: { intent: ToggleIntent; accountId: string; value: boolean } | null;

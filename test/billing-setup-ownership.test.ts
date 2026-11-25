@@ -5,12 +5,9 @@ import {
   finalizeBillingSetupSession,
 } from "~/lib/billing/platform-customer";
 
-// Cross-tenant regression for account-scoping audit HIGH #2: the return-leg
-// session_id is an unauthenticated URL param, so finalize must verify the
-// session's customer belongs to the calling account before any
-// stripe.customers.update. A foreign session must reject with zero writes.
+// The return-leg session_id is an unauthenticated URL param: finalize must verify the session belongs to the calling account before any customers.update.
 
-describe("HIGH #2: billing-setup finalize rejects a session it does not own", () => {
+describe("billing-setup finalize rejects a session it does not own", () => {
   it("assertSessionBelongsToAccount rejects a foreign customer and a null expected id", () => {
     expect(assertSessionBelongsToAccount({ customer: "cus_B" }, "cus_A").ok).toBe(false);
     expect(assertSessionBelongsToAccount({ customer: "cus_B" }, null).ok).toBe(false);

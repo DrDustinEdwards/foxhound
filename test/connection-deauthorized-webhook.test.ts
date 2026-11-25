@@ -3,10 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// account.application.deauthorized: the merchant revoked Foxhound's grant from
-// their Stripe dashboard. The live connection is marked disconnected through
-// the local disconnect, Stripe is not called again, and an event for a Stripe
-// account Foxhound does not hold live is claimed and ignored.
+// account.application.deauthorized: the connection is disconnected locally without calling Stripe; an unknown account is claimed and ignored.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 

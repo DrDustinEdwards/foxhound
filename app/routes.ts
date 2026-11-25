@@ -4,7 +4,6 @@ export default [
   layout("./layouts/marketing.tsx", [
     index("./routes/home.tsx"),
     route("pricing", "./routes/pricing.tsx"),
-    // The hub is /products and each product's page is /product/<name>, singular.
     route("products", "./routes/products/index.tsx"),
     ...prefix("product", [
       route("audit", "./routes/products/audit.tsx"),
@@ -48,10 +47,8 @@ export default [
     route("security", "./routes/security.tsx"),
     route("accessibility", "./routes/accessibility.tsx"),
 
-    // Stripe connect and invites stay under the site header.
     route("connect", "./routes/auth/connect.tsx"),
     route("connect/callback", "./routes/auth/connect-callback.ts"),
-    // The switcher's "+ Add account"; the path mirrors Foxhound's own connect routes.
     route("connect/additional", "./routes/auth/connect-additional.ts"),
     route("invite/:token", "./routes/auth/invite.tsx"),
 
@@ -76,7 +73,7 @@ export default [
     route("email/confirm", "./routes/auth/email-confirm.tsx"),
   ]),
 
-  // The console is /console and each product's overview is /<product>/dashboard; older paths were never public and are not redirected.
+  // The console is /console and each product's overview is /<product>/dashboard.
   layout("./layouts/app-shell.tsx", { id: "app-shell" }, [
     route("console", "./routes/app/dashboard.tsx"),
     ...prefix("recovery", [
@@ -153,7 +150,7 @@ export default [
       route("users", "./routes/admin/users.tsx"),
       route("operations", "./routes/admin/operations.tsx"),
       route("brake", "./routes/admin/brake.tsx"),
-      // The Platform group: crons, errors, webhooks and the audit log live under /admin/platform; older paths are not redirected.
+      // The Platform group: crons, errors, webhooks and the audit log live under /admin/platform.
       ...prefix("platform", [
         route("crons", "./routes/admin/crons.tsx"),
         route("errors", "./routes/admin/errors.tsx"),
@@ -173,10 +170,8 @@ export default [
   // The OAuth consent page. No layout: one card, no site navigation.
   route("oauth/authorize", "./routes/oauth/authorize.tsx"),
 
-  // Demo exit (clears the demo cookie; unauthenticated, no shell)
   route("demo/exit", "./routes/demo/exit.ts"),
 
-  // Public utility (unauthenticated, no shell)
   route("u/:token", "./routes/utility/unsubscribe.tsx"),
   route("p/:token", "./routes/utility/card-update.tsx"),
   route("e/o/:token", "./routes/utility/engagement-open.ts"),
@@ -185,14 +180,11 @@ export default [
   // scanner that could tell the trap from the real link would not fall in it.
   route("e/h/:token", "./routes/utility/engagement-honeypot.ts"),
 
-  // Webhooks (resource routes, no shell; POST-only, signature-verified)
   route("webhooks/stripe", "./routes/webhooks/stripe.ts"),
   route("webhooks/stripe-platform", "./routes/webhooks/stripe-platform.ts"),
 
-  // Health (unauthenticated JSON; backup age only, no merchant data)
   route("health", "./routes/health.ts"),
 
-  // Files (resource routes, no shell)
   route("sitemap.xml", "./routes/files/sitemap.ts"),
   route("llms.txt", "./routes/files/llms.ts"),
   route("llms-full.txt", "./routes/files/llms-full.ts"),
@@ -218,7 +210,6 @@ export default [
   // The blog's media library (Carrel uploads): an original, or one size for ?w=.
   route("media/*", "./routes/files/media.ts"),
 
-  // Auth callback (resource route, no shell)
   route("auth/google/callback", "./routes/auth/google-callback.ts"),
 
   // Better Auth HTTP surface (sign-in/up/out, verify, reset, OAuth callbacks).
@@ -239,6 +230,5 @@ export default [
   route("api/oauth/register", "./routes/api/oauth-register.ts"),
   route("api/oauth/revoke", "./routes/api/oauth-revoke.ts"),
 
-  // Logout (action-only resource route; clears the session, redirects to /login)
   route("logout", "./routes/auth/logout.ts"),
 ] satisfies RouteConfig;

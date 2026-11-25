@@ -9,7 +9,6 @@ import {
 import { getStripe } from "./client";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// Stripe Connect OAuth.
 
 /** The redirect_uri registered with Stripe and sent on both authorize + token. */
 function connectRedirectUri(env: Env): string {
@@ -23,7 +22,6 @@ function auditRedirectUri(env: Env): string {
   return `${env.BETTER_AUTH_URL}/audit/callback`;
 }
 
-/** Build the Stripe Connect authorize URL with a CSRF state value. */
 export function buildConnectAuthorizeUrl(
   env: Env,
   state: string,
@@ -127,7 +125,7 @@ async function deauthorizeConnectedAccountWithClient(
 }
 
 /**
- * Default IO: build the platform client, deauthorize (admin Pass 2: merchant cancel). Callers MUST
+ * Default IO: build the platform client, deauthorize (merchant cancel). Callers MUST
  * commit the local cancel state (accounts.cancelledAt + stripe_connections.disconnectedAt) BEFORE
  * calling this, and must never roll that local state back on a deauthorize failure - the merchant
  * is canceled either way; a failed deauthorize only means the OAuth grant itself needs a retry, not

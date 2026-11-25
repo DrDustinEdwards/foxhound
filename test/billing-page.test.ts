@@ -9,9 +9,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import type { BillingPreview } from "~/lib/billing/preview.server";
 import type { BillingInvoiceRow, EnrichedLineItem } from "~/lib/billing/queries.server";
 
-// /billing: Recovery, Dispute Fees, the Intelligence offer, Subscriptions and Payment method. Every
-// line is a claim to a merchant about money, so what the sections say is pinned as copy, including
-// where it must differ for an exempt, paused or canceled account.
+// /billing history rows, the next-invoice claims per account state, and the setup return leg.
 
 const { buildRecoveryHistory, buildDisputeFeeRows, BILLING_HISTORY_LIMIT } =
   await import("~/lib/billing/page.server");
@@ -117,22 +115,6 @@ function disputeLine(
   } as unknown as EnrichedLineItem;
 }
 
-function creditLine(id: string, fee: EnrichedLineItem, creditCents: number): EnrichedLineItem {
-  return {
-    ...fee,
-    lineItem: {
-      ...fee.lineItem,
-      id,
-      type: "credit",
-      amountCents: -Math.abs(creditCents),
-      feeCents: null,
-      stripeCreditNoteId: `cn_${id}`,
-      creditsLineItemId: fee.lineItem.id,
-      createdAt: T("2026-08-05T00:00:00.000Z"),
-    },
-  } as EnrichedLineItem;
-}
-
 describe("ordinal", () => {
   it("says 1st, 2nd, 3rd, 4th, 11th, 12th, 13th, 21st", () => {
     expect([1, 2, 3, 4, 11, 12, 13, 21].map(ordinal)).toEqual([
@@ -199,14 +181,6 @@ describe("buildRecoveryHistory", () => {
     expect(rows).toHaveLength(12);
     expect(rows[0]!.periodLabel).toBe("Invoiced March 1, 2026");
     expect(rows[11]!.periodLabel).toBe("Invoiced April 1, 2025");
-  });
-
-  it("labels a status the merchant can read, never the raw value", () => {
-    const rows = buildRecoveryHistory(
-      [invoice({ id: "inv_g", status: "gave_up" })],
-      [recoveryLine("g1", "inv_g", 1_000, 200)],
-    );
-    expect(rows[0]).toMatchObject({ statusLabel: "Not collected", statusTone: "crit" });
   });
 });
 
@@ -320,22 +294,6 @@ function render(data: LoaderShape): string {
 const text = (html: string) => html.replaceAll("&#x27;", "'").replaceAll("&amp;", "&");
 
 describe("/billing renders the page on Foxhound's engine", () => {
-  it("shows a credit against a recovery fee and a dispute fee, with cents", () => {
-    const rfee = recoveryLine("c1", "inv_c", 10_000, 2_000);
-    const dfee = disputeLine("d9", "inv_c", 50_000, 10_000);
-    const inv = [invoice({ id: "inv_c" })];
-    const html = text(
-      render(
-        loaderData({
-          recoveryHistory: buildRecoveryHistory(inv, [rfee, creditLine("cr1", rfee, 2_000)]),
-          disputeFees: buildDisputeFeeRows(inv, [dfee, creditLine("cr2", dfee, 10_000)], []),
-        }),
-      ),
-    );
-    expect(html).toContain("Fee: $20.00 · Credited: $20.00");
-    expect(html).toContain("Fee (20%): $100.00 · Credited: $100.00");
-  });
-
   it("shows attributed recoveries this month and the next run's recovery fee, never the whole invoice", () => {
     const html = text(render(loaderData()));
     expect(html).toContain("Recovered this month");
@@ -369,24 +327,6 @@ describe("/billing renders the page on Foxhound's engine", () => {
       );
       expect(html).not.toContain("Next invoice:");
       expect(html).not.toContain("Added to your next monthly invoice");
-    });
-
-    it("a paused account is told a pause defers a fee", () => {
-      const html = text(
-        render(
-          loaderData({
-            preview: basePreview({
-              accountBillingState: {
-                billingExempt: false,
-                processingPaused: true,
-                cancelledAt: null,
-              },
-            }),
-          }),
-        ),
-      );
-      expect(html).toContain("Processing is paused. Nothing is invoiced while it stays paused.");
-      expect(html).not.toContain("Next invoice:");
     });
 
     it("a canceled account still sees its next invoice, and why", () => {

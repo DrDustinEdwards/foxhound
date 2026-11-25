@@ -6,13 +6,7 @@ import { createInMemoryDb } from "./helpers/inmemory-db";
 // These tests exercise charging itself, so the hard-rule-12 switch is on here.
 vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
 
-// E25. Recova creates every account's billing customer when the merchant
-// connects Stripe (app/api/auth/stripe/callback/route.ts, blob c60331af,
-// ensureBillingCustomer), with the billing email on it, so every billable
-// account gets an invoice: charged when a card is on file, emailed by Stripe
-// when not. Foxhound created the customer only when billing setup started, and
-// the run skipped an account without one, so that merchant got no invoice at
-// all. The run now creates the customer through ensurePlatformCustomer.
+// A billable account with no platform customer gets one (with the billing email) and an invoice against it.
 
 const ACCOUNT_ID = "acc_no_customer";
 const RUN_MS = new Date("2026-08-01T04:00:00.000Z").getTime();
@@ -132,8 +126,8 @@ async function seed() {
   return db;
 }
 
-describe("an account with billable lines and no platform customer (E25)", () => {
-  it("gets a platform customer with Recova's billing email, stored, and an invoice against it", async () => {
+describe("an account with billable lines and no platform customer", () => {
+  it("gets a platform customer with the billing email, stored, and an invoice against it", async () => {
     const db = await seed();
 
     const result = await runAccountBilling({} as Env, { accountId: ACCOUNT_ID, nowMs: RUN_MS });

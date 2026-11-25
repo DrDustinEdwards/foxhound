@@ -3,13 +3,9 @@ import { billingInvoices, billingLineItems, getDb } from "~/db";
 import { logAdminAction } from "~/lib/admin/audit.server";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
-// Manual billing adjustments (admin Pass 2; PRICING.md "a manual, admin-audited
-// adjustment line item exists for discretionary goodwill or error correction;
-// it is a lever, not a system"). An adjustment is its OWN standalone invoice
-// (not appended to a monthly-run invoice, which may already be finalized or
-// Stripe-charged): one billing_invoices row + one billing_line_items row
-// (type='adjustment', signed amountCents), committed atomically through the
-// per-account money-write DO like every other billing write (run.ts).
+// Manual billing adjustment (PRICING.md: a lever, not a system). Its OWN standalone invoice, not appended to a monthly-run one, which may already be finalized or
+// Stripe-charged: one billing_invoices row + one billing_line_items row (type='adjustment', signed amountCents), committed atomically through the per-account
+// money-write DO like every other billing write (run.ts).
 
 interface AdjustmentInvoiceInput {
   invoiceId: string;
@@ -26,7 +22,6 @@ interface AdjustmentInvoiceInput {
   idempotencyKey: string;
 }
 
-/** Pure batch builder, unit-testable like buildBillingInvoiceBatch (run.ts). */
 function buildAdjustmentInvoiceBatch(db: Db, input: AdjustmentInvoiceInput): MoneyWriteBatch {
   return [
     db.insert(billingInvoices).values({
@@ -80,20 +75,13 @@ export interface CreateAdjustmentResult {
   applied: boolean;
 }
 
-/**
- * Injected IO, so the DO-routed money-write can be driven through the real
- * SerialMoneyCommitter + an in-memory sqlite in tests (mirrors cancelMerchant's
- * deps in merchants.server.ts). Both default to the real bindings.
- */
+/** Injected IO, so tests can drive the DO-routed money-write through the real SerialMoneyCommitter and an in-memory sqlite. */
 export interface CreateAdjustmentDeps {
   db: Db;
   execute: typeof executeMoneyWrite;
 }
 
-/**
- * Operator entry point: audit-log first (plain insert), then the invoice + line
- * item as one atomic DO-routed batch. Never a raw money-write outside the DO.
- */
+/** Operator entry point: audit-log first (plain insert), then the invoice and line item as one atomic DO-routed batch. */
 export async function createAdjustment(
   env: Env,
   input: CreateAdjustmentInput,

@@ -9,9 +9,7 @@ import { isRetryStep } from "~/lib/recovery/schedule";
 // Foxhound action provably preceded the payment.
 
 export interface AttributionSignals {
-  /** A Foxhound-scheduled retry step succeeded for this failed payment (step id). */
   succeededRetryStepId?: string | null;
-  /** The customer updated their card via the Foxhound hosted page (event ref). */
   cardUpdateRef?: string | null;
   /** The customer clicked a Foxhound dunning email (engagement event id). Click,
    *  not open: opens are inflated by Apple MPP and never bill (PRICING.md). */
@@ -45,7 +43,6 @@ export function resolveAttribution(signals: AttributionSignals): ResolvedAttribu
   return { kind: "stripe_baseline", ref: null };
 }
 
-/** True for the attributed (billable) kinds; false for the free baseline. */
 export function isBillableAttribution(kind: AttributionKind): boolean {
   return (BILLABLE_ATTRIBUTION_KINDS as readonly string[]).includes(kind);
 }

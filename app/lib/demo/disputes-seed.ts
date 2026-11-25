@@ -26,7 +26,6 @@ export interface DisputesSeedResult {
   disputeBalanceTransactions: DisputeBalanceTransactionInsert[];
 }
 
-/** Stripe's dispute fee in the demo's funds entries: its standard US fee. */
 const DEMO_STRIPE_DISPUTE_FEE_CENTS = 1500;
 
 export interface DisputeSpec {
@@ -37,9 +36,6 @@ export interface DisputeSpec {
   amountCents: number;
   reason: string;
   state: "pending_review" | "submitted" | "resolved_won" | "resolved_lost";
-  /**
-   * null = not yet Foxhound-submitted (still pending_review or merchant-won).
-   */
   foxhoundSubmitted: boolean;
   triageRecommendation: "fight" | "accept";
   triageConfidence: number;
@@ -52,7 +48,6 @@ export interface DisputeSpec {
   radarRiskLevel: string;
   smartDisputesStatus: string;
   createdDaysAgo: number;
-  /** null = evidence deadline still in the future (open dispute). */
   resolvedDaysAgo: number | null;
   /**
    * Stripe's status, when it is not intake's needs_response: an inquiry carries
@@ -247,8 +242,6 @@ export const TEAMFLOW_DISPUTE_SPECS: DisputeSpec[] = [
   },
 ];
 
-// Bolt Analytics' three: one won, one lost, one awaiting a response. All three
-// are $99 Pro charges.
 export const BOLT_DISPUTE_SPECS: DisputeSpec[] = [
   {
     id: "ddisp_bolt_1",
@@ -341,8 +334,6 @@ export function buildDisputesSeed(
     const createdAt = daysAgo(now, spec.createdDaysAgo);
     const resolvedAt = spec.resolvedDaysAgo !== null ? daysAgo(now, spec.resolvedDaysAgo) : null;
     const won = spec.state === "resolved_won";
-    // Approved a day or two after the dispute was created; submitted right
-    // after.
     const approvedAt = spec.foxhoundSubmitted
       ? daysAgo(now, Math.max(0, spec.createdDaysAgo - 1))
       : null;

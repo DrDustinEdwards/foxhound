@@ -103,8 +103,6 @@ describe("a provider throw", () => {
   });
 
   it("a recorded refusal may be retried, and still leaves exactly one row", async () => {
-    // Several email keys are stable across attempts (expiring-card:alertId,
-    // winback-step:stepId), so without this one transient refusal would consume the send for good.
     const { db } = await seed();
     sendBehavior.mode = "throw";
     await processEmailJob({} as Env, job(), null);

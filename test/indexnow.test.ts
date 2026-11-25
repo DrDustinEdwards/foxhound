@@ -4,9 +4,7 @@ import { serializePostSource } from "~/lib/carrel/source";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
-// IndexNow: a save that leaves a blog post published POSTs that post's one URL
-// to api.indexnow.org, with Foxhound's own key, without waiting and without
-// ever failing the save.
+// IndexNow: publishing a blog post POSTs its one URL to api.indexnow.org without waiting or failing the save.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, d1: null as unknown }));
 

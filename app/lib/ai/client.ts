@@ -18,7 +18,6 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 // retry layer, stop reasons and the log line are all its. What stays here is
 // Foxhound's meter.
 
-/** What one call site's calls are logged as in ai_calls. */
 export interface AiCallMeter {
   source: string;
   accountId: string | null;
@@ -93,9 +92,6 @@ export async function askModel(
   return result;
 }
 
-/**
- * One metered call whose answer is JSON matching `schema`, parsed into `value`.
- */
 export async function askStructured<T>(
   env: Env,
   meter: AiCallMeter,

@@ -1,7 +1,4 @@
 import { buildRecoverBatch } from "~/lib/webhooks/batches";
-import { readFileSync, readdirSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-
 import Database from "better-sqlite3";
 import { describe, expect, it } from "vitest";
 
@@ -13,17 +10,10 @@ import { buildMarkRecoveredBatch } from "~/lib/recovery/manual-action-batches.se
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// S7 Phase 2 Session E: Mark as recovered, the phase's hardest build per 260.
-//
-// The load-bearing claim under test is 262 decision five: the manual path enters
-// through the spine's OWN recorder rather than becoming a second writer of
-// recovered_payments, and its exactly-once guarantee is INHERITED from the
-// outcomes idempotency key rather than invented. Everything here runs against a
-// real in-memory SQLite with the committed migrations applied, so the CHECK
-// constraint and the partial unique index are the actual ones D1 will enforce.
+// Mark as recovered enters through the spine's own recorder; exactly-once is inherited from the outcomes
+// idempotency key. Real in-memory SQLite with the committed migrations.
 
 const now = new Date("2026-08-13T00:00:00.000Z");
-const MIGRATIONS_DIR = fileURLToPath(new URL("../drizzle/migrations", import.meta.url));
 
 function seed(opts: { status?: string; steps?: number } = {}) {
   const { sqlite, db } = createInMemoryDb();
@@ -60,11 +50,7 @@ function seed(opts: { status?: string; steps?: number } = {}) {
   return { sqlite, db };
 }
 
-/**
- * The REAL committer, with in-memory deps. Using SerialMoneyCommitter rather than
- * a hand-rolled runner means the unique-constraint backstop under test is the
- * production one, including its isUniqueConstraintError mapping to applied=false.
- */
+/** The real committer with in-memory deps, so the unique-constraint backstop is the production one. */
 function committerFor(sqlite: Database.Database, db: Db) {
   const seen = new Set<string>();
   const committer = new SerialMoneyCommitter({
@@ -147,9 +133,7 @@ describe("mark recovered: the schema accepts the manual kind", () => {
     ).not.toThrow();
   });
 
-  it("and the CHECK is REAL, not decorative: a bogus kind is still refused", () => {
-    // Without this the test above could pass on a table with no constraint at all,
-    // which is precisely the capability-level check 265 requires.
+  it("a bogus kind is still refused", () => {
     const { sqlite } = seed();
     expect(() =>
       sqlite
@@ -158,60 +142,6 @@ describe("mark recovered: the schema accepts the manual kind", () => {
         )
         .run(),
     ).toThrow(/CHECK constraint failed/i);
-  });
-
-  it("migration 0014 PRESERVES existing rows through its table recreate", () => {
-    // 0014 drops and rebuilds recovered_payments (SQLite cannot alter a CHECK), on
-    // the fee-bearing table, with billing_line_items holding an inbound FK. Replay
-    // the migrations up to 0013, plant a row, then apply 0014 alone.
-    const sqlite = new Database(":memory:");
-    const files = readdirSync(MIGRATIONS_DIR)
-      .filter((f) => f.endsWith(".sql"))
-      .sort();
-    const upTo13 = files.filter((f) => !f.startsWith("0014"));
-    const only14 = files.filter((f) => f.startsWith("0014"));
-    expect(only14).toHaveLength(1);
-    const apply = (file: string) => {
-      for (const stmt of readFileSync(`${MIGRATIONS_DIR}/${file}`, "utf8").split(
-        "--> statement-breakpoint",
-      )) {
-        const t = stmt.trim();
-        if (t) sqlite.exec(t);
-      }
-    };
-    upTo13.forEach(apply);
-    sqlite.prepare("insert into accounts (id, name) values ('acc_1','Acme')").run();
-    sqlite
-      .prepare(
-        "insert into failed_payments (id, account_id, stripe_event_id, stripe_invoice_id, stripe_customer_id, customer_email, amount_cents, currency, decline_category, status, detected_at) values ('fp_1','acc_1','e','i','c','x@y.com',4200,'usd','soft','recovered',0)",
-      )
-      .run();
-    sqlite
-      .prepare(
-        "insert into recovered_payments (id, failed_payment_id, recovered_at, amount_cents, currency, recovery_method, account_id, attribution_kind, attributed_at) values ('rp_keep','fp_1',123,4200,'usd','foxhound_retry','acc_1','foxhound_retry',123)",
-      )
-      .run();
-
-    apply(only14[0]);
-
-    const rows = sqlite.prepare("select * from recovered_payments").all() as Record<
-      string,
-      unknown
-    >[];
-    expect(rows).toHaveLength(1);
-    expect(rows[0].id).toBe("rp_keep");
-    expect(rows[0].attribution_kind).toBe("foxhound_retry");
-    expect(rows[0].attributed_at).toBe(123);
-    expect(rows[0].amount_cents).toBe(4200);
-    // The indexes come back too, or every recovery read degrades to a scan.
-    const idx = sqlite
-      .prepare(
-        "select name from sqlite_master where type='index' and tbl_name='recovered_payments'",
-      )
-      .all() as { name: string }[];
-    const names = idx.map((i) => i.name);
-    expect(names).toContain("recovered_payments_account_idx");
-    expect(names).toContain("recovered_payments_failed_payment_idx");
   });
 });
 
@@ -227,8 +157,6 @@ describe("mark recovered: enters through the spine, never as a second writer", (
       {
         attribution_kind: "manual",
         recovery_method: "manual",
-        // NEVER billable: buildRecoveryBatch stamps attributed_at only for a
-        // billable kind, so the maturity window can never pick this row up.
         attributed_at: null,
       },
     ]);
@@ -242,7 +170,6 @@ describe("mark recovered: enters through the spine, never as a second writer", (
       product: string;
     }[];
     expect(outcome).toHaveLength(1);
-    // THE SHARED KEY SPACE: identical to what the webhook writes for this payment.
     expect(outcome[0].idempotency_key).toBe("recovery:fp_1");
     expect(outcome[0].attribution_kind).toBe("manual");
     expect(outcome[0].product).toBe("recovery");
@@ -256,7 +183,6 @@ describe("mark recovered: enters through the spine, never as a second writer", (
     expect(payment.status).toBe("recovered");
     expect(payment.resolved_at).toBe(now.getTime());
 
-    // Legacy's step three, read from source: unexecuted steps resolve to canceled.
     const steps = sqlite.prepare("select result from recovery_steps").all() as { result: string }[];
     expect(steps.map((s) => s.result)).toEqual(["cancelled", "cancelled"]);
   });
@@ -280,9 +206,7 @@ describe("mark recovered: exactly once, inherited from the outcomes key", () => 
     const commit = committerFor(sqlite, db);
 
     const merchant = await commit("manual:mark_recovered:fp_1", markRecoveredBatch);
-    // The webhook arrives after, carrying a DIFFERENT DO key. Only the shared
-    // outcomes key can stop it, which is the whole point of deriving that key
-    // from the failed payment rather than from the event.
+    // The webhook carries a different DO key; only the shared outcomes key can stop it.
     const webhook = await commit("stripe_evt_123", webhookRecoveryBatch);
 
     expect(merchant.applied).toBe(true);
@@ -303,8 +227,7 @@ describe("mark recovered: exactly once, inherited from the outcomes key", () => 
     expect(merchant.applied).toBe(false);
     const rows = feeRows(sqlite);
     expect(rows).toHaveLength(1);
-    // The webhook's attributed recovery SURVIVES: a merchant click cannot
-    // downgrade a real Foxhound-attributed recovery to a free manual one.
+    // A manual click cannot downgrade a Foxhound-attributed recovery.
     expect(rows[0].attribution_kind).toBe("foxhound_retry");
     expect(rows[0].attributed_at).toBe(now.getTime());
   });

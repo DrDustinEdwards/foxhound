@@ -3,13 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-// J54: /pricing's numbers are READ from Foxhound's engine constants,
-// never typed. A string that merely equals today's value passes
-// a copy test; this moves every constant the page states to a value nothing on
-// the page holds today, and expects the rendered page and its meta to move with
-// them. The sequence length moves through the schedule's own last step
-// (STEP_TIMING_EMAIL_DAY30_HOURS feeds RECOVERY_SCHEDULES), and the category
-// count through the marketing module that derives it from the same schedule.
+// /pricing's numbers are read from the engine constants, never typed: moving a constant moves the page.
 vi.mock("~/lib/constants", async (importOriginal) => ({
   ...(await importOriginal<typeof import("~/lib/constants")>()),
   RECOVERY_FEE_BPS: 1500,
@@ -44,7 +38,7 @@ function render(): string {
   return renderToStaticMarkup(createElement(RouterProvider, { router }));
 }
 
-describe("/pricing follows the engine constants (J54)", () => {
+describe("/pricing follows the engine constants", () => {
   const html = render();
 
   it("the maturity window comes from RECOVERY_MATURITY_DAYS, in the bullet, the FAQ and the meta description", () => {

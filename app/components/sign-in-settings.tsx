@@ -34,12 +34,10 @@ export type SignedInDevices =
   | "stale"
   | null;
 
-/** What /settings/account's loader reads for this panel. */
 export type SignInSettings = {
   /** site-runtime's passkeyRows, oldest first: `name` is passkeyLabel's (the
    *  name, else the provider's), `lastUsedAt` from auth_events. */
   passkeys: (AccountPasskey & { credentialId: string })[];
-  /** The providers Foxhound offers, and the joined account's id for each. */
   providers: { id: "google" | "apple"; label: string; accountId: string | null }[];
   devices: SignedInDevices;
   /** The latest sign-ins and sign-in changes (site-runtime securityHistory),
@@ -100,7 +98,6 @@ export function SignInMethodsPanel({
     // press while another runs does nothing.
     if (busy !== null) return;
     setError(null);
-    // The demo saves nothing, as ReadOnlyForm refuses every other write.
     if (isDemo) {
       setError(DEMO_READ_ONLY_MESSAGE);
       return;
@@ -330,7 +327,7 @@ export function SignInMethodsPanel({
 }
 
 /**
- * One passkey (A5): its name, then its provider when the name is not already
+ * One passkey: its name, then its provider when the name is not already
  * that, when it was added and when it last signed in; Rename opens a field in
  * place, and Remove deletes it. Renaming needs no fresh sign-in; removing does
  * (site-runtime), which `run` answers by asking for one.

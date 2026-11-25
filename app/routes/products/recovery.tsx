@@ -25,11 +25,10 @@ import {
   RECOVERY_STEPS,
 } from "~/lib/marketing/recovery-copy";
 import { recoveryPreviewFor } from "~/lib/marketing/recovery-preview.server";
-import { siteUrl, speakableWebPageJsonLd } from "~/lib/seo/jsonld";
-import { marketingMeta } from "~/lib/seo/meta";
+import { siteUrl } from "~/lib/seo/jsonld";
+import { productMeta } from "~/lib/marketing/product-meta";
 
 import type { Route } from "./+types/recovery";
-import { jsonLd } from "@drdustinedwards/site-helpers/schema";
 import "~/products.css";
 // The payments preview (recovery-previews.tsx) draws Capsomer's table; /features uses that module too but
 // draws no table, so the stylesheet loads here rather than with the module.
@@ -42,25 +41,11 @@ const TITLE = "Recovery";
 const AUDIT = { href: "/audit", label: "Run your free audit" };
 
 export function meta({ loaderData }: Route.MetaArgs) {
-  // SpeakableSpecification: the selectors point at the classes product-sections-cap.tsx puts on the sections.
-  return [
-    ...marketingMeta({
-      title: TITLE,
-      description: RECOVERY_META_DESCRIPTION,
-      path: PATH,
-      siteUrl: loaderData?.siteUrl ?? "",
-    }),
-    ...(loaderData
-      ? [
-          jsonLd(
-            speakableWebPageJsonLd(loaderData.siteUrl, {
-              path: PATH,
-              selectors: [".speakable-hero", ".speakable-description", ".speakable-features"],
-            }),
-          ),
-        ]
-      : []),
-  ];
+  return productMeta(loaderData, {
+    title: TITLE,
+    description: RECOVERY_META_DESCRIPTION,
+    path: PATH,
+  });
 }
 
 export function loader({ context }: Route.LoaderArgs) {

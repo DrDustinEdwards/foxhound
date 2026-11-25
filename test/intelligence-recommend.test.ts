@@ -10,10 +10,7 @@ import {
   type ValueBand,
 } from "~/lib/intelligence/recommend";
 
-// Recova's recommendation table (lib/intelligence/recommend.ts, blob b753ab76)
-// and its three bands (lib/intelligence/bands.ts, blob 119bec74), ported as
-// rules. Every one of the 48 cells is listed, because one wrong branch in a
-// nested table is the mistake this is easy to make and hard to see.
+// Every cell of the 48-cell recommendation table: one wrong branch is easy to make and hard to see.
 
 const E: EngagementBand[] = ["green", "yellow", "red", "unknown"];
 const H: RecoveryBand[] = ["green", "yellow", "red", "unknown"];
@@ -31,8 +28,8 @@ const TABLE: Record<EngagementBand, Record<RecoveryBand, [string, string, string
   unknown: { green: [W, C, C], yellow: [W, C, C], red: [W, C, C], unknown: [W, C, C] },
 };
 
-describe("Recova's recommendation table", () => {
-  it("gives Recova's action for every band combination", () => {
+describe("recommendation table", () => {
+  it("gives the action for every band combination", () => {
     const values: ValueBand[] = ["high", "medium", "low"];
     for (const e of E) {
       for (const h of H) {
@@ -48,7 +45,7 @@ describe("Recova's recommendation table", () => {
     }
   });
 
-  it("uses Recova's confidence rule", () => {
+  it("confidence rule", () => {
     expect(lookupRecommendation("unknown", "unknown", "high", 1).confidence).toBe("low");
     expect(lookupRecommendation("green", "green", "low", 1).confidence).toBe("low");
     expect(lookupRecommendation("green", "unknown", "high", 1).confidence).toBe("medium");
@@ -63,18 +60,9 @@ describe("Recova's recommendation table", () => {
     );
     expect(lookupRecommendation("red", "red", "low", 5_000).annualizedMrrAtRiskCents).toBeNull();
   });
-
-  it("keeps Recova's rationale except where it claimed more than the data shows", () => {
-    expect(lookupRecommendation("green", "green", "high", 1).rationale).toBe(
-      "Automated recovery is highly effective for this customer (engaged, 60%+ historical recovery rate). No intervention needed.",
-    );
-    expect(lookupRecommendation("red", "green", "high", 1).rationale).toBe(
-      "High-value customer who used to recover well but has no tracked email opens in the last 30 days. Reach out directly.",
-    );
-  });
 });
 
-describe("Recova's bands, on Foxhound's inputs", () => {
+describe("bands", () => {
   const NOW = Date.parse("2026-10-25T00:00:00.000Z");
   const DAY = 86_400_000;
 

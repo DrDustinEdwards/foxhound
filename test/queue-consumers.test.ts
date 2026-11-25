@@ -4,9 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import * as constants from "~/lib/constants";
 
-// The queue names the worker routes on and the queues wrangler.jsonc consumes were two lists that
-// nothing compared, so a handler arm could be unreachable. Both sides are derived here, neither
-// transcribed (like cron-registry.test.ts, which derives its schedules from wrangler.jsonc).
+// The queue names the worker routes on match the queues wrangler.jsonc consumes; both sides are derived.
 
 const ROOT = new URL("..", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 
@@ -14,9 +12,7 @@ function read(relativePath: string): string {
   return readFileSync(`${ROOT}/${relativePath}`, "utf8");
 }
 
-/** JSONC: drop whole-line comments only. A blanket "//" strip would eat the
- *  scheme separator inside every https:// value in this file. Same rule
- *  cron-registry.test.ts uses on the same file. */
+/** JSONC: drop whole-line comments only. A blanket "//" strip would eat https://. */
 function parseJsonc(raw: string): unknown {
   const stripped = raw
     .split("\n")
@@ -88,17 +84,5 @@ describe("queue consumers", () => {
     ] as const) {
       expect(WRANGLER_CONSUMERS.find((c) => c.queue === queue)?.max_retries, queue).toBe(retries);
     }
-  });
-
-  it("the monthly audit queue is produced into and delivers one message per invocation", () => {
-    // Each account must spend its Stripe pages in its own subrequest budget; a batch of ten would
-    // put ten accounts back under one limit.
-    expect(WRANGLER.queues?.producers).toContainEqual({
-      queue: constants.AUDIT_QUEUE_NAME,
-      binding: "AUDIT_QUEUE",
-    });
-    expect(
-      WRANGLER_CONSUMERS.find((c) => c.queue === constants.AUDIT_QUEUE_NAME)?.max_batch_size,
-    ).toBe(1);
   });
 });

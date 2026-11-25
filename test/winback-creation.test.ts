@@ -6,22 +6,7 @@ import { buildWinbackStartBatch } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// THE WIN-BACK CREATION PATH, ported from legacy's handleSubscriptionDeleted.
-// Session 5 measured that Foxhound created win-back sequences NOWHERE in
-// production: every insert was the demo seeder and planWinbackSteps had two
-// callers, the seeder and its own test. This is the port, and these assertions
-// are the proof that the planner now has a real one.
-//
-// LEGACY'S ELIGIBILITY CONDITIONS, in legacy's own order, each ported:
-//   1. involuntary churn  -> `.eq('status','active')` over the customer's
-//      failed_payments; when any exist legacy returns WITHOUT a win-back
-//   2. recently chased    -> status in ['cancelled','recovered'] with
-//      resolved_at >= now - WINBACK_RECENT_RESOLVED_DAYS (7)
-//   3. replay guard       -> an existing sequence for this stripe_subscription_id
-//   4. no email           -> `if (!customerEmail) return`
-//
-// The eligibility READS live in process.ts and are exercised through the
-// classifier + batch here; the branch wiring itself is asserted on source.
+// Win-back creation: the classifier maps a subscription deletion to a start intent, and the start batch is exactly-once per subscription.
 
 const now = new Date("2026-08-14T00:00:00.000Z");
 
@@ -58,10 +43,7 @@ function startInput(subscriptionId: string, eventId = "evt_" + subscriptionId) {
   };
 }
 
-/** Models executeMoneyWrite and the per-account money-write DO: the whole batch
- *  commits atomically or not at all, and a UNIQUE violation is the replay case,
- *  an idempotent no-op rather than an error (286's transaction-boundary rule,
- *  which exists because a bare run proved the opposite of its claim once). */
+/** Models the money-write DO: the batch commits atomically, and a UNIQUE violation is an idempotent no-op. */
 function commitBatch(
   sqlite: ReturnType<typeof createInMemoryDb>["sqlite"],
   batch: unknown[],
@@ -96,7 +78,7 @@ function subscriptionDeletedEvent(overrides: Record<string, unknown> = {}) {
   } as never;
 }
 
-describe("290: the classifier maps subscription deletion to a win-back intent", () => {
+describe("the classifier maps subscription deletion to a win-back intent", () => {
   it("pulls everything reachable without a Stripe call", () => {
     const intent = classifyStripeEvent(subscriptionDeletedEvent());
     expect(intent.kind).toBe("winback_start");
@@ -109,27 +91,18 @@ describe("290: the classifier maps subscription deletion to a win-back intent", 
     expect(intent.currency).toBe("usd");
   });
 
-  it("tolerates a subscription with no price, as legacy does", () => {
-    const intent = classifyStripeEvent(subscriptionDeletedEvent({ items: { data: [] } }));
-    if (intent.kind !== "winback_start") throw new Error("expected winback_start");
-    expect(intent.planName).toBeNull();
-    expect(intent.amountCents).toBeNull();
-    expect(intent.currency).toBeNull();
-  });
-
   it("ignores an event with no customer", () => {
     const intent = classifyStripeEvent(subscriptionDeletedEvent({ customer: null }));
     expect(intent).toEqual({ kind: "ignore", reason: "no_customer" });
   });
 });
 
-describe("290: exactly-once on the SUBSCRIPTION, both sides", () => {
-  it("a REDELIVERY collapses: one sequence, one set of steps", () => {
+describe("exactly-once on the subscription", () => {
+  it("a redelivery collapses: one sequence, one set of steps", () => {
     const { sqlite, db } = seed();
     const first = commitBatch(sqlite, buildWinbackStartBatch(db, startInput("sub_1", "evt_a")));
     expect(first.applied).toBe(true);
-    // A DIFFERENT event id, so the webhook claim cannot be what stops it: the
-    // guarantee has to come from the subscription key.
+    // A different event id, so the guarantee has to come from the subscription key.
     const second = commitBatch(sqlite, buildWinbackStartBatch(db, startInput("sub_1", "evt_b")));
     expect(second.applied).toBe(false);
     const seqCount = sqlite

@@ -71,7 +71,7 @@ export interface DocGuide {
   sections: { heading: string; body: DocBlock[] }[];
 }
 
-export const DOCS_FIRST_PUBLISHED = "2026-07-19";
+const DOCS_FIRST_PUBLISHED = "2026-07-19";
 
 const RECOVERY_FEE = `${RECOVERY_FEE_PERCENT}%`;
 const DISPUTE_FEE = `${DISPUTE_FEE_PERCENT}%`;

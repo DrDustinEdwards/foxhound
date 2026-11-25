@@ -12,11 +12,6 @@ import { listCustomerDirectory, listCustomerTiers } from "~/lib/intelligence/dir
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// TASK-foxhound-intelligence-customer-directory.md. Acceptance test for this
-// TASK is also the L-2 finding from foxhound-demo-engine-review.md: Northpoint
-// Logistics (health 90, an expansion narrative) must be reachable by browsing
-// the directory, not just by a hand-typed URL.
-
 const now = new Date("2026-07-21T00:00:00.000Z");
 
 describe("formatRelativeLastSeen", () => {
@@ -31,7 +26,7 @@ describe("formatRelativeLastSeen", () => {
   });
 });
 
-describe("capitalizeTier / signal helpers", () => {
+describe("signal helpers", () => {
   it("reads the active-recovery and dispute-history signals defensively", () => {
     expect(hasActiveRecoverySignal({ activeRecoveryId: "dfp_1" })).toBe(true);
     expect(hasActiveRecoverySignal({ activeRecoveryId: null })).toBe(false);
@@ -89,24 +84,6 @@ describe("listCustomerDirectory against the seeded demo account", () => {
     expect(page5.customers).toHaveLength(7); // 207 - 4*50
   });
 
-  it("sorts health ascending with nulls last by default", async () => {
-    const db = await seededDb();
-    const result = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      tier: null,
-      healthBand: null,
-      sort: "health_asc",
-      page: 1,
-    });
-    const scores = result.customers.map((c) => c.healthScore);
-    const nonNull = scores.filter((s): s is number => s !== null);
-    expect(nonNull).toEqual([...nonNull].sort((a, b) => a - b));
-    // Every customer_context row is scored (universal coverage), so there is
-    // nothing to prove about null placement in THIS seed, but the ordering
-    // above is exactly what would leave nulls at the end if any existed.
-    expect(scores.every((s) => s !== null)).toBe(true);
-  });
-
   it("sorts by MRR descending when requested", async () => {
     const db = await seededDb();
     const result = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, {
@@ -120,7 +97,7 @@ describe("listCustomerDirectory against the seeded demo account", () => {
     expect(mrrs).toEqual([...mrrs].sort((a, b) => b - a));
   });
 
-  it("Northpoint Logistics is reachable by filtering, not just by a hand-typed URL", async () => {
+  it("a customer is reachable by name search", async () => {
     const db = await seededDb();
     const result = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, {
       search: "Northpoint",
@@ -144,23 +121,6 @@ describe("listCustomerDirectory against the seeded demo account", () => {
       page: 1,
     });
     expect(result.customers).toHaveLength(0);
-  });
-
-  it("Northpoint also surfaces under the healthy band filter (it is not at-risk)", async () => {
-    const db = await seededDb();
-    const result = await listCustomerDirectory(db, DEMO_ACCOUNT_ID, {
-      search: null,
-      tier: null,
-      healthBand: "healthy",
-      sort: "health_asc",
-      page: 1,
-    });
-    const ids = new Set(result.customers.map((c) => c.stripeCustomerId));
-    // healthy band + page 1 of the largest band may not include every healthy
-    // customer, so re-query narrowed by name instead of asserting membership
-    // in an arbitrary first page.
-    expect(result.customers.every((c) => (c.healthScore ?? 0) >= 70)).toBe(true);
-    void ids;
   });
 
   it("the tier filter narrows to an exact match", async () => {

@@ -4,8 +4,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
 // The merchant's dispute notices, driven through the real webhook processor.
-// Every assertion reads the sent message or a table, never a helper's return
-// value, so a mutation that detaches a send goes red where it matters.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -209,7 +207,7 @@ describe("a new dispute notifies the merchant", () => {
     expect(sendRows()).toHaveLength(0);
   });
 
-  it("a paused account is not notified, as Recova returns before its email", async () => {
+  it("a paused account is not notified", async () => {
     seedAccount({ paused: true });
     await processConnectedWebhook(env, createdEvent(), RECEIVED);
     expect(harness.sent).toHaveLength(0);
@@ -217,7 +215,7 @@ describe("a new dispute notifies the merchant", () => {
 });
 
 describe("a closed dispute tells the merchant it was won or lost", () => {
-  it("lost: Recova's lost notice, no fee", async () => {
+  it("lost: the lost notice, no fee", async () => {
     seedAccount();
     seedDispute();
     await processConnectedWebhook(env, closedEvent("lost"), RECEIVED);
@@ -228,7 +226,7 @@ describe("a closed dispute tells the merchant it was won or lost", () => {
     expect(outcomeNotifiedAt()).not.toBeNull();
   });
 
-  it("a dispute already resolved by an Accept still gets Recova's lost notice when Stripe closes it", async () => {
+  it("a dispute already resolved by an Accept still gets the lost notice when Stripe closes it", async () => {
     seedAccount();
     seedDispute({ state: "resolved_lost" });
     const result = await processConnectedWebhook(env, closedEvent("lost"), RECEIVED);

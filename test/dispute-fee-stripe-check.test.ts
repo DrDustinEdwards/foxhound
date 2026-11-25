@@ -2,10 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The daily dispute-fee pricing cron checks each fee priced in the last day
-// against what Stripe actually withdrew (charge.dispute.funds_withdrawn, stored
-// in dispute_balance_transactions). A fee priced on a different amount than
-// Stripe took is logged as a structured warning; nothing about the fee changes.
+// A fee priced on a different amount than Stripe withdrew is logged as a warning; the fee does not change.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 

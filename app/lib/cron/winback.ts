@@ -26,8 +26,6 @@ import { isLastWinbackStep, WINBACK_STATUS } from "~/lib/recovery/winback";
 import { HOUR_MS } from "~/lib/constants";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// THE WIN-BACK SEND CRON.
-
 /** One tick's cap, matching the recovery tick's shape. */
 const WINBACK_SEND_LIMIT = 100;
 
@@ -144,10 +142,7 @@ export async function claimStepSent(
 }
 
 /**
- * THE TERMINAL FLIP.
- *
- * 344 binding 4: an exhausted sequence stays RESUBSCRIBABLE, because step 3's
- * own button must outlive the flip its own send causes.
+ * THE TERMINAL FLIP. An exhausted sequence stays RESUBSCRIBABLE, because step 3's own button must outlive the flip its own send causes.
  */
 async function claimSequenceExhausted(db: Db, sequenceId: string, now: Date): Promise<void> {
   await db
@@ -247,8 +242,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
   const result: WinbackSendResult = { sent: 0, skipped: 0 };
   const due = await queryDueWinbackSteps(db, now);
   if (due.length === 0) return result;
-  // Both send gates for every due step in one read, not two reads per step
-  // (Sentry FOXHOUND-2).
+  // Both send gates for every due step in one read, not two reads per step.
   const gates = await SendGates.read(
     env,
     due.map((step) => ({ to: step.customerEmail, accountId: step.accountId })),

@@ -46,8 +46,6 @@ export const authorizeRoute = await import("~/routes/oauth/authorize");
 export const tokenRoute = await import("~/routes/api/oauth-token");
 export const registerRoute = await import("~/routes/api/oauth-register");
 export const revokeRoute = await import("~/routes/api/oauth-revoke");
-export const metadataRoute = await import("~/routes/files/oauth-metadata");
-export const resourceRoute = await import("~/routes/files/oauth-protected-resource");
 export const { handleMcpRequest } = await import("~/lib/mcp/handler.server");
 
 export const ORIGIN = "https://foxhoundapp.test";

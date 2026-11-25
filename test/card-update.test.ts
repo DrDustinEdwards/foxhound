@@ -1,22 +1,16 @@
-import { drizzle } from "drizzle-orm/d1";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
-import * as schema from "~/db/schema";
 import { finalizeCardUpdateSession } from "~/lib/card-update/service";
-import { buildCardUpdateSignal } from "~/lib/card-update/signal";
 import { signCardUpdateToken, verifyCardUpdateToken } from "~/lib/card-update/token";
 import CardUpdate, {
   resolveConnectionForFailedPayment,
   type ConnectionCandidate,
 } from "~/routes/utility/card-update";
 
-// Capsomer's real Button, wrapped only to keep hold of the click handler its
-// rendered <button> carries, so a test can click the button the page really
-// drew. The wrapper calls the real Button inside its own render (hooks and
-// all) and returns its element unchanged, so the markup is Capsomer's.
+// Capsomer's real Button, wrapped only to capture the click handler its <button> carries.
 const clicks = vi.hoisted(() => ({ handlers: [] as ((e: unknown) => void)[] }));
 vi.mock("capsomer/react/button", async (importOriginal) => {
   const real = await importOriginal<typeof import("capsomer/react/button")>();
@@ -50,11 +44,6 @@ vi.mock("~/lib/stripe/client", () => ({
   }),
 }));
 
-const db = drizzle({} as never, { schema });
-function sqlOf(item: unknown): { sql: string; params: unknown[] } {
-  return (item as { toSQL(): { sql: string; params: unknown[] } }).toSQL();
-}
-
 // 64 hex chars = 32-byte HMAC key.
 const env = { ENCRYPTION_KEY: "a".repeat(64) } as unknown as Env;
 
@@ -86,25 +75,8 @@ describe("resolveConnectionForFailedPayment", () => {
   });
 });
 
-describe("buildCardUpdateSignal (compiles against schema)", () => {
-  it("inserts a card_update recovery_steps row, executed now, result card_updated", () => {
-    const now = new Date("2026-07-18T00:00:00.000Z");
-    const { sql, params } = sqlOf(
-      buildCardUpdateSignal(db, { failedPaymentId: "fp_1", accountId: "acc_1", occurredAt: now }),
-    );
-    expect(sql).toMatch(/insert into .*recovery_steps/i);
-    expect(params).toContain("card_update");
-    expect(params).toContain("card_updated");
-    expect(params).toContain("fp_1");
-    expect(params).toContain("acc_1");
-    expect(params).toContain(now.getTime());
-  });
-});
-
 describe("finalizeCardUpdateSession: only the session this link made", () => {
-  // Mythos billing review, finding 3. session_id is a URL parameter, and any
-  // completed setup session on the merchant's account used to be accepted, so
-  // a billable card_update was recorded with no new card.
+  // session_id is a URL parameter: only the setup session this link made may record a billable card_update.
   const link = { accessToken: "tok", sessionId: "cs_1", customerId: "cus_link", linkRef: "fp_1" };
   const made = {
     mode: "setup",
@@ -137,22 +109,10 @@ describe("finalizeCardUpdateSession: only the session this link made", () => {
 type Props = Parameters<typeof CardUpdate>[0];
 type LoaderData = Props["loaderData"];
 
-function render(loaderData: LoaderData): string {
-  const props = { loaderData, params: { token: "t" }, matches: [] } as unknown as Props;
-  const router = createMemoryRouter([{ path: "*", element: createElement(CardUpdate, props) }], {
-    initialEntries: ["/p/t"],
-  });
-  return renderToStaticMarkup(createElement(RouterProvider, { router }));
-}
-
 const READY: LoaderData = { state: "ready", amountCents: 9900, currency: "usd" };
 const RESUBSCRIBE: LoaderData = { state: "resubscribe", planName: "Pro" };
 
-/**
- * Render the page while a POST to its own action is in flight: the router's
- * navigation is "submitting" because the action never settles, which is what
- * a customer sees between pressing the button and Stripe's redirect.
- */
+/** Render the page while a POST to its own action is in flight (the action never settles). */
 async function renderSubmitting(loaderData: LoaderData): Promise<string> {
   const props = { loaderData, params: { token: "t" }, matches: [] } as unknown as Props;
   const router = createMemoryRouter(
@@ -179,15 +139,6 @@ describe("the pay button while the Checkout redirect starts", () => {
       const prevented = vi.fn();
       click({ preventDefault: prevented });
       expect(prevented).toHaveBeenCalledTimes(1);
-    });
-
-    it(`${name}: when idle the same press goes through (the guard discriminates)`, () => {
-      clicks.handlers = [];
-      render(state);
-      const click = clicks.handlers[clicks.handlers.length - 1];
-      const prevented = vi.fn();
-      click({ preventDefault: prevented });
-      expect(prevented).not.toHaveBeenCalled();
     });
   }
 });

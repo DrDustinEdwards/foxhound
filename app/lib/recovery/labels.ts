@@ -16,7 +16,7 @@ export const ATTRIBUTION_KIND_LABELS: Record<AttributionKind, string> = {
   email_engaged: "Email engaged",
   card_update: "Card update",
   stripe_baseline: "Stripe baseline",
-  // Never billable (262 one).
+  // Never billable.
   manual: "Manual",
 };
 
@@ -25,8 +25,7 @@ export const FAILED_PAYMENT_STATUS_LABELS: Record<string, string> = {
   recovered: "Recovered",
   failed_unrecovered: "Failed",
   cancelled: "Canceled",
-  // 377(1). Phrased as the merchant's question ("who is working this right now") rather than as the
-  // column value.
+  // Phrased as the merchant's question ("who is working this right now") rather than as the column value.
   stripe_retrying: "Stripe retrying",
 };
 

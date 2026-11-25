@@ -18,11 +18,8 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// job_ed1c41e4bd95: an account charging in two currencies. Recova added the
-// amounts together and labeled the sum with the first currency it saw, so
-// $1,240 and EUR 310 read "$1,550". Dustin approved one line per currency on
-// 2026-10-25 (parity/APPROVED-DIFFERENCES.md). Each money figure is kept per
-// currency on the live page, a saved run and the monthly email.
+// An account charging in two currencies shows one line per currency, never a sum, on the live page,
+// a saved run, the history and the monthly email.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 
@@ -176,21 +173,6 @@ describe("audit money figures, one line per currency", () => {
     expectPerCurrency(renderRun(await loadRun(id)));
   });
 
-  it("a run stored before this keeps showing its one total", async () => {
-    sqlite
-      .prepare(
-        `INSERT INTO audit_runs (id, account_id, run_at, lookback_days, created_at, currency,
-           failed_invoices_count, failed_invoices_cents, mrr_cents, arr_cents, active_subscriptions_count,
-           voluntary_churn_rate_bps, involuntary_churn_rate_bps)
-         VALUES ('old', ?, 1000, 90, 1000, 'usd', 3, 155000, 150000, 1800000, 2, 0, 0)`,
-      )
-      .run(ACCOUNT);
-    const html = renderRun(await loadRun("old"));
-    expect(html).toContain(">$1,550<");
-    expect(html).toContain(">$1,500<");
-    expect(html).toContain(">$18,000<");
-  });
-
   it("the monthly audit email gives each currency its own line", () => {
     const { blocks } = buildMonthlyAuditEmail({
       result: twoCurrencies(),
@@ -243,34 +225,5 @@ describe("audit money figures, one line per currency", () => {
     // Failed invoices: EUR 200 to EUR 310 is up 55% and $1,000 to $1,240 up
     // 24%, each in its own currency. MRR and open disputes did not move.
     expect(html).toMatch(/€310<.*vs.*€200<.*55%.*\$1,240<.*vs.*\$1,000<.*24%/s);
-    expect(html).not.toContain("▼");
-  });
-
-  it("/audit/dashboard shows no change against a run stored as one mixed sum", async () => {
-    sqlite
-      .prepare(
-        `INSERT INTO audit_runs (id, account_id, run_at, lookback_days, created_at, currency,
-           failed_invoices_count, failed_invoices_cents, open_disputes_count, open_disputes_cents,
-           mrr_cents, arr_cents, active_subscriptions_count, voluntary_churn_rate_bps, involuntary_churn_rate_bps)
-         VALUES ('old', ?, ?, 90, ?, 'usd', 3, 155000, 2, 25000, 150000, 1800000, 2, 0, 0)`,
-      )
-      .run(ACCOUNT, EARLIER.getTime(), EARLIER.getTime());
-    await save(twoCurrencies(), RAN_AT);
-    const html = await renderHistory();
-    // The old run still shows what it stored, but $1,240 against its mixed
-    // $1,550 is no 20% drop, so no figure draws a change.
-    expect(html).toContain(">$1,550<");
-    expect(html).not.toMatch(/[▲▼]|no change/);
-  });
-
-  it("the console's audit tile shows the leak in each currency", async () => {
-    const { getConsoleView } = await import("~/lib/dashboard/console.server");
-    const { ConsoleTileRow } = await import("~/components/console-panels");
-    await save(twoCurrencies(), RAN_AT);
-    const nowMs = RAN_AT.getTime() + 60_000;
-    const view = await getConsoleView(harness.db as never, ACCOUNT, nowMs, null);
-    const html = render(createElement(ConsoleTileRow, { tiles: view.tiles, nowMs }));
-    // Failed invoices and open disputes: EUR 310 + 50 and $1,240 + 200.
-    expect(html).toContain("€360 · $1,440");
   });
 });

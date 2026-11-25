@@ -3,10 +3,7 @@ import { describe, expect, it } from "vitest";
 import { PLATFORM_LINKS, PRODUCT_MANIFEST } from "~/lib/nav/manifest";
 import routes from "~/routes";
 
-// Structural regression guard (task Part 2 rule 3): "a unit test asserts
-// every manifest href exists in the route tree so nav and routes cannot
-// drift." Walks the real app/routes.ts config and reconstructs every static
-// full path, then checks every manifest href/to against that set.
+// Every nav manifest href exists in routes.ts, and every app-shell route has a manifest entry.
 
 interface RouteConfigEntry {
   path?: string;
@@ -43,14 +40,7 @@ function findByFile(entries: RouteConfigEntry[], file: string): RouteConfigEntry
   return null;
 }
 
-// Reverse-direction guard (port review finding 10): the forward check above
-// only proves a manifest entry points somewhere real; it would not catch a
-// real nav-worthy route being silently dropped FROM the manifest. Walks only
-// the app-shell subtree (marketing/admin/webhook/utility routes have no
-// product-switcher or platform-link presence to check; /admin has its own
-// AdminShell layout outside the app shell since job_6566f4776fdf), and skips
-// any path containing a dynamic segment (a :id detail page is never itself a
-// nav destination).
+// Walks the app-shell subtree, skipping dynamic segments.
 
 // Routes intentionally absent from the nav manifest: reached by redirect or
 // one-time flow, never a persistent switcher/platform-link destination.

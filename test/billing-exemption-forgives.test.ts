@@ -2,16 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
-// A BILLING EXEMPTION FORGIVES, AS RECOVA'S DID (Dustin, 2026-10-25, decision
-// card "Forgive, like Recova").
-//
-// Recova's monthly billing cron skipped exempt accounts and only ever billed
-// the prior calendar month, so a fee that came due while an account was exempt
-// was never billed. Foxhound checked billing_exempt only at run time and had no
-// lower date bound, so every fee held during an exemption was billed at the
-// first run after it ended. These run the real billable queries against a
-// SQLite carrying the committed migrations, with the exemption toggled through
-// the same money write the admin pages use.
+// A fee that came due while an account was exempt is never billed once the exemption ends (real billable queries on migrated SQLite).
 
 const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
 
@@ -130,7 +121,7 @@ describe("a billing exemption forgives the fees that came due while exempt", () 
 
     expect(await setBillingExempt(ENV, ACCOUNT, true, day(10))).toBe(true);
     expect(await setBillingExempt(ENV, ACCOUNT, false, day(20))).toBe(true);
-    // The gap's fees are billed in the gap, as Recova billed a month it was not exempt.
+    // The gap's fees are billed in the gap.
     expect(ids(await getBillableRecoveries(db, ACCOUNT, day(36).getTime()))).toEqual(["rp_gap"]);
     expect(ids(await getBillableDisputes(db, ACCOUNT, day(36).getTime()))).toEqual(["dp_gap"]);
 

@@ -204,9 +204,8 @@ const demoReset: CronHandler = async (env) => {
 };
 
 /**
- * The never-executed and overdue detector. Ruling 311 measured that a cron
- * which fails, or never runs at all, notifies nobody: billing-monthly has never
- * executed once in any environment and nothing would have said so.
+ * The never-executed and overdue detector: a cron that fails, or never runs at
+ * all, otherwise notifies nobody.
  */
 /**
  * The daily expiring-card alert. The CronLockDurableObject lease in run.ts is

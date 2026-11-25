@@ -5,12 +5,9 @@ import { buildInvoluntaryStopBatch } from "~/lib/webhooks/batches";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// RULING 291: the involuntary flip through 265's RATIFIED transition. The
-// win-back gate itself is driven end to end in winback-gate.test.ts.
-
 const now = new Date("2026-08-14T00:00:00.000Z");
 
-describe("291 C: the involuntary flip goes through 265's ratified transition", () => {
+describe("the involuntary flip", () => {
   function seedActive(ids: string[]) {
     const { sqlite, db } = createInMemoryDb();
     runStatement(sqlite, db.insert(accounts).values({ id: "acc_1", name: "Mine" }));
@@ -67,7 +64,7 @@ describe("291 C: the involuntary flip goes through 265's ratified transition", (
     payload: {},
   };
 
-  it("stops EVERY active recovery for the customer and cancels their steps", () => {
+  it("stops every active recovery for the customer and cancels their steps", () => {
     const { sqlite, db } = seedActive(["fp_a", "fp_b"]);
     expect(
       commit(
@@ -90,9 +87,7 @@ describe("291 C: the involuntary flip goes through 265's ratified transition", (
     expect(results.every((r) => r.result === "cancelled")).toBe(true);
   });
 
-  it("a REDELIVERED stop does not double-resolve", () => {
-    // Both-sides shape: the first stop applies, the second finds nothing active,
-    // so the claim takes zero rows and resolved_at is not moved a second time.
+  it("a redelivered stop does not double-resolve", () => {
     const { sqlite, db } = seedActive(["fp_x"]);
     commit(
       sqlite,

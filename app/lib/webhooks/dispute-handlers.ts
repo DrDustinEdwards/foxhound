@@ -1,6 +1,3 @@
-// Dispute intents of the connected-account webhook: intake and resolution.
-// Dispatched from process.ts.
-
 import { and, eq, isNull } from "drizzle-orm";
 import { disputes, getDb } from "~/db";
 import { mergeEvidence, readDisputeIntakeContext } from "~/lib/disputes/context.server";
@@ -75,10 +72,6 @@ export async function handleStampDispute(
     );
     return claimOnly(ctx, "disputes_disabled");
   }
-  // charge.dispute.created (dispute intake): resolve the recovery this charge belongs to, draft
-  // evidence grounded only in what that resolution and our own recovery_steps actually show, and
-  // create the dispute row, "awaiting merchant review" (state pending_review), never
-  // auto-submitted.
   const linked = await resolveDisputedRecovery(
     env,
     accountId,
@@ -192,8 +185,7 @@ export async function handleDisputeResolved(
   // THE CAP IS CONVERTED HERE, BEFORE THE BATCH. It needs a Stripe FX quote and an external call
   // cannot ride the money batch. A failure is recorded and the fee is left unsnapshotted, which is
   // the fail-closed shape: the dispute resolves either way, and an unpriced win is simply not
-  // billable until it can be priced. The old flat 50,000 is never used as a fallback, because a
-  // wrong number invoiced silently is worse than a right one invoiced late.
+  // billable until it can be priced. A wrong number invoiced silently is worse than a right one invoiced late.
   let cap: ResolvedDisputeCap | null = null;
   let capError: string | null = null;
   if (intent.won && dispute.submittedAt != null) {

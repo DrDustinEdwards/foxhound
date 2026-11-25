@@ -116,8 +116,7 @@ export async function coverPicture(
   };
 }
 
-// The pair the posts were given when the drawings moved to :::figure. Both
-// files named one drawing; the slug is the drawing.
+// A drawing's light and dark files; the slug is the drawing.
 const DIAGRAM_FIGURE =
   /^:::figure\{src="\/diagrams\/([a-z0-9-]+)-light-(\d+)x(\d+)\.svg" dark="\/diagrams\/\1-dark-\2x\3\.svg" alt="[^"]*"\}\r?\n:::$/gm;
 

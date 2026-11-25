@@ -5,21 +5,8 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SESSION 61, phase (c): the THEME half of the query re-audit's non-money
-// DEFECTS. The /connect loader half is in
-// multi-account-connect-loader-active-account.test.ts.
-//
-// EACH ONE IS A SHIM CALLER. `resolveMembership` is the null-marker shim, which
-// resolves the EARLIEST membership and ignores the session marker. That was
-// invisible until phase (e) shipped a switcher, because the earliest and the
-// active membership could not differ. They can now, so every one of these reads
-// or writes the wrong account for a merchant who has switched.
-//
-// TWO ACCOUNTS IN EVERY FIXTURE: an account-scope pin is
-// unprovable with one, because every wrong answer is also the right one.
-//
-// The marked account is deliberately the SECOND by createdAt, so no plant here
-// can pass by accident on the shim's own ordering.
+// The theme write must land on the session's active account, not the earliest membership. Two
+// accounts per fixture, the active one second by createdAt, so the shim's ordering cannot pass by accident.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -109,13 +96,8 @@ function signedInRequest(init?: RequestInit): Request {
   return new Request("https://foxhoundapp.test/connect", { ...init, headers });
 }
 
-describe("DEFECT 2: the theme WRITE stamped the earliest account, not the active one", () => {
+describe("the theme write targets the active account", () => {
   it("writes the MARKED account row and leaves the earliest one alone", async () => {
-    // The worse half of the pair. A read that answers the wrong account shows
-    // the wrong color; a write that stamps the wrong account MUTATES a row the
-    // merchant is not looking at. Legacy's writer
-    // (app/api/account/theme/route.ts, blob 968ba672) goes through
-    // resolveAccount exactly as its reader does.
     const response = (await themeAction({
       request: signedInRequest({
         method: "POST",
@@ -128,8 +110,6 @@ describe("DEFECT 2: the theme WRITE stamped the earliest account, not the active
 
     expect(response.status).toBe(204);
     expect(themeOf(MARKED)).toBe("dark");
-    // BOTH DIRECTIONS. Asserting only the target passes if the write hit every
-    // row; asserting only the bystander passes if the write hit nothing.
     expect(themeOf(EARLIEST)).toBe("dark");
   });
 });

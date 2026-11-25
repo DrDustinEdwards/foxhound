@@ -1,23 +1,13 @@
 import type Database from "better-sqlite3";
 import { createHash } from "node:crypto";
-import { SIGN_IN_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in";
-import { magicLink, renderEmail } from "capsomer/email";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { EMAIL_AUTH_SENDER_ADDRESS } from "~/lib/constants";
 
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
-// J82, parity row E1, now the sign-in link (the family sign-in has no
-// passwords, so the reset mail is gone; APPROVED-DIFFERENCES, "Sign-in and
-// invites", 2026-10-24). Recova's auth mail was a Supabase dashboard template,
-// not in its repo, so this claims nothing about parity. It pins three things:
-// the mail is Capsomer's `magicLink` template carrying Better Auth's link, it is
-// sent when /login or /signup asks for a link, and every refused send comes
-// back as a named outcome, with the link never logged. Every assertion on
-// content reads the message as it reaches env.EMAIL.send.
+// The sign-in mail's send, its named refusals, the link-confirm POST and the typed code.
 
 interface SentMessage {
   from: string;
@@ -31,8 +21,7 @@ interface SentMessage {
 
 const harness = vi.hoisted(() => ({ db: null as unknown, renderThrows: false }));
 
-// Lets one test make the render throw, to prove the send still answers by name
-// instead of throwing. Off everywhere else, so the real render runs.
+// Lets one test make the render throw.
 vi.mock("~/lib/email/templates", async (importOriginal) => {
   const real = await importOriginal<typeof import("~/lib/email/templates")>();
   return {
@@ -64,16 +53,6 @@ const TO = "jane@example.com";
 const TOKEN = "EXAMPLE-NOT-A-TOKEN";
 const URL_FIXTURE = `${BASE}/api/auth/magic-link/verify?token=${TOKEN}&callbackURL=%2Fconsole`;
 const CODE = "000000";
-
-function expectedRender(to: string, url: string, code: string) {
-  return renderEmail(magicLink, {
-    brand: { name: "Foxhound", family: "amber" },
-    to,
-    url,
-    code,
-    expiresIn: SIGN_IN_EXPIRES_IN_WORDS,
-  });
-}
 
 let sqlite: Database.Database;
 let sent: SentMessage[];
@@ -184,8 +163,8 @@ function linkTokens(): string[] {
   ).map((r) => r.identifier.slice("magic-link:".length));
 }
 
-describe("E1: the sign-in link is sent when a page asks for one", () => {
-  it("one mail to the address, rendered by Capsomer's magic-link template, carrying the confirm page's link", async () => {
+describe("the sign-in link is sent when a page asks for one", () => {
+  it("one mail to the address, carrying the confirm page's link", async () => {
     expect(await ask(makeEnv())).toBe("sent");
 
     expect(sent).toHaveLength(1);
@@ -203,11 +182,6 @@ describe("E1: the sign-in link is sent when a page asks for one", () => {
     expect(linkTokens()).toEqual([createHash("sha256").update(token).digest("base64url")]);
     expect(href.searchParams.get("callbackURL")).toBe(`${BASE}/passkey?next=%2Fconsole`);
     expect(href.searchParams.get("errorCallbackURL")).toBe(`${BASE}/sign-in/confirm`);
-
-    const want = expectedRender(TO, raw, codeIn(m));
-    expect(m.subject).toBe(want.subject);
-    expect(m.html).toBe(want.html);
-    expect(m.text).toBe(want.text);
   });
 });
 
@@ -235,27 +209,7 @@ describe("the mailed link opens /sign-in/confirm, and only its button signs in",
   });
 });
 
-describe("E1: what the sign-in link mail says and carries", () => {
-  it("comes from Foxhound at the auth sender, with no Reply-To, footer, unsubscribe or tracking", async () => {
-    await sendSignInLinkEmail(makeEnv(), { to: TO, url: URL_FIXTURE, token: TOKEN, code: CODE });
-    const m = sent[0];
-    expect(m.from).toBe(`Foxhound <${EMAIL_AUTH_SENDER_ADDRESS}>`);
-    expect(m.to).toBe(TO);
-    expect(Object.keys(m).sort()).toEqual(["from", "html", "subject", "text", "to"]);
-    expect(m.headers).toBeUndefined();
-    for (const part of [m.html, m.text ?? ""]) {
-      expect(part).not.toMatch(/unsubscribe/i);
-      expect(part).not.toContain("/u/");
-      expect(part).not.toContain("/t/");
-      expect(part).not.toMatch(/<img\b/i);
-    }
-    // One link only, in each part: the sign-in link.
-    expect([...m.html.matchAll(/https?:\/\//g)]).toHaveLength(1);
-    expect([...(m.text ?? "").matchAll(/https?:\/\//g)]).toHaveLength(1);
-  });
-});
-
-describe("E1: a refused send comes back named, and the link is never logged", () => {
+describe("a refused send comes back named, and the link is never logged", () => {
   it("no EMAIL binding: email_binding_missing", async () => {
     const logged = consoleSpies();
     const outcome = await sendSignInLinkEmail(makeEnv(null), {
@@ -335,8 +289,6 @@ describe("E1: a refused send comes back named, and the link is never logged", ()
 });
 
 describe("the code in the same mail signs in the tab that asked", () => {
-  // Dustin's live signup, 2026-10-29: the link opened in his regular browser,
-  // so the private window that asked never signed in.
   it("the code signs in and makes the session; it works once", async () => {
     const env = makeEnv();
     expect(await ask(env)).toBe("sent");

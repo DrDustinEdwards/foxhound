@@ -10,11 +10,7 @@ import type { EmailJobResult } from "~/lib/email/dispatch";
 import type { EmailCopy } from "~/lib/recovery/email-generation";
 import type { StepStatePatch } from "~/lib/recovery/step-state";
 
-// No recovery email leaves without its update link (RULES.md 3.15: if the
-// generated copy cannot be used, send the template). A body that drops or
-// rewrites the click-tracked card-update link loses the recovery AND the
-// billable click, so the executor checks the body after generation and before
-// the send, and falls back to the template, which always carries the link.
+// A recovery email never leaves without a valid update link for its own step and payment; otherwise the template is sent.
 
 const BASE = "https://foxhoundapp.com";
 const env = {

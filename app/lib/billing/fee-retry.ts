@@ -29,10 +29,6 @@ export interface FeeRetryInput {
    * also how a locally-stale row gets corrected (see sync_paid).
    */
   invoiceStatus: string;
-  /**
-   * Charge attempts made so far for this invoice
-   * (billing_invoices.charge_attempt_count).
-   */
   attemptCount: number;
   /** When the Stripe invoice was created, in ms. */
   invoiceCreatedMs: number;

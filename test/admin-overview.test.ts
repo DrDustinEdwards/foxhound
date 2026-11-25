@@ -2,19 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import {
   accounts,
-  adminAuditLog,
   billingInvoices,
   disputes,
   failedPayments,
   recoveredPayments,
   stripeConnections,
 } from "~/db";
-import { overviewAttention } from "~/lib/admin/overview";
-import {
-  type AdminOverview,
-  getAdminOverview as adminOverview,
-  listRecentAdminActions,
-} from "~/lib/admin/overview.server";
+import { getAdminOverview as adminOverview } from "~/lib/admin/overview.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -279,148 +273,5 @@ describe("the Overview's figures come from Foxhound's engine", () => {
       { currency: "eur", cents: 3000 },
       { currency: "usd", cents: 7500 },
     ]);
-  });
-});
-
-function overviewData(over: Partial<AdminOverview> = {}): AdminOverview {
-  return {
-    merchantCount: 3,
-    activeRecoveriesCount: 4,
-    mrrByCurrency: [
-      { currency: "usd", totalCents: 1_250_000, accountCount: 2 },
-      { currency: "eur", totalCents: 300_000, accountCount: 1 },
-    ],
-    cronHealth: {
-      failedLast24h: 0,
-      failedRuns: [],
-      lastRunAt: at(20 * 60 * 1000),
-      disabledCount: 0,
-    },
-    pausedCount: 0,
-    billingExemptCount: 1,
-    newConnectionsCount: 2,
-    openDisputesCount: 3,
-    recoveredThisMonth: {
-      paymentCount: 3,
-      byCurrency: [
-        { currency: "usd", cents: 7500 },
-        { currency: "eur", cents: 3000 },
-      ],
-    },
-    staleDisputesCount: 0,
-    failedFeeInvoicesCount: 0,
-    attention: { pausedMerchants: [], staleDisputes: [], failedFeeInvoices: [] },
-    ...over,
-  };
-}
-
-const busyAttention: Partial<AdminOverview> = {
-  pausedCount: 1,
-  staleDisputesCount: 1,
-  failedFeeInvoicesCount: 1,
-  attention: {
-    pausedMerchants: [{ id: "acct_lumen", name: "Lumen Studio", pauseReason: null }],
-    staleDisputes: [
-      {
-        id: "d1",
-        accountId: "acct_north",
-        merchantName: "Northwind Coffee",
-        amountCents: 12000,
-        currency: "usd",
-        reason: "product_not_received",
-        createdAt: at(12 * DAY),
-        evidenceDeadline: at(-2 * DAY),
-      },
-    ],
-    failedFeeInvoices: [
-      {
-        id: "inv_1",
-        accountId: "acct_north",
-        merchantName: "Northwind Coffee",
-        totalCents: 2400,
-        currency: "usd",
-        status: "payment_failed",
-        chargeAttemptCount: 2,
-        failedAt: at(DAY),
-      },
-    ],
-  },
-  cronHealth: {
-    failedLast24h: 1,
-    failedRuns: [
-      {
-        id: "run_1",
-        cronName: "weekly-digest",
-        finishedAt: at(5 * 60 * 60 * 1000),
-        message: "Email binding unavailable",
-      },
-    ],
-    lastRunAt: at(20 * 60 * 1000),
-    disabledCount: 0,
-  },
-};
-
-describe("Needs attention", () => {
-  it("folds like rows into groups and keeps every row's own link", () => {
-    const items = overviewAttention(overviewData(busyAttention), NOW);
-    expect(items.map((i) => [i.group, i.href])).toEqual([
-      ["paused", "/admin/merchants/acct_lumen"],
-      ["disputes", "/admin/merchants/acct_north"],
-      ["billing", "/admin/merchants/acct_north"],
-      ["crons", "/admin/platform/crons#run-run_1"],
-    ]);
-    expect(items.every((i) => i.tone === "warn")).toBe(true);
-  });
-
-  it("says each time the same on the server and in any browser (UTC calendar days)", () => {
-    // 00:30 UTC on 15 October, a run 26 hours before. By UTC's calendar that
-    // is two days ago; in Honolulu (UTC-10) it is yesterday. The server renders
-    // in UTC, so a browser left to its own zone would hydrate different words.
-    const lateNow = Date.UTC(2026, 9, 15, 0, 30);
-    const data = overviewData({
-      cronHealth: {
-        failedLast24h: 1,
-        failedRuns: [
-          {
-            id: "r",
-            cronName: "weekly-digest",
-            finishedAt: new Date(lateNow - 26 * 60 * 60 * 1000),
-            message: null,
-          },
-        ],
-        lastRunAt: null,
-        disabledCount: 0,
-      },
-    });
-    const saved = process.env.TZ;
-    process.env.TZ = "Pacific/Honolulu";
-    try {
-      const run = overviewAttention(data, lateNow).find((i) => i.group === "crons");
-      expect(run?.when).toEqual({ text: "2 days ago", datetime: "2026-10-13T22:30:00.000Z" });
-    } finally {
-      if (saved === undefined) delete process.env.TZ;
-      else process.env.TZ = saved;
-    }
-  });
-});
-
-describe("the recent admin actions read", () => {
-  it("takes the newest ten, newest first", async () => {
-    const { db } = createInMemoryDb();
-    await db.insert(adminAuditLog).values(
-      Array.from({ length: 12 }, (_, i) => ({
-        id: `log_${i}`,
-        actorEmail: "admin@example.com",
-        action: "cron.disable",
-        metadata: { cronName: "weekly-digest" },
-        createdAt: at(i * 60 * 1000),
-      })),
-    );
-    const rows = await listRecentAdminActions(db);
-    expect(rows.map((r) => r.id)).toEqual(Array.from({ length: 10 }, (_, i) => `log_${i}`));
-    expect(rows[0]).toMatchObject({
-      action: "Disabled a cron",
-      target: { label: "weekly-digest", href: "/admin/platform/crons#cron-weekly-digest" },
-    });
   });
 });

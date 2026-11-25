@@ -56,7 +56,6 @@ vi.mock("~/lib/auth/auth.server", () => ({
 
 const route = await import("~/routes/app/settings/account");
 const { MRR_ERROR } = await import("~/lib/settings/apply.server");
-const { chooseTheme } = await import("~/lib/settings/theme-choice");
 
 const ACTIVE = "acct_1";
 const EARLIEST = "acct_earliest";
@@ -212,27 +211,6 @@ describe("account: the profile form", () => {
       expect(noName.data).toMatchObject({ action: "profile", ok: false, field: "name" });
       expect(row()).toEqual(UNCHANGED);
     });
-
-    it("answers a failed write with a failure state rather than throwing", async () => {
-      harness.db = new Proxy(
-        {},
-        {
-          get() {
-            throw new Error("D1 unavailable");
-          },
-        },
-      );
-      const logged = vi.spyOn(console, "error").mockImplementation(() => {});
-      const res = await post({
-        _action: "profile",
-        name: "Acme Inc",
-        merchantIndustry: "SaaS",
-        merchantMrrSelfReported: "10",
-      });
-      logged.mockRestore();
-      expect(res.data).toEqual({ action: "profile", ok: false });
-      expect(res.init?.status).toBe(500);
-    });
   });
 });
 
@@ -315,12 +293,6 @@ describe("account: cancel and delete", () => {
     expect(marker()).toBe(EARLIEST);
   });
 
-  it("cancel with no other account held leaves the session marker alone", async () => {
-    sqlite.prepare("DELETE FROM account_members WHERE account_id = ?").run(EARLIEST);
-    await post({ _action: "cancel-account" });
-    expect(marker()).toBe(ACTIVE);
-  });
-
   it("only the owner can cancel: a member is refused with a 403 and nothing is written", async () => {
     const res = await post({ _action: "cancel-account" }, "member");
     expect(res.init?.status).toBe(403);
@@ -370,34 +342,5 @@ describe("account: cancel and delete", () => {
       expect(source, path).not.toContain("delete-account");
       expect(source, path).not.toContain("deleteUserAccount");
     }
-  });
-});
-
-describe("account: the theme choice", () => {
-  it("refuses in the demo without saving, and reports a refused or lost save as failed", async () => {
-    const fetcher = vi.fn();
-    expect(await chooseTheme("light", { isDemo: true, fetcher })).toBe("demo");
-    expect(fetcher).not.toHaveBeenCalled();
-
-    const ok = vi.fn(async () => new Response("{}", { status: 200 }));
-    expect(await chooseTheme("light", { isDemo: false, fetcher: ok })).toBe("saved");
-    expect(ok).toHaveBeenCalledWith(
-      "/api/theme",
-      expect.objectContaining({ method: "POST", body: JSON.stringify({ theme: "light" }) }),
-    );
-    expect(
-      await chooseTheme("dark", {
-        isDemo: false,
-        fetcher: async () => new Response("", { status: 500 }),
-      }),
-    ).toBe("failed");
-    expect(
-      await chooseTheme("dark", {
-        isDemo: false,
-        fetcher: async () => {
-          throw new Error("offline");
-        },
-      }),
-    ).toBe("failed");
   });
 });

@@ -4,9 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 
-// The reader that routes a connected webhook to an account only looks at LIVE
-// connections. Fixtures never hold two live rows for one Stripe account, so nothing
-// proven here is borrowed from the unique index (test/connect-callback.test.ts).
+// A connected webhook is routed only through LIVE connections.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -132,8 +130,6 @@ describe("a Stripe account with no live connection", () => {
   });
 
   it("a claim that fails for any reason but the unique index is an error, so Stripe retries", async () => {
-    // The catch used to swallow every failure into "ignored", a 200, and Stripe
-    // never sent the event again.
     sqlite.exec("DROP TABLE webhook_events");
     const outcome = await processConnectedWebhook({} as Env, event("evt_6"), RECEIVED_AT);
     expect(outcome.status).toBe("error");

@@ -3,18 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// SKIP UNTIL PRICED (Dustin).
-//
-// A won dispute whose $500 cap could not be converted at resolution has no
-// stored fee, and its won notice carried no fee sentence. The
-// billing run used to bill it anyway at disputeFeeCents(amount, 50,000): the
-// flat cap in the dispute's own minor units, which 377(7) says is never used,
-// and a fee the merchant was never told. Now the run leaves it out, the daily
-// pricing retry stores the fee and tells the merchant, and the next run bills
-// exactly the stored amount.
-//
-// The rate is fake and chosen so the converted cap (60,000 pence) differs from
-// the old flat fallback (50,000 pence).
+// A won dispute whose cap could not be converted is skipped by billing until the pricing retry stores
+// its fee, then billed at exactly that fee, never the flat fallback.
 
 interface SentMessage {
   to: string;

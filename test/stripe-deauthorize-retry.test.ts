@@ -10,9 +10,7 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Grok audit FH-7: a Stripe grant whose revoke failed after a disconnect is
-// queued on its connection row and retried until Stripe accepts, and never
-// revoked once the same Stripe account is live on Foxhound again.
+// A Stripe grant whose revoke failed is queued on its connection row and retried until Stripe accepts; never revoked once the account is live again.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({

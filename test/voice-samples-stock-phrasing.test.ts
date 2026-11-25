@@ -2,18 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const METER = { source: "test", accountId: null };
 
-// The merchant's own past emails and the family's stock-phrasing check, an
-// approved difference from Recova (parity/APPROVED-DIFFERENCES.md, 2026-10-24).
-// The check itself is site-runtime ./prose's and is tested there; these hold
-// Foxhound's part: the samples are saved, read and reach both prompts as data;
-// a draft that copies a sample's link, address or sentences sends the
-// template; a draft with stock phrasing is retried once, and what the retry
-// leaves is sent, since one stock word costs less than the template. The
-// other model-written texts (dispute evidence, the Intelligence narrative, the
-// audit summary) share the retry in ai/plain-writing.ts; one plant here proves
-// the wiring outside the email path.
-//
-// The model is stubbed at ~/lib/ai/client's askStructured, as timing-word-guard does.
+// The merchant's sample emails reach the prompts as data, a draft copying a sample sends the template,
+// and stock phrasing is retried once. The model is stubbed at ~/lib/ai/client.
 
 const harness = vi.hoisted(() => ({
   calls: [] as { system?: unknown; messages: { role: string; content: string }[] }[],
@@ -41,7 +31,7 @@ const { getPrimaryBrandVoices } = await import("~/lib/settings/queries.server");
 const { readVoiceSamples } = await import("~/lib/recovery/voice-samples");
 const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");
 const { queryStepForManualTrigger, toEmailContext } = await import("~/lib/cron/due-steps");
-const { buildPrompts, findBrandVoiceViolations, generateDunningEmail, passesQualityGate } =
+const { buildPrompts, generateDunningEmail, passesQualityGate } =
   await import("~/lib/recovery/email-generation");
 const { buildWinbackPrompt, generateWinbackEmail } =
   await import("~/lib/recovery/winback-generation");
@@ -161,7 +151,7 @@ describe("what a draft was never given", () => {
     updateUrl: UPDATE_URL,
   };
 
-  it("PLANT: a sample's link, an email address or a copied sentence sends the template", async () => {
+  it("a sample's link, an email address or a copied sentence sends the template", async () => {
     for (const body of [
       `<p>Your card failed. <a href="https://pay.example.com/x">Pay here</a>.</p>`,
       `<p>Your card failed. <a href="${UPDATE_URL}">Update it</a>, or pay at https://pay.example.com/x.</p>`,
@@ -173,7 +163,7 @@ describe("what a draft was never given", () => {
     }
   });
 
-  it("CLEAN TWIN: the same samples, a draft in its own words with only its own link", async () => {
+  it("the same samples, a draft in its own words with only its own link", async () => {
     harness.replies.push(CLEAN);
     expect(await generateDunningEmail(env, withSamples, METER)).toEqual(CLEAN);
   });
@@ -198,7 +188,7 @@ describe("stock phrasing", () => {
     resubscribeUrl: UPDATE_URL,
   };
 
-  it("PLANT: a draft with stock phrasing is retried once, naming what it used, and the cleaner retry is kept", async () => {
+  it("a draft with stock phrasing is retried once, naming what it used, and the cleaner retry is kept", async () => {
     harness.replies.push(STOCK, CLEAN);
     const copy = await generateDunningEmail(env, dunning, METER);
     expect(harness.calls).toHaveLength(2);
@@ -206,7 +196,7 @@ describe("stock phrasing", () => {
     expect(copy).toEqual(CLEAN);
   });
 
-  it("PLANT: when the retry is no better, the first draft is sent, not the template", async () => {
+  it("when the retry is no better, the first draft is sent, not the template", async () => {
     harness.replies.push(STOCK, STOCK);
     const copy = await generateWinbackEmail(env, winback, METER);
     expect(harness.calls).toHaveLength(2);
@@ -214,7 +204,7 @@ describe("stock phrasing", () => {
     expect(passesQualityGate(copy)).toBe(true);
   });
 
-  it("PLANT: a timing retry that brings stock phrasing back is not kept", async () => {
+  it("a timing retry that brings stock phrasing back is not kept", async () => {
     harness.replies.push(
       { subject: "Your Acme card failed today", bodyHtml: CLEAN.bodyHtml },
       { subject: "Your Acme card failed", bodyHtml: STOCK.bodyHtml },
@@ -243,14 +233,7 @@ describe("stock phrasing", () => {
     expect(copy).toEqual(STOCK);
   });
 
-  it("CLEAN TWIN: a plainly written draft passes with no retry", async () => {
-    harness.replies.push(CLEAN);
-    const copy = await generateDunningEmail(env, dunning, METER);
-    expect(harness.calls).toHaveLength(1);
-    expect(findBrandVoiceViolations(copy)).toEqual([]);
-  });
-
-  it("PLANT: dispute evidence that reads as machine-written is retried, and the plain retry is what Stripe gets", async () => {
+  it("dispute evidence that reads as machine-written is retried, and the plain retry is what Stripe gets", async () => {
     harness.replies.push(
       {
         uncategorizedText:

@@ -3,11 +3,6 @@ import { DAY_MS, HOUR_MS } from "~/lib/constants";
 import { percent } from "capsomer/behavior/meter";
 import { dayKey } from "@dustinedwards/site-runtime/time";
 
-// Pure aggregation math for the Recovery dashboard's windowed read model. No DB
-// access here; app/lib/dashboard/recovery-window.server.ts calls these against
-// real query results. Kept separate so the math is unit-tested without a
-// database.
-
 export const RECOVERY_RANGES = ["7d", "30d", "90d", "all"] as const;
 export type RecoveryRange = (typeof RECOVERY_RANGES)[number];
 

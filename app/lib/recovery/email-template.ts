@@ -2,10 +2,7 @@ import { escapeHtml } from "@dustinedwards/site-runtime/html";
 
 import type { EmailCopy } from "./email-generation";
 
-// Deterministic dunning copy: the safe output when generation cannot be used. This did not exist
-// before. `EmailJob.template` was only ever a LABEL string written to `email_sends.template` for
-// logging; there was no template CONTENT anywhere in the product, so a generation failure produced
-// no email at all. HARD REQUIREMENT: this copy must itself pass `passesQualityGate`.
+// Deterministic dunning copy: the safe output when generation cannot be used. HARD REQUIREMENT: this copy must itself pass `passesQualityGate`.
 
 export interface TemplateEmailInput {
   merchantName: string;
@@ -77,9 +74,7 @@ const STEP_TEMPLATES: Record<string, { subject: string; body: (v: StepTemplateVa
         `<p>${v.senderName}</p>`,
       ].join("\n"),
   },
-  // So "will" became "may", and day 3 lost "soon". Day 14 said the card update restored the
-  // account, but finalizeCardUpdateSession only saves the new card as the default and charges
-  // nothing, so it now says the update "only takes a minute".
+  // Day 14 does not claim the update restores the account: finalizeCardUpdateSession only saves the new card as the default and charges nothing.
   email_day30: {
     subject: "Final notice on your account",
     body: (v) =>

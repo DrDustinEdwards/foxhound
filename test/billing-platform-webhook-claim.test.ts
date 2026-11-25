@@ -3,18 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The platform endpoint used to claim the event with a plain insert BEFORE
-// dispatching, then swallow any dispatch failure into a 200. So a lost
-// invoice.paid was lost permanently: marked processed, Stripe told everything
-// was fine and never redelivering, and the platform webhook is itself the only
-// reconciler for platform invoice status.
-//
-// These drive the real route action, so the assertions are the same shape
-// against the old and new code: HTTP status plus committed rows.
-//
-// The claim now rides the SAME atomic money batch as the status update
-// (gotcha 32's folded-claim pattern), which is what makes "the dispatch failed,
-// so nothing was claimed" true rather than aspirational.
+// The real route action: a failed dispatch must not claim the event (the claim rides the same atomic money batch as the status update).
 
 const ACCOUNT_ID = "acc_platform";
 const BILLING_INVOICE_ID = "binv_1";
@@ -40,9 +29,7 @@ vi.mock("~/lib/money/execute", () => ({
   ): Promise<{ applied: boolean }> => {
     const sqlite = harness.sqlite as { exec: (s: string) => void };
     const batch = write.build(harness.db);
-    // Model the money DO honestly: the whole batch commits atomically or not at
-    // all. Without the transaction the claim would survive a failed update and
-    // this test would prove nothing.
+    // The whole batch commits atomically or not at all, like the money DO.
     sqlite.exec("BEGIN");
     try {
       for (const stmt of batch) await (stmt as Promise<unknown>);
@@ -147,9 +134,7 @@ describe("platform webhook: a dispatch failure must not claim the event", () => 
 
     const res = await post();
 
-    // Pre-fix: 200. Stripe would have stopped retrying a payment it had taken.
     expect(res.status).toBe(500);
-    // Pre-fix: one row, processed=true, for an event that was never applied.
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
     const [invoice] = await db.select().from(schema.billingInvoices);
     expect(invoice.status).toBe("finalized");
@@ -249,7 +234,7 @@ describe("platform webhook: only our own invoice for that row is applied", () =>
   });
 });
 
-describe("platform webhook: unchanged guards", () => {
+describe("platform webhook: signature", () => {
   it("still rejects a bad signature with a 400, before any claim", async () => {
     const db = await seed();
     harness.event = invoicePaidEvent("evt_bad_sig", BILLING_INVOICE_ID);

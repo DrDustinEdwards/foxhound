@@ -13,11 +13,8 @@ import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attri
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
-// A click that feeds billing is a money write: /e/c/:token -> recordClick sets
-// recovery_steps.clicked_at -> findAttributionSignals reads it -> "email_engaged" is billable. So a
-// fetch by anything that is not a person would fabricate a billable event, and the guard sits at
-// the write (app/lib/engagement/record.ts), not at the redirect. The redirect is identical either
-// way, so the filtering never leaks to the caller.
+// A click that feeds billing is a money write, so a fetch by anything that is not a person must not
+// write one; the guard sits at the write and the redirect is identical either way.
 
 const harness = vi.hoisted(() => ({ db: null as unknown, sqlite: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({

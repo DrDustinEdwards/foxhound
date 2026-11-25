@@ -10,11 +10,7 @@ import {
 
 import { createInMemoryDb, inMemoryMoneyWriter } from "./helpers/inmemory-db";
 
-// A click is not evidence of a person. An enterprise link scanner (SafeLinks,
-// Proofpoint, Mimecast) presents a full browser user agent, so one scanner GET
-// used to make every later recovery of that payment `email_engaged`, billing the
-// merchant 20% for a fetch their own security vendor performed. A click faster than
-// CLICK_SUSPECT_MIN_SECONDS after the send is recorded either way but can never bill.
+// A click faster than CLICK_SUSPECT_MIN_SECONDS after the send (a link scanner) is recorded but can never bill.
 
 const ACCOUNT = "acct_scan";
 const PAYMENT = "fp_scan";
@@ -70,8 +66,7 @@ async function seed() {
   return db;
 }
 
-/** Drive the REAL recorder at a chosen instant, by moving the clock rather than
- *  by writing the column the code under test is supposed to compute. */
+/** Drive the real recorder at a chosen instant by moving the clock. */
 async function clickAt(instant: Date) {
   vi.setSystemTime(instant);
   try {

@@ -12,9 +12,6 @@ import {
 } from "~/lib/constants";
 import { recoveryFeeCents, unrefundedCents } from "~/lib/billing/fees";
 
-// The /billing fee preview: what the next monthly run will invoice, shown to
-// the merchant before the invoice exists. Strictly read-only.
-//
 // This module computes NO money of its own. The billable sets come from
 // app/db/billable.ts and the fee amounts from app/lib/billing/fees.ts, the same
 // two modules app/lib/billing/run.ts reads, so the card and the invoice cannot
@@ -31,7 +28,6 @@ export interface AccountBillingState {
   cancelledAt: Date | null;
 }
 
-/** One won dispute the next run will bill, with the fee the run will charge. */
 export interface PendingDisputeFee {
   disputeId: string;
   amountCents: number;
@@ -48,13 +44,10 @@ export interface BillingPreview {
    */
   recoveredThisMonth: CurrencyAmount[];
   attributedThisMonth: CurrencyAmount[];
-  /** The instant the next monthly run fires. */
   nextRunAtMs: number;
-  /** Per-currency fee totals the next run is on course to invoice. */
   estimatedInvoice: CurrencyAmount[];
   estimatedRecoveryFees: CurrencyAmount[];
   estimatedDisputeFees: CurrencyAmount[];
-  /** The disputes behind estimatedDisputeFees, one per dispute. */
   pendingDisputeFees: PendingDisputeFee[];
   accountBillingState: AccountBillingState;
 }
@@ -85,10 +78,6 @@ export function nextBillingRunAtMs(nowMs: number): number {
   );
 }
 
-/**
- * First instant of the UTC calendar month containing `nowMs`. The admin
- * Overview's "Recovered this month" starts from the same instant.
- */
 export function startOfUtcMonthMs(nowMs: number): number {
   const now = new Date(nowMs);
   return Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1);
@@ -109,7 +98,6 @@ export async function getBillingPreview(
   const nextRunAtMs = nextBillingRunAtMs(nowMs);
   const monthStart = new Date(startOfUtcMonthMs(nowMs));
 
-  // Four independent reads, none depending on another's result.
   const [accountRows, recoveredRows, billableRecoveries, billableDisputes] = await Promise.all([
     db
       .select({

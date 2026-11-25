@@ -2,11 +2,6 @@ import { createSiteBackup, type SiteBackupStatus } from "@dustinedwards/d1-dump"
 
 import type { CronJobResult } from "~/lib/cron/run";
 
-// Nightly D1 backup: a per-table JSON dump into Foxhound's own R2 bucket
-// through the shared d1-dump package, on the existing daily cron (no new Cron
-// Trigger). D1 Time Travel stays the in-place restore; this is the copy outside
-// it.
-
 /**
  * Tables left OUT of the dump, because they hold live credentials or one-time
  * tokens and a backup copy is one more place a session could leak from (a
@@ -16,9 +11,8 @@ import type { CronJobResult } from "~/lib/cron/run";
  * secret, password or key hash fails the night until it is excluded or listed
  * in BACKUP_CREDENTIAL_ALLOW with the reason it is safe.
  *
- * NOT BACKED UP, and why (B6, B7):
- *  - EVIDENCE (foxhound-dispute-evidence): merchants' dispute files, out of this
- *    pass by Dustin's note (area 8's scope).
+ * NOT BACKED UP, and why:
+ *  - EVIDENCE (foxhound-dispute-evidence): merchants' dispute files, not in this dump.
  *  - The Durable Objects: MONEY_WRITER serializes writes whose rows live in D1
  *    (its own storage holds no money state); CRON_LOCK holds leases and
  *    CRON_TICKER an alarm, both rebuilt on the next tick; RATE_LIMITER and

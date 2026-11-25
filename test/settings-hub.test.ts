@@ -4,8 +4,7 @@ import routes from "~/routes";
 import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";
 import { SETTINGS_HUB_ENTRIES } from "~/routes/app/settings/hub";
 
-// An entry to a route that 404s is a false promise, so the hub and the sub-nav
-// are checked against the route table rather than a list in this file.
+// The hub and sub-nav are checked against the route table, so no entry 404s.
 
 interface RouteEntry {
   path?: string;

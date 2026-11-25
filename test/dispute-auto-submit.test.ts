@@ -5,11 +5,8 @@ import type { DisputeSubmissionContext } from "~/lib/disputes/submission";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Recova's opt-in dispute auto-submit: app/api/cron/process-disputes/route.ts
-// (blob 1cbd5bd0) "Thing 2" and lib/disputes-email.ts (blob 156719f1)
-// sendDisputeAutoSubmittedEmail. Inside 24 hours of the evidence deadline, an
-// unsubmitted dispute on an account that turned auto-submit on is submitted
-// through the approval gate, on the merchant's standing opt-in; nothing else is.
+// Inside 24 hours of the deadline, an unsubmitted dispute on an account with auto-submit on is
+// submitted through the approval gate, and nothing else is.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,

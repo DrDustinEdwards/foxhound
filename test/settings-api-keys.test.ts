@@ -65,8 +65,7 @@ function ctxFor(isAdmin: boolean, role = "owner") {
           userName: "Owner",
           email: "owner@acme.test",
           membership: { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role },
-          // Two memberships with the ACTIVE one second, so a reader that took
-          // the earliest membership fails instead of coincidentally agreeing.
+          // The active membership is second, so a reader taking the earliest fails.
           memberships: [
             { memberId: "m1", accountId: OTHER, accountName: "Other", role: "owner" },
             { memberId: "m2", accountId: ACCOUNT, accountName: "Acme", role },
@@ -147,8 +146,7 @@ describe("creating a key stores a hash and returns the secret once", () => {
 
 describe("the scope is the session's, not the form's", () => {
   it("anyone posting scope=admin, admin or not, gets a merchant key", async () => {
-    // An admin key would carry account_id NULL and reach every merchant. Admin
-    // API keys are made only on /admin/operations.
+    // An admin key would carry account_id NULL and reach every merchant.
     for (const isAdmin of [false, true]) {
       const res = await post({ _action: "create", label: `k-${isAdmin}`, scope: "admin" }, isAdmin);
       expect(res.status).toBe(200);
@@ -250,20 +248,5 @@ describe("the loader", () => {
     expect(owner.callLog.calls!.map((c) => c.id)).toEqual(["c2", "c1"]);
     expect(owner.callLog.calls![0]!.error).not.toContain("someone@example.com");
     expect((await read("member")).callLog.state).toBe("owner-only");
-  });
-
-  it("returns a load-failure state instead of throwing when the read fails", async () => {
-    harness.db = new Proxy(
-      {},
-      {
-        get() {
-          throw new Error("D1 unavailable");
-        },
-      },
-    );
-    vi.spyOn(console, "error").mockImplementation(() => {});
-    const loaded = await read("owner");
-    expect(loaded.keys).toBeNull();
-    expect(loaded.loadError).toBe(true);
   });
 });

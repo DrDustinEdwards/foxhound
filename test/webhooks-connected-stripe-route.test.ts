@@ -4,30 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// THE CONNECTED-ACCOUNT MONEY FRONT DOOR HAD NO EXECUTED COVERAGE. Ruling 376
-// item (10), verified across all 215 test files: app/routes/webhooks/stripe was
-// imported by no test. Only stripe-platform was driven, and the one place
-// app/routes/webhooks/stripe.ts appeared elsewhere was a string in a
-// test's path list, which never ran the route. So every payment
-// Foxhound ingests arrived through a signature check nothing had exercised.
-//
-// Built on test/billing-platform-webhook-claim.test.ts's model: drive the REAL
-// route action, assert HTTP status plus committed rows. One deliberate
-// departure from that model, and it is the point of this file. The platform
-// test mocks ~/lib/stripe/webhook and flips a `signatureValid` boolean, which
-// proves the route branches on what the verifier says and proves nothing about
-// the verifier. Here constructStripeEvent is NOT mocked: every payload below is
-// signed with a real v1 HMAC-SHA256 over `${timestamp}.${payload}` under a test
-// secret, exactly as Stripe signs, and constructEventAsync verifies it through
-// Web Crypto. A wrong-key signature is therefore rejected by the same code that
-// rejects one in production, not by a test flag.
-//
-// The ladder proved here, in the order the route walks it:
-//   non-POST                -> 405
-//   no signing secret       -> 500, nothing claimed
-//   bad signature           -> 400, nothing claimed
-//   processing error        -> 500, nothing claimed
-//   valid event             -> 200, the claim row committed
+// Drives the real connected-account webhook route with a real HMAC-SHA256 signature (the verifier is not
+// mocked): non-POST 405, no secret 500, bad or stale signature 400, processing error 500, valid event 200.
 
 const ACCOUNT_ID = "acc_connected";
 const CONNECTION_ID = "conn_1";
@@ -53,9 +31,7 @@ vi.mock("~/lib/money/execute", () => ({
   ): Promise<{ applied: boolean }> => {
     const sqlite = harness.sqlite as { exec: (s: string) => void };
     const batch = write.build(harness.db);
-    // Model the money DO honestly: the whole batch commits atomically or not at
-    // all. Without the transaction, a claim could survive a failed write and
-    // "nothing was claimed" would be aspirational rather than proven.
+    // The whole batch commits atomically or not at all, as the money DO does.
     sqlite.exec("BEGIN");
     try {
       for (const stmt of batch) await (stmt as Promise<unknown>);
@@ -79,10 +55,7 @@ const { action } = await import("~/routes/webhooks/stripe");
 const { cloudflareContext } = await import("@dustinedwards/site-runtime/context");
 const schema = await import("~/db/schema");
 
-/** An event Stripe would deliver on the connected endpoint. `payout.paid` is
- *  deliberately a type classifyStripeEvent does not handle, so the processor
- *  takes the claim-only branch: this file is about the ROUTE and its signature
- *  ladder, not about intake or recovery, which have their own suites. */
+/** `payout.paid` is a type the processor does not handle, so it takes the claim-only branch. */
 function connectedEvent(eventId: string, account: string | null = STRIPE_USER_ID) {
   return JSON.stringify({
     id: eventId,
@@ -104,13 +77,7 @@ function nowSec(): number {
   return Math.floor(Date.now() / 1000);
 }
 
-/** Drive the real route action with a stubbed request context.
- *
- *  `secret` takes NO default on purpose. It had one, and the unset-secret test
- *  passed `undefined` to say "no secret configured", which is exactly the value
- *  that makes JavaScript apply the default instead: that case ran WITH the
- *  secret, got a valid 200, and reported the route as broken. The harness was
- *  wrong, not the route. Every call site now states the secret it means. */
+/** Drive the real route action; `secret` has no default so `undefined` means "no secret configured". */
 function call(request: Request, secret: string | undefined): Promise<Response> {
   const env = {
     STRIPE_WEBHOOK_SECRET: secret,
@@ -193,8 +160,6 @@ describe("connected webhook: the signature rung, against a real HMAC", () => {
   });
 
   it("rejects a correctly signed POST older than Stripe's default 300s replay window", async () => {
-    // Ruling 308: the replay tolerance stays Stripe's default. A widened window
-    // would accept this captured request again.
     const db = await seed();
     const stale = signedRequest(connectedEvent("evt_stale"), WEBHOOK_SECRET, nowSec() - 301);
     const res = await call(stale, WEBHOOK_SECRET);
@@ -210,8 +175,6 @@ describe("connected webhook: the processing rung", () => {
 
     const res = await call(signedRequest(connectedEvent("evt_batch_fails")), WEBHOOK_SECRET);
 
-    // Stripe retries a 500, and the batch is atomic and idempotent, so the
-    // retry is safe. A 200 here would lose the event permanently.
     expect(res.status).toBe(500);
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
     expect(reported()).toBe(1);

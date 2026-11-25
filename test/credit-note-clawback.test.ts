@@ -3,13 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// A refund or chargeback after the fee was invoiced is clawed back as a Stripe
-// credit note. A refund before billing never reaches an invoice (the billable
-// predicate excludes it), so that case must credit nothing.
-//
-// Real SQL against the committed migrations and a fake Stripe that records its
-// calls, so "exactly one credit note call" is counted and the unique index doing
-// the deduping is the real one.
+// A refund or chargeback after the fee was invoiced is clawed back as a Stripe credit note; a refund before billing credits nothing.
+// Real SQL on the committed migrations and a fake Stripe that records its calls.
 
 const ACCOUNT = "acct_credit";
 const PAYMENT = "fp_credit";
@@ -72,8 +67,7 @@ vi.mock("~/lib/stripe/client", () => ({
   },
 }));
 
-// The money DO, modeled with its seen-set so the idempotency key is doing real
-// work rather than being decoration.
+// The money DO, modeled with its seen-set.
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (
     _env: Env,
@@ -96,8 +90,7 @@ const { issueCreditNoteForEvidence, findCreditableFeeLine, creditOwedFeeLines } 
   await import("~/lib/billing/credit-note");
 const schema = await import("~/db/schema");
 
-/** `invoiced` false models the maturity case: the ledger row exists but nothing
- *  ever reached Stripe, so there is no invoice to credit against. */
+/** `invoiced` false: the ledger row exists but nothing reached Stripe. */
 async function seed(opts: { invoiced?: boolean; kind?: "recovery" | "dispute" } = {}) {
   const invoiced = opts.invoiced ?? true;
   const kind = opts.kind ?? "recovery";
@@ -147,8 +140,6 @@ async function seed(opts: { invoiced?: boolean; kind?: "recovery" | "dispute" } 
     periodStart: BILLED_AT,
     periodEnd: BILLED_AT,
     status: invoiced ? "finalized" : "draft",
-    // The presence of this is what "already on a finalized platform invoice"
-    // means: it is written only after createPlatformInvoice returns.
     stripeInvoiceId: invoiced ? "in_platform_1" : null,
     totalCents: FEE_CENTS,
     idempotencyKey: "billing:acct_credit:usd:2026-06",
@@ -177,8 +168,7 @@ async function lines(db: Awaited<ReturnType<typeof seed>>) {
     .where(eq(schema.billingLineItems.type, "credit"));
 }
 
-/** Stamp the recovery as the refund webhook would: `cents` refunded so far,
- *  and refunded_at once it is all of it. */
+/** Stamp the recovery as the refund webhook would. */
 async function refund(db: Awaited<ReturnType<typeof seed>>, cents = 10_000) {
   await db
     .update(schema.recoveredPayments)
@@ -219,7 +209,6 @@ describe("a refund AFTER the fee was invoiced", () => {
     expect(credits[0].amountCents).toBe(-FEE_CENTS);
     expect(credits[0].creditsLineItemId).toBe(FEE_LINE);
     expect(credits[0].stripeCreditNoteId).toBe("cn_1");
-    // FK-linked to the SAME evidence row as the fee it reverses.
     expect(credits[0].recoveredPaymentId).toBe(RECOVERY);
     expect(credits[0].currency).toBe("usd");
   });
@@ -247,15 +236,11 @@ describe("the failure shape", () => {
 
     const outcome = await issueCreditNoteForEvidence({} as Env, RECOVERY_EVIDENCE, OPTS);
 
-    // The refund stamp has already committed by the time this runs. A Stripe
-    // outage must not unwind a ledger fact that is true.
     expect(outcome).toEqual({ credited: false, reason: "credit_note_failed" });
     expect(await lines(db)).toHaveLength(0);
   });
 });
 
-// The webhook's credit never throws and its redelivery is a duplicate that skips
-// the clawback, so without the sweep a failed Stripe call would keep the fee.
 describe("the daily credit-note-retry sweep", () => {
   const stampRefund = (db: Awaited<ReturnType<typeof seed>>) => refund(db);
 
@@ -294,8 +279,7 @@ describe("the daily credit-note-retry sweep", () => {
   });
 
   it("finds a note that reached Stripe without its ledger row instead of issuing a second", async () => {
-    // Stripe prunes idempotency keys after 24 hours, and the sweep is daily, so
-    // the key cannot be what stops the second note.
+    // Stripe prunes idempotency keys after 24 hours, so the key cannot be what stops a second note.
     const db = await seed();
     await stampRefund(db);
     harness.stripeNotes.push({
@@ -331,8 +315,7 @@ describe("the daily credit-note-retry sweep", () => {
   });
 });
 
-// The fee is reduced by the refunded share; a full refund means no fee.
-describe("a PARTIAL refund after the fee was invoiced credits the refunded share", () => {
+describe("a partial refund after the fee was invoiced credits the refunded share", () => {
   it("credits the share, raises the same credit line as more is refunded, and the whole fee at a full refund", async () => {
     const db = await seed();
 
@@ -377,15 +360,12 @@ describe("a PARTIAL refund after the fee was invoiced credits the refunded share
 describe("the fee line lookup itself", () => {
   it("does not mistake a dispute fee for a recovery fee, or the reverse", async () => {
     await seed({ kind: "dispute" });
-    // The dispute's fee exists, but this asks about the recovery.
     expect(await findCreditableFeeLine({} as Env, RECOVERY_EVIDENCE)).toBeNull();
     expect(await findCreditableFeeLine({} as Env, DISPUTE_EVIDENCE)).not.toBeNull();
   });
 
   it("the fee line's own no-double-billing index still holds", async () => {
     const db = await seed();
-    // The index is scoped to fee types so a credit can carry the same evidence
-    // FK; a recovery still cannot carry two recovery_fee lines.
     await expect(
       db.insert(schema.billingLineItems).values({
         id: "bli_double_fee",

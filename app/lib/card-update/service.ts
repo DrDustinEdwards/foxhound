@@ -10,7 +10,7 @@ import {
 } from "~/lib/billing/platform-customer";
 import { getConnectedStripe } from "~/lib/stripe/client";
 
-// Card-update payment-method collection (Phase 5 slice 5g, PRICING.md
+// Card-update payment-method collection (PRICING.md
 // card_update: "payment method updated through a Foxhound link/page"). Mirrors
 // billing-setup's Stripe-hosted Checkout Session in `setup` mode
 // (app/lib/billing/platform-customer.ts), but scoped to the CONNECTED account

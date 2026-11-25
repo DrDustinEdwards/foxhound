@@ -6,7 +6,6 @@
 // live flows to keep working.
 
 export const ADD_ACCOUNT_ACTION = "add_account";
-/** The first-connect and reconnect flow. */
 export const CONNECT_ACTION = "connect";
 /**
  * The ANONYMOUS AUDIT flow. FOXHOUND MINTS ONE SHAPE FOR ALL THREE, so both callbacks can ask the

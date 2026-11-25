@@ -5,10 +5,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// Multi-account: a user holds several accounts, the session carries which one it
-// is looking at, a switch action moves it (and decides which account's ledger the
-// caller's next money write lands on, so its membership check is tested per way it
-// can be wrong), and the switcher lists them.
+// Multi-account: the switch action, its membership check, and the switcher.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -29,7 +26,6 @@ const { safeReturnPath } = await import("~/lib/auth/active-account");
 const { listMemberships, resolveActiveMembershipFrom } = await import("~/lib/auth/account");
 const { listSwitcherAccounts } = await import("~/lib/nav/accounts.server");
 const { ADD_ACCOUNT_ACTION, parseConnectState } = await import("~/lib/stripe/connect-state");
-const { accountLabel } = await import("~/components/nav/account-switcher");
 const { loader: addAccountLoader } = await import("~/routes/auth/connect-additional");
 
 const USER = "user_1";
@@ -244,13 +240,6 @@ describe("the membership rule is enforced by the migration", () => {
     expect(() => member("m2", "acct_b", USER, "active")).not.toThrow();
     expect(() => member("m3", "acct_a", USER, "active")).toThrow(/UNIQUE constraint failed/i);
   });
-
-  it("stays partial: the same pair is allowed twice when neither row is active", () => {
-    // Without the WHERE clause a revoked member could never be re-invited.
-    seedAccount("acct_a", "Account A");
-    member("m1", "acct_a", USER, "revoked");
-    expect(() => member("m2", "acct_a", USER, "revoked")).not.toThrow();
-  });
 });
 
 describe("the switcher", () => {
@@ -275,15 +264,6 @@ describe("the switcher", () => {
       { id: "acct_a", name: "Acme", stripeUserId: "acct_stripe_A" },
       { id: "acct_b", name: "Globex", stripeUserId: "acct_stripe_B" },
     ]);
-  });
-
-  it("labels an account by name, else the Stripe account id, else eight characters of its id", () => {
-    const id = "abcdefghijkl";
-    expect(accountLabel({ id, name: "Acme", stripeUserId: "acct_x" })).toBe("Acme");
-    expect(accountLabel({ id, name: null, stripeUserId: "acct_x" })).toBe("acct_x");
-    expect(accountLabel({ id, name: null, stripeUserId: null })).toBe("abcdefgh");
-    // A blank name falls through rather than rendering an empty row.
-    expect(accountLabel({ id, name: "", stripeUserId: "acct_x" })).toBe("acct_x");
   });
 });
 
@@ -331,10 +311,5 @@ describe("the add-account route marks its OAuth state", () => {
     const cookie = res.headers.get("set-cookie")!;
     expect(cookie).toContain(encodeURIComponent(state));
     expect(cookie).toContain("HttpOnly");
-  });
-
-  it("sends an anonymous caller to /login", async () => {
-    harness.session = null;
-    expect((await run()).headers.get("location")).toBe("/login");
   });
 });

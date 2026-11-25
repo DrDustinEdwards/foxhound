@@ -4,12 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The decline a failed payment is classified by comes from its latest charge,
-// not the invoice event: on the pinned API version the invoice has no `charge`
-// and last_finalization_error covers finalization only, so every real failure
-// used to be filed "unknown". The same read stores the network advice, which
-// can override the category, and a card-updater event retries the payment's
-// next retry step now, through the tick's guarded retry path.
+// The decline is read off the payment's latest charge; a card-updater event retries through the guarded path.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,

@@ -3,12 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// THE EXPIRING-CARD ALERT CRON, ported from legacy's expiring-cards route
-// (blob 717f6bbe). Two passes: scan, then send.
-//
-// Every send assertion observes email_sends or the sent message. The claim
-// assertions observe alert_sent_at, and the outcome assertion observes the
-// outcomes table, because 341 binding 1 makes recording it the point.
+// The expiring-card alert cron: scan, then send. Sends are read from email_sends or the sent message,
+// claims from alert_sent_at, and the outcome from the outcomes table.
 
 const harness = vi.hoisted(() => ({
   db: null as unknown,
@@ -21,10 +17,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-// recordOutcome routes through the per-account money-write DO, which has no
-// binding in a unit test. Same stub the billing suites use: run the batch
-// against the harness database so the OUTCOME ROW is observable, which is the
-// point of 341 binding 1.
+// recordOutcome routes through the money-write DO; run the batch against the harness database instead.
 vi.mock("~/lib/money/execute", () => ({
   executeMoneyWrite: async (_env: Env, write: { build: (db: unknown) => unknown[] }) => {
     const batch = write.build(harness.db);
@@ -143,7 +136,7 @@ function outcomeRows() {
     .all(ACCOUNT) as { eventType: string; outcome: string | null; eventData: string | null }[];
 }
 
-describe("PLANT 1: the band guard, ported as found", () => {
+describe("the band guard", () => {
   it("the scan records only the cards inside the band", async () => {
     seedAccount();
     harness.subscriptions = [
@@ -160,7 +153,7 @@ describe("PLANT 1: the band guard, ported as found", () => {
   });
 });
 
-describe("PLANT 2: the scan is deduped by the database", () => {
+describe("the scan is deduped by the database", () => {
   it("a second scan records nothing new for the same card-month", async () => {
     seedAccount();
     harness.subscriptions = [subscription(11, 2026)];
@@ -184,7 +177,7 @@ describe("PLANT 2: the scan is deduped by the database", () => {
     expect(alertRows()).toHaveLength(2);
   });
 
-  it("the scan paginates rather than stopping at legacy's first page", async () => {
+  it("the scan paginates past the first page", async () => {
     seedAccount();
     harness.subscriptions = Array.from({ length: 250 }, (_, i) =>
       subscription(11, 2026, `cus_${i}`, `b${i}@acme.test`),
@@ -192,7 +185,7 @@ describe("PLANT 2: the scan is deduped by the database", () => {
 
     const result = await scanExpiringCards(env, NOW);
 
-    // Legacy's single limit:100 call would have seen 100 of these.
+    // A single 100-item page would have seen 100 of these.
     expect(result.scanned).toBe(250);
     expect(alertRows()).toHaveLength(250);
     expect(result.overLimit).toEqual([]);
@@ -211,7 +204,7 @@ describe("PLANT 2: the scan is deduped by the database", () => {
   });
 });
 
-describe("PLANT 3: the send, at legacy's strings and on the customer audience", () => {
+describe("the send", () => {
   async function seedCandidate(id = "al_1") {
     sqlite
       .prepare(
@@ -220,7 +213,7 @@ describe("PLANT 3: the send, at legacy's strings and on the customer audience", 
       .run(id, ACCOUNT);
   }
 
-  it("THE OUTCOME IS RECORDED at legacy's event_type, on a send", async () => {
+  it("the outcome is recorded on a send", async () => {
     seedAccount({ enabled: null });
     await seedCandidate();
 
@@ -234,7 +227,7 @@ describe("PLANT 3: the send, at legacy's strings and on the customer audience", 
   });
 });
 
-describe("PLANT 4: every refusal, and none of them records an outcome", () => {
+describe("every refusal, and none of them records an outcome", () => {
   async function seedCandidate() {
     sqlite
       .prepare(
@@ -243,7 +236,7 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
       .run(ACCOUNT);
   }
 
-  it("a SUPPRESSED address sends nothing and is stamped", async () => {
+  it("a suppressed address sends nothing and is stamped", async () => {
     seedAccount({ enabled: null });
     await seedCandidate();
     sqlite
@@ -260,7 +253,7 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
     expect(outcomeRows()).toEqual([]);
   });
 
-  it("a send FAILURE leaves the candidate unsent so tomorrow retries", async () => {
+  it("a send failure leaves the candidate unsent so tomorrow retries", async () => {
     seedAccount({ enabled: null });
     await seedCandidate();
     const failing = {
@@ -276,19 +269,14 @@ describe("PLANT 4: every refusal, and none of them records an outcome", () => {
 
     expect(result.sent).toBe(0);
     expect(alertRows()[0].sentAt).toBeNull();
-    // 385 MOVED THIS VALUE, and the test's own name is why it is worth
-    // restating rather than editing quietly. The claim row is written BEFORE the
-    // provider call and stays `pending` when the provider refuses, because this
-    // code cannot tell a refusal from an acceptance whose response was lost.
-    // What the name promises, "so tomorrow retries", still holds and is asserted
-    // below: a RECORDED refusal may be re-taken under the same key.
+    // The claim row is written before the provider call and stays pending: a refusal cannot be told from a lost acceptance.
     expect(sendRows()[0].status).toBe("pending");
     expect(sendRows()[0].error).toBeTruthy();
     expect(outcomeRows()).toEqual([]);
   });
 });
 
-describe("PLANT 5: the cron is registered and shaped like the others", () => {
+describe("the cron is registered and shaped like the others", () => {
   it("one run does both passes", async () => {
     seedAccount({ enabled: null });
     harness.subscriptions = [subscription(11, 2026)];
@@ -301,7 +289,7 @@ describe("PLANT 5: the cron is registered and shaped like the others", () => {
   });
 });
 
-describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
+describe("the claim and the fallbacks, each reached alone", () => {
   async function seedStamped(sentAt: number | null) {
     sqlite
       .prepare(
@@ -310,10 +298,8 @@ describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
       .run(ACCOUNT, sentAt);
   }
 
-  it("THE CLAIM IS CONDITIONAL: an already-stamped alert is not re-stamped", async () => {
-    // Reached directly. Inside the send pass the query already excludes sent
-    // candidates, so that filter alone hides whether the claim is conditional,
-    // and a mutation to either layer looks harmless.
+  it("the claim is conditional: an already-stamped alert is not re-stamped", async () => {
+    // Reached directly: inside the send pass the query already excludes sent candidates.
     seedAccount({ enabled: null });
     await seedStamped(4000);
 
@@ -327,7 +313,7 @@ describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
     expect(row.s).toBe(4000);
   });
 
-  it("and an UNSTAMPED alert is claimed exactly once", async () => {
+  it("an unstamped alert is claimed exactly once", async () => {
     seedAccount({ enabled: null });
     await seedStamped(null);
 
@@ -337,7 +323,7 @@ describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
     expect(await claimSent(db, "al_1", new Date(NOW.getTime() + 1000))).toBe(false);
   });
 
-  it("legacy's fallbacks fill every absent field", async () => {
+  it("fallbacks fill every absent field", async () => {
     seedAccount({ enabled: null, senderName: null });
     sqlite
       .prepare(
@@ -347,13 +333,9 @@ describe("PLANT 7: the claim and the fallbacks, each reached alone", () => {
 
     await sendExpiringCardAlerts(env, new Date("2027-02-15T00:00:00Z"));
 
-    // customer_name -> "there", card_brand -> "Card", card_last4 -> "****",
-    // sender_name -> "Support". All four are legacy's.
     expect(harness.sent[0].subject).toBe(
       "Action required: Your Card card ending in **** is expiring",
     );
-    // J02: words, not markup. "Thanks," and the sender are two paragraphs in
-    // Capsomer's frame, and two lines in the text part.
     const text = (harness.sent[0] as { text?: string }).text ?? "";
     expect(harness.sent[0].html).toContain("Hi there,");
     expect(text).toContain("Hi there,");

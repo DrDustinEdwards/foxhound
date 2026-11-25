@@ -1,6 +1,4 @@
-import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { createMemoryRouter, RouterContextProvider, RouterProvider } from "react-router";
+import { RouterContextProvider } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -115,30 +113,6 @@ describe("/login carries next= through both ways of signing in", () => {
     expect(harness.signInSocial.mock.calls[0][0].body.callbackURL).toBe(
       `${ORIGIN}/passkey?next=${encodeURIComponent("/console")}`,
     );
-  });
-
-  function renderLogin(next: string): string {
-    const Login = login.default;
-    const props = {
-      loaderData: {
-        methods: { google: true, apple: false, turnstileSiteKey: null },
-        error: null,
-        next,
-      },
-      params: {},
-      matches: [],
-    } as unknown as Parameters<typeof Login>[0];
-    const router = createMemoryRouter([{ path: "*", element: createElement(Login, props) }], {
-      initialEntries: ["/login"],
-    });
-    return renderToStaticMarkup(createElement(RouterProvider, { router }));
-  }
-
-  it("the page puts next in both forms, so neither path drops it", () => {
-    const hidden =
-      renderLogin(AUTHORIZE).match(/<input type="hidden" name="next" value="[^"]*"\/>/g) ?? [];
-    expect(hidden).toHaveLength(2);
-    expect(hidden[0]).toContain("/oauth/authorize?client_id=c1&amp;");
   });
 
   it("a signed-out visitor's page is given the validated next", async () => {

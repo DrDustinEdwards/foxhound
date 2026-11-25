@@ -5,15 +5,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { makeRateLimiterNamespace } from "./helpers/rate-limiter";
 
-// Sign-in and signup are limited by site-runtime's limiter: signup 5 an hour
-// and login 10 a minute, per IP. Foxhound's auth bucket (10 a minute per IP,
-// shared by every signed-out POST that tests a passkey or sends mail) is kept.
-//
-// These drive the real route actions. The counter is site-runtime's own
-// hitRules on a real SQLite database, one per Durable Object name, so only the
-// Durable Object's storage is stood in for. Better Auth is replaced by
-// counters, so each test can say how many requests reached a sign-in or a mail
-// send.
+// Real route actions against site-runtime's limiter (signup 5 an hour, login 10 a minute, per IP); Better Auth is counted, not run.
 
 const harness = vi.hoisted(() => ({
   calls: { signInSocial: 0, handler: 0 },

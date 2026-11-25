@@ -6,8 +6,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The nightly scoring batch writes each customer's recommended action to
-// customer_context.recommended_action; /intelligence/recommendations reads it.
+// The nightly batch writes customer_context.recommended_action; the page reads it.
 
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
@@ -67,7 +66,7 @@ beforeEach(() => {
     avgDaysToRecover: null,
   });
   // cus_big: the top of the account by MRR, three recovery emails this month
-  // and no tracked open, so Recova's table says reach out personally.
+  // and no tracked open: reach out personally.
   customer.run("cc_big", ACCOUNT, "cus_big", "Big Co", "Scale plan", 50_000, oneFailure);
   // cus_mid: 75th percentile with no email history: watch closely.
   customer.run("cc_mid", ACCOUNT, "cus_mid", "Mid Co", "Growth plan", 3_000, null);
@@ -138,8 +137,6 @@ describe("recommendations, from the nightly batch to the page", () => {
     ]);
   });
 
-  // The banner works one customer out at page load; the payments list marks the
-  // customers the batch flagged. Both must agree with the batch.
   it("one customer's recommendation matches the batch, and the outreach lookup finds it", async () => {
     await runIntelligenceAiForAccount(env, ACCOUNT, NOW);
     const db = harness.db as Parameters<typeof recommendOneCustomer>[0];

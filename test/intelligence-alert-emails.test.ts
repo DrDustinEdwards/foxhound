@@ -4,9 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// The threshold alert and the critical-customers alert, emailed to the merchant (or posted to Slack).
-// Every assertion on a mail reads it as it reaches env.EMAIL.send, and every assertion on a firing
-// reads the alert_history row, never a helper's return.
+// Threshold and critical-customers alerts: mails read at env.EMAIL.send, firings read from alert_history.
 
 interface SentMessage {
   from: string;
@@ -352,7 +350,7 @@ describe("the critical customers alert fires on three conditions at once, with a
     expect(historyRows()).toHaveLength(1);
   });
 
-  it("Slack only when there is no address: Recova's line, channel slack", async () => {
+  it("Slack only when there is no address: channel slack", async () => {
     seedAccount({ email: null, slack: WEBHOOK });
     seedCritical();
     const out = await runCriticalCustomersCheck(env, db(), ACCOUNT, NOW);

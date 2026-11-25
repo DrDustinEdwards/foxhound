@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import {
-  getAmountBounds,
   getGlobalPaymentStatusCounts,
   listFailedPayments,
   listPaymentSummaryRows,
@@ -11,11 +10,7 @@ import {
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
-// TASK-foxhound-recovery-surface-parity.md Phase 3: the /recovery/payments
-// summary read models - amount bounds for the dual-handle range, global
-// status counts for the five summary cards, and the filtered-but-not-by-
-// status summary rows that back both the status-pill counts and the header
-// stats line. All server-computed, never a client-side pass over a page.
+// The /recovery/payments summary read models, against the seeded demo account.
 
 const now = new Date("2026-07-21T00:00:00.000Z");
 
@@ -32,18 +27,6 @@ const NO_FILTERS = {
   amountMinCents: null,
   amountMaxCents: null,
 };
-
-describe("getAmountBounds", () => {
-  it("min is always 0, max is a real ceiling rounded up to the nearest $100", async () => {
-    const db = await seededDb();
-    const all = await listFailedPayments(db, DEMO_ACCOUNT_ID);
-    const bounds = await getAmountBounds(db, DEMO_ACCOUNT_ID);
-    expect(bounds.minCents).toBe(0);
-    const realMax = Math.max(...all.map((p) => p.amountCents));
-    expect(bounds.maxCents).toBeGreaterThanOrEqual(realMax);
-    expect(bounds.maxCents % 10_000).toBe(0);
-  });
-});
 
 describe("getGlobalPaymentStatusCounts", () => {
   it("matches a manual tally of every non-noise failed payment, ignoring all filters", async () => {
