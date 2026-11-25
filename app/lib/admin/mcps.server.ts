@@ -117,8 +117,8 @@ export async function issueAdminApiKey(
 /**
  * Revoke one live Admin API key, with its audit row in the same batch. The
  * audit row is selected from the key the revoke just stamped (its id and this
- * revoke's own time), so a revoke that matched nothing logs nothing (hard rule
- * 3).
+ * revoke's own time), so a revoke that matched nothing logs nothing (CLAUDE.md,
+ * Money writes).
  */
 export async function revokeAdminApiKey(
   db: Db,

@@ -432,7 +432,7 @@ export interface ReportArchiveRow {
 const REPORTS_ARCHIVE_LIMIT = 24;
 
 /** The narrative archive, most recent report month first. Account-scoped. For an agent, every narrative reads with
- *  Stripe customer ids in place of names (hard rule 8). */
+ *  Stripe customer ids in place of names (CLAUDE.md, Agent tools and demo). */
 export async function getReportsArchive(
   db: Db,
   accountId: string,

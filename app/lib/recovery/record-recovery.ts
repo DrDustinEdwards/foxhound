@@ -57,7 +57,7 @@ export function buildRecoveryBatch(db: Db, input: RecordRecoveryInput): MoneyWri
   // failed payment whether or not this row exists yet (buildDisputedAtStamp in
   // webhooks/batches.ts), and the same DO ordering makes the pair exhaustive.
   const disputedAtFromMarker = sql`(select ${failedPayments.disputeSignalAt} from ${failedPayments} where ${failedPayments.id} = ${input.failedPaymentId})`;
-  // THE GUARD IS JOINED TO THE WRITE (hard rule 3). If that flip matched nothing (the merchant
+  // THE GUARD IS JOINED TO THE WRITE (CLAUDE.md, Money writes). If that flip matched nothing (the merchant
   // canceled recovery a moment earlier), this subquery is NULL, the NOT NULL account_id refuses the
   // insert and the whole batch rolls back, so no billable row is ever written against a payment
   // that is not recovered.
@@ -175,7 +175,7 @@ export function buildRetryReconciliationBatch(
 }
 
 /** True only when the reconcile's recovered_payments UPDATE (the batch's first
- *  statement) changed a row. A zero-row UPDATE is not a reconcile (hard rule 3),
+ *  statement) changed a row. A zero-row UPDATE is not a reconcile (CLAUDE.md, Money writes),
  *  and neither is a batch whose driver did not report what it changed. */
 function upgradedARow(result: { applied: boolean; changes?: number[] }): boolean {
   return result.applied && (result.changes?.[0] ?? 0) > 0;

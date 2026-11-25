@@ -10,7 +10,7 @@ import { STATIC_PAGES } from "~/routes/files/sitemap";
 // The cache rule is the network's (site-runtime ./worker and ./edge-cache, tested there): a route whose `headers` is
 // publicPageHeaders() is stored at the edge and handed to every anonymous reader; every other answer leaves private,
 // no-store. What is Foxhound's is WHICH routes say so, and a mistake there cannot be undone: a page drawn for one reader
-// and marked public is stored and served to strangers (CLAUDE.md hard rule 9). Read from source, as the route modules
+// and marked public is stored and served to strangers (CLAUDE.md, Tenants). Read from source, as the route modules
 // pull in the whole app.
 
 type Entry = { file: string; path?: string; index?: boolean; children?: Entry[] };

@@ -4,7 +4,7 @@ import { runChargeRetrySweep } from "~/lib/billing/charge-retry";
 import { PLATFORM_CHARGES_ENABLED } from "~/lib/billing/charges-switch";
 import { createPlatformInvoice, payPlatformInvoice } from "~/lib/billing/stripe-invoice";
 
-// Hard rule 12: until the LLC exists no merchant is charged, whatever D1 says.
+// CLAUDE.md, Launch: until the LLC exists no merchant is charged, whatever D1 says.
 describe("the platform charges switch", () => {
   it("is off, and while off nothing reaches Stripe", async () => {
     expect(PLATFORM_CHARGES_ENABLED).toBe(false);

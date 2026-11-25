@@ -189,7 +189,7 @@ export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrB
     if (!latestByAccount.has(row.accountId)) latestByAccount.set(row.accountId, row);
   }
 
-  // The totals through groupSumByCurrency (hard rule 2), each with how many
+  // The totals through groupSumByCurrency (CLAUDE.md, Money writes), each with how many
   // accounts it holds.
   const latest = [...latestByAccount.values()];
   return groupSumByCurrency(

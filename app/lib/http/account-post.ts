@@ -8,7 +8,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 /**
  * The refusals every action-only /api route starts with: cross-site, a verb
  * other than POST (React Router already answers a GET with 400), and, with
- * `demo`, a demo session before any session or database work (hard rule 10).
+ * `demo`, a demo session before any session or database work (CLAUDE.md, Agent tools and demo).
  */
 export function refusePost(request: Request, options: { demo?: boolean } = {}): Response | null {
   const refused = refuseCrossSite(request);

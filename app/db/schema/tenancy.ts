@@ -52,7 +52,7 @@ export const accounts = sqliteTable("accounts", {
   theme: text("theme").notNull().default("dark"),
 });
 
-/** The tenant column every account-scoped table carries (hard rule 8): the owning account, required. */
+/** The tenant column every account-scoped table carries (CLAUDE.md, Tenants): the owning account, required. */
 export const accountRef = () =>
   text("account_id")
     .notNull()

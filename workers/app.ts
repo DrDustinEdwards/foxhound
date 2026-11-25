@@ -94,7 +94,7 @@ const CODE_PAGES = new Set(codePagePaths());
 /**
  * The site's Worker (site-runtime ./worker). What is Foxhound's own: its machine files, its rate limit, Carrel's site API, the operator
  * API and the merchant MCP as steps; the theme in the cache key; Carrel's tombstones on a 404; the Markdown copies;
- * the admin idle sign-out; and the token routes cut from the logs. The cache rule is the network's (CLAUDE.md rule 9):
+ * the admin idle sign-out; and the token routes cut from the logs. The cache rule is the network's (CLAUDE.md, Tenants):
  * a public route's `headers` is publicPageHeaders (stored, Vary: Cookie), and every other answer leaves private, no-store.
  */
 const site = defineSite<Env>({

@@ -87,8 +87,8 @@ export async function fetchDisputeContextWith(
   try {
     // The customer's whole history up to a cap, not just the latest page: a
     // long-standing customer is the strongest evidence and the first 20 charges
-    // understated it. The total stays in the disputed charge's currency (hard
-    // rule 2); the list keeps the newest entries.
+    // understated it. The total stays in the disputed charge's currency (CLAUDE.md,
+    // Money writes); the list keeps the newest entries.
     const historic: Stripe.Charge[] = [];
     for await (const c of stripe.charges.list({ customer: customerId, limit: 100 })) {
       if (c.id !== input.chargeId && c.status === "succeeded") historic.push(c);

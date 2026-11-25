@@ -1,4 +1,4 @@
-// The one money-total path (hard rule 2): sum per currency, never across currencies, or yen is added to dollars under the
+// The one money-total path (CLAUDE.md, Money writes): sum per currency, never across currencies, or yen is added to dollars under the
 // first row's label. Client-safe: no server imports.
 
 import { formatMoney } from "@dustinedwards/site-runtime/money";
