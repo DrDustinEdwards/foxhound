@@ -164,7 +164,7 @@ jobs:
     # worker-deploy.yml's jobs ask for contents: read and nothing more.
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@e95385c2ad8ab530753a3ee45ea11329afac8415 # v0.62.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@1f8d35b63b7e78eabbef60752f798513646fe9b9 # v0.64.0
     with:
       worker-name: foxhound
       # site-runtime withAdminIdle's key and audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
@@ -195,13 +195,12 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: read
-    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@e95385c2ad8ab530753a3ee45ea11329afac8415 # v0.62.0
+    uses: DrDustinEdwards/devkit/.github/workflows/worker-deploy.yml@1f8d35b63b7e78eabbef60752f798513646fe9b9 # v0.64.0
     with:
       worker-name: foxhound-admin-mcp
       # site-runtime audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
       generated-secrets: AUDIT_SIGNING_KEY
       working-directory: mcp
-      install: cd .. && INSTALL= node "$GITHUB_WORKSPACE/.devkit/bin/deploy-install.mjs"
       health-url: https://admin-mcp.foxhoundapp.com/health
       verify-command: node ../scripts/verify-admin-mcp.mjs
       sha-var: DEPLOY_SHA
