@@ -14,7 +14,7 @@ import "capsomer/field.css";
 /** The slider's starting position. An assumption the visitor may change, never a Foxhound result. */
 const DEFAULT_ASSUMED_RECOVERY_SHARE = 52;
 
-/** The failure slider's starting position, also an assumption the visitor may change: no verifiable public source for a share of MRR that fails exists (CLAUDE.md hard rule 1). */
+/** The failure slider's starting position, also an assumption the visitor may change: no verifiable public source for a share of MRR that fails exists (CLAUDE.md, Launch). */
 const DEFAULT_ASSUMED_FAILURE_SHARE = 8;
 
 const percent = (value: number) => `${value}%`;

@@ -165,7 +165,7 @@ export function writeIntelligenceNarrative(facts: NarrativeFacts): NarrativeResu
   };
 }
 
-/** A stored narrative with every customer's name replaced by their Stripe customer id, for an agent (hard rule 8:
+/** A stored narrative with every customer's name replaced by their Stripe customer id, for an agent (CLAUDE.md, Agent tools and demo:
  *  agent tools carry no customer name). The field redactor cannot see into text, and an older stored report may
  *  name customers anywhere, so every name the account holds is replaced, longest first so a name inside a longer
  *  one is not half-replaced. A one-character name is skipped: it identifies nobody and would mangle the sentence. */

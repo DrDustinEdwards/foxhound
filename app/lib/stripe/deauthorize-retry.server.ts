@@ -24,7 +24,7 @@ export interface DeauthorizeFailure {
 const STAMP_ATTEMPTS = 2;
 
 /** Stamp deauthorize_failed_at, true only when a row took it. A throw or a
- *  zero-row UPDATE (hard rule 3) is retried once, then reported. */
+ *  zero-row UPDATE (CLAUDE.md, Money writes) is retried once, then reported. */
 async function stampRetry(env: Env, connectionId: string, now: Date): Promise<boolean> {
   for (let attempt = 0; attempt < STAMP_ATTEMPTS; attempt++) {
     try {

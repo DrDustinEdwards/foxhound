@@ -1,5 +1,5 @@
 import { errorMessage } from "@dustinedwards/site-runtime/log";
-// The money-write serialization core (hard rule 2: DO-serialized atomic batches). Pure and dependency-injected, so it is
+// The money-write serialization core (CLAUDE.md, Money writes: DO-serialized atomic batches). Pure and dependency-injected, so it is
 // unit-testable; workers/money-writer.ts supplies the real D1 batch and DO storage. Serialization: commits chain onto a
 // tail promise, so one account's DO runs one commit at a time. Idempotency: the DB is the exactly-once guarantee (money
 // batches carry a UNIQUE idempotency key; a replay fails the constraint and rolls the batch back); the DO-storage "seen"
@@ -19,7 +19,7 @@ export interface CommitRequest {
 export interface CommitResult {
   applied: boolean;
   /** Rows each statement changed, in batch order, so an UPDATE-only write can tell a real change from a zero-row no-op
-   *  (hard rule 3). Absent on a no-op or an unreporting driver. */
+   *  (CLAUDE.md, Money writes). Absent on a no-op or an unreporting driver. */
   changes?: number[];
 }
 

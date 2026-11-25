@@ -20,7 +20,7 @@ export function LegalBody({ children }: { children: ReactNode }) {
   );
 }
 
-/** The one-paragraph description of the product that both legal pages carry: silent retry first, the email sequence's real length, and dispute responses that go to Stripe only on a person's approval or the merchant's own opt-in auto-submit. The numbers are the engine's constants (foxhound CLAUDE.md, hard rule 1). */
+/** The one-paragraph description of the product that both legal pages carry: silent retry first, the email sequence's real length, and dispute responses that go to Stripe only on a person's approval or the merchant's own opt-in auto-submit. The numbers are the engine's constants (CLAUDE.md, Launch). */
 export function LegalServiceDescription() {
   return (
     <>
