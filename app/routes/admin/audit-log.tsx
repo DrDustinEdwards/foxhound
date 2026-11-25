@@ -12,13 +12,11 @@ import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/audit-log";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Audit log" };
 
-export function meta() {
-  return [{ title: "Audit log - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Audit log - Foxhound admin");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

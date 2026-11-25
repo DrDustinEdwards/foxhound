@@ -67,7 +67,7 @@ import {
 import { exportHref } from "~/lib/recovery/payments-page";
 import { BULK_INTENTS } from "~/lib/recovery/bulk-copy";
 import { PaymentsFilters } from "~/components/payments-filters";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { percent } from "capsomer/behavior/meter";
@@ -75,9 +75,7 @@ import { percent } from "capsomer/behavior/meter";
 // /recovery/payments. No Foxhound class sits on a Capsomer element: mono figures, sizes and spacing go on elements of the page's own inside or around them. Bulk actions submit exactly what the button counts and only rows on screen can be selected; they report per payment and keep the failures selected, and ask above 25 and refuse above 100.
 // Every filter is in the URL and runs in the loader. Script applies a filter on change; without script the form still submits on Enter.
 
-export function meta() {
-  return [{ title: "Payments - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Payments - Foxhound");
 
 export async function loader({ context, request }: Route.LoaderArgs) {
   const { db, accountId } = accountScope(context);

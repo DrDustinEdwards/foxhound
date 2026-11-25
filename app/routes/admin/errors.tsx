@@ -23,14 +23,12 @@ import { type AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/errors";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { listText } from "capsomer/behavior/hooks";
 
 export const handle: AdminHandle = { page: "Errors" };
 
-export function meta() {
-  return [{ title: "Errors - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Errors - Foxhound admin");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

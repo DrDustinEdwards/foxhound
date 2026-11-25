@@ -4,14 +4,12 @@ import { loadMerchantsPage } from "~/lib/admin/merchants-page.server";
 import type { AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/billing-exempt";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 export { action, default } from "./index";
 
 // Its own browser title naming the list. AdminShell does not set document.title itself yet; this is right for when it does.
-export function meta() {
-  return [{ title: "Billing exempt merchants - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Billing exempt merchants - Foxhound admin");
 
 // One page name: the menu's Merchants, as the list's tab says which list.
 export const handle: AdminHandle = { page: "Merchants" };

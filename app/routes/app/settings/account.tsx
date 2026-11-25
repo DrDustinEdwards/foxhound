@@ -50,15 +50,13 @@ import {
   SignedIn,
   type ActionResult,
 } from "~/components/account-settings-parts";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // The three context fields feed the recovery email prompt ("Merchant context: ..." in recovery/email-generation.ts). They are written through applyIntelligenceContext, the one writer the merchant's agent tool shares, and the name through buildAccountProfileUpdate. "Cancel account" keeps billing records, and the record of recovered payments the fees are billed on. Sign out is a button that posts.
 
-export function meta() {
-  return [{ title: "My account - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("My account - Foxhound");
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

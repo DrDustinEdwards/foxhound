@@ -34,13 +34,11 @@ import {
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/webhooks";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Webhooks" };
 
-export function meta() {
-  return [{ title: "Webhooks - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Webhooks - Foxhound admin");
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

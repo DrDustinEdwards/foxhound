@@ -25,7 +25,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import type { AdminActionResult, AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/staged";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -36,9 +36,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Staged changes" };
 
-export function meta() {
-  return [{ title: "Staged changes - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Staged changes - Foxhound admin");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

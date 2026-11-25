@@ -32,14 +32,12 @@ import {
 } from "~/lib/recovery/sequence-performance";
 
 import type { Route } from "./+types/sequences";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { markup } from "capsomer/behavior/trusted-html";
 
 // /recovery/sequence: the sections are Capsomer's parts, the chart is Enarratio's, and the numbers and categories are Foxhound's engine (RECOVERY_SCHEDULES, six categories, silent retry first).
 
-export function meta() {
-  return [{ title: "Sequences - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Sequences - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { db, accountId } = accountScope(context);

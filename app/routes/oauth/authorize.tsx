@@ -29,7 +29,7 @@ import {
 } from "~/lib/oauth/provider.server";
 
 import type { Route } from "./+types/authorize";
-import { NOINDEX, noindexHeader } from "~/lib/seo/meta";
+import { noindexMeta, noindexHeader } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import "~/auth.css";
@@ -43,9 +43,7 @@ import "~/auth.css";
 // Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
 export const handle = { hydrate: true };
 
-export function meta() {
-  return [{ title: "Authorize access - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Authorize access - Foxhound");
 
 // Drawn for one reader, and its URL holds a token: kept out of caches and Web Analytics (site-runtime PRIVATE_PAGE_HEADERS).
 export const headers = () => PRIVATE_PAGE_HEADERS;

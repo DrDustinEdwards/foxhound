@@ -35,15 +35,13 @@ import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 import type { AdminActionResult, AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/brake";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Emergency brake" };
 
-export function meta() {
-  return [{ title: "Emergency brake - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Emergency brake - Foxhound admin");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

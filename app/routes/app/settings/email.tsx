@@ -18,7 +18,7 @@ import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { sendTestEmail } from "~/lib/settings/test-email.server";
 
 import type { Route } from "./+types/email";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -31,9 +31,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // THE RECOVERY EMAILS CARD: win-back sequences and expiring card alerts, the switches that turn emails to customers on or off. It keeps its own form and save bar, and the NULL-is-ON pair: a merchant who never touched it has both on.
 
-export function meta() {
-  return [{ title: "Email settings - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Email settings - Foxhound");
 
 const NULL_IS_ON = true;
 

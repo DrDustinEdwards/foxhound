@@ -14,7 +14,7 @@ import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 
 import type { Route } from "./+types/audit";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -23,9 +23,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // The route's own action writes through applyAuditSettings, the same core the MCP `set_audit_settings` tool uses. The digest description does not say "written by AI": an unfunded key would serve the fallback paragraph under a promise of AI, and naming the vendor in merchant copy is forbidden regardless.
 // NULL IS OFF: the defaulting lives in the READ and no column DEFAULT is added (app/lib/settings/audit-settings.ts).
 
-export function meta() {
-  return [{ title: "Audit settings - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Audit settings - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const {

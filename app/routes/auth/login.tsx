@@ -20,15 +20,13 @@ import { answerSignInForm, loginErrorMessage } from "~/lib/auth/sign-in-link.ser
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/login";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // /login: one card, "Welcome back", the line under it, the providers, the "or" rule, Email, the error, then "Don't have an account? Connect Stripe". The ways in are the family's one sign-in (site-runtime ./sign-in): a passkey first, Google and Apple, and an emailed link. The mechanism is Better Auth on D1.
 
-export function meta() {
-  return [{ title: "Sign in - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Sign in - Foxhound");
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

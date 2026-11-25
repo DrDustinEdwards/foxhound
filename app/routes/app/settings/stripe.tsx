@@ -24,7 +24,7 @@ import {
 } from "~/lib/settings/stripe-disconnect-feedback";
 
 import type { Route } from "./+types/stripe";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -32,9 +32,7 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 // /settings/stripe, "Stripe connections": the phone-only back link; the title and its line; ONE card holding either the empty state (the line and Connect Stripe) or a bordered row per connection (its name or Stripe id, the date line, Disconnect Stripe with its two-step confirm and Keep connected) and Add Stripe account under them.
 // Each row's form names its connection (an id-less disconnect would silently pick the account's primary), the action refuses one the ACTIVE account does not hold, and the write is cancelMerchant's plain batch path (disconnectConnection), never an agent tool.
 
-export function meta() {
-  return [{ title: "Stripe connections - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Stripe connections - Foxhound");
 
 // OWNERS ONLY disconnect: it revokes Foxhound's Stripe access for the whole account, as only an owner revokes an API key (/settings/api-keys).
 const OWNER_ONLY = "Only the account owner can do this.";

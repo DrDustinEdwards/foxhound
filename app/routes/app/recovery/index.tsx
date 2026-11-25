@@ -62,16 +62,14 @@ import {
   DeliverabilityPanel,
 } from "../../../components/recovery-dashboard-panels";
 import { PaymentsTable } from "../../../components/recovery-dashboard-payments";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /recovery/dashboard: the getting-started checklist or the watching banner, the head, the primary stats, the ROI widget, the two time-series panels, decline analysis, timing beside win-back, the queue, the secondary stats, then the failed-payments table. Every chart is Enarratio's; components/charts.css hides Enarratio's gridlines and the frame's title under a Panel heading.
 // No benchmark card: benchmark_data holds only the seeded leakage estimator rows and nothing writes a recovery-rate row, so it could never render (the docs say the dashboard shows no outside benchmark). No open-disputes card: it shows only when the Disputes product is inactive, which cannot happen here (app/lib/nav/manifest.ts).
 // The deliverability panel: sends from email_sends, bounces and spam complaints from the suppressions the Email Service events consumer writes. Foxhound stores no delivered event, so no delivered rate or alert. The consumer does not yet know which account an event belongs to (it writes account_id null), so until it maps an event back through email_sends the panel shows its empty state, worded to promise nothing.
 // The checklist is recomputed on every load (not latched by accounts.onboarding_completed), so clearing the sender name brings it back.
 
-export function meta() {
-  return [{ title: "Recovery - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Recovery - Foxhound");
 
 function parseRange(value: string | null): RecoveryRange {
   return (RECOVERY_RANGES as readonly string[]).includes(value ?? "")

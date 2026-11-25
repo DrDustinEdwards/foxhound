@@ -13,15 +13,13 @@ import { getSession } from "~/lib/auth/session";
 import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
 import { knownSignInError } from "~/lib/auth/sign-in-link.server";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 import type { Route } from "./+types/sign-in-confirm";
 
 // /sign-in/confirm, where the emailed sign-in link opens (site-runtime ./sign-in, CONFIRM_PATH). Its GET only shows this card, so a mail scanner that opens every link spends nothing; the button's POST signs in through confirmSignInLink, on to /passkey and `next`. A spent or expired link comes back here with ?error= and the time it was mailed, and site-runtime's signInLinkProblem tells used, expired, cut short and failed apart.
 
-export function meta() {
-  return [{ title: "Sign in - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Sign in - Foxhound");
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const url = new URL(request.url);

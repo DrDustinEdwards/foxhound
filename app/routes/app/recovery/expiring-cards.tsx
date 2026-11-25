@@ -8,12 +8,10 @@ import { isCardExpired, isCardExpiringSoon } from "~/lib/recovery/expiring-card"
 import { listExpiringCardAlerts } from "~/lib/recovery/step-queries.server";
 
 import type { Route } from "./+types/expiring-cards";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import "capsomer/table.css";
 
-export function meta() {
-  return [{ title: "Expiring cards - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Expiring cards - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { auth, db } = accountScope(context);

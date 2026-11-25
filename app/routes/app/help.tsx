@@ -27,13 +27,11 @@ import {
 } from "~/lib/help/platform-status.server";
 
 import type { Route } from "./+types/help";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /help: the H1, then Common questions, Guides, Platform status and Contact, in a 720px column. The parts are Capsomer's with no Foxhound CSS over them: PageHead for the H1 and subtitle, a Panel titled by its link for each guide card and for the contact block (so every description shows in full; row-list's detail line would cut it), Panel around each status list, Capsomer's table for the job and connector rows, and Status for each cron's state as a glyph, a word and a color. The page renders no second <main> inside the shell's.
 
-export function meta() {
-  return [{ title: "Help - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Help - Foxhound");
 
 /** The six quick answers, each checked against what Foxhound actually does. Two differ from the obvious wording: (1) recovery is SILENT-RETRY-FIRST, so a soft or network decline leads with a quiet retry before the customer is emailed at all (app/lib/recovery/schedule.ts RECOVERY_SCHEDULES), which "the first email sends within an hour" would misdescribe; (6) there is no per-step body editor, so only the brand voice half of that answer is kept, including per-category tone (app/routes/app/settings/brand-voice.tsx). The recovery-rate bands are DESIGN.md's 0-20 red / 21-35 caution (orange) / 36+ green; the payments list labels a running sequence "Active" (app/lib/recovery/labels.ts); fraud schedules carry no retry step; and the payment detail renders a sent step's subject and body with per-step open and click counts. */
 export const QUICK_ANSWERS = [

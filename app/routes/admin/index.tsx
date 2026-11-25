@@ -20,13 +20,11 @@ import type { AdminHandle } from "~/lib/admin/page";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/index";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Overview" };
 
-export function meta() {
-  return [{ title: "Overview - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Overview - Foxhound admin");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

@@ -12,13 +12,11 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { merchantHref, type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/users";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Users" };
 
-export function meta() {
-  return [{ title: "Users - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Users - Foxhound admin");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

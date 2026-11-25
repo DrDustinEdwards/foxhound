@@ -29,15 +29,13 @@ import type { AdminHandle } from "~/lib/admin/page";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import type { Route } from "./+types/index";
 import { MerchantsList } from "../../../components/admin-merchants-parts";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Merchants" };
 
-export function meta() {
-  return [{ title: "Merchants - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Merchants - Foxhound admin");
 
 // This module serves three addresses (routes.ts): every merchant here, and the Paused and Billing exempt lists, whose route modules pass their own list to the same loader and re-export this action and page.
 export async function loader({ request, context }: Route.LoaderArgs) {

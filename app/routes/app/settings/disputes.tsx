@@ -15,16 +15,14 @@ import { applyDisputeSettings, applyDisputesEnabled } from "~/lib/settings/apply
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "~/lib/settings/dispute-description";
 
 import type { Route } from "./+types/disputes";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // /settings/disputes: one panel card of rows with Switch, a cap-input textarea, Button and Status. ONLY SETTINGS WITH A READER: - Auto-submit disputes: the disputes cron submits an unsubmitted dispute 24 hours before its deadline while it is on (app/lib/cron/dispute-auto-submit.ts). Off by default. Turning it on is the merchant's standing approval: who turned it on and when is stored with it (applyDisputeSettings), and each automatic submission's approval row names them, so the approval gate holds. - Product description: dispute intake reads it into every response's product_description evidence (readDisputeProductDescription). - Ships physical goods: the dispute page shows tracking number, carrier and ship date inputs when it is on (disputes/detail.tsx).
 // THE DISPUTES ON/OFF SWITCH lives on accounts.disputes_enabled (default on). It saves at once, apart from the Save button, and leaves the description and ships-physical as stored. Its reader is dispute intake: while it is off, the charge.dispute.created webhook and the manual import create no dispute (readDisputesEnabled). The "active" pill shows only while it is on, and while it is off an "Enable Disputes above to configure ..." line takes the place of the other settings.
 
-export function meta() {
-  return [{ title: "Dispute settings - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Dispute settings - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

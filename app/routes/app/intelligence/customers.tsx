@@ -40,13 +40,11 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { chipLabelFor } from "~/lib/intelligence/recommendation-display";
 
 import type { Route } from "./+types/customers";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /intelligence/customers: the head (the account's name, the count line, the lead), then the table or a "No customer data yet" card, then the pager, in a 1280px column. No Foxhound class sits on a Capsomer element: where the page needs mono figures, a label size or spacing, the class goes on an element of the page's own inside or around the Capsomer part. The filter bar is an approved addition; the recommended-action chip after the name reads the action the nightly scoring stores.
 
-export function meta() {
-  return [{ title: "Customers - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Customers - Foxhound");
 
 const HEALTH_BANDS: HealthScoreBand[] = ["healthy", "watch", "at_risk"];
 const HEALTH_BAND_LABEL: Record<HealthScoreBand, string> = {

@@ -55,13 +55,11 @@ import {
 } from "../../../components/dispute-detail-parts";
 import { DisputeApproval } from "~/components/dispute-approval";
 import { DisputeFindings } from "~/components/dispute-findings";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /disputes/:id: the back link, the header, the timeline, what Foxhound found, the staged evidence, the additional evidence, the sync form, and the approve card. A recommendation banner after the triage banner is worked out when the page loads (recommendOneCustomer). The triage banner and What Foxhound found (billing address, AVS, CVV, Stripe Radar, 3D Secure, Smart Disputes, prior charge history and subscription) are read from Stripe at intake (app/lib/disputes/triage.ts). Evidence files sit between Staged and Additional evidence, over the EVIDENCE R2 bucket (app/lib/disputes/evidence-files.server.ts) and the account-scoped view at /disputes/:id/files/:fileId; until the bucket is bound the upload control's place says so. Shipping fields show in Additional evidence when the account ships physical goods (/settings/disputes) and save with the draft as Stripe's shipping evidence fields. Accept dispute is a two-step "Accept dispute", "Yes, accept", "Cancel", closing the dispute at Stripe and resolving it lost with no fee (app/lib/disputes/accept.server.ts), then back to the list. Auto-submit is not on this page: it is the disputes cron's job (app/lib/cron/dispute-auto-submit.ts), through the same approveAndSubmitDispute as Approve and submit. The approve-and-submit card stands in place of a sticky action bar.
 
-export function meta() {
-  return [{ title: "Dispute detail - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Dispute detail - Foxhound");
 
 // The page bar's name (app-shell.tsx): the route's own title, not the Disputes row's "Disputes overview".
 export const handle = { page: "Dispute detail" };

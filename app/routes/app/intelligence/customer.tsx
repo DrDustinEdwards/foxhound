@@ -32,14 +32,12 @@ import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server"
 import { RecommendationBanner } from "~/components/recommendation-banner";
 
 import type { Route } from "./+types/customer";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import "capsomer/table.css";
 
 // /intelligence/customers/:id, in a 1080px column: the breadcrumb, the back link and the recovery payments link, the header card, the three signal cards, the health score with its chart (Enarratio), the assessment when there is one, and the footer. The signal cards are counted from Foxhound's own tables (getCustomerActivity), the score and its color are Foxhound's bands, and LTV, which nothing in Foxhound computes, says so. The recommendation banner is worked out when the page loads (recommendOneCustomer). No raw data toggle: it would print raw database values. The factors list and the predictions table are Foxhound's own, held for Dustin, after the other sections; the docs guide's Recommendations section names the factors list (docs-content.ts).
 
-export function meta() {
-  return [{ title: "Customer health - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Customer health - Foxhound");
 
 // Account-scoped by construction: getCustomerHealthDetail's query carries
 // BOTH accountId and the requested stripeCustomerId in one predicate, so a

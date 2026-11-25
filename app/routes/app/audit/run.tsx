@@ -20,16 +20,14 @@ import { accountScope } from "~/lib/auth/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/run";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /audit/results/:id, a saved run. The page: the banner (when the run was taken, what the data reflects, Back to history, Run new audit), then the AI summary, Revenue leaking now, Disputes unmanaged when there is a dispute signal, and Business snapshot, fading in one after another. The sections are the live page's (app/components/audit/sections.tsx).
 // PRIVATE: the run is read through getAuditRun, which pins the account in the predicate, so another account's id is a 404. "Copy link" opens only for members of the same account, so it is for sharing within a team.
 // THE LIVE FIGURES are failed payments in active recovery, the lifetime recovery rate, and the win rate on disputes Foxhound submitted, each read for this account now (app/lib/audit/live-figures.server.ts); every Foxhound account has Recovery and Disputes, so the calls to action are the signed-in ones.
 // EVERY FIGURE IS number OR null, NEVER COALESCED: `?? 0` would render a run whose disputes call failed as a merchant with no open disputes.
 
-export function meta() {
-  return [{ title: "Audit run - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Audit run - Foxhound");
 
 export async function loader({ context, params }: Route.LoaderArgs) {
   const { env, db, accountId } = accountScope(context);

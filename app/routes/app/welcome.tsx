@@ -11,13 +11,11 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 
 import type { Route } from "./+types/welcome";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /welcome: the landing after a NEW Stripe connection. The Stripe callback sends /welcome?connection=<id> (connect-callback.ts); without that id, or with one the account does not hold, the page goes to /console. It shows "You're connected.", the connection's name (or its Stripe id), one line, "Two quick steps" (sender name, notification email) and the way on to the Recovery dashboard, using the setup checklist the dashboard's getting-started panel uses.
 
-export function meta() {
-  return [{ title: "Welcome - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Welcome - Foxhound");
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

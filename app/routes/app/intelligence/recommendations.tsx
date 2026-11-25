@@ -25,13 +25,11 @@ import {
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/recommendations";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /intelligence/recommendations: the head, then a card per section with its title, its line and a table (Customer, Plan, MRR, Health, Recommendation), or a "No action needed right now." card, then the pager, in a 1280px column. Rows are the account's customers whose action asks for attention, highest MRR first, 50 to a page, grouped into sections within the page. The action is written by the nightly scoring batch from the rules in app/lib/intelligence/recommend.ts. Only the sections some rule produces are here; a section over data nothing writes is not built. The Plan column shows the plan's own name from Stripe, the product of the customer's largest subscription, as /intelligence/churn does (nothing in Foxhound writes current_plan_tier). No Foxhound class sits on a Capsomer element.
 
-export function meta() {
-  return [{ title: "Recommendations - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Recommendations - Foxhound");
 
 interface Section {
   title: string;

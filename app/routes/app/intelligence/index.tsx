@@ -46,15 +46,13 @@ import { getHealthDistribution, getMrrSnapshotSeries } from "~/lib/intelligence/
 import { formatMoney, formatMoneyShort, toMajorUnits } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/index";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // /intelligence/dashboard: the head, four stat cards, the MRR trend, NRR, MRR movement, MRR by plan, customer health distribution, then the monthly summary with its month pager and Generate/Regenerate button. With no snapshot yet, a syncing card stands in for all of it. Charts are Enarratio's. Snapshots come from intelligence-sync, which runs daily, so the series is ninety days of daily rows (trends.server.ts). The movement chart sums each week (dashboard.ts weeklyMovements). The narrative is a template written from the engine's facts with no model call (narrative.ts), through report-generate.server.ts. The "Most at-risk customers" table is Foxhound's own, held for Dustin, kept after the summary.
 
-export function meta() {
-  return [{ title: "Intelligence - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Intelligence - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { auth, db, accountId } = accountScope(context);
