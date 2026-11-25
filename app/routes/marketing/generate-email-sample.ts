@@ -2,7 +2,7 @@ import { refuseCrossSite } from "@dustinedwards/site-runtime/origin";
 import { data, redirect } from "react-router";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
+import { isIpWithinRateLimit, isWithinRateLimit } from "~/lib/http/rate-limit";
 import {
   MARKETING_EMAIL_CATEGORIES,
   type MarketingEmailCategory,
@@ -40,13 +40,19 @@ export async function action({ request, context }: Route.ActionArgs) {
   const categoryInput = String(form.get("category") ?? "");
   const category: MarketingEmailCategory = isValidCategory(categoryInput) ? categoryInput : "soft";
 
-  const allowed = await isIpWithinRateLimit(env, request, "marketing_email_sample", {
-    max: 10,
-    windowMs: 60_000,
-  });
-  if (!allowed) {
-    return data(UNAVAILABLE, { status: 429 });
-  }
+  // Fail closed: this spends the Anthropic key. The second bucket caps all visitors.
+  const allowed =
+    (await isIpWithinRateLimit(
+      env,
+      request,
+      "marketing_email_sample",
+      { max: 10, windowMs: 60_000 },
+      { failClosed: true },
+    )) &&
+    (await isWithinRateLimit(env, "sample_all", "all", 600, 3_600_000, {
+      failClosed: true,
+    }));
+  if (!allowed) return data(UNAVAILABLE, { status: 429 });
 
   try {
     const copy = await generateMarketingEmailSample(env, category);

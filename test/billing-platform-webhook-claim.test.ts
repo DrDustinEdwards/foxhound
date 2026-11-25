@@ -15,6 +15,14 @@ const harness = vi.hoisted(() => ({
   event: null as unknown,
   signatureValid: true,
   failNextCommit: false,
+  finalize: vi.fn(
+    async (_env: Env, _input: unknown) => ({ ok: true }) as { ok: boolean; error?: string },
+  ),
+}));
+
+vi.mock("~/lib/billing/platform-customer", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("~/lib/billing/platform-customer")>()),
+  finalizeBillingSetupSession: (env: Env, input: unknown) => harness.finalize(env, input),
 }));
 
 vi.mock("~/db", async (importOriginal) => ({
@@ -243,5 +251,47 @@ describe("platform webhook: signature", () => {
     const res = await post();
     expect(res.status).toBe(400);
     expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
+  });
+});
+
+describe("platform webhook: a completed card setup", () => {
+  const setupEvent = (customer: string): Stripe.Event =>
+    ({
+      id: "evt_setup",
+      type: "checkout.session.completed",
+      data: { object: { id: "cs_setup_1", mode: "setup", customer } },
+    }) as unknown as Stripe.Event;
+
+  beforeEach(() => harness.finalize.mockClear());
+
+  it("sets the default card from the webhook, so a dropped browser return loses nothing", async () => {
+    const db = await seed();
+    harness.event = setupEvent(PLATFORM_CUSTOMER);
+
+    const res = await post();
+
+    expect(await res.json()).toEqual({ received: true, outcome: "applied" });
+    expect(harness.finalize).toHaveBeenCalledWith(expect.anything(), {
+      sessionId: "cs_setup_1",
+      expectedCustomerId: PLATFORM_CUSTOMER,
+    });
+    expect(await db.select().from(schema.webhookEvents)).toHaveLength(1);
+  });
+
+  it("answers 500 and claims nothing when the default cannot be set", async () => {
+    const db = await seed();
+    harness.event = setupEvent(PLATFORM_CUSTOMER);
+    harness.finalize.mockResolvedValueOnce({ ok: false, error: "stripe down" });
+
+    expect((await post()).status).toBe(500);
+    expect(await db.select().from(schema.webhookEvents)).toHaveLength(0);
+  });
+
+  it("never touches a customer that is no account's platform customer", async () => {
+    await seed();
+    harness.event = setupEvent("cus_someone_else");
+
+    expect(await (await post()).json()).toEqual({ received: true, outcome: "ignored" });
+    expect(harness.finalize).not.toHaveBeenCalled();
   });
 });

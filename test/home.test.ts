@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { createMemoryRouter, RouterProvider } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import Home, { loader } from "~/routes/home";
@@ -119,9 +119,20 @@ describe("the email sample generation route", () => {
   };
 
   it("reports a failed generation instead of passing a canned email off as generated", async () => {
-    const result = await generate({} as Env, soft());
+    const limiter = {
+      idFromName: (name: string) => name,
+      get: () => ({ hit: async () => ({ ok: true, retryAfterSeconds: 0 }) }),
+    };
+    const result = await generate({ RATE_LIMITER: limiter } as unknown as Env, soft());
     expect(result.data).toEqual({ error: true });
     expect(result.init?.status).toBe(503);
+  });
+
+  it("refuses when the limiter is down, so no model call goes out unmetered", async () => {
+    const called = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("no network"));
+    await expect(generate({ ANTHROPIC_API_KEY: "k" } as unknown as Env, soft())).rejects.toThrow();
+    expect(called).not.toHaveBeenCalled();
+    called.mockRestore();
   });
 
   it("over the rate limit, answers { error: true } with 429", async () => {

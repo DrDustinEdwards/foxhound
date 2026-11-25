@@ -366,7 +366,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                   prompt on its own model (MODEL_MARKETING_EMAIL_SAMPLE) for a
                   fictional customer, so neither claim holds here. */}
               <h2 className={H2}>What a Foxhound recovery email looks like</h2>
-              <p className="fh-mk-lede fh-subhead fh-soft">Pick a decline type.</p>
             </div>
           </div>
           <div className="fh-home-wrap-2">

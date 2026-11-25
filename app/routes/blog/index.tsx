@@ -125,7 +125,6 @@ function BlogHero({
     <section className="fh-blog-band">
       <div className="fh-blog-grid">
         <div>
-          <p className="fh-mono fh-caption fh-accent fh-caps-wide">Featured</p>
           <h2 className="fh-blog-title fh-bold fh-text">
             <Link to={`/blog/${post.slug}`} className="fh-blog-link-3 fh-text">
               {post.title}
