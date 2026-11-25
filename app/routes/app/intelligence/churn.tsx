@@ -24,13 +24,11 @@ import { getChurnView } from "~/lib/intelligence/trends.server";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/churn";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /intelligence/churn: the head, the churn-rate chart (Enarratio), the three band cards, then the high-risk customers table; or, when nobody is scored yet, a "being calculated" card in place of the bands and table. Band cutoffs are Foxhound's engine (40/70), derived from the constants below.
 
-export function meta() {
-  return [{ title: "Churn Risk - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Churn Risk - Foxhound");
 
 const BAND_ORDER: HealthScoreBand[] = ["at_risk", "watch", "healthy"];
 

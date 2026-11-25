@@ -32,13 +32,11 @@ import {
 } from "~/lib/admin/operations.server";
 
 import type { Route } from "./+types/operations";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 export const handle: AdminHandle = { page: "Operations" };
 
-export function meta() {
-  return [{ title: "Operations - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Operations - Foxhound admin");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

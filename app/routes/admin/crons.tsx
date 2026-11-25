@@ -35,15 +35,13 @@ import {
 import { type AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/crons";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 export const handle: AdminHandle = { page: "Crons" };
 
-export function meta() {
-  return [{ title: "Crons - Foxhound admin" }, NOINDEX];
-}
+export const meta = noindexMeta("Crons - Foxhound admin");
 
 export async function loader({ request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);

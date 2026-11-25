@@ -30,13 +30,11 @@ import {
 } from "~/lib/settings/team-invite-email.server";
 
 import type { Route } from "./+types/team";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-export function meta() {
-  return [{ title: "Team - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Team - Foxhound");
 
 // This page is scoped to ONE account, the active one: invites add a member to the account the caller is currently looking at. Member removal DELETES the row (there is no removal status). The confirm is inline and two-step, the settings section's house pattern; the confirming id rides the URL rather than useState so the form post carries it, as the Stripe disconnect does. Role change is not built.
 export async function loader({ context }: Route.LoaderArgs) {

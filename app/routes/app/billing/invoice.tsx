@@ -11,11 +11,9 @@ import { getBillingInvoiceDetail } from "~/lib/billing/queries.server";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/invoice";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
-export function meta() {
-  return [{ title: "Invoice - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Invoice - Foxhound");
 
 export async function loader({ context, params }: Route.LoaderArgs) {
   const { auth, db } = accountScope(context);

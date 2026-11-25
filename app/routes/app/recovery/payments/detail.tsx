@@ -56,13 +56,11 @@ import {
   OutcomePanel,
 } from "~/components/payment-detail-parts";
 import { RecoveryTimeline } from "~/components/payment-timeline";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-export function meta() {
-  return [{ title: "Payment detail - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Payment detail - Foxhound");
 
 export async function loader({ context, params }: Route.LoaderArgs) {
   const { auth, db } = accountScope(context);

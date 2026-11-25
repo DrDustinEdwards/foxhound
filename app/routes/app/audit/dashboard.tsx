@@ -35,7 +35,7 @@ import { applyAuditSettings } from "~/lib/settings/apply.server";
 import { LOOKBACK_OPTIONS, readAuditSettings } from "~/lib/settings/audit-settings";
 
 import type { Route } from "./+types/dashboard";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -43,9 +43,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // A figure that could not be read on a run says so instead of a zero, in the table and in Since last run, which shows no comparison when either side is unread (compareTotals below).
 // ONE LINE PER CURRENCY: each money figure is its totals per currency from money_by_currency, read through toStoredAuditRun as /audit/results/:id reads them, stacked one line per currency in currency-code order. Since last run compares each currency with the same currency on the last run. A run stored before that column has one figure that may have added currencies together, so it shows what it stored and no change is drawn against it.
 
-export function meta() {
-  return [{ title: "Audit history - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Audit history - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const {

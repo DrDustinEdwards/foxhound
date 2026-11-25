@@ -9,12 +9,10 @@ import { listWinbackSequences } from "~/lib/recovery/step-queries.server";
 import { WINBACK_STATUS } from "~/lib/recovery/winback";
 
 import type { Route } from "./+types/winback";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import "capsomer/table.css";
 
-export function meta() {
-  return [{ title: "Win-back - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Win-back - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { auth, db } = accountScope(context);

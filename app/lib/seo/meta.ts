@@ -10,6 +10,12 @@ import type { MiddlewareFunction } from "react-router";
  *  signed-in app and the admin. Their layouts also send `X-Robots-Tag`. */
 export const NOINDEX = { name: "robots", content: "noindex" } as const;
 
+/** A route's `meta` for a page kept out of search: its whole `<title>` and the noindex tag. */
+export function noindexMeta(title: string) {
+  const tags = [{ title }, NOINDEX];
+  return () => tags;
+}
+
 /** The header form of NOINDEX, for a layout's middleware: it covers every
  *  response under the layout, the ones with no `<head>` as well. */
 export const noindexHeader: MiddlewareFunction<Response> = async (_args, next) => {

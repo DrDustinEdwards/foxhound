@@ -24,14 +24,12 @@ import { isCohortRows } from "~/lib/intelligence/mrr";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/dashboard";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // /console: the "Console" heading, the hero row of three platform figures, the four product tiles, then the needs-attention rows or "All clear. The platform is running." in a 1280px column. The numbers are Foxhound's engine: money per currency through groupSumByCurrency, and the recovery rate the one getRecoveryStats computes over every failure by the date it failed.
 // Below sit two further sections: the four recovery stat cards and the free MRR analytics (PRICING.md: basic MRR analytics are free for every Recovery merchant, and this is the only page that shows them to an account without Intelligence).
 
-export function meta() {
-  return [{ title: "Console - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Console - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { db, accountId } = accountScope(context);

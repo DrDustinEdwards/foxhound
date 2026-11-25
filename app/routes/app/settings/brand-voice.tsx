@@ -30,7 +30,7 @@ import {
 } from "~/lib/settings/brand-voice-presets";
 
 import type { Route } from "./+types/brand-voice";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -39,9 +39,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // NO BOUND ON ANY FIELD: no maxLength, no pattern, no required. An empty selection stores NULL and reads back as "Same as main voice".
 // SAMPLE EMAILS: a second card where the merchant pastes up to five emails they wrote themselves, which recovery and win-back drafts are written from (app/lib/recovery/voice-samples.ts). It posts with the same Save changes. Each box is cut at VOICE_SAMPLE_MAX_CHARS, so it carries a maxLength, unlike the voice fields above.
 
-export function meta() {
-  return [{ title: "Brand voice - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Brand voice - Foxhound");
 
 export async function loader({ context }: Route.LoaderArgs) {
   const { env, auth } = accountScope(context);

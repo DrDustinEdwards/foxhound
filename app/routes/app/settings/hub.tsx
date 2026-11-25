@@ -19,15 +19,13 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
 import type { Route } from "./+types/hub";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 
 // The settings hub: nine entries over a sub-nav layout (see SETTINGS_HUB_ENTRIES). The title and its line are Capsomer's PageHead, the three figures its StatTiles, and every entry its Row. The phone shows one list, the desktop three figures over a two-column grid (Capsomer's RowList is one column, so the grid is two columns of one-row lists).
 // Two descriptions are deliberately not the obvious ones, because the obvious ones would be untrue: Email's does not promise a sender domain (not built) and My account's does not promise an appearance control.
 // THE STAT CARDS' QUERIES USE FOXHOUND'S OWN VOCABULARY: `failed_payments.status = 'active'` and disputes `state NOT IN RESOLVED_DISPUTE_STATES`; copying another schema's literals would count zero forever.
 
-export function meta() {
-  return [{ title: "Settings - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Settings - Foxhound");
 
 export interface SettingsHubEntry {
   to: string;

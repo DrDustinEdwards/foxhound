@@ -52,16 +52,14 @@ import type { Tone } from "~/lib/recovery/labels";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 
 import type { Route } from "./+types/index";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
 // /disputes: the "Dashboard" head, the stat cards (shown on the empty state too), then the empty card or the table, then the sync control, in a 1280px column. The status column uses plain words where one is true (disputeListStatus); the cards include "Submitted by Foxhound" and Win rate; "Fees owed" counts only fees still owed.
 // The loader is read-only, billing records included. The writes are the manual import action and the early fraud warning section's Refund and Dismiss (app/lib/disputes/fraud-warnings.server.ts). That section shows only for an account that has had a warning, below the disputes table.
 
-export function meta() {
-  return [{ title: "Disputes - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Disputes - Foxhound");
 
 /** Rows per page of the disputes table, the payments list's default. */
 const DISPUTES_PAGE_SIZE = 25;

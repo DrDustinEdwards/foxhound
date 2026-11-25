@@ -29,16 +29,14 @@ import { getBillingLedger, listBillingInvoices } from "~/lib/billing/queries.ser
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 import type { Route } from "./+types/index";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // /billing: the page head, then Recovery, Dispute Fees and Payment method, in a 720px column (sections in app/components/billing-sections.tsx). The evidence ledger follows them, since PRICING.md requires "action -> recovery -> fee for every charge". The loader is read-only: billing preview, invoices and their line items and the card on file. The one write is the billing-setup action below.
 
-export function meta() {
-  return [{ title: "Billing - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Billing - Foxhound");
 
 async function loadAccountBillingRow(env: Env, accountId: string) {
   const db = getDb(env);

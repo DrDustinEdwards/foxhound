@@ -21,7 +21,7 @@ import { openSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
 import { SLACK_WEBHOOK_ERROR, SLACK_WEBHOOK_PLACEHOLDER } from "~/lib/settings/slack-webhook";
 
 import type { Route } from "./+types/notifications";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
@@ -30,9 +30,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // A blank notification email box saves NULL: the payment recovered and sequence complete notices skip a NULL address as `no_recipient`, and the digest cron drops it, so the help line says what a blank box does, and the placeholder does not show the signed-in address grayed in (it would imply it gets mail). A real fallback in the senders would be a behavior change. The signed-in email is prefilled in the box, and Save stores it.
 // The Slack webhook URL is validated to `https://hooks.slack.com`, and its refusal is said beside the field.
 
-export function meta() {
-  return [{ title: "Notification settings - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("Notification settings - Foxhound");
 
 /** A column nobody has touched means the merchant is notified, which is what every engine's reader already assumes. */
 const NULL_IS_ON = true;

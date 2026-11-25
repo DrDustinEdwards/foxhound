@@ -31,7 +31,7 @@ import {
 import { API_KEY_LABEL_MAX_LENGTH } from "~/lib/settings/api-key-label";
 
 import type { Route } from "./+types/api-keys";
-import { NOINDEX } from "~/lib/seo/meta";
+import { noindexMeta } from "~/lib/seo/meta";
 import { MCP_CALLS_SHOWN, outcomeWords } from "~/lib/admin/mcps";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
@@ -41,9 +41,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // OWNERS ONLY: a key can change the account's settings and brand voice, so only the account's owner creates or revokes one, as only an owner invites (/settings/team).
 // THE SECRET IS SHOWN ONCE. It lives only on the action's response and in the one <pre>; it is never logged, never put in a URL, and never stored (only its hash is, in issueMcpToken).
 
-export function meta() {
-  return [{ title: "API keys - Foxhound" }, NOINDEX];
-}
+export const meta = noindexMeta("API keys - Foxhound");
 
 function isOwner(auth: { membership: { role: string } }): boolean {
   return auth.membership.role === MEMBER_ROLE.OWNER;
