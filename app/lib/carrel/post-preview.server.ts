@@ -4,7 +4,7 @@ import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { isSlug } from "@drdustinedwards/site-helpers/slug";
 import { readingMinutes, wordCount } from "@drdustinedwards/site-helpers/text";
 
-import { parse, fieldsOf, type Post } from "./post-model.server";
+import { parse, houndFieldsOf, type Post } from "./post-model.server";
 
 /**
  * The site's own render of a route (workers/app.ts), with the draft on its
@@ -32,7 +32,7 @@ export async function renderPreview(
     toPost({
       id: current?.id ?? id ?? slug,
       slug,
-      ...fieldsOf(post, {
+      ...houndFieldsOf(post, {
         coverImageUrl: current?.coverImageUrl ?? null,
         coverImageAlt: current?.coverImageAlt ?? null,
         showUpdatedAt: current?.showUpdatedAt ?? true,

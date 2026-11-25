@@ -3,7 +3,7 @@ import { blogPostLinks, blogPostVersions, blogPosts, type Db } from "~/db";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
 import { serializePostSource } from "./source";
-import { sourceOf, type Post } from "./post-model.server";
+import { postSourceOf, type Post } from "./post-model.server";
 
 const REVISION_PREFIX = "rev-";
 
@@ -45,7 +45,7 @@ export async function findBacklinks(db: Db, id: string, slug: string) {
     .map((r) => ({ id: r.id, title: r.title, path: `/blog/${r.slug}` }));
 }
 
-export async function listRevisions(db: Db, post: Post) {
+export async function listPostRevisions(db: Db, post: Post) {
   const id = post.row.id;
   const { row } = post;
   const versions = await db
@@ -70,7 +70,7 @@ export async function listRevisions(db: Db, post: Post) {
 }
 
 export async function revisionSourceOf(db: Db, post: Post, id: string, version: string) {
-  if (version === post.version) return serializePostSource(sourceOf(post.row));
+  if (version === post.version) return serializePostSource(postSourceOf(post.row));
   if (!version.startsWith(REVISION_PREFIX)) return null;
   const rows = await db
     .select()
@@ -80,7 +80,7 @@ export async function revisionSourceOf(db: Db, post: Post, id: string, version: 
   const old = rows[0];
   if (!old || old.postId !== id) return null;
   return serializePostSource({
-    ...sourceOf(post.row),
+    ...postSourceOf(post.row),
     title: old.title,
     excerpt: old.excerpt,
     body: old.body,

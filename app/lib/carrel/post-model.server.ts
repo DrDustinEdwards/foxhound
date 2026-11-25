@@ -103,7 +103,7 @@ export function listed(row: PostRow, query: ListQuery): boolean {
   );
 }
 
-export function sourceOf(row: PostRow): PostSource {
+export function postSourceOf(row: PostRow): PostSource {
   return {
     title: row.title,
     slug: row.slug,
@@ -140,7 +140,7 @@ export function keepSlug(post: PostSource, current: PostRow) {
   }
 }
 
-export function notTrashed(row: PostRow) {
+export function postNotTrashed(row: PostRow) {
   if (row.trashedAt) throw new RefusedError("This post is in the trash. Restore it first.");
 }
 
@@ -148,7 +148,7 @@ export function notTrashed(row: PostRow) {
  * A post's source as the columns a save writes; the cover and the date toggles
  * are the post's own, which a source does not carry.
  */
-export function fieldsOf(
+export function houndFieldsOf(
   post: PostSource,
   kept: Pick<PostRow, "coverImageUrl" | "coverImageAlt" | "showUpdatedAt" | "showPublishedAt">,
 ) {

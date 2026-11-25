@@ -39,13 +39,13 @@ import {
   summary,
   ORDER,
   listed,
-  sourceOf,
+  postSourceOf,
   parse,
   keepSlug,
-  notTrashed,
-  fieldsOf,
+  postNotTrashed,
+  houndFieldsOf,
 } from "./post-model.server";
-import { findBacklinks, listRevisions, revisionSourceOf } from "./post-reads.server";
+import { findBacklinks, listPostRevisions, revisionSourceOf } from "./post-reads.server";
 import { renderPreview, type RenderDocument } from "./post-preview.server";
 
 // The Carrel site adapter over Foxhound's blog. Posts live in D1 (blog_posts,
@@ -155,7 +155,7 @@ export function carrelAdapter(
       current.id,
       actor?.name ?? `carrel:${changeId}`,
       current.updatedAt,
-      fieldsOf(post, current),
+      houndFieldsOf(post, current),
     );
     if (!saved) throw new VersionConflictError((await load(current.id))?.version ?? null);
   }
@@ -210,7 +210,7 @@ export function carrelAdapter(
         return {
           ...summary(post),
           format: "markdown",
-          source: serializePostSource(sourceOf(post.row)),
+          source: serializePostSource(postSourceOf(post.row)),
           version: post.version,
         };
       },
@@ -224,7 +224,7 @@ export function carrelAdapter(
       },
 
       async publish(id, input) {
-        notTrashed((await mustMatch(id, input.expectedVersion)).row);
+        postNotTrashed((await mustMatch(id, input.expectedVersion)).row);
         if (input.source !== undefined) {
           await save(id, input.source, input.expectedVersion, input.changeId, input.actor);
         }
@@ -243,10 +243,10 @@ export function carrelAdapter(
       // schedule is schedules.update below.
       async schedule(id, input) {
         const { row } = await mustMatch(id, input.expectedVersion);
-        notTrashed(row);
+        postNotTrashed(row);
         await putSchedule(
           row,
-          input.source ?? serializePostSource(sourceOf(row)),
+          input.source ?? serializePostSource(postSourceOf(row)),
           input.publishAt,
           input.changeId,
         );
@@ -266,7 +266,12 @@ export function carrelAdapter(
       // changes with it.
       async setTags(id, input) {
         const { row } = await held(id, input.expectedVersion);
-        await writeSource(row, { ...sourceOf(row), tags: input.tags }, input.changeId, input.actor);
+        await writeSource(
+          row,
+          { ...postSourceOf(row), tags: input.tags },
+          input.changeId,
+          input.actor,
+        );
         return writeResult(id, input.changeId);
       },
 
@@ -274,7 +279,7 @@ export function carrelAdapter(
       // with it (apply also skips a trashed post, should the drop fail).
       async trash(id, input) {
         const { row } = await held(id, input.expectedVersion);
-        notTrashed(row);
+        postNotTrashed(row);
         await schedules.remove(id).run();
         await setTrashed(db, id, true);
         return writeResult(id, input.changeId);
@@ -348,7 +353,7 @@ export function carrelAdapter(
       async revisions(id) {
         const post = await load(id);
         if (!post) return null;
-        return listRevisions(db, post);
+        return listPostRevisions(db, post);
       },
 
       async revisionSource(id, version) {
