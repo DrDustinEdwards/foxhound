@@ -1,6 +1,7 @@
 import { and, count, eq, exists, notExists, notInArray, sql, type SQL } from "drizzle-orm";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import { changedRows, disputeApprovals, disputeEvidence, disputes } from "~/db";
 import { DISPUTE_EVIDENCE_MAX_FILES, DISPUTE_EVIDENCE_MAX_SIZE_BYTES } from "~/lib/constants";
 import { SUBMITTED_OR_RESOLVED } from "~/lib/disputes/approval";
@@ -121,11 +122,11 @@ export async function uploadEvidenceFile(
   const bytes = new Uint8Array(await file.arrayBuffer());
   if (!bytesMatchType(bytes, file.type)) return "file_type_not_allowed";
 
-  const [existing] = await db
-    .select({ n: count() })
-    .from(disputeEvidence)
-    .where(fileRowsOf(input.accountId, input.disputeId));
-  if ((existing?.n ?? 0) >= DISPUTE_EVIDENCE_MAX_FILES) return "max_files_exceeded";
+  if (
+    (await countRows(db, disputeEvidence, fileRowsOf(input.accountId, input.disputeId))) >=
+    DISPUTE_EVIDENCE_MAX_FILES
+  )
+    return "max_files_exceeded";
 
   const key = evidenceObjectKey(
     input.accountId,

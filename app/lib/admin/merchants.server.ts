@@ -17,6 +17,7 @@ import {
   stripeConnections,
   user,
 } from "~/db";
+import { countRows } from "~/db/scope";
 import { countActiveRecoveries, mrrUnderManagement } from "~/lib/admin/overview.server";
 import { MEMBER_ROLE, MEMBER_STATUS } from "~/lib/auth/roles";
 import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
@@ -185,9 +186,9 @@ const NOT_DEMO = notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`);
 
 export async function getMerchantFigures(db: Db, nowMs: number): Promise<MerchantFigures> {
   const monthStart = new Date(startOfUtcMonthMs(nowMs));
-  const [merchantRows, mrrByCurrency, connectedRows, recoveredRows, feeRows, paymentsInQueue] =
+  const [merchantCount, mrrByCurrency, connectedRows, recoveredRows, feeRows, paymentsInQueue] =
     await Promise.all([
-      db.select({ n: count() }).from(accounts).where(NOT_DEMO),
+      countRows(db, accounts, NOT_DEMO),
       mrrUnderManagement(db),
       db
         .select({ n: sql<number>`count(distinct ${stripeConnections.accountId})` })
@@ -229,7 +230,7 @@ export async function getMerchantFigures(db: Db, nowMs: number): Promise<Merchan
       (m) => m.cents !== 0,
     );
   return {
-    merchantCount: merchantRows[0]?.n ?? 0,
+    merchantCount,
     mrrByCurrency,
     connectedCount: Number(connectedRows[0]?.n ?? 0),
     totalRecovered: money(recoveredRows),
@@ -286,16 +287,16 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
     await Promise.all([
       db.select().from(stripeConnections).where(eq(stripeConnections.accountId, accountId)),
       db.select().from(accountSubscriptions).where(eq(accountSubscriptions.accountId, accountId)),
-      db
-        .select({ n: count() })
-        .from(failedPayments)
-        .where(and(eq(failedPayments.accountId, accountId), eq(failedPayments.status, "active")))
-        .then((r) => r[0]?.n ?? 0),
-      db
-        .select({ n: count() })
-        .from(recoveredPayments)
-        .where(and(eq(recoveredPayments.accountId, accountId), isNull(recoveredPayments.deletedAt)))
-        .then((r) => r[0]?.n ?? 0),
+      countRows(
+        db,
+        failedPayments,
+        and(eq(failedPayments.accountId, accountId), eq(failedPayments.status, "active")),
+      ),
+      countRows(
+        db,
+        recoveredPayments,
+        and(eq(recoveredPayments.accountId, accountId), isNull(recoveredPayments.deletedAt)),
+      ),
       db.select({ state: disputes.state }).from(disputes).where(eq(disputes.accountId, accountId)),
       db
         .select()

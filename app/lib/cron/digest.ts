@@ -1,9 +1,10 @@
 import { appOrigin } from "~/lib/app-origin";
 import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
-import { and, count, desc, eq, gte, isNull, isNotNull, notInArray, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, isNotNull, notInArray, sql } from "drizzle-orm";
 import { inList, likeStartsWith } from "@dustinedwards/site-runtime/d1";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import {
   accounts,
   customerContext,
@@ -135,80 +136,83 @@ export async function collectDigestNumbers(
     personalOutreachCount: number;
   }
 > {
-  const [failedRows, recoveredRows, activeRows, emailRows, winBackRows, expiringRows, disputeRows] =
-    await Promise.all([
-      db
-        .select({ amountCents: failedPayments.amountCents, currency: failedPayments.currency })
-        .from(failedPayments)
-        .where(
-          and(
-            eq(failedPayments.accountId, accountId),
-            isNull(failedPayments.deletedAt),
-            gte(failedPayments.detectedAt, windowStart),
-          ),
+  const [
+    failedRows,
+    recoveredRows,
+    activeCount,
+    emailsSent,
+    winBackCount,
+    expiringCardCount,
+    disputeRows,
+  ] = await Promise.all([
+    db
+      .select({ amountCents: failedPayments.amountCents, currency: failedPayments.currency })
+      .from(failedPayments)
+      .where(
+        and(
+          eq(failedPayments.accountId, accountId),
+          isNull(failedPayments.deletedAt),
+          gte(failedPayments.detectedAt, windowStart),
         ),
-      db
-        .select({
-          amountCents: recoveredPayments.amountCents,
-          currency: recoveredPayments.currency,
-        })
-        .from(recoveredPayments)
-        .where(
-          and(
-            eq(recoveredPayments.accountId, accountId),
-            gte(recoveredPayments.recoveredAt, windowStart),
-          ),
+      ),
+    db
+      .select({
+        amountCents: recoveredPayments.amountCents,
+        currency: recoveredPayments.currency,
+      })
+      .from(recoveredPayments)
+      .where(
+        and(
+          eq(recoveredPayments.accountId, accountId),
+          gte(recoveredPayments.recoveredAt, windowStart),
         ),
-      db
-        .select({ n: count() })
-        .from(failedPayments)
-        .where(
-          and(
-            eq(failedPayments.accountId, accountId),
-            isNull(failedPayments.deletedAt),
-            eq(failedPayments.status, "active"),
-          ),
+      ),
+    countRows(
+      db,
+      failedPayments,
+      and(
+        eq(failedPayments.accountId, accountId),
+        isNull(failedPayments.deletedAt),
+        eq(failedPayments.status, "active"),
+      ),
+    ),
+    countRows(
+      db,
+      recoverySteps,
+      and(
+        eq(recoverySteps.accountId, accountId),
+        isNull(recoverySteps.deletedAt),
+        isNotNull(recoverySteps.executedAt),
+        likeStartsWith(recoverySteps.stepType, "email_"),
+        gte(recoverySteps.executedAt, windowStart),
+      ),
+    ),
+    countRows(
+      db,
+      winBackSequences,
+      and(eq(winBackSequences.accountId, accountId), eq(winBackSequences.status, "active")),
+    ),
+    countRows(
+      db,
+      expiringCardAlerts,
+      and(
+        eq(expiringCardAlerts.accountId, accountId),
+        isNull(expiringCardAlerts.deletedAt),
+        eq(expiringCardAlerts.reason, "card_expiring"),
+      ),
+    ),
+    db
+      .select({ amountCents: disputes.amountCents, currency: disputes.currency })
+      .from(disputes)
+      .where(
+        and(
+          eq(disputes.accountId, accountId),
+          notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
         ),
-      db
-        .select({ n: count() })
-        .from(recoverySteps)
-        .where(
-          and(
-            eq(recoverySteps.accountId, accountId),
-            isNull(recoverySteps.deletedAt),
-            isNotNull(recoverySteps.executedAt),
-            likeStartsWith(recoverySteps.stepType, "email_"),
-            gte(recoverySteps.executedAt, windowStart),
-          ),
-        ),
-      db
-        .select({ n: count() })
-        .from(winBackSequences)
-        .where(
-          and(eq(winBackSequences.accountId, accountId), eq(winBackSequences.status, "active")),
-        ),
-      db
-        .select({ n: count() })
-        .from(expiringCardAlerts)
-        .where(
-          and(
-            eq(expiringCardAlerts.accountId, accountId),
-            isNull(expiringCardAlerts.deletedAt),
-            eq(expiringCardAlerts.reason, "card_expiring"),
-          ),
-        ),
-      db
-        .select({ amountCents: disputes.amountCents, currency: disputes.currency })
-        .from(disputes)
-        .where(
-          and(
-            eq(disputes.accountId, accountId),
-            notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
-          ),
-        ),
-    ]);
+      ),
+  ]);
 
-  const [highRisk, outreachRows] = await Promise.all([
+  const [highRisk, personalOutreachCount] = await Promise.all([
     db
       .select({
         name: customerContext.customerName,
@@ -225,15 +229,14 @@ export async function collectDigestNumbers(
       )
       .orderBy(desc(customerContext.mrrContributionCents))
       .limit(DIGEST_HIGH_RISK_LIMIT),
-    db
-      .select({ n: count() })
-      .from(customerContext)
-      .where(
-        and(
-          eq(customerContext.accountId, accountId),
-          eq(customerContext.recommendedAction, "personal_outreach"),
-        ),
+    countRows(
+      db,
+      customerContext,
+      and(
+        eq(customerContext.accountId, accountId),
+        eq(customerContext.recommendedAction, "personal_outreach"),
       ),
+    ),
   ]);
 
   return {
@@ -241,10 +244,10 @@ export async function collectDigestNumbers(
     totalRecovered: recoveredRows.length,
     recoveredRevenue: totalsOf(recoveredRows),
     atRiskRevenue: totalsOf(failedRows),
-    activeCount: activeRows[0]?.n ?? 0,
-    emailsSent: emailRows[0]?.n ?? 0,
-    winBackCount: winBackRows[0]?.n ?? 0,
-    expiringCardCount: expiringRows[0]?.n ?? 0,
+    activeCount,
+    emailsSent,
+    winBackCount,
+    expiringCardCount,
     openDisputeCount: disputeRows.length,
     openDisputeAmounts: totalsOf(disputeRows),
     currency: resolveDigestCurrency(recoveredRows, failedRows),
@@ -253,7 +256,7 @@ export async function collectDigestNumbers(
       mrrCents: c.mrrCents,
       currency: c.currency,
     })),
-    personalOutreachCount: outreachRows[0]?.n ?? 0,
+    personalOutreachCount,
   };
 }
 

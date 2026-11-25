@@ -10,6 +10,8 @@ import { and, count, eq, isNotNull, isNull, min } from "drizzle-orm";
 import migrationJournal from "../../../drizzle/migrations/meta/_journal.json";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import { countActiveRecoveries } from "~/lib/admin/overview.server";
 import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/due-steps";
 import {
@@ -128,61 +130,30 @@ export interface GrowthTableRow {
  * whole-database size_after is); row counts are the honest available signal.
  */
 export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
-  const [
-    engagementEventsCount,
-    emailSendsCount,
-    webhookEventsCount,
-    healthScoreHistoryCount,
-    cronRunLogCount,
-    page404DailyCount,
-    aiCallsCount,
-  ] = await Promise.all([
-    db.select({ n: count() }).from(engagementEvents),
-    db.select({ n: count() }).from(emailSends),
-    db.select({ n: count() }).from(webhookEvents),
-    db.select({ n: count() }).from(healthScoreHistory),
-    db.select({ n: count() }).from(cronRunLog),
-    db.select({ n: count() }).from(page404Daily),
-    db.select({ n: count() }).from(aiCalls),
-  ]);
-
-  return [
-    {
-      label: "Engagement events",
-      retentionPolicy: `${RETENTION_ENGAGEMENT_DAYS} days, then monthly aggregates`,
-      rowCount: engagementEventsCount[0]?.n ?? 0,
-    },
-    {
-      label: "Email sends",
-      retentionPolicy: `${RETENTION_EMAIL_SENDS_DAYS} days`,
-      rowCount: emailSendsCount[0]?.n ?? 0,
-    },
-    {
-      label: "Webhook events",
-      retentionPolicy: `${RETENTION_WEBHOOK_EVENTS_DAYS} days`,
-      rowCount: webhookEventsCount[0]?.n ?? 0,
-    },
-    {
-      label: "Health score history",
-      retentionPolicy: `${RETENTION_HEALTH_SCORE_DAYS} days raw, weekly rollups after`,
-      rowCount: healthScoreHistoryCount[0]?.n ?? 0,
-    },
-    {
-      label: "Cron run log",
-      retentionPolicy: `${RETENTION_CRON_LOG_DAYS} days, newest 1,500 per job`,
-      rowCount: cronRunLogCount[0]?.n ?? 0,
-    },
-    {
-      label: "Page 404s (daily aggregate)",
-      retentionPolicy: `${RETENTION_PAGE_404_DAILY_DAYS} days`,
-      rowCount: page404DailyCount[0]?.n ?? 0,
-    },
-    {
-      label: "AI calls",
-      retentionPolicy: `${RETENTION_AI_CALLS_DAYS} days raw, monthly cost aggregates after`,
-      rowCount: aiCallsCount[0]?.n ?? 0,
-    },
+  const tables: Array<[string, string, SQLiteTable]> = [
+    [
+      "Engagement events",
+      `${RETENTION_ENGAGEMENT_DAYS} days, then monthly aggregates`,
+      engagementEvents,
+    ],
+    ["Email sends", `${RETENTION_EMAIL_SENDS_DAYS} days`, emailSends],
+    ["Webhook events", `${RETENTION_WEBHOOK_EVENTS_DAYS} days`, webhookEvents],
+    [
+      "Health score history",
+      `${RETENTION_HEALTH_SCORE_DAYS} days raw, weekly rollups after`,
+      healthScoreHistory,
+    ],
+    ["Cron run log", `${RETENTION_CRON_LOG_DAYS} days, newest 1,500 per job`, cronRunLog],
+    ["Page 404s (daily aggregate)", `${RETENTION_PAGE_404_DAILY_DAYS} days`, page404Daily],
+    ["AI calls", `${RETENTION_AI_CALLS_DAYS} days raw, monthly cost aggregates after`, aiCalls],
   ];
+  return Promise.all(
+    tables.map(async ([label, retentionPolicy, table]) => ({
+      label,
+      retentionPolicy,
+      rowCount: await countRows(db, table),
+    })),
+  );
 }
 
 type EnvSanityKind = "binding" | "var" | "secret";

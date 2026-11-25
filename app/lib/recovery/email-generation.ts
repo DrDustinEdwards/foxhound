@@ -90,7 +90,7 @@ export function hardStripTimingWords(text: string): string {
 }
 
 /** Layers 3 and 4 for one generated email, shared by both seams; what still leaks is hard-stripped. */
-export async function applyTimingWordGuard(
+async function applyTimingWordGuard(
   first: EmailCopy,
   retry: (instruction: string) => Promise<EmailCopy>,
   allow: readonly string[] = [],
@@ -117,7 +117,7 @@ export async function applyTimingWordGuard(
 }
 
 /** Read one structured-output reply into copy as the model wrote it. */
-export function readGeneratedCopy(
+function readGeneratedCopy(
   result: Awaited<ReturnType<typeof askStructured<{ subject: string; bodyHtml: string }>>>,
   label: string,
 ): EmailCopy {
@@ -131,7 +131,7 @@ export function readGeneratedCopy(
 }
 
 /** Last steps after both retries: sanitizer, then the stray-content check (voice-samples.ts), which throws so the caller sends the template. */
-export function finishCopy(copy: EmailCopy, samples: readonly string[], url: string): EmailCopy {
+function finishCopy(copy: EmailCopy, samples: readonly string[], url: string): EmailCopy {
   const done = { subject: sanitizeCopy(copy.subject), bodyHtml: sanitizeCopy(copy.bodyHtml) };
   const stray = strayContent(done.bodyHtml, readableText(done), samples, url);
   if (stray.length > 0)
@@ -156,7 +156,7 @@ function readableText(copy: EmailCopy): string {
 }
 
 /** One retry on stock phrasing; a retry that loses its subject or body is dropped. */
-export function applyStockPhrasingGuard(
+function applyStockPhrasingGuard(
   first: EmailCopy,
   retry: (instruction: string) => Promise<EmailCopy>,
   allow: readonly string[] = [],
@@ -380,7 +380,50 @@ export function buildPrompts(input: GenerateEmailInput): { system: string; user:
   };
 }
 
-export async function generateDunningEmail(
+/**
+ * One generation: the prompt (with `system` for dunning, none for win-back) through the model, the
+ * stock-phrasing guard, then the timing-word guard, then `finishCopy`. A rewrite is the same prompt
+ * with its instruction appended, and one attempt.
+ */
+export async function generateGuardedCopy(
+  env: Env,
+  meter: AiCallMeter,
+  input: {
+    kind: string;
+    maxTokens: number;
+    system?: string;
+    prompt: string;
+    samples: readonly string[];
+    url: string;
+  },
+): Promise<EmailCopy> {
+  const call = async (instruction = ""): Promise<EmailCopy> => {
+    const result = await askStructured<{ subject: string; bodyHtml: string }>(
+      env,
+      meter,
+      {
+        model: MODEL_RECOVERY_EMAIL,
+        max_tokens: input.maxTokens,
+        thinking: { type: "disabled" },
+        output_config: { effort: "low" },
+        system: input.system,
+        messages: [{ role: "user", content: input.prompt + instruction }],
+      },
+      OUTPUT_SCHEMA,
+      instruction ? REWRITE : {},
+    );
+    return readGeneratedCopy(result, input.kind);
+  };
+  const allow = ownPhrasing(input.samples);
+  const copy = await applyTimingWordGuard(
+    await applyStockPhrasingGuard(await call(), call, allow),
+    call,
+    allow,
+  );
+  return finishCopy(copy, input.samples, input.url);
+}
+
+export function generateDunningEmail(
   env: Env,
   input: GenerateEmailInput,
   meter: AiCallMeter,
@@ -389,33 +432,12 @@ export async function generateDunningEmail(
     throw new Error("ANTHROPIC_API_KEY is not set");
   }
   const prompts = buildPrompts(input);
-
-  // A rewrite is the same prompt with its instruction appended, one attempt.
-  const call = async (instruction = ""): Promise<EmailCopy> => {
-    const result = await askStructured<{ subject: string; bodyHtml: string }>(
-      env,
-      meter,
-      {
-        model: MODEL_RECOVERY_EMAIL,
-        max_tokens: 2000,
-        thinking: { type: "disabled" },
-        output_config: { effort: "low" },
-        system: prompts.system,
-        messages: [{ role: "user", content: prompts.user + instruction }],
-      },
-      OUTPUT_SCHEMA,
-      instruction ? REWRITE : {},
-    );
-    return readGeneratedCopy(result, "recovery email");
-  };
-
-  // Stock phrasing first, then layers 3 and 4.
-  const samples = input.merchant.voiceSamples ?? [];
-  const allow = ownPhrasing(samples);
-  const copy = await applyTimingWordGuard(
-    await applyStockPhrasingGuard(await call(), call, allow),
-    call,
-    allow,
-  );
-  return finishCopy(copy, samples, input.updateUrl);
+  return generateGuardedCopy(env, meter, {
+    kind: "recovery email",
+    maxTokens: 2000,
+    system: prompts.system,
+    prompt: prompts.user,
+    samples: input.merchant.voiceSamples ?? [],
+    url: input.updateUrl,
+  });
 }

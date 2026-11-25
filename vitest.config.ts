@@ -3,6 +3,8 @@ import { fileURLToPath } from "node:url";
 import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // The OG card's fonts are .bin Worker data modules; under Node they load as asset URLs.
+  assetsInclude: ["**/*.bin"],
   test: {
     environment: "node",
     // A StrykerJS sandbox (stryker.config.mjs) is a full copy of the repo, tests

@@ -1,5 +1,5 @@
 import { formatCount } from "@drdustinedwards/site-helpers/text";
-import { and, count, eq, isNull, notInArray } from "drizzle-orm";
+import { and, eq, isNull, notInArray } from "drizzle-orm";
 import { Icon, iconChevronRight } from "capsomer/react/icons";
 import { routerRenderLink } from "capsomer/react/link";
 import { PageHead } from "capsomer/react/page-head";
@@ -12,6 +12,7 @@ import "capsomer/stat-tile.css";
 import "~/site-header.css";
 
 import { disputes, failedPayments, getDb, stripeConnections } from "~/db";
+import { countRows } from "~/db/scope";
 import { activeConnectionWhere } from "~/lib/stripe/connections.server";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -58,37 +59,35 @@ export async function loader({ context }: Route.LoaderArgs) {
   const accountId = auth.membership.accountId;
   const db = getDb(env);
 
-  const [connections, activeRows, disputeRows] = await Promise.all([
+  const [connections, activeSequences, openDisputes] = await Promise.all([
     db
       .select({ stripeUserId: stripeConnections.stripeUserId })
       .from(stripeConnections)
       .where(activeConnectionWhere(accountId)),
-    db
-      .select({ n: count() })
-      .from(failedPayments)
-      .where(
-        and(
-          eq(failedPayments.accountId, accountId),
-          isNull(failedPayments.deletedAt),
-          eq(failedPayments.status, "active"),
-        ),
+    countRows(
+      db,
+      failedPayments,
+      and(
+        eq(failedPayments.accountId, accountId),
+        isNull(failedPayments.deletedAt),
+        eq(failedPayments.status, "active"),
       ),
-    db
-      .select({ n: count() })
-      .from(disputes)
-      .where(
-        and(
-          eq(disputes.accountId, accountId),
-          notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
-        ),
+    ),
+    countRows(
+      db,
+      disputes,
+      and(
+        eq(disputes.accountId, accountId),
+        notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
       ),
+    ),
   ]);
 
   return {
     connectionCount: connections.length,
     firstStripeUserId: connections[0]?.stripeUserId ?? null,
-    activeSequences: activeRows[0]?.n ?? 0,
-    openDisputes: disputeRows[0]?.n ?? 0,
+    activeSequences,
+    openDisputes,
   };
 }
 

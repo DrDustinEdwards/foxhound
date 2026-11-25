@@ -1,12 +1,11 @@
-import { fromBase64 } from "@dustinedwards/site-runtime/encoding";
 import { cardText, shareCardResponse, titleFontSize } from "@dustinedwards/site-runtime/share-card";
 import { drawShareCard } from "@dustinedwards/site-runtime/share-card-draw";
 
-// The card draws static per-weight TTFs (dm-sans-{400,500,600}.ttf, derived by scripts/build-og-fonts.py from the variable woff2 the app ships; dm-mono-500.ttf). The card is sans throughout; DM Mono is the wordmark only. They stay as they are so the card's pixels do not move.
-import dmMono500 from "~/assets/fonts/dm-mono-500.ttf?inline";
-import dmSans400 from "~/assets/fonts/dm-sans-400.ttf?inline";
-import dmSans500 from "~/assets/fonts/dm-sans-500.ttf?inline";
-import dmSans600 from "~/assets/fonts/dm-sans-600.ttf?inline";
+// The card draws static per-weight TTFs, stored as .bin so the Worker carries them as binary modules (dm-sans-{400,500,600}.bin, derived by scripts/build-og-fonts.py from the variable woff2 the app ships; dm-mono-500.bin). The card is sans throughout; DM Mono is the wordmark only. They stay as they are so the card's pixels do not move.
+import dmMono500 from "~/assets/fonts/dm-mono-500.bin";
+import dmSans400 from "~/assets/fonts/dm-sans-400.bin";
+import dmSans500 from "~/assets/fonts/dm-sans-500.bin";
+import dmSans600 from "~/assets/fonts/dm-sans-600.bin";
 
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { siteUrl } from "~/lib/seo/jsonld";
@@ -73,10 +72,6 @@ function blogCardHtml(title: string, description: string, host: string): string 
 }
 
 // The renderer needs the raw font bytes passed in explicitly (it cannot read a CSS @font-face), and no local-filesystem or ASSETS-binding fetch is available at this call site, so the font is imported with Vite's `?inline` suffix (a base64 data: URL baked into the bundle) and decoded to bytes here.
-function fontBytes(dataUrl: string): ArrayBuffer {
-  return fromBase64(dataUrl.slice(dataUrl.indexOf(",") + 1)).buffer;
-}
-
 export async function loader({ params, request, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const url = new URL(request.url);
@@ -95,10 +90,10 @@ export async function loader({ params, request, context }: Route.LoaderArgs) {
   return shareCardResponse(drawShareCard, {
     html,
     fonts: () => [
-      { name: FONT, data: fontBytes(dmMono500), weight: 500, style: "normal" },
-      { name: FONT_SANS, data: fontBytes(dmSans400), weight: 400, style: "normal" },
-      { name: FONT_SANS, data: fontBytes(dmSans500), weight: 500, style: "normal" },
-      { name: FONT_SANS, data: fontBytes(dmSans600), weight: 600, style: "normal" },
+      { name: FONT, data: dmMono500, weight: 500, style: "normal" },
+      { name: FONT_SANS, data: dmSans400, weight: 400, style: "normal" },
+      { name: FONT_SANS, data: dmSans500, weight: 500, style: "normal" },
+      { name: FONT_SANS, data: dmSans600, weight: 600, style: "normal" },
     ],
   });
 }

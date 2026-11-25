@@ -4,9 +4,10 @@
 // KEY MATERIAL NEVER LEAVES THIS MODULE BECAUSE IT IS NEVER READ: every select
 // names its columns, and the hash column is not one of them.
 
-import { and, count, desc, eq, gte, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, ne, sql } from "drizzle-orm";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import { accounts, adminAuditLog, apiKeys, mcpCalls } from "~/db";
 import { MCP_CALLS_SHOWN, maskSecretsInText } from "~/lib/admin/mcps";
 import { buildAdminAuditLogInsert } from "~/lib/admin/audit.server";
@@ -170,19 +171,16 @@ export interface McpSummary {
 async function getMcpSummary(db: Db, now = new Date()): Promise<McpSummary> {
   const since = new Date(now.getTime() - DAY_MS);
   const [total, active, calls, failed] = await Promise.all([
-    db.select({ n: count() }).from(apiKeys),
-    db.select({ n: count() }).from(apiKeys).where(isNull(apiKeys.revokedAt)),
-    db.select({ n: count() }).from(mcpCalls).where(gte(mcpCalls.createdAt, since)),
-    db
-      .select({ n: count() })
-      .from(mcpCalls)
-      .where(and(gte(mcpCalls.createdAt, since), ne(mcpCalls.outcome, "ok"))),
+    countRows(db, apiKeys),
+    countRows(db, apiKeys, isNull(apiKeys.revokedAt)),
+    countRows(db, mcpCalls, gte(mcpCalls.createdAt, since)),
+    countRows(db, mcpCalls, and(gte(mcpCalls.createdAt, since), ne(mcpCalls.outcome, "ok"))),
   ]);
   return {
-    keysTotal: total[0]?.n ?? 0,
-    keysActive: active[0]?.n ?? 0,
-    callsLast24h: calls[0]?.n ?? 0,
-    failedLast24h: failed[0]?.n ?? 0,
+    keysTotal: total,
+    keysActive: active,
+    callsLast24h: calls,
+    failedLast24h: failed,
   };
 }
 

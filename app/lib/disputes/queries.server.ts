@@ -3,6 +3,7 @@ import { inList } from "@dustinedwards/site-runtime/d1";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import {
   changedRows,
   accounts,
@@ -71,7 +72,7 @@ export async function listDisputesPage(
   page: number,
   pageSize: number,
 ): Promise<{ rows: DisputeRow[]; total: number }> {
-  const [rows, [counted]] = await Promise.all([
+  const [rows, total] = await Promise.all([
     db
       .select()
       .from(disputes)
@@ -79,9 +80,9 @@ export async function listDisputesPage(
       .orderBy(desc(disputes.createdAt), desc(disputes.id))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    db.select({ n: count() }).from(disputes).where(eq(disputes.accountId, accountId)),
+    countRows(db, disputes, eq(disputes.accountId, accountId)),
   ]);
-  return { rows, total: counted?.n ?? 0 };
+  return { rows, total };
 }
 
 export interface DisputeDetail {
