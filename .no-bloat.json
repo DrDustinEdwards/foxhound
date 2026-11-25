@@ -3,7 +3,7 @@
     "jscpd": "jscpd@5.4.1"
   },
   "baseline": {
-    "measured_at": "8981c78",
+    "measured_at": "fcde496",
     "knip": {},
     "jscpd": {
       "clones": 76,
@@ -52,7 +52,7 @@
       "app/routes/app/recovery/payments/index.tsx": 1030,
       "app/routes/app/settings/account.tsx": 765,
       "app/routes/home.tsx": 520,
-      "app/routes/privacy.tsx": 890,
+      "app/routes/privacy.tsx": 884,
       "app/routes/terms.tsx": 789
     },
     "tests": {
@@ -60,9 +60,9 @@
       "cases": 1373
     },
     "comments": {
-      "lines": 13283,
-      "code": 126006,
-      "percentage": 9.54
+      "lines": 13274,
+      "code": 125985,
+      "percentage": 9.53
     }
   }
 }
