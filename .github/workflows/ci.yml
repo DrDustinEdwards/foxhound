@@ -201,6 +201,7 @@ jobs:
       # site-runtime audit-log's signing key (0.85), minted once by the deploy and never shown (devkit "generated-secrets").
       generated-secrets: AUDIT_SIGNING_KEY
       working-directory: mcp
+      install: cd .. && node .devkit/bin/deploy-install.mjs
       health-url: https://admin-mcp.foxhoundapp.com/health
       verify-command: node ../scripts/verify-admin-mcp.mjs
       sha-var: DEPLOY_SHA
