@@ -1,9 +1,10 @@
 // /admin/platform/webhooks data layer: delivery/health view off webhook_events.
 // READ only (Pass 1); there is no retry/replay action here.
 
-import { and, count, desc, eq, isNotNull, like, sql, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNotNull, like, sql, type SQL } from "drizzle-orm";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import { webhookEvents } from "~/db";
 import { WEBHOOK_PAGE_SIZE, type WebhookFilters } from "~/lib/admin/webhooks";
 import { DAY_MS } from "~/lib/constants";
@@ -15,31 +16,13 @@ export interface WebhookHealthSummary {
 }
 
 export async function getWebhookHealthSummary(db: Db): Promise<WebhookHealthSummary> {
-  const since = new Date(Date.now() - DAY_MS);
-  const [totalRows, errorRows, unprocessedRows] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(webhookEvents)
-      .where(sql`${webhookEvents.receivedAt} >= ${since.getTime()}`),
-    db
-      .select({ n: count() })
-      .from(webhookEvents)
-      .where(
-        and(
-          sql`${webhookEvents.receivedAt} >= ${since.getTime()}`,
-          isNotNull(webhookEvents.errorMessage),
-        ),
-      ),
-    db
-      .select({ n: count() })
-      .from(webhookEvents)
-      .where(sql`${webhookEvents.processed} = 0`),
+  const recent = sql`${webhookEvents.receivedAt} >= ${Date.now() - DAY_MS}`;
+  const [totalLast24h, errorsLast24h, unprocessedCount] = await Promise.all([
+    countRows(db, webhookEvents, recent),
+    countRows(db, webhookEvents, and(recent, isNotNull(webhookEvents.errorMessage))),
+    countRows(db, webhookEvents, sql`${webhookEvents.processed} = 0`),
   ]);
-  return {
-    totalLast24h: totalRows[0]?.n ?? 0,
-    errorsLast24h: errorRows[0]?.n ?? 0,
-    unprocessedCount: unprocessedRows[0]?.n ?? 0,
-  };
+  return { totalLast24h, errorsLast24h, unprocessedCount };
 }
 
 export type WebhookEventRow = typeof webhookEvents.$inferSelect;
@@ -71,7 +54,7 @@ export async function listWebhookEvents(
   if (filters.pendingOnly) conditions.push(eq(webhookEvents.processed, false));
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
-  const total = (await db.select({ n: count() }).from(webhookEvents).where(where))[0]?.n ?? 0;
+  const total = await countRows(db, webhookEvents, where);
   const pageCount = Math.max(1, Math.ceil(total / perPage));
   const page = Math.min(Math.max(1, filters.page), pageCount);
   const events =

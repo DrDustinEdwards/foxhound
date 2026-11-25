@@ -8,10 +8,8 @@ import "capsomer/segmented.css";
 import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { SettingsLayout } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
-import { getDb } from "~/db";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { applyAuditSettings } from "~/lib/settings/apply.server";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { LOOKBACK_OPTIONS } from "~/lib/settings/audit-settings";
 import { readAccountAuditSettings } from "~/lib/settings/audit-settings.server";
 
@@ -30,17 +28,19 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const { membership } = context.get(authContext);
-  const db = getDb(env);
+  const {
+    auth: { membership },
+    db,
+  } = accountScope(context);
 
   return readAccountAuditSettings(db, membership.accountId);
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const { membership } = context.get(authContext);
-  const db = getDb(env);
+  const {
+    auth: { membership },
+    db,
+  } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
 
   // This action and the MCP `set_audit_settings` tool validate and write through one implementation (apply.server.ts). Clamping is SERVER-SIDE inside it.

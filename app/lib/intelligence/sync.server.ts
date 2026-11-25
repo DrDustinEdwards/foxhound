@@ -20,33 +20,22 @@ import {
   buildCustomerContextFields,
   monthlyEquivalentCents,
   type ActiveSubscriptionSnapshot,
-  type BillingInterval,
   type InvoicePaymentObservation,
   type RawBillingLineObservation,
 } from "./signals";
-import {
-  buildMrrSnapshotFields,
-  churnReasonOf,
-  type ChurnReason,
-  type CustomerMrrPoint,
-} from "./mrr";
+import { buildMrrSnapshotFields, type ChurnReason, type CustomerMrrPoint } from "./mrr";
 import {
   discountedItemCents,
   earliestScheduledChange,
   nextScheduledChange,
   type ItemTerms,
   type ScheduledChange,
-  type ScheduleTerms,
 } from "./subscription-terms";
 import { chunked } from "@dustinedwards/site-runtime/d1";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { stripeMs } from "~/lib/stripe/time";
-import {
-  cached,
-  resolveDiscounts,
-  type RawDiscount,
-  type StripeObjectCaches,
-} from "./sync-stripe-cache.server";
+import { cached, resolveDiscounts, type StripeObjectCaches } from "./sync-stripe-cache.server";
+import { narrowSubscriptionForSync, priceInterval } from "./sync-narrow.server";
 import { buildCustomerContextUpsert, fetchFoxhoundHistoryByCustomer } from "./sync-writes.server";
 
 // The live Stripe + D1 seam for the deterministic Intelligence engine: one enumeration per account per run
@@ -54,20 +43,6 @@ import { buildCustomerContextUpsert, fetchFoxhoundHistoryByCustomer } from "./sy
 // once. Needs a live Stripe test-mode account to exercise; the pure math (signals.ts, mrr.ts) carries the unit
 // tests. These writes are operational, not money (only recovered_payments + outcomes ride the money DO), so
 // plain db.batch()/insert() via getDb.
-
-function priceInterval(price: Stripe.Price | null | undefined): BillingInterval {
-  // The SDK types Stripe's enums as open, so equality does not narrow them: each known value is returned by name.
-  switch (price?.recurring?.interval) {
-    case "day":
-      return "day";
-    case "week":
-      return "week";
-    case "year":
-      return "year";
-    default:
-      return "month";
-  }
-}
 
 const ACTIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trialing", "past_due"]);
 
@@ -80,89 +55,6 @@ interface CustomerStripeSnapshot {
   churnReason: ChurnReason;
   /** The earliest planned change or cancellation across the customer's live subscriptions; null when none. */
   scheduledChange: ScheduledChange | null;
-}
-
-interface NarrowSubscriptionItem {
-  priceId: string;
-  productId: string | null;
-  unitAmountCents: number;
-  quantity: number;
-  interval: BillingInterval;
-  intervalCount: number;
-  discounts: RawDiscount[];
-}
-
-/** A subscription cut down to what the sync reads, as each page arrives, so expanded subscriptions are
- *  never held whole (the Worker's 128 MB). */
-interface NarrowSubscription {
-  status: Stripe.Subscription.Status;
-  createdMs: number;
-  currency: string;
-  churnReason: ChurnReason;
-  cancelAtMs: number | null;
-  items: NarrowSubscriptionItem[];
-  discounts: RawDiscount[];
-  schedule: ScheduleTerms | null;
-}
-
-function narrowDiscounts(
-  discounts: readonly (string | Stripe.Discount)[] | null | undefined,
-): RawDiscount[] {
-  const out: RawDiscount[] = [];
-  for (const d of discounts ?? []) {
-    if (typeof d === "string") continue;
-    const coupon = d.source?.coupon;
-    if (!coupon) continue;
-    out.push({
-      couponId: typeof coupon === "string" ? coupon : coupon.id,
-      embedded: typeof coupon === "string" ? null : coupon,
-      endMs: stripeMs(d.end),
-    });
-  }
-  return out;
-}
-
-/** A schedule phase's billing terms as one comparable key (see subscription-terms.ts nextScheduledChange). */
-function phaseBillingKey(phase: Stripe.SubscriptionSchedule.Phase): string {
-  const items = phase.items.map((i) => `${asId(i.price) ?? ""}x${i.quantity ?? 1}`).sort();
-  const discounts = phase.discounts
-    .map((d) => asId(d.coupon) || asId(d.discount) || asId(d.promotion_code) || "")
-    .sort();
-  return `${items.join(",")}|${discounts.join(",")}`;
-}
-
-function narrowSchedule(schedule: Stripe.Subscription["schedule"]): ScheduleTerms | null {
-  if (!schedule || typeof schedule === "string") return null;
-  return {
-    status: schedule.status,
-    endBehavior: schedule.end_behavior,
-    phases: schedule.phases.map((p) => ({
-      startMs: stripeMs(p.start_date),
-      endMs: stripeMs(p.end_date),
-      billingKey: phaseBillingKey(p),
-    })),
-  };
-}
-
-function narrowSubscriptionForSync(sub: Stripe.Subscription): NarrowSubscription {
-  return {
-    status: sub.status,
-    createdMs: stripeMs(sub.created),
-    currency: sub.currency,
-    churnReason: sub.status === "canceled" ? churnReasonOf(sub.cancellation_details?.reason) : null,
-    cancelAtMs: stripeMs(sub.cancel_at),
-    items: sub.items.data.map((item) => ({
-      priceId: item.price.id,
-      productId: asId(item.price.product) || null,
-      unitAmountCents: item.price.unit_amount ?? 0,
-      quantity: item.quantity ?? 1,
-      interval: priceInterval(item.price),
-      intervalCount: Math.max(1, item.price.recurring?.interval_count ?? 1),
-      discounts: narrowDiscounts(item.discounts),
-    })),
-    discounts: narrowDiscounts(sub.discounts),
-    schedule: narrowSchedule(sub.schedule),
-  };
 }
 
 /** Reads one customer's subscriptions, invoices and charges from the connected account into the shapes

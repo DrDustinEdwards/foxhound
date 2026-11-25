@@ -2,7 +2,10 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { clientIp } from "@dustinedwards/site-runtime/http";
 import { registrationRefusal } from "@dustinedwards/site-runtime/mcp-login";
-import { RATE_LIMIT_OAUTH_REGISTER, RATE_LIMIT_OAUTH_REGISTER_DAILY } from "~/lib/constants";
+import {
+  RATE_LIMIT_OAUTH_REGISTER,
+  RATE_LIMIT_OAUTH_REGISTER_DAILY,
+} from "~/lib/http/rate-limit-buckets";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { oauthResponse, registerClient, registrationCallbacks } from "~/lib/oauth/provider.server";
 

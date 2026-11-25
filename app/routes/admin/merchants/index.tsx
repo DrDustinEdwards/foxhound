@@ -18,11 +18,11 @@ import {
   merchantViewPath,
   type ToggleResult,
 } from "~/lib/admin/merchants";
+import { getMerchantActionTarget } from "~/lib/admin/merchants.server";
 import {
-  getMerchantActionTarget,
   setBillingExempt,
   setProcessingPausedIfChanged,
-} from "~/lib/admin/merchants.server";
+} from "~/lib/admin/merchant-controls.server";
 import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { plural } from "@drdustinedwards/site-helpers/text";
 import type { AdminHandle } from "~/lib/admin/page";

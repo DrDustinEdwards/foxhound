@@ -10,9 +10,8 @@ import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { SettingsLayout } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { applyBrandVoice } from "~/lib/settings/apply.server";
+import { accountScope } from "~/lib/auth/context";
+import { applyBrandVoice } from "~/lib/settings/apply-sender-voice.server";
 import { getPrimaryBrandVoices } from "~/lib/settings/queries.server";
 import {
   MAX_VOICE_SAMPLES,
@@ -45,8 +44,7 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const { env, auth } = accountScope(context);
   const voices = await getPrimaryBrandVoices(getDb(env), auth.membership.accountId);
   return {
     connectionId: voices?.id ?? null,
@@ -67,8 +65,7 @@ interface ActionResult {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
+  const { env, auth } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
 
   // FOUR NAMED FIELDS, read here and validated nowhere here. A form posting `voice_revoked`, `brandVoice` or any other column name contributes nothing: the input is built by naming each key, and `applyBrandVoice` names each column. `general` is never named, so the main voice is left as it is.

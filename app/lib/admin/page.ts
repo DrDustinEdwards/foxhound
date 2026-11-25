@@ -23,3 +23,10 @@ export function adminPageName(
 export function merchantHref(accountId: string): string {
   return `/admin/merchants/${encodeURIComponent(accountId)}`;
 }
+
+/** What the brake and staged-change actions answer with. */
+export interface AdminActionResult {
+  ok: boolean;
+  error?: string;
+  message?: string;
+}

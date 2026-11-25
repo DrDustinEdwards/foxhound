@@ -32,7 +32,7 @@ import { setCronEnabled } from "~/lib/admin/crons.server";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
-import type { AdminHandle } from "~/lib/admin/page";
+import type { AdminActionResult, AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/brake";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -52,12 +52,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   return { status, staleMarkers };
 }
 
-interface ActionResult {
-  ok: boolean;
-  error?: string;
-  message?: string;
-}
-
 /** Two independent stops, both type-to-confirm, both audited. The brake pauses ACCOUNTS (the tick still runs, it just finds nothing eligible for those merchants). Disabling recovery-tick stops the LOOP itself for everyone, including accounts the brake deliberately skipped. They are offered side by side because during an incident the right answer is sometimes one, sometimes the other. */
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
@@ -69,13 +63,16 @@ export async function action({ context, request }: Route.ActionArgs) {
   const confirm = String(form.get("confirm") ?? "");
 
   if (!isBrakeIntent(intent)) {
-    return data<ActionResult>({ ok: false, error: `Unknown action: ${intent}` }, { status: 400 });
+    return data<AdminActionResult>(
+      { ok: false, error: `Unknown action: ${intent}` },
+      { status: 400 },
+    );
   }
 
   // Validated BEFORE any write and before any audit row, so a mistyped
   // confirmation never records an attempt that did not happen.
   if (!isConfirmPhraseValid(intent, confirm)) {
-    return data<ActionResult>(
+    return data<AdminActionResult>(
       {
         ok: false,
         error: `Type ${BRAKE_CONFIRM_PHRASES[intent]} exactly to confirm. Nothing was changed.`,
@@ -90,7 +87,7 @@ export async function action({ context, request }: Route.ActionArgs) {
       // Partial, not failed. The committed accounts are paused AND marked, so a
       // release will clean them up; say so rather than leaving the operator to
       // guess whether re-engaging is safe (it is: engage skips paused rows).
-      return data<ActionResult>({
+      return data<AdminActionResult>({
         ok: false,
         error:
           `Brake PARTIALLY engaged: ${result.affectedCount} of ${result.intendedCount} account(s) paused before a ` +
@@ -98,20 +95,20 @@ export async function action({ context, request }: Route.ActionArgs) {
           `them. Re-engaging is safe and will pick up the remainder.`,
       });
     }
-    return data<ActionResult>({ ok: true, message: engageResultMessage(result) });
+    return data<AdminActionResult>({ ok: true, message: engageResultMessage(result) });
   }
 
   if (intent === "release") {
     const result = await releaseBrake(db, { actorEmail: auth.email });
     if (result.error) {
-      return data<ActionResult>({
+      return data<AdminActionResult>({
         ok: false,
         error:
           `Brake PARTIALLY released: ${result.affectedCount} of ${result.intendedCount} account(s) resumed before a ` +
           `write failed (${result.error}). The rest are still paused and still marked; run Release again.`,
       });
     }
-    return data<ActionResult>({ ok: true, message: releaseResultMessage(result) });
+    return data<AdminActionResult>({ ok: true, message: releaseResultMessage(result) });
   }
 
   const nextEnabled = intent === "tick-enable";
@@ -122,7 +119,7 @@ export async function action({ context, request }: Route.ActionArgs) {
     metadata: { cronName: RECOVERY_TICK_CRON_NAME, via: "brake-panel" },
   });
   await setCronEnabled(db, RECOVERY_TICK_CRON_NAME, nextEnabled);
-  return data<ActionResult>({
+  return data<AdminActionResult>({
     ok: true,
     message: nextEnabled
       ? "Recovery tick enabled."

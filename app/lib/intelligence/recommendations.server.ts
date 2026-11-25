@@ -10,6 +10,7 @@ import {
   recoverySteps,
   type Db,
 } from "~/db";
+import { countRows } from "~/db/scope";
 import { DAY_MS } from "~/lib/constants";
 
 import {
@@ -258,8 +259,8 @@ export async function listActionableRecommendations(
     eq(customerContext.accountId, accountId),
     inArray(customerContext.recommendedAction, [...ACTIONABLE_RECOMMENDATIONS]),
   );
-  const [[total], rows] = await Promise.all([
-    db.select({ n: count() }).from(customerContext).where(where),
+  const [totalCount, rows] = await Promise.all([
+    countRows(db, customerContext, where),
     db
       .select({
         stripeCustomerId: customerContext.stripeCustomerId,
@@ -280,7 +281,7 @@ export async function listActionableRecommendations(
       .offset((page - 1) * RECOMMENDATIONS_PAGE_SIZE),
   ]);
   return {
-    totalCount: total?.n ?? 0,
+    totalCount,
     rows: rows.map((r) => ({
       ...r,
       mrrContributionCents: r.mrrContributionCents ?? 0,

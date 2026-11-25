@@ -8,7 +8,7 @@ import {
   CLICK_SUSPECT_HONEYPOT,
   CLICK_SUSPECT_MIN_MS,
   CLICK_SUSPECT_TOO_FAST,
-} from "~/lib/constants";
+} from "~/lib/email/constants";
 
 import type { EngagementRecordResult, EngagementSource } from "./agents";
 import type { EngagementTokenPayload } from "./token";

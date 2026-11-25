@@ -10,7 +10,8 @@ import {
 } from "~/lib/disputes/manual-import.server";
 import { disputeIntakeFields } from "~/lib/disputes/stripe-dispute";
 import { SerialMoneyCommitter, type CompiledStatement } from "~/lib/money/serializer";
-import { buildDisputeIntakeBatch, type WebhookClaimInput } from "~/lib/webhooks/batches";
+import { type WebhookClaimInput } from "~/lib/webhooks/batches";
+import { buildDisputeIntakeBatch } from "~/lib/webhooks/dispute-batches";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

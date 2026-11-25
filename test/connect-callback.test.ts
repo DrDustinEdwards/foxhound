@@ -43,7 +43,7 @@ const { executeMoneyWrite } = await import("~/lib/money/execute");
 const { loader } = await import("~/routes/auth/connect-callback");
 const { buildConnectState, ADD_ACCOUNT_ACTION, CONNECT_ACTION } =
   await import("~/lib/stripe/connect-state");
-const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/constants");
+const { STRIPE_OAUTH_STATE_COOKIE } = await import("~/lib/stripe/constants");
 
 const USER = "user_1";
 const OTHER = "user_2";

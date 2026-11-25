@@ -1,7 +1,8 @@
 import { redirect } from "react-router";
 
 import { revokeAuditGrant, scheduleAuditGrantRevoke } from "~/lib/audit/grant-revoke.server";
-import { RATE_LIMIT_AUDIT, STRIPE_AUDIT_SCOPE } from "~/lib/constants";
+import { RATE_LIMIT_AUDIT } from "~/lib/http/rate-limit-buckets";
+import { STRIPE_AUDIT_SCOPE } from "~/lib/stripe/constants";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { exchangeConnectCode } from "~/lib/stripe/connect";

@@ -11,14 +11,8 @@ import {
   readUncollectibleInvoices,
 } from "~/lib/stripe/reads";
 
-import {
-  auditWindows,
-  runAudit,
-  type AuditInputs,
-  type AuditInvoice,
-  type AuditResult,
-  type ReadOutcome,
-} from "./engine";
+import { auditWindows, runAudit } from "./engine";
+import { type AuditInputs, type AuditInvoice, type AuditResult, type ReadOutcome } from "./types";
 import { generateAuditSummary, type AuditSummaryOutcome } from "./summary.server";
 
 // The five live reads, the pure engine and the one AI call, joined.

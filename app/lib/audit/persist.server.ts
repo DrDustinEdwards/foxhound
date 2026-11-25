@@ -3,7 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { auditRuns, getDb } from "~/db";
 import type { Db } from "~/db";
 
-import type { AuditResult, ScopeOutcome } from "./engine";
+import type { AuditResult, ScopeOutcome } from "./types";
 
 // Phase (d) of the audit port.
 

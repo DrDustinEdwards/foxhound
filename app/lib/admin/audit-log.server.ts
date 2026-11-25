@@ -7,7 +7,15 @@ import { inList } from "@dustinedwards/site-runtime/d1";
 import type { Db } from "~/db";
 import { accounts, adminAuditLog, blogPosts } from "~/db";
 
-import { auditLookupIds, type AuditLookups } from "./audit-describe";
+import {
+  auditActor,
+  auditEntryDetail,
+  auditLookupIds,
+  auditTarget,
+  describeAuditAction,
+  type AuditEntryLike,
+  type AuditLookups,
+} from "./audit-describe";
 
 export async function listAdminAuditLog(db: Db, limit = 200) {
   return db.select().from(adminAuditLog).orderBy(desc(adminAuditLog.createdAt)).limit(limit);
@@ -40,4 +48,19 @@ export async function loadAuditLookups(
     merchantNames: new Map(merchantRows.map((r) => [r.id, r.name])),
     postTitles: new Map(postRows.map((r) => [r.id, r.title])),
   };
+}
+
+/** Audit rows described for the audit-log and errors pages: the actor, action, target and detail in words. */
+export async function describeAuditRows<
+  Row extends AuditEntryLike & { id: string; createdAt: Date; actorEmail: string },
+>(db: Db, rows: Row[]) {
+  const lookups = await loadAuditLookups(db, rows);
+  return rows.map((e) => ({
+    id: e.id,
+    createdAt: e.createdAt,
+    actor: auditActor(e.actorEmail),
+    action: describeAuditAction(e.action),
+    target: auditTarget(e, lookups),
+    detail: auditEntryDetail(e),
+  }));
 }

@@ -22,7 +22,7 @@ import {
 } from "~/lib/admin/staged.server";
 import { adminContext } from "~/lib/admin/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import type { AdminHandle } from "~/lib/admin/page";
+import type { AdminActionResult, AdminHandle } from "~/lib/admin/page";
 
 import type { Route } from "./+types/staged";
 import { NOINDEX } from "~/lib/seo/meta";
@@ -59,12 +59,6 @@ export async function loader({ context }: Route.LoaderArgs) {
   };
 }
 
-interface ActionResult {
-  ok: boolean;
-  error?: string;
-  message?: string;
-}
-
 export async function action({ context, request }: Route.ActionArgs) {
   const { env } = context.get(cloudflareContext);
   const auth = context.get(adminContext);
@@ -83,16 +77,19 @@ export async function action({ context, request }: Route.ActionArgs) {
       now,
     });
     return result.ok
-      ? data<ActionResult>({ ok: true, message: `Applied: ${describeStaged(result.value)}.` })
-      : data<ActionResult>({ ok: false, error: result.error }, { status: 400 });
+      ? data<AdminActionResult>({ ok: true, message: `Applied: ${describeStaged(result.value)}.` })
+      : data<AdminActionResult>({ ok: false, error: result.error }, { status: 400 });
   }
   if (intent === "reject") {
     const result = await rejectStagedChange(db, { id, actorEmail: auth.email, now });
     return result.ok
-      ? data<ActionResult>({ ok: true, message: "Rejected. Nothing was changed." })
-      : data<ActionResult>({ ok: false, error: result.error }, { status: 400 });
+      ? data<AdminActionResult>({ ok: true, message: "Rejected. Nothing was changed." })
+      : data<AdminActionResult>({ ok: false, error: result.error }, { status: 400 });
   }
-  return data<ActionResult>({ ok: false, error: `Unknown action: ${intent}` }, { status: 400 });
+  return data<AdminActionResult>(
+    { ok: false, error: `Unknown action: ${intent}` },
+    { status: 400 },
+  );
 }
 
 const STATUS_TONE = { confirmed: "success", rejected: "neutral", failed: "failure" } as const;

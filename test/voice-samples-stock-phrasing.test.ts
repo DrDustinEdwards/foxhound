@@ -26,7 +26,7 @@ vi.mock("~/lib/ai/client", () => ({
 
 const { createInMemoryDb } = await import("./helpers/inmemory-db");
 const { accounts, stripeConnections } = await import("~/db");
-const { applyBrandVoice } = await import("~/lib/settings/apply.server");
+const { applyBrandVoice } = await import("~/lib/settings/apply-sender-voice.server");
 const { getPrimaryBrandVoices } = await import("~/lib/settings/queries.server");
 const { readVoiceSamples } = await import("~/lib/recovery/voice-samples");
 const { buildGenerateEmailInput } = await import("~/lib/engine/execute-step");

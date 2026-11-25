@@ -10,13 +10,12 @@ import "capsomer/stat-tile.css";
 
 import { ConsoleAttentionFeed, ConsoleHeroRow, ConsoleTileRow } from "~/components/console-panels";
 import "~/components/charts.css";
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { drawCohorts, drawLatestMovement } from "~/lib/dashboard/console-charts";
 import { mrrEmptySentence } from "~/lib/dashboard/console";
 import { getConsoleView } from "~/lib/dashboard/console.server";
-import { formatCurrencyTotals, RECOVERY_FEE_LABEL } from "~/lib/dashboard/recovery-dashboard";
+import { RECOVERY_FEE_LABEL } from "~/lib/dashboard/recovery-dashboard";
+import { formatAmounts } from "~/lib/money/totals";
 import { recoveryRateStatusTone } from "~/lib/dashboard/recovery-rate";
 import { getMrrAnalytics, getRecoveryStats } from "~/lib/dashboard/stats.server";
 import { firstSnapshotSentence } from "~/lib/intelligence/dashboard";
@@ -35,10 +34,7 @@ export function meta() {
 }
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
 
   const nowMs = Date.now();
   const [stats, mrr] = await Promise.all([
@@ -76,7 +72,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
         <StatTiles layout="grid" label="Recovery figures">
           <StaticStatTile
             label="Revenue recovered"
-            figure={formatCurrencyTotals(stats.revenueRecovered)}
+            figure={formatAmounts(stats.revenueRecovered)}
           />
           <StaticStatTile
             label="Recovery rate"
@@ -99,10 +95,10 @@ export default function Console({ loaderData }: Route.ComponentProps) {
           />
           <StaticStatTile
             label="Fee owed"
-            figure={formatCurrencyTotals(stats.feeOwed)}
+            figure={formatAmounts(stats.feeOwed)}
             detail={
               stats.feeOwed.length > 0 && stats.billableRevenue.length > 0
-                ? `${RECOVERY_FEE_LABEL} of ${formatCurrencyTotals(stats.billableRevenue)} recovered`
+                ? `${RECOVERY_FEE_LABEL} of ${formatAmounts(stats.billableRevenue)} recovered`
                 : "Nothing billable yet"
             }
           />

@@ -1,5 +1,7 @@
-import { createContext } from "react-router";
+import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { createContext, type RouterContextProvider } from "react-router";
 
+import { getDb } from "~/db";
 import type { Membership } from "./account";
 
 // Populated by the app-shell server middleware once the caller is proven to
@@ -40,3 +42,10 @@ export interface AuthContext {
 }
 
 export const authContext = createContext<AuthContext>();
+
+/** What every loader and action under the app shell starts from: the bindings, the caller, the database and the account the request acts as. */
+export function accountScope(context: Readonly<RouterContextProvider>) {
+  const { env } = context.get(cloudflareContext);
+  const auth = context.get(authContext);
+  return { env, auth, db: getDb(env), accountId: auth.membership.accountId };
+}

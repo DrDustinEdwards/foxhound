@@ -2,7 +2,7 @@ import type Stripe from "stripe";
 
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { buildClaimOnlyBatch, type WebhookClaimInput } from "./batches";
-import type { WebhookIntent } from "./events";
+import type { WebhookIntent } from "./intent";
 
 export type WebhookOutcome =
   | { status: "applied" }

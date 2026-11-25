@@ -14,9 +14,7 @@ import { Banner } from "capsomer/react/banner";
 import { PageHead } from "capsomer/react/page-head";
 import { Status } from "capsomer/react/status";
 import { SetupChecklist } from "capsomer/react/setup-checklist";
-import { getDb } from "~/db";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accountScope } from "~/lib/auth/context";
 import { getRecoveryStats } from "~/lib/dashboard/stats.server";
 import {
   getRecoveryDashboardWindow,
@@ -35,7 +33,7 @@ import {
   type PaymentStepSummary,
   type RoiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
-import { listStepsForFailedPayments } from "~/lib/recovery/queries.server";
+import { listStepsForFailedPayments } from "~/lib/recovery/step-queries.server";
 import {
   getDashboardOnboardingProfile,
   getDeliverabilityCounts,
@@ -62,8 +60,8 @@ import {
   WinBackCard,
   RecoveryQueue,
   DeliverabilityPanel,
-  PaymentsTable,
 } from "../../../components/recovery-dashboard-panels";
+import { PaymentsTable } from "../../../components/recovery-dashboard-payments";
 import { NOINDEX } from "~/lib/seo/meta";
 
 // /recovery/dashboard: the getting-started checklist or the watching banner, the head, the primary stats, the ROI widget, the two time-series panels, decline analysis, timing beside win-back, the queue, the secondary stats, then the failed-payments table. Every chart is Enarratio's; components/charts.css hides Enarratio's gridlines and the frame's title under a Panel heading.
@@ -82,10 +80,7 @@ function parseRange(value: string | null): RecoveryRange {
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
   const nowMs = Date.now();
   const range = parseRange(new URL(request.url).searchParams.get("range"));
 

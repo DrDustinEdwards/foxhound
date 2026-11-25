@@ -2,11 +2,14 @@ import { and, eq, isNull, notInArray, or } from "drizzle-orm";
 import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
-import { accounts, billingInvoices, getDb, webhookEvents } from "~/db";
+import { accounts, billingInvoices, getDb } from "~/db";
 import { finalizeBillingSetupSession, sessionCustomerId } from "~/lib/billing/platform-customer";
 import { executeMoneyWrite } from "~/lib/money/execute";
-import { isUniqueConstraintError } from "~/lib/money/serializer";
-import { buildWebhookClaim, type WebhookClaimInput } from "~/lib/webhooks/batches";
+import {
+  buildWebhookClaim,
+  claimEventWithoutPayload,
+  type WebhookClaimInput,
+} from "~/lib/webhooks/batches";
 import type { WebhookOutcome } from "~/lib/webhooks/process";
 
 // Reconciliation for Foxhound's OWN Stripe invoices (the ones we raise against
@@ -179,7 +182,7 @@ export async function processPlatformWebhook(
       // Nothing to apply, and no account to key a per-account DO on, so the
       // claim is a plain insert. There are no side effects to be atomic with,
       // which is exactly why this case does not need the folded batch.
-      const claimed = await claimUnroutableEvent(env, event, receivedAt);
+      const claimed = await claimEventWithoutPayload(env, event, receivedAt);
       return claimed
         ? { status: "ignored", reason: "no_billing_invoice" }
         : { status: "duplicate" };
@@ -257,35 +260,4 @@ async function processSetupSessionCompleted(
     ],
   });
   return applied ? { status: "applied" } : { status: "duplicate" };
-}
-
-/**
- * Claim an event we resolved to no billing_invoices row. Idempotent on the
- * unique index; returns false when it was already claimed.
- */
-async function claimUnroutableEvent(
-  env: Env,
-  event: Stripe.Event,
-  receivedAt: Date,
-): Promise<boolean> {
-  const db = getDb(env);
-  try {
-    await db.insert(webhookEvents).values({
-      stripeEventId: event.id,
-      eventType: event.type,
-      receivedAt,
-      accountId: null,
-      processed: true,
-      processingStartedAt: receivedAt,
-      // Nothing was applied, so the payload (customer name, email, address) is
-      // not kept; the id and type are the claim.
-      payload: {},
-    });
-    return true;
-  } catch (err) {
-    // Only the unique index means "already claimed"; anything else throws so
-    // the route 500s and Stripe retries, instead of a 200 that drops the event.
-    if (!isUniqueConstraintError(err)) throw err;
-    return false;
-  }
 }

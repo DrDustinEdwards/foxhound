@@ -24,7 +24,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import { auditDigestRuns, auditRuns, emailSends, emailSuppressions } from "~/db/schema";
 import { SCOPE_UNREAD } from "~/lib/audit/render";
-import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS } from "~/lib/constants";
+import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS } from "~/lib/email/constants";
 
 describe("the email's recovery comparison is per currency and never summed across them", () => {
   it("two currencies stay two rows, with their own deltas", () => {

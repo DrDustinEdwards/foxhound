@@ -5,9 +5,7 @@ import { AwayLink } from "capsomer/react/link";
 import "capsomer/link.css";
 import { formatDate } from "capsomer/behavior/time";
 import { LedgerLineItemRow } from "~/components/billing-ledger-row";
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { BILLING_INVOICE_STATUS_LABELS, billingInvoiceStatusTone } from "~/lib/billing/labels";
 import { getBillingInvoiceDetail } from "~/lib/billing/queries.server";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
@@ -20,9 +18,7 @@ export function meta() {
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { auth, db } = accountScope(context);
   const detail = await getBillingInvoiceDetail(db, auth.membership.accountId, params.id);
   if (!detail) throw new Response("Not Found", { status: 404 });
   return detail;

@@ -1,6 +1,7 @@
-import { and, count, eq, gte, lte, notInArray, sql } from "drizzle-orm";
+import { and, eq, gte, lte, notInArray, sql } from "drizzle-orm";
 
 import { accounts, auditRuns, customerContext, disputes, recoveredPayments, type Db } from "~/db";
+import { countRows } from "~/db/scope";
 import { startOfUtcMonthMs } from "~/lib/billing/preview.server";
 import { HEALTH_SCORE_AT_RISK_THRESHOLD, HOUR_MS } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
@@ -17,11 +18,11 @@ import {
   isCardInAttentionWindow,
   isSequenceExhausted,
 } from "./console";
+import { listActiveFailedPayments } from "~/lib/recovery/queries.server";
 import {
-  listActiveFailedPayments,
   listExpiringCardAlerts,
   listStepsForFailedPayments,
-} from "~/lib/recovery/queries.server";
+} from "~/lib/recovery/step-queries.server";
 import { customerCurrency } from "~/lib/intelligence/recommendations.server";
 import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 
@@ -130,9 +131,9 @@ export async function getConsoleView(
 
   const [
     monthRecovered,
-    allTimeRecoveredCount,
+    recoveredAllTimeCount,
     activeFailed,
-    openDisputeRows,
+    openDisputeCount,
     dueSoonDisputes,
     highRiskCustomers,
     personalOutreach,
@@ -150,20 +151,16 @@ export async function getConsoleView(
           gte(recoveredPayments.recoveredAt, startOfMonth),
         ),
       ),
-    db
-      .select({ n: count() })
-      .from(recoveredPayments)
-      .where(eq(recoveredPayments.accountId, accountId)),
+    countRows(db, recoveredPayments, eq(recoveredPayments.accountId, accountId)),
     listActiveFailedPayments(db, accountId),
-    db
-      .select({ n: count() })
-      .from(disputes)
-      .where(
-        and(
-          eq(disputes.accountId, accountId),
-          notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
-        ),
+    countRows(
+      db,
+      disputes,
+      and(
+        eq(disputes.accountId, accountId),
+        notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]),
       ),
+    ),
     db
       .select({
         id: disputes.id,
@@ -251,7 +248,6 @@ export async function getConsoleView(
       c.mrrContributionCents ? [{ currency: c.currency, cents: c.mrrContributionCents }] : [],
     ),
   );
-  const openDisputeCount = Number(openDisputeRows[0]?.n ?? 0);
 
   // Exhausted sequences need each active payment's steps. One batched read for
   // every active payment rather than a query per row.
@@ -371,7 +367,7 @@ export async function getConsoleView(
   return {
     hero: {
       protectedThisMonth,
-      recoveredAllTimeCount: Number(allTimeRecoveredCount[0]?.n ?? 0),
+      recoveredAllTimeCount,
       atRisk,
       activeSequenceCount: activeFailed.length,
       openDisputeCount,

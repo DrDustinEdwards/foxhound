@@ -1,5 +1,5 @@
 import { verifyCardUpdateToken } from "~/lib/card-update/token";
-import { CARD_UPDATE_PATH, ENGAGEMENT_CLICK_PATH } from "~/lib/constants";
+import { CARD_UPDATE_PATH, ENGAGEMENT_CLICK_PATH } from "~/lib/email/constants";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 
 // THE UPDATE-LINK CHECK. No recovery or win-back email leaves without its link, because a body

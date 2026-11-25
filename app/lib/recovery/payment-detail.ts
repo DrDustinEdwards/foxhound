@@ -116,3 +116,33 @@ export function visibleActionResult(input: {
   }
   return null;
 }
+
+// Manual per-payment actions: all five commit through the per-account money-write DO. Mark as recovered enters through the spine's buildRecoveryBatch and is never a second writer of recovered_payments.
+
+/** The hold on a success message before it clears. An error stays until the next action. */
+export const ACTION_SUCCESS_CLEAR_MS = 2000;
+
+/** The hold on "Saved" beside Save note. */
+export const NOTE_SAVED_CLEAR_MS = 2000;
+
+/** A result that clears on its own: a success notice (an error stays). */
+export function isNotice(result: object): boolean {
+  return "notice" in result;
+}
+
+// The action set: trigger the next step, mark recovered, stop the sequence, resend the last email. "Stop recovery", not "Cancel recovery".
+export const MANUAL_ACTIONS = [
+  { intent: "trigger", label: "Trigger next step now", variant: "primary", needs: "nextStep" },
+  { intent: "mark_recovered", label: "Mark as recovered", variant: "default", needs: null },
+  { intent: "cancel", label: "Stop recovery", variant: "danger", needs: null },
+  { intent: "resend", label: "Resend last email", variant: "default", needs: "lastEmail" },
+] as const;
+
+// NO action buttons render in a terminal state; the gate is `payment.status === 'active'`.
+export const ACTIONS_VISIBLE_STATUS = "active";
+
+export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
+export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
+
+/** The demo title on every control that needs a Stripe account. */
+export const DEMO_DISABLED_REASON = "Connect Stripe to use this";

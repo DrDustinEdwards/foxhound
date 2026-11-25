@@ -111,6 +111,18 @@ export function AuthFootnote({ children }: { children: ReactNode }) {
 }
 
 /** Which ways in a page offers: the loader's signInMethods(env, { social: true }). */
+/** The one-button confirm page: a plain form posting to this URL, token and all, and the browser follows the redirect. */
+export function ConfirmForm({ limited, label }: { limited: boolean; label: string }) {
+  return (
+    <form method="post" className="fh-auth-form">
+      {limited ? <Alert tone="crit">Too many attempts. Please try again in a minute.</Alert> : null}
+      <Button type="submit" variant="primary" size="lg">
+        {label}
+      </Button>
+    </form>
+  );
+}
+
 export type SignInMethods = { google: boolean; apple: boolean; turnstileSiteKey: string | null };
 
 /**

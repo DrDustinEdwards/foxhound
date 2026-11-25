@@ -2,7 +2,7 @@ import { askModel, REWRITE } from "~/lib/ai/client";
 import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { AUDIT_SUMMARY_MAX_TOKENS, MODEL_AUDIT_SUMMARY } from "~/lib/constants";
 
-import type { AuditResult } from "./engine";
+import type { AuditResult } from "./types";
 import { AUDIT_SUMMARY_FALLBACK, buildAuditSummaryPrompt, sanitizeSummary } from "./summary";
 
 // The audit summary's one call, through site-runtime's caller

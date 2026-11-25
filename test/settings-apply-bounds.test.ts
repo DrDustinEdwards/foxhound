@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { applyAlertCreate, applyNotificationSettings } from "~/lib/settings/apply.server";
+import { applyAlertCreate } from "~/lib/settings/apply-alerts.server";
+import { applyNotificationSettings } from "~/lib/settings/apply.server";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

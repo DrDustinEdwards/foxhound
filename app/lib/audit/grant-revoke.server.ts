@@ -9,7 +9,7 @@
 // the grant cookie's life (AUDIT_TOKEN_TTL_SECONDS) is over.
 
 import { getDb } from "~/db";
-import { AUDIT_TOKEN_TTL_SECONDS } from "~/lib/constants";
+import { AUDIT_TOKEN_TTL_SECONDS } from "~/lib/stripe/constants";
 import { type DeauthorizeResult, deauthorizeConnectedAccount } from "~/lib/stripe/connect";
 import { findLiveAttachment } from "~/lib/stripe/connections.server";
 

@@ -10,9 +10,9 @@ they are kept so the card's pixels do not move. The renderer that needed them
 (workers-og's Satori) could not read WOFF2 or a variable font; the current one
 (Takumi, through site-runtime's share-card-draw) can, but the files stay.
 
-The output is committed, not built in CI: og.ts imports the .ttf files with
-Vite's `?inline`, so they are baked into the worker bundle at build time and a
-fresh clone must have them. Requires fontTools and brotli, neither of which is
+The output is committed, not built in CI: og.ts imports the .bin files (TrueType
+data) as Worker Data modules, so they ship with the bundle and a fresh clone
+must have them. Requires fontTools and brotli, neither of which is
 a repo dependency; this is a one-off authoring tool.
 """
 
@@ -25,7 +25,7 @@ from fontTools.varLib import instancer
 HERE = os.path.dirname(os.path.abspath(__file__))
 FONTS = os.path.join(HERE, os.pardir, "app", "assets", "fonts")
 SRC = os.path.join(HERE, os.pardir, "node_modules", "capsomer", "fonts", "dm-sans-variable.woff2")
-REFERENCE = os.path.join(FONTS, "dm-mono-500.ttf")
+REFERENCE = os.path.join(FONTS, "dm-mono-500.bin")
 
 # Weights the card actually uses: 400 body/footer, 500 eyebrow, 600 title/pill.
 WEIGHTS = (400, 500, 600)
@@ -43,7 +43,7 @@ def main() -> None:
     axes = {a.axisTag: (a.minValue, a.defaultValue, a.maxValue) for a in TTFont(raw)["fvar"].axes}
     print("source axes:", axes)
 
-    # dm-mono-500.ttf is the file already proven to parse at request time, so
+    # dm-mono-500.bin is the file already proven to parse at request time, so
     # its table set is the bar: the output must add nothing it does not have.
     reference = set(TTFont(REFERENCE).keys())
 
@@ -54,7 +54,7 @@ def main() -> None:
             if table in static:
                 del static[table]
 
-        dest = os.path.join(FONTS, "dm-sans-%d.ttf" % weight)
+        dest = os.path.join(FONTS, "dm-sans-%d.bin" % weight)
         static.save(dest)
 
         check = TTFont(dest)

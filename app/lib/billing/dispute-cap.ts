@@ -1,4 +1,5 @@
-import { DISPUTE_FEE_CAP_CENTS, STRIPE_PREVIEW_API_VERSION } from "~/lib/constants";
+import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
+import { STRIPE_PREVIEW_API_VERSION } from "~/lib/stripe/constants";
 import { fromMajorUnits } from "@dustinedwards/site-runtime/money";
 import { getStripe } from "~/lib/stripe/client";
 

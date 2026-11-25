@@ -14,7 +14,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { checkTickGuards } = await import("~/lib/cron/recovery-tick");
+const { checkTickGuards } = await import("~/lib/cron/tick-guards");
 const { engageBrake } = await import("~/lib/admin/brake.server");
 const { RECOVERY_TICK_CRON_NAME } = await import("~/lib/constants");
 const schema = await import("~/db/schema");

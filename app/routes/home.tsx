@@ -25,7 +25,6 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { blogStripCards } from "~/lib/marketing/blog-strip";
 import {
   citation,
-  COMPARISON_ROWS,
   BILLING_FAQ_QUESTION,
   FAQS,
   HERO_LEAD,
@@ -36,7 +35,6 @@ import {
   RECOVERY_FEE,
   SECURITY_CHIPS,
   STATEMENT_BODY,
-  STATS,
   STRIPE_GAP,
   TRUST_ITEMS,
 } from "~/lib/marketing/home-copy";
@@ -50,12 +48,19 @@ import {
   websiteJsonLd,
 } from "~/lib/seo/jsonld";
 import type { Route } from "./+types/home";
-import { PRODUCT_ICONS, Arrow, HOW_IT_WORKS, BILLING_ANSWER } from "../components/home-parts";
+import {
+  PRODUCT_ICONS,
+  Arrow,
+  HOW_IT_WORKS,
+  BILLING_ANSWER,
+  H2,
+  HomeBlogStrip,
+  HomeComparison,
+  HomeStats,
+} from "../components/home-parts";
 import "~/home.css";
 
 // The marketing home page, in order: the hero, the stats, the email generator, the calculator, the FAQ and the closing block (1100px sections, 760px FAQ and closing block, 600px calculator and generator, px-5 sm:px-8, py-24 on the stats, calculator and closing block). Cards are Capsomer panels, linked ones lifting 4px with an amber edge under the pointer (the foxhound site layer), calls to action Capsomer buttons, the FAQ Capsomer's card disclosure, the decline picker its cards layout. Text takes its size for each role from the marketing scale in app.css, and cards a 24px padding (CARD). Copy, and every number in it read from the engine, is in lib/marketing/home-copy.ts.
-
-const H2 = "fh-home-h2 fh-section fh-semibold fh-text";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   // JSON-LD: Organization, SoftwareApplication, the Speakable WebPage and the WebSite. Every URL comes from the loader's siteUrl.
@@ -180,80 +185,10 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       </div>
 
       {/* Stats: the problem */}
-      <section className="fh-home-band-2">
-        <div className="fh-mk-wrap">
-          <div className="cap-reveal">
-            <div className="fh-home-block-4 fh-center">
-              <h2 className={H2}>The revenue you&apos;re losing isn&apos;t showing up as churn.</h2>
-              <p className="fh-subhead fh-soft">
-                Stripe&apos;s own data on failed payments and what happens next.
-              </p>
-            </div>
-          </div>
-          <div className="fh-home-grid-2">
-            {STATS.map((item) => (
-              <div key={item.stat} className="fh-home-grid-3 cap-reveal">
-                <div className={CARD}>
-                  <div className="cap-panel-body">
-                    <div className="fh-home-col">
-                      <div className="fh-home-block-5 fh-mono fh-hero fh-semibold fh-tight fh-accent">
-                        {item.stat}
-                      </div>
-                      <p className="fh-home-text-2 fh-copy fh-soft">{item.body}</p>
-                      {/* RULES.md 2.3: the exact page and the day it was read. */}
-                      <SourceLine href={item.href} name={citation(item.href)} read={STAT_AS_OF} />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <HomeStats />
 
       {/* Stripe plus Foxhound */}
-      <section className="fh-mk-band">
-        <div className="fh-mk-wrap">
-          <div className="cap-reveal">
-            <div className="fh-home-block-4 fh-center">
-              <h2 className={H2}>Stripe plus Foxhound</h2>
-            </div>
-          </div>
-          <div className="fh-home-block-6">
-            {COMPARISON_ROWS.map((row) => (
-              <div key={row.stripeTitle} className="fh-home-grid-4 cap-reveal">
-                <div className={CARD}>
-                  <div className="cap-panel-body">
-                    <div>
-                      <div className="fh-home-block-7 fh-caption fh-quiet">Stripe does this</div>
-                      <div className="fh-home-block-8 fh-body fh-medium fh-text">
-                        {row.stripeTitle}
-                      </div>
-                      <p className="fh-home-text-3 fh-copy fh-soft">{row.stripeBody}</p>
-                    </div>
-                  </div>
-                </div>
-                <Link to={row.foxhoundHref} className={`${CARD} fh-hover-group`}>
-                  <div className="cap-panel-body">
-                    <div>
-                      <div className="fh-home-block-7 fh-caption fh-medium fh-accent">
-                        Foxhound adds this
-                      </div>
-                      <div className="fh-home-block-8 fh-body fh-semibold fh-text">
-                        {row.foxhoundTitle}
-                      </div>
-                      <p className="fh-home-text-3 fh-copy fh-soft">{row.foxhoundBody}</p>
-                      <div className="fh-home-block-9 fh-mono fh-caption fh-accent">
-                        Learn more <Arrow />
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <HomeComparison />
 
       {/* Full-bleed statement */}
       <section className="fh-home-band-3">
@@ -446,44 +381,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           of 12, between the trust bar and the closing block). Recova hand-rolls
           this card here rather than using its BlogPostCard (M3b): a tag, the
           title and the reading time, no excerpt. Each is a Capsomer panel. */}
-      {blogPosts.length > 0 ? (
-        <section className="fh-home-band-6">
-          <div className="fh-mk-wrap">
-            <div className="cap-reveal">
-              <div className="fh-home-row-3">
-                <h2 className="fh-copy fh-regular fh-soft">From the blog</h2>
-                <Link to="/blog" className="fh-mk-quiet-link fh-hover-group fh-caption fh-quiet">
-                  All articles <Arrow />
-                </Link>
-              </div>
-            </div>
-            <div className="fh-home-grid-6">
-              {blogPosts.map((post) => (
-                <div key={post.slug} className="fh-home-grid-3 cap-reveal">
-                  {/* Recova's blog card: the page ground on the surface band, p-5, 10px corners. */}
-                  <Link to={`/blog/${post.slug}`} className="fh-home-link-3 cap-panel">
-                    <div className="cap-panel-body">
-                      <div className="cap-stack fh-home-block-14" data-gap="4">
-                        {post.tags[0] ? (
-                          <div className="fh-mono fh-tiny fh-quiet">
-                            {post.tags[0].replace(/-/g, " ")}
-                          </div>
-                        ) : null}
-                        <h3 className="fh-home-title-3 fh-item-title fh-medium fh-text">
-                          {post.title}
-                        </h3>
-                        <span className="fh-home-label-2 fh-mono fh-tiny fh-quiet">
-                          {post.readingTimeMinutes} min read
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
+      <HomeBlogStrip blogPosts={blogPosts} />
 
       {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
       <CtaBand

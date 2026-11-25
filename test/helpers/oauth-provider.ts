@@ -42,6 +42,7 @@ vi.mock("~/lib/auth/session", () => ({
 vi.mock("cloudflare:workers", () => ({ WorkerEntrypoint: class {} }));
 
 export const provider = await import("~/lib/oauth/provider.server");
+export const tokens = await import("~/lib/oauth/token.server");
 export const authorizeRoute = await import("~/routes/oauth/authorize");
 export const tokenRoute = await import("~/routes/api/oauth-token");
 export const registerRoute = await import("~/routes/api/oauth-register");

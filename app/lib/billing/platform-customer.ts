@@ -158,21 +158,27 @@ export interface BillingSetupSession {
 
 /**
  * A Stripe-hosted Checkout Session in `setup` mode: collects a payment method
- * for the given platform customer without us ever touching card data.
+ * for the given customer without us ever touching card data. Platform billing
+ * and the connected-account card update both create theirs here.
  */
-export async function createBillingSetupSession(
-  env: Env,
-  input: { customerId: string; successUrl: string; cancelUrl: string },
-): Promise<BillingSetupSession> {
-  const stripe = getStripe(env);
+export async function createSetupCheckoutSession(
+  stripe: Stripe,
+  input: {
+    customerId: string;
+    currency: string;
+    clientReferenceId?: string;
+    successUrl: string;
+    cancelUrl: string;
+  },
+): Promise<{ url: string }> {
   const session = await stripe.checkout.sessions.create({
     mode: "setup",
     customer: input.customerId,
+    client_reference_id: input.clientReferenceId,
     // Endive removed payment_method_types from Checkout. A setup session now
     // takes a currency instead, and allowed_payment_method_types keeps it to
-    // cards. Foxhound's pricing is in USD; a saved card is charged in any
-    // invoice currency later.
-    currency: "usd",
+    // cards.
+    currency: input.currency,
     allowed_payment_method_types: ["card"],
     success_url: input.successUrl,
     cancel_url: input.cancelUrl,
@@ -181,6 +187,17 @@ export async function createBillingSetupSession(
     throw new Error("stripe checkout session create returned no url");
   }
   return { url: session.url };
+}
+
+/**
+ * A setup Checkout Session for the given platform customer. Foxhound's pricing
+ * is in USD; a saved card is charged in any invoice currency later.
+ */
+export function createBillingSetupSession(
+  env: Env,
+  input: { customerId: string; successUrl: string; cancelUrl: string },
+): Promise<BillingSetupSession> {
+  return createSetupCheckoutSession(getStripe(env), { ...input, currency: "usd" });
 }
 
 export interface FinalizeSetupResult {

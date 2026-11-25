@@ -10,7 +10,8 @@ import { getDb } from "~/db";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { INDEXNOW_KEY } from "~/lib/seo/indexnow-key";
 
-import { carrelAdapter, type RenderDocument } from "./adapter.server";
+import { carrelAdapter } from "./adapter.server";
+import type { RenderDocument } from "./post-preview.server";
 import { blogMediaAdapter } from "./media-adapter.server";
 
 // Mounts site-api at /api/carrel/v1, and its preview links at /preview/<token>.

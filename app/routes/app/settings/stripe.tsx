@@ -9,8 +9,7 @@ import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { SettingsLayout } from "capsomer/react/settings-row";
 import { getDb } from "~/db";
 import { MEMBER_ROLE } from "~/lib/auth";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accountScope } from "~/lib/auth/context";
 import { listAccountConnections, listConnectionHealth } from "~/lib/settings/queries.server";
 import {
   currentHealthProblems,
@@ -41,9 +40,7 @@ export function meta() {
 const OWNER_ONLY = "Only the account owner can do this.";
 
 export async function loader({ context }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { auth, db } = accountScope(context);
   const [connections, health] = await Promise.all([
     listAccountConnections(db, auth.membership.accountId),
     listConnectionHealth(db, auth.membership.accountId),
@@ -65,9 +62,7 @@ export async function loader({ context }: Route.LoaderArgs) {
 }
 
 export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const accountId = auth.membership.accountId;
+  const { env, auth, accountId } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("_action") ?? "");
 

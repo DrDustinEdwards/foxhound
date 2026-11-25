@@ -41,6 +41,10 @@ import "capsomer/button.css";
 import "capsomer/route-splash.css";
 import "capsomer/time.css";
 import "~/app-pages.css";
+import "~/app-console.css";
+import "~/app-audit-disputes.css";
+import "~/app-intelligence.css";
+import "~/app-recovery.css";
 
 import { Footer } from "~/components/footer";
 import { isSettingsItemActive, SETTINGS_NAV_GROUPS } from "~/components/settings-sidebar";

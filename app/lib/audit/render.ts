@@ -1,4 +1,4 @@
-import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
+import type { AuditResult, MoneyTotals, ScopeOutcome } from "./types";
 
 import type { AuditRunRow } from "./persist.server";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";

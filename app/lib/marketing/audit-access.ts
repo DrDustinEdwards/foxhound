@@ -1,4 +1,4 @@
-import { AUDIT_TOKEN_TTL_SECONDS, STRIPE_AUDIT_SCOPE } from "~/lib/constants";
+import { AUDIT_TOKEN_TTL_SECONDS, STRIPE_AUDIT_SCOPE } from "~/lib/stripe/constants";
 
 // What the free audit's Stripe access is, in the words every surface uses. Stripe gives read_only only to Extensions, so the audit
 // asks for read_write (STRIPE_AUDIT_SCOPE), Foxhound only reads with it, and revokes it when AUDIT_TOKEN_TTL_SECONDS ends unless the

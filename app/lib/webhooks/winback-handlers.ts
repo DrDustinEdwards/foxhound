@@ -13,11 +13,11 @@ import {
   type WebhookContext,
   type WebhookOutcome,
 } from "./handler-context";
+import { resolveConnectedCustomer } from "./connected-reads";
 import {
   findWinbackSequence,
   hasRecentlyResolvedFailedPayment,
   listActiveFailedPaymentIds,
-  resolveConnectedCustomer,
   resolveWinbackStep1Offset,
 } from "./lookups";
 

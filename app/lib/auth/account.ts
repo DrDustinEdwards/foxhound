@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, type SQL } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
 import {
   type Db,
@@ -25,8 +25,8 @@ export interface Membership {
   role: string;
 }
 
-/** Every account the user actively belongs to, earliest first. */
-export async function listMemberships(db: Db, userId: string): Promise<Membership[]> {
+/** A query for one user's ACTIVE memberships, narrowed by any extra conditions. */
+function activeMemberships(db: Db, userId: string, ...conditions: SQL[]) {
   return db
     .select({
       memberId: accountMembers.id,
@@ -36,8 +36,18 @@ export async function listMemberships(db: Db, userId: string): Promise<Membershi
     })
     .from(accountMembers)
     .innerJoin(accounts, eq(accountMembers.accountId, accounts.id))
-    .where(and(eq(accountMembers.userId, userId), eq(accountMembers.status, MEMBER_STATUS.ACTIVE)))
-    .orderBy(accountMembers.createdAt, accountMembers.id);
+    .where(
+      and(
+        eq(accountMembers.userId, userId),
+        eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
+        ...conditions,
+      ),
+    );
+}
+
+/** Every account the user actively belongs to, earliest first. */
+export async function listMemberships(db: Db, userId: string): Promise<Membership[]> {
+  return activeMemberships(db, userId).orderBy(accountMembers.createdAt, accountMembers.id);
 }
 
 /**
@@ -206,23 +216,9 @@ export async function findActiveMembership(
   userId: string,
   accountId: string,
 ): Promise<Membership | null> {
-  const rows = await db
-    .select({
-      memberId: accountMembers.id,
-      accountId: accountMembers.accountId,
-      accountName: accounts.name,
-      role: accountMembers.role,
-    })
-    .from(accountMembers)
-    .innerJoin(accounts, eq(accountMembers.accountId, accounts.id))
-    .where(
-      and(
-        eq(accountMembers.userId, userId),
-        eq(accountMembers.accountId, accountId),
-        eq(accountMembers.status, MEMBER_STATUS.ACTIVE),
-      ),
-    )
-    .limit(1);
+  const rows = await activeMemberships(db, userId, eq(accountMembers.accountId, accountId)).limit(
+    1,
+  );
   return rows[0] ?? null;
 }
 

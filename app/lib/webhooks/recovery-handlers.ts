@@ -6,11 +6,8 @@ import {
   FAILED_PAYMENT_STATUS_STRIPE_RETRYING,
   type DeclineCategory,
 } from "~/lib/constants";
-import {
-  issueCreditNoteForEvidence,
-  REFUND_CREDIT_DESCRIPTION,
-  refundedRecoveryIdsFor,
-} from "~/lib/billing/credit-note";
+import { issueCreditNoteForEvidence, REFUND_CREDIT_DESCRIPTION } from "~/lib/billing/credit-note";
+import { refundedRecoveryIdsFor } from "~/lib/billing/credit-evidence-ids";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import {
   applyNetworkAdvice,
@@ -38,15 +35,17 @@ import {
   type WebhookOutcome,
 } from "./handler-context";
 import {
-  findActiveFailedPayment,
-  findRecoverableFailedPayment,
   resolveExpiringCard,
   resolveRecoveredChargeFee,
+  type DeclineFacts,
+  resolveFailureFacts,
+} from "./connected-reads";
+import {
+  findActiveFailedPayment,
+  findRecoverableFailedPayment,
   resolveRecoveryAttribution,
   resolveRefundedFailedPayment,
   tryWinbackReactivationFromInvoice,
-  type DeclineFacts,
-  resolveFailureFacts,
 } from "./lookups";
 
 /**

@@ -16,7 +16,7 @@ import { errorMessage } from "@dustinedwards/site-runtime/log";
 // (review Finding 1 + 2).
 
 /** What Stripe took from a recovered payment, off the paying charge's balance
- *  transaction (webhooks/lookups.ts resolveRecoveredChargeFee). `netCurrency`
+ *  transaction (webhooks/connected-reads.ts resolveRecoveredChargeFee). `netCurrency`
  *  is the balance transaction's own currency. Display only, never billed on. */
 export interface RecoveredChargeFee {
   stripeBalanceTransactionId: string;

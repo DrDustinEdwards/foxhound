@@ -41,7 +41,7 @@ const { buildEmailMessage, sendJobEmail } = await import("~/lib/email/send");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
 const { queryStepForManualTrigger, toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildTemplateEmail } = await import("~/lib/recovery/email-template");
-const { applySenderName } = await import("~/lib/settings/apply.server");
+const { applySenderName } = await import("~/lib/settings/apply-sender-voice.server");
 const { REPLY_TO_EMAIL_MAX_LENGTH } = await import("~/lib/settings/reply-to");
 
 const BASE = "https://foxhoundapp.test";

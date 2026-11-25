@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, engagementEvents, failedPayments, recoverySteps } from "~/db/schema";
-import { CLICK_SUSPECT_HONEYPOT, CLICK_SUSPECT_TOO_FAST } from "~/lib/constants";
+import { CLICK_SUSPECT_HONEYPOT, CLICK_SUSPECT_TOO_FAST } from "~/lib/email/constants";
 import { AUTOMATED_AGENT_TOKENS, isAutomatedUserAgent } from "~/lib/engagement/agents";
 import { findAttributionSignals, resolveAttribution } from "~/lib/recovery/attribution";
 

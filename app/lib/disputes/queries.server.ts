@@ -3,6 +3,7 @@ import { inList } from "@dustinedwards/site-runtime/d1";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import {
   changedRows,
   accounts,
@@ -26,7 +27,10 @@ import {
 } from "~/lib/disputes/approval.server";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { SUBMITTED_AUTOMATICALLY, SUBMITTED_EXTERNALLY } from "~/lib/disputes/labels";
-import { readEvidenceFilesForSubmission } from "~/lib/disputes/evidence-files.server";
+import {
+  buildEvidenceInsert,
+  readEvidenceFilesForSubmission,
+} from "~/lib/disputes/evidence-files.server";
 import {
   buildStripeEvidencePayload,
   disputeSubmittedAtStripe,
@@ -68,7 +72,7 @@ export async function listDisputesPage(
   page: number,
   pageSize: number,
 ): Promise<{ rows: DisputeRow[]; total: number }> {
-  const [rows, [counted]] = await Promise.all([
+  const [rows, total] = await Promise.all([
     db
       .select()
       .from(disputes)
@@ -76,9 +80,9 @@ export async function listDisputesPage(
       .orderBy(desc(disputes.createdAt), desc(disputes.id))
       .limit(pageSize)
       .offset((page - 1) * pageSize),
-    db.select({ n: count() }).from(disputes).where(eq(disputes.accountId, accountId)),
+    countRows(db, disputes, eq(disputes.accountId, accountId)),
   ]);
-  return { rows, total: counted?.n ?? 0 };
+  return { rows, total };
 }
 
 export interface DisputeDetail {
@@ -190,25 +194,15 @@ export async function saveDisputeDraft(
           ),
       );
       statements.push(
-        db.insert(disputeEvidence).select(
-          db
-            .select({
-              id: sql<string>`${crypto.randomUUID()}`.as("id"),
-              disputeId: disputes.id,
-              accountId: disputes.accountId,
-              fieldName: sql<string>`${field.fieldName}`.as("field_name"),
-              fieldValue: sql<string>`${field.fieldValue}`.as("field_value"),
-              createdAt: sql<Date>`${now.getTime()}`.as("created_at"),
-            })
-            .from(disputes)
-            .where(
-              and(
-                eq(disputes.id, disputeId),
-                eq(disputes.accountId, accountId),
-                noApproval,
-                noSameField,
-              ),
-            ),
+        buildEvidenceInsert(
+          db,
+          { fieldName: field.fieldName, fieldValue: field.fieldValue, now },
+          and(
+            eq(disputes.id, disputeId),
+            eq(disputes.accountId, accountId),
+            noApproval,
+            noSameField,
+          ),
         ),
       );
     }

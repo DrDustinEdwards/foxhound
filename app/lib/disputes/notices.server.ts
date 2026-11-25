@@ -161,17 +161,54 @@ function failed(
   return { kind: "error", message };
 }
 
-export async function sendDisputeCreatedNotice(
+interface RowNotice {
+  /** Why this row gets no notice, checked before the recipient. */
+  skip?: (row: NoticeRow) => DisputeNoticeSkip | null;
+  build: (row: NoticeRow) => NoticeMail | Promise<NoticeMail>;
+  template: string;
+  key: (row: NoticeRow) => string;
+}
+
+/** Load the dispute's notice row, apply the notice's skips, and hand its mail to `send`. */
+async function sendRowNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string },
+  cronRunId: string | null,
+  scope: string,
+  spec: RowNotice,
 ): Promise<DisputeNoticeOutcome> {
   try {
     const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
     if (!row) return { kind: "skipped", reason: "not_found" };
-    if (row.processingPaused) return { kind: "skipped", reason: "paused" };
+    const reason = spec.skip?.(row);
+    if (reason) return { kind: "skipped", reason };
     if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
     const notice = {
-      ...createdNotice({
+      ...(await spec.build(row)),
+      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
+    };
+    return await send(
+      env,
+      ctx.accountId,
+      row.notificationEmail,
+      notice,
+      spec.template,
+      spec.key(row),
+      cronRunId,
+    );
+  } catch (err) {
+    return failed(scope, ctx, err);
+  }
+}
+
+export function sendDisputeCreatedNotice(
+  env: Env,
+  ctx: { accountId: string; disputeId: string },
+): Promise<DisputeNoticeOutcome> {
+  return sendRowNotice(env, ctx, null, "created", {
+    skip: (row) => (row.processingPaused ? "paused" : null),
+    build: (row) =>
+      createdNotice({
         amountCents: row.amountCents,
         currency: row.currency,
         customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
@@ -187,35 +224,20 @@ export async function sendDisputeCreatedNotice(
             }
           : null,
       }),
-      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
-    };
-    return await send(
-      env,
-      ctx.accountId,
-      row.notificationEmail,
-      notice,
-      DISPUTE_CREATED_TEMPLATE,
-      `dispute-created:${row.id}`,
-      null,
-    );
-  } catch (err) {
-    return failed("created", ctx, err);
-  }
+    template: DISPUTE_CREATED_TEMPLATE,
+    key: (row) => `dispute-created:${row.id}`,
+  });
 }
 
-export async function sendDisputeOutcomeNotice(
+export function sendDisputeOutcomeNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string },
 ): Promise<DisputeNoticeOutcome> {
-  try {
-    const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
-    if (!row) return { kind: "skipped", reason: "not_found" };
-    if (row.state !== "resolved_won" && row.state !== "resolved_lost") {
-      return { kind: "skipped", reason: "not_resolved" };
-    }
-    if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
-    const notice = {
-      ...outcomeNotice({
+  return sendRowNotice(env, ctx, null, "outcome", {
+    skip: (row) =>
+      row.state !== "resolved_won" && row.state !== "resolved_lost" ? "not_resolved" : null,
+    build: (row) =>
+      outcomeNotice({
         won: row.state === "resolved_won",
         amountCents: row.amountCents,
         currency: row.currency,
@@ -232,20 +254,9 @@ export async function sendDisputeOutcomeNotice(
           : nextDisputeBillingRun(row.resolvedAt ?? new Date()),
         listUrl: appUrl(env, "/disputes/dashboard"),
       }),
-      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
-    };
-    return await send(
-      env,
-      ctx.accountId,
-      row.notificationEmail,
-      notice,
-      DISPUTE_OUTCOME_TEMPLATE,
-      `dispute-outcome:${row.id}`,
-      null,
-    );
-  } catch (err) {
-    return failed("outcome", ctx, err);
-  }
+    template: DISPUTE_OUTCOME_TEMPLATE,
+    key: (row) => `dispute-outcome:${row.id}`,
+  });
 }
 
 /**
@@ -253,19 +264,17 @@ export async function sendDisputeOutcomeNotice(
  * went out without a fee sentence because the cap could not be converted at
  * resolution, and a fee the merchant was never told is never billed.
  */
-export async function sendDisputeFeeNotice(
+export function sendDisputeFeeNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string; pricedAt: Date; cronRunId: string | null },
 ): Promise<DisputeNoticeOutcome> {
-  try {
-    const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
-    if (!row) return { kind: "skipped", reason: "not_found" };
-    if (row.state !== "resolved_won" || row.submittedAt == null || row.resolvedFeeCents == null) {
-      return { kind: "skipped", reason: "not_resolved" };
-    }
-    if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
-    const notice = {
-      ...outcomeNotice({
+  return sendRowNotice(env, ctx, ctx.cronRunId, "fee", {
+    skip: (row) =>
+      row.state !== "resolved_won" || row.submittedAt == null || row.resolvedFeeCents == null
+        ? "not_resolved"
+        : null,
+    build: (row) =>
+      outcomeNotice({
         won: true,
         amountCents: row.amountCents,
         currency: row.currency,
@@ -278,20 +287,9 @@ export async function sendDisputeFeeNotice(
         invoiceDate: row.processingPaused ? null : nextDisputeBillingRun(ctx.pricedAt),
         listUrl: appUrl(env, "/disputes/dashboard"),
       }),
-      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
-    };
-    return await send(
-      env,
-      ctx.accountId,
-      row.notificationEmail,
-      notice,
-      DISPUTE_OUTCOME_TEMPLATE,
-      `dispute-fee:${row.id}`,
-      ctx.cronRunId,
-    );
-  } catch (err) {
-    return failed("fee", ctx, err);
-  }
+    template: DISPUTE_OUTCOME_TEMPLATE,
+    key: (row) => `dispute-fee:${row.id}`,
+  });
 }
 
 /**
@@ -314,16 +312,13 @@ async function hasStandingApproval(
   return rows.length > 0;
 }
 
-export async function sendDisputeReminderNotice(
+export function sendDisputeReminderNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string; bucket: ReminderBucket; cronRunId: string | null },
 ): Promise<DisputeNoticeOutcome> {
-  try {
-    const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
-    if (!row) return { kind: "skipped", reason: "not_found" };
-    if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
-    const notice = {
-      ...reminderNotice({
+  return sendRowNotice(env, ctx, ctx.cronRunId, "reminder", {
+    build: async (row) =>
+      reminderNotice({
         approved: await hasStandingApproval(env, ctx.accountId, row.id),
         autoSubmit: row.autoSubmit,
         amountCents: row.amountCents,
@@ -333,54 +328,29 @@ export async function sendDisputeReminderNotice(
         daysLeft: ctx.bucket.daysLeft,
         disputeUrl: appUrl(env, `/disputes/${row.id}`),
       }),
-      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
-    };
-    return await send(
-      env,
-      ctx.accountId,
-      row.notificationEmail,
-      notice,
-      DISPUTE_REMINDER_TEMPLATE,
-      reminderKey(ctx.bucket.eventType, row.id),
-      ctx.cronRunId,
-    );
-  } catch (err) {
-    return failed("reminder", ctx, err);
-  }
+    template: DISPUTE_REMINDER_TEMPLATE,
+    key: (row) => reminderKey(ctx.bucket.eventType, row.id),
+  });
 }
 
 function autoSubmittedKey(disputeId: string): string {
   return `dispute-auto-submitted:${disputeId}`;
 }
 
-export async function sendDisputeAutoSubmittedNotice(
+export function sendDisputeAutoSubmittedNotice(
   env: Env,
   ctx: { accountId: string; disputeId: string; cronRunId: string | null },
 ): Promise<DisputeNoticeOutcome> {
-  try {
-    const row = await loadNoticeRow(env, ctx.accountId, ctx.disputeId);
-    if (!row) return { kind: "skipped", reason: "not_found" };
-    if (!row.notificationEmail) return { kind: "skipped", reason: "no_recipient" };
-    const notice = {
-      ...autoSubmittedNotice({
+  return sendRowNotice(env, ctx, ctx.cronRunId, "auto-submitted", {
+    build: (row) =>
+      autoSubmittedNotice({
         amountCents: row.amountCents,
         currency: row.currency,
         customerLabel: noticeCustomerLabel(row.customerName, row.customerEmail),
         reason: row.reason,
         disputeUrl: appUrl(env, `/disputes/${row.id}`),
       }),
-      footerNote: disputeNoticeFooterNote(row.senderName, new Date().getUTCFullYear()),
-    };
-    return await send(
-      env,
-      ctx.accountId,
-      row.notificationEmail,
-      notice,
-      DISPUTE_AUTO_SUBMITTED_TEMPLATE,
-      autoSubmittedKey(row.id),
-      ctx.cronRunId,
-    );
-  } catch (err) {
-    return failed("auto-submitted", ctx, err);
-  }
+    template: DISPUTE_AUTO_SUBMITTED_TEMPLATE,
+    key: (row) => autoSubmittedKey(row.id),
+  });
 }

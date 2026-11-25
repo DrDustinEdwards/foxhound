@@ -7,7 +7,7 @@ import { DAY_MS, type DeclineCategory, RECOVERY_MATURITY_MS } from "~/lib/consta
 import { recoveryRateBand, recoveryRateTone } from "~/lib/dashboard/recovery-rate";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID } from "~/lib/demo/constants";
-import { buildTeamflowBase } from "~/lib/demo/customer-base";
+import { buildTeamflowBase } from "~/lib/demo/customer-roster";
 import { buildRecoverySeed } from "~/lib/demo/recovery-seed";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { FAILED_PAYMENT_STATUS_LABELS, formatStepType } from "~/lib/recovery/labels";

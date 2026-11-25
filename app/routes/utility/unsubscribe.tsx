@@ -12,7 +12,7 @@ import "~/site-header.css";
 import { Header } from "~/components/header";
 import { Wordmark } from "~/components/wordmark";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { RATE_LIMIT_UNSUBSCRIBE } from "~/lib/constants";
+import { RATE_LIMIT_UNSUBSCRIBE } from "~/lib/http/rate-limit-buckets";
 import { recordDigestUnsubscribe, recordUnsubscribe } from "~/lib/email/suppression";
 import {
   verifyUnsubscribeToken,

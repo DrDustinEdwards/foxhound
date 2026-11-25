@@ -24,7 +24,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { action } = await import("~/routes/app/settings/team");
-const { EMAIL_FROM_ADDRESS } = await import("~/lib/constants");
+const { EMAIL_FROM_ADDRESS } = await import("~/lib/email/constants");
 const { hashRecipient } = await import("~/lib/email/dispatch");
 
 const BASE = "https://foxhoundapp.test";

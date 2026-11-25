@@ -14,8 +14,9 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { flipExhaustedSequences, recordMissingTokenAttempt, RETRY_RESULT_NO_CONNECTION } =
-  await import("~/lib/cron/recovery-tick");
+const { flipExhaustedSequences } = await import("~/lib/cron/recovery-tick");
+const { recordMissingTokenAttempt, RETRY_RESULT_NO_CONNECTION } =
+  await import("~/lib/cron/tick-guards");
 const { queryDueRecoverySteps } = await import("~/lib/cron/due-steps");
 const { RETRY_TOKEN_MAX_ATTEMPTS, SEND_RETRY_BACKOFF_MINUTES } = await import("~/lib/constants");
 const schema = await import("~/db/schema");

@@ -19,9 +19,7 @@ import "capsomer/table.css";
 // Capsomer's tokens and the amber family, which the components above read. The shell loads the same file through its header; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
-import { getDb } from "~/db";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { DEMO_BUSINESSES } from "~/lib/demo/constants";
 import {
   capitalizeTier,
@@ -64,10 +62,7 @@ function parseHealthBand(value: string | null): HealthScoreBand | null {
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { auth, db, accountId } = accountScope(context);
 
   const params = new URL(request.url).searchParams;
   const search = params.get("q")?.trim() || null;

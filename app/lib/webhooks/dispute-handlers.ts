@@ -9,16 +9,13 @@ import { resolveDisputeCap, type ResolvedDisputeCap } from "~/lib/billing/disput
 import {
   CHARGEBACK_CREDIT_DESCRIPTION,
   DISPUTE_CREDIT_DESCRIPTION,
-  disputedRecoveryIdsFor,
   issueCreditNoteForEvidence,
 } from "~/lib/billing/credit-note";
+import { disputedRecoveryIdsFor } from "~/lib/billing/credit-evidence-ids";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
-import {
-  buildClaimOnlyBatch,
-  buildDisputeIntakeBatch,
-  buildDisputeResolutionBatch,
-} from "./batches";
+import { buildClaimOnlyBatch } from "./batches";
+import { buildDisputeIntakeBatch, buildDisputeResolutionBatch } from "./dispute-batches";
 import {
   claimOnly,
   type IntentOf,

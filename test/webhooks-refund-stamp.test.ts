@@ -257,7 +257,7 @@ describe("a refund that arrives BEFORE the recovery still unbills it", () => {
 
   it("records the recovery already disputed when the dispute intake landed first", async () => {
     const db = await seedAwaitingRecovery();
-    const { buildDisputeIntakeBatch } = await import("~/lib/webhooks/batches");
+    const { buildDisputeIntakeBatch } = await import("~/lib/webhooks/dispute-batches");
     const DISPUTED_AT = REFUND_BEFORE_AT;
 
     // 1. Dispute intake for this payment's charge, with no recovery row yet.

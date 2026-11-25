@@ -7,9 +7,8 @@ import {
   extractDeclineCode,
   monthlyPlanCents,
   runAudit,
-  type AuditInputs,
-  type ScopeOutcome,
 } from "~/lib/audit/engine";
+import { type AuditInputs, type ScopeOutcome } from "~/lib/audit/types";
 import { AUDIT_SUMMARY_FALLBACK, sanitizeSummary } from "~/lib/audit/summary";
 
 // The pure audit engine: each scope has the case just inside and just outside its rule.

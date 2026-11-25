@@ -13,4 +13,4 @@ export {
 } from "./account";
 export { getInviteByToken, createInvite, hasOpenInviteForEmail, acceptInvite } from "./invites";
 export { setSessionActiveAccount } from "./active-account";
-export { authContext } from "./context";
+export { accountScope } from "./context";

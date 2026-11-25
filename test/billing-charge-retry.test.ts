@@ -57,8 +57,8 @@ vi.mock("~/lib/stripe/client", () => ({
   }),
 }));
 
-const { queryStrandedInvoices, retryInvoiceCharge, runChargeRetrySweep } =
-  await import("~/lib/billing/charge-retry");
+const { retryInvoiceCharge, runChargeRetrySweep } = await import("~/lib/billing/charge-retry");
+const { queryStrandedInvoices } = await import("~/lib/billing/stranded-invoices");
 const { runMonthlyBilling } = await import("~/lib/billing/run");
 const { recoveryFeeItemIdempotencyKey } = await import("~/lib/billing/stripe-invoice");
 const schema = await import("~/db/schema");

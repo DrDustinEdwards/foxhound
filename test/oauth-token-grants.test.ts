@@ -19,12 +19,12 @@ import {
   handleMcpRequest,
   harness,
   pkcePair,
-  provider,
   registered,
   revokeRoute,
   sqlite,
   tokenCall,
   tokenRoute,
+  tokens,
 } from "./helpers/oauth-provider";
 
 describe("the token endpoint", () => {
@@ -95,7 +95,7 @@ describe("the token endpoint", () => {
       const { verifier, challenge } = await pkcePair();
       const code = (await consent(clientId, challenge)).searchParams.get("code")!;
       const res = at
-        ? await provider.exchangeToken(db, new URLSearchParams(fields(code, verifier)), at)
+        ? await tokens.exchangeToken(db, new URLSearchParams(fields(code, verifier)), at)
         : await tokenCall(fields(code, verifier));
       expect(res.status, label).toBe(400);
       expect(res.body.error, label).toBe("invalid_grant");

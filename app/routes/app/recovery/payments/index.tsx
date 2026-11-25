@@ -1,28 +1,12 @@
-import { Table } from "capsomer/react/table";
-import { countText } from "capsomer/content";
 import { pageEnvelope, statusText } from "capsomer/behavior/pagination";
-import { relative, toMs } from "capsomer/behavior/time";
-import { Icon, iconArrowRight, iconTrendingUp } from "capsomer/react/icons";
-import { useEffect, useRef, useState, type FormEvent } from "react";
-import {
-  Form,
-  data,
-  useNavigate,
-  useNavigation,
-  useRouteLoaderData,
-  useSubmit,
-} from "react-router";
-import { ButtonLink, Link } from "capsomer/react/link";
-import { dismissBanner } from "capsomer/behavior/banner";
-import { Banner } from "capsomer/react/banner";
+import { useState } from "react";
+import { data, useNavigation, useRouteLoaderData, useSubmit } from "react-router";
+import { ButtonLink } from "capsomer/react/link";
 import { useShownFor } from "capsomer/react/hooks";
 import { ConfirmDialog } from "capsomer/react/confirm-dialog";
 import { Empty } from "capsomer/react/empty";
-import { clearedHref, FilterBar, isFiltered, withParams } from "capsomer/react/filter-bar";
 import { PageHead } from "capsomer/react/page-head";
 import { Panel } from "capsomer/react/panel";
-import { RangeSlider } from "capsomer/react/range-slider";
-import { Glyph, Pill, type Tone as StatusTone } from "capsomer/react/status";
 import "capsomer/banner.css";
 import "capsomer/bulk-bar.css";
 import "capsomer/button.css";
@@ -42,66 +26,47 @@ import "capsomer/status.css";
 import "capsomer/table.css";
 import "~/site-header.css";
 
-import { getDb } from "~/db";
 import { personalOutreachCustomerIds } from "~/lib/intelligence/recommendations.server";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { authContext } from "~/lib/auth/context";
+import { accountScope } from "~/lib/auth/context";
 import { formatDetectedDate, paymentStepSummary } from "~/lib/dashboard/recovery-dashboard";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
-import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
 import {
   getGlobalPaymentStatusCounts,
   listFilteredFailedPayments,
   listPaymentSummaryRows,
-  listStepsForFailedPayments,
   readPaymentFilters,
   tallyStatusCounts,
 } from "~/lib/recovery/queries.server";
+import { listStepsForFailedPayments } from "~/lib/recovery/step-queries.server";
 import { countFailuresByCustomer } from "~/lib/recovery/dashboard-queries.server";
-import type {
-  AmountBounds,
-  FailedPaymentPageSize,
-  FailedPaymentSort,
-} from "~/lib/recovery/queries.server";
-import { buildPaymentParams } from "~/lib/recovery/payment-filters";
-import {
-  amountSliderStep,
-  DECLINE_CATEGORY_WORDS,
-  PAYMENTS_DEFAULT_PAGE_SIZE,
-  PAYMENTS_PAGE_SIZE_OPTIONS,
-  BULK_RESULT_DISMISS_MS,
-  bulkResultClearsItself,
-  bulkResultLine,
-  declineWord,
-  sliderAmount,
-} from "~/lib/recovery/payments-list";
+import { BULK_RESULT_DISMISS_MS, bulkResultClearsItself } from "~/lib/recovery/payments-list";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
 import { showingCountFor } from "~/lib/recovery/payments-stats";
 import { recoveryRateClassNameOrNull } from "~/lib/dashboard/recovery-rate";
-import {
-  allVisibleSelected,
-  toggleAllVisible,
-  toggleOne,
-  visibleSelection,
-} from "capsomer/behavior/bulk-bar";
+import { allVisibleSelected, visibleSelection } from "capsomer/behavior/bulk-bar";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 import { runBulkAction } from "~/lib/recovery/bulk-actions.server";
 import {
   actionableSelection,
   failedIds,
-  isBulkActionIntent,
   isBulkRefusal,
-  orderForDisplay,
   type BulkActionIntent,
-  type BulkFailureReason,
 } from "~/lib/recovery/bulk-results";
 import { moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
 import { resendDepsFor, triggerDepsFor } from "~/lib/recovery/manual-action-deps.server";
 import { BULK_ACTION_CONFIRM_THRESHOLD, BULK_ACTION_MAX_PER_SUBMISSION } from "~/lib/constants";
 import { priorFailureCount } from "~/lib/recovery/prior-failures";
-import type { PaymentTimeRange } from "~/lib/recovery/time-range";
 
 import type { Route } from "./+types/index";
+import {
+  BulkBar,
+  BulkResultBanner,
+  PaymentsPager,
+  PaymentsTable,
+} from "~/components/payments-list-parts";
+import { exportHref } from "~/lib/recovery/payments-page";
+import { BULK_INTENTS } from "~/lib/recovery/bulk-copy";
+import { PaymentsFilters } from "~/components/payments-filters";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
@@ -115,10 +80,7 @@ export function meta() {
 }
 
 export async function loader({ context, request }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { db, accountId } = accountScope(context);
   const nowMs = Date.now();
 
   const { input, filters, time, bounds, amountMinParsed, amountMaxParsed } =
@@ -197,9 +159,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
 
 /** The bulk POST target. Nothing the browser sends is trusted: every id is re-derived through dispatchManualAction's own account-scoped read and per-intent preconditions, one payment and one key at a time, so an unowned id answers not_found exactly as it would singly. A submission over the ceiling is refused whole. */
 export async function action({ context, request }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
+  const { env, auth, db } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
   const intent = String(form.get("intent") ?? "");
   const ids = form.getAll("ids").map(String).filter(Boolean);
@@ -217,165 +177,9 @@ export async function action({ context, request }: Route.ActionArgs) {
   return data({ bulk: outcome }, { status: isBulkRefusal(outcome) ? 400 : 200 });
 }
 
-interface Filters {
-  search: string;
-  status: string;
-  declineCategory: string;
-  time: PaymentTimeRange;
-  sort: FailedPaymentSort;
-  pageSize: FailedPaymentPageSize;
-  amountMinCents: number;
-  amountMaxCents: number;
-}
-
-const BASE = "/recovery/payments";
-
-function hrefWith(
-  filters: Filters,
-  bounds: AmountBounds,
-  overrides: Partial<Record<string, string>> = {},
-): string {
-  return withParams(
-    BASE,
-    buildPaymentParams(filters, { bounds, defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE, overrides }),
-  );
-}
-
-function pageHref(filters: Filters, bounds: AmountBounds, page: number): string {
-  return hrefWith(filters, bounds, { page: page > 1 ? String(page) : "" });
-}
-
-/** Export CSV writes the rows on screen, so the link carries this page and this page size as well as the filters. */
-function exportHref(filters: Filters, bounds: AmountBounds, page: number): string {
-  return withParams(
-    `${BASE}/export.csv`,
-    buildPaymentParams(filters, {
-      bounds,
-      defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE,
-      overrides: { page: String(page), perPage: String(filters.pageSize) },
-    }),
-  );
-}
-
-function paramsFor(filters: Filters, bounds: AmountBounds) {
-  return buildPaymentParams(filters, { bounds, defaultPageSize: PAYMENTS_DEFAULT_PAGE_SIZE });
-}
-
-/** Clear filters keeps the sort and the page size and drops the rest. The currency is which amounts the range shows, not a filter, so it stays too. */
-function clearHref(filters: Filters, bounds: AmountBounds): string {
-  return clearedHref(BASE, paramsFor(filters, bounds), ["sort", "perPage", "currency"]);
-}
-
-const STATUS_PILLS = [
-  { value: "", label: "All" },
-  { value: "active", label: "Active" },
-  { value: "recovered", label: "Recovered" },
-  { value: "cancelled", label: "Canceled" },
-  { value: "failed_unrecovered", label: "Failed" },
-] as const;
-
-interface PillCounts {
-  all: number;
-  active: number;
-  recovered: number;
-  failedUnrecovered: number;
-  cancelled: number;
-}
-
-function countFor(pillCounts: PillCounts, value: string): number {
-  if (value === "") return pillCounts.all;
-  if (value === "active") return pillCounts.active;
-  if (value === "recovered") return pillCounts.recovered;
-  if (value === "cancelled") return pillCounts.cancelled;
-  return pillCounts.failedUnrecovered;
-}
-
-const DATE_RANGES: { value: PaymentTimeRange; label: string }[] = [
-  { value: "all", label: "All time" },
-  { value: "today", label: "Today" },
-  { value: "7d", label: "Last 7 days" },
-  { value: "30d", label: "Last 30 days" },
-  { value: "90d", label: "Last 90 days" },
-];
-
-const SORTS: { value: FailedPaymentSort; label: string }[] = [
-  { value: "newest", label: "Newest first" },
-  { value: "oldest", label: "Oldest first" },
-  { value: "amount_desc", label: "Highest amount" },
-  { value: "amount_asc", label: "Lowest amount" },
-];
-
-/** Why one payment did not take the action, in the merchant's words. */
-const BULK_REASON_LABELS: Record<BulkFailureReason, string> = {
-  not_found: "No longer on this account",
-  not_active: "No longer active",
-  already_resolved: "Already resolved",
-  write_failed: "The change did not save",
-  no_pending_step: "No step left to run",
-  unknown_step_type: "This step has no action",
-  processing_paused: "Processing is paused for this account",
-  customer_unsubscribed: "The customer is unsubscribed, so nothing was sent",
-  send_retrying: "The send did not go through, and will be retried",
-  step_failed: "The step ran and did not complete",
-  unexpected: "Unexpected response, nothing changed",
-};
-
-const BULK_INTENTS = {
-  trigger: {
-    label: "Trigger next step",
-    didLabel: "Ran",
-    didNotLabel: "Did not run",
-    question: "Run the next step now for",
-    consequence:
-      "Each payment's next scheduled step runs immediately, and a step that sends email will send it.",
-  },
-  mark_recovered: {
-    label: "Mark recovered",
-    didLabel: "Recorded",
-    didNotLabel: "Not recorded",
-    question: "Mark as recovered",
-    consequence:
-      "This records a recovery you have confirmed elsewhere. It does not charge anyone and it does not contact the customer.",
-  },
-  cancel: {
-    label: "Stop recovery",
-    didLabel: "Stopped",
-    didNotLabel: "Not stopped",
-    question: "Stop recovery for",
-    consequence:
-      "Their remaining steps will not send. This does not refund anything and it does not contact the customer.",
-  },
-} as const satisfies Record<
-  BulkActionIntent,
-  {
-    label: string;
-    didLabel: string;
-    didNotLabel: string;
-    question: string;
-    consequence: string;
-  }
->;
-
-const BULK_VARIANTS: Record<BulkActionIntent, "primary" | undefined | "danger"> = {
-  trigger: "primary",
-  mark_recovered: undefined,
-  cancel: "danger",
-};
-
-const PILL_TONE: Record<"success" | "failure" | "neutral", StatusTone | undefined> = {
-  success: "ok",
-  failure: "crit",
-  neutral: undefined,
-};
-
-function bulkCopy(intent: string) {
-  return isBulkActionIntent(intent) ? BULK_INTENTS[intent] : null;
-}
-
 export default function RecoveryPayments({ loaderData, actionData }: Route.ComponentProps) {
   const { result, globalCounts, globalRecoveryRatePct, pillCounts, bounds, nowMs, filters } =
     loaderData;
-  const navigate = useNavigate();
   const submit = useSubmit();
 
   // Selection is client-only and per page. Every read goes through the pure helpers, so the effective selection is the stored set intersected with what is on screen.
@@ -429,44 +233,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
       : id;
   };
 
-  // The filter bar submits the form as you type (after a pause, never mid-composition) and on each change of a control. The box follows the address when the address changes under it (Clear, Back), but not while a search it has already sent comes back.
-  const [search, setSearch] = useState(filters.search);
-  const sentSearch = useRef(filters.search);
-  useEffect(() => {
-    if (filters.search !== sentSearch.current) {
-      sentSearch.current = filters.search;
-      setSearch(filters.search);
-    }
-  }, [filters.search]);
-  const followsAddress = () => undefined;
-  function onFilterSubmit(e: FormEvent<HTMLFormElement>) {
-    sentSearch.current = search.trim();
-    // A new currency starts its amount range over: the handles hold the old
-    // currency's amounts, so they are not sent with it.
-    const picked = new FormData(e.currentTarget).get("currency");
-    if (typeof picked === "string" && picked !== bounds.currency) {
-      e.preventDefault();
-      void navigate(
-        hrefWith(filters, bounds, {
-          currency: picked === bounds.defaultCurrency ? "" : picked,
-          amountMin: "",
-          amountMax: "",
-        }),
-        { preventScrollReset: true },
-      );
-    }
-  }
-
-  const hasActiveFilters = isFiltered(paramsFor(filters, bounds), [
-    "q",
-    "status",
-    "category",
-    "time",
-    "amountMin",
-    "amountMax",
-  ]);
-  const resultCount = result.totalCount;
-
   async function performConfirmed(intent: BulkActionIntent) {
     const form = new FormData();
     for (const id of actionable) form.append("ids", id);
@@ -515,435 +281,45 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           Banner puts its children inside a <p>, which cannot hold the list,
           so the itemised result is Capsomer's banner markup with the title,
           the list and the note as siblings in .cap-banner-body. */}
+      {/* Recova's bulk result sits here, between the cards and the filters.
+          Per payment, failures first (approved 2026-09-19). Capsomer's React
+          Banner puts its children inside a <p>, which cannot hold the list,
+          so the itemised result is Capsomer's banner markup with the title,
+          the list and the note as siblings in .cap-banner-body. */}
       {shownBulk ? (
-        <div className="fh-payments-bulk">
-          {isBulkRefusal(shownBulk) ? (
-            <Banner tone="crit" onDismiss={dismissBulk}>
-              {shownBulk.refused === "empty"
-                ? "Nothing was selected, so nothing was changed."
-                : shownBulk.refused === "unknown_intent"
-                  ? "That is not an action this page performs. Nothing was changed."
-                  : `${shownBulk.submitted} payments is more than the limit of ${shownBulk.ceiling} per submission. Nothing was changed and nothing was trimmed to fit. Narrow the selection and try again.`}
-            </Banner>
-          ) : (
-            <div
-              className="cap-banner"
-              data-cap="banner"
-              data-tone={failedIds(shownBulk.results).length === 0 ? "ok" : "crit"}
-              role={failedIds(shownBulk.results).length === 0 ? "status" : "alert"}
-            >
-              <Glyph name={failedIds(shownBulk.results).length === 0 ? "ok" : "crit"} />
-              <div className="cap-banner-body">
-                <p className="cap-banner-title">
-                  {bulkResultLine(shownBulk.intent, shownBulk.results)}
-                </p>
-                <div className="cap-banner-text">
-                  <ul className="cap-stack fh-small" data-gap="2">
-                    {orderForDisplay(shownBulk.results).map((r) => (
-                      <li key={r.id}>
-                        <span className="fh-bold">
-                          {r.ok
-                            ? (bulkCopy(shownBulk.intent)?.didLabel ?? "Applied")
-                            : (bulkCopy(shownBulk.intent)?.didNotLabel ?? "Not applied")}
-                        </span>
-                        <span className="fh-payments-gap">{rowLabel(r.id)}</span>
-                        {r.reason ? (
-                          <span className="fh-payments-gap">{BULK_REASON_LABELS[r.reason]}</span>
-                        ) : null}
-                        {/* The dispatcher's own detail, carried rather than folded. */}
-                        {r.detail ? (
-                          <span className="fh-payments-gap fh-mono">{r.detail}</span>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-                {failedIds(shownBulk.results).length > 0 ? (
-                  <p className="cap-banner-text">
-                    The payments that did not take it are still selected, so the next attempt is
-                    exactly those.
-                  </p>
-                ) : null}
-              </div>
-              <div className="cap-banner-actions">
-                <button
-                  type="button"
-                  className="cap-btn"
-                  data-variant="quiet"
-                  data-cap-part="dismiss"
-                  onClick={(e) => {
-                    // Capsomer's Dismiss: focus goes to the page's main region when it was inside, never to <body>.
-                    const banner = e.currentTarget.closest<HTMLElement>("[data-cap='banner']");
-                    if (banner) dismissBanner(banner);
-                    dismissBulk();
-                  }}
-                >
-                  Dismiss
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
+        <BulkResultBanner shownBulk={shownBulk} rowLabel={rowLabel} dismissBulk={dismissBulk} />
       ) : null}
 
-      {/* Recova's PaymentsFilters: one panel, two rows. */}
-      <div className="cap-panel">
-        <div className="cap-panel-body">
-          <FilterBar
-            label="Filter payments"
-            Form={Form}
-            live
-            className="fh-filter-panel"
-            onSubmit={onFilterSubmit}
-            count={countText(resultCount, resultCount, { noun: "result", plural: "results" })}
-            clearHref={hasActiveFilters ? clearHref(filters, bounds) : null}
-            clearLabel="Clear filters"
-            renderLink={({ href, children }) => (
-              <ButtonLink to={href} variant="quiet" size="sm">
-                {children}
-              </ButtonLink>
-            )}
-          >
-            <div className="fh-filter-fill cap-stack fh-small" data-gap="5">
-              <div className="fh-payments-filters">
-                <div className="fh-payments-search">
-                  <input
-                    className="cap-input"
-                    type="text"
-                    name="q"
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Search by name, email, or plan..."
-                    aria-label="Search payments"
-                  />
-                </div>
-                <div className="fh-payments-scroll">
-                  {/* Capsomer's segmented control, as its markup: its React
-                    wrapper hides the legend with cap-sr-only, which lives in
-                    Capsomer's base.css, which the app does not load, so the
-                    legend would show where Recova shows none. */}
-                  <fieldset className="cap-seg">
-                    <legend className="cap-sr-only">Filter by status</legend>
-                    <div className="cap-seg-options">
-                      {STATUS_PILLS.map((pill) => (
-                        <label key={pill.value}>
-                          <input
-                            type="radio"
-                            name="status"
-                            value={pill.value}
-                            checked={filters.status === pill.value}
-                            onChange={followsAddress}
-                          />{" "}
-                          {pill.label}{" "}
-                          <span className="fh-mono">{countFor(pillCounts, pill.value)}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </fieldset>
-                </div>
-              </div>
-
-              <div className="fh-payments-filters">
-                <div className="cap-select-wrap">
-                  <select
-                    className="cap-select"
-                    name="time"
-                    aria-label="Filter by date range"
-                    value={filters.time}
-                    onChange={followsAddress}
-                  >
-                    {DATE_RANGES.map((r) => (
-                      <option key={r.value} value={r.value}>
-                        {r.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="cap-select-wrap">
-                  <select
-                    className="cap-select"
-                    name="category"
-                    aria-label="Filter by decline category"
-                    value={filters.declineCategory}
-                    onChange={followsAddress}
-                  >
-                    <option value="">All declines</option>
-                    {Object.keys(DECLINE_CATEGORY_WORDS).map((c) => (
-                      <option key={c} value={c}>
-                        {declineWord(c)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="cap-select-wrap">
-                  <select
-                    className="cap-select"
-                    name="sort"
-                    aria-label="Filter by sort order"
-                    value={filters.sort}
-                    onChange={followsAddress}
-                  >
-                    {SORTS.map((s) => (
-                      <option key={s.value} value={s.value}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                {bounds.currencies.length > 1 ? (
-                  <div className="cap-select-wrap">
-                    <select
-                      className="cap-select"
-                      name="currency"
-                      aria-label="Currency of the amount range"
-                      value={bounds.currency}
-                      onChange={followsAddress}
-                    >
-                      {bounds.currencies.map((c) => (
-                        <option key={c} value={c}>
-                          {c.toUpperCase()}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                ) : null}
-                <RangeSlider
-                  className="fh-payments-select"
-                  label="Amount"
-                  min={bounds.minCents}
-                  max={bounds.maxCents}
-                  low={filters.amountMinCents}
-                  high={filters.amountMaxCents}
-                  step={amountSliderStep(bounds.currency)}
-                  names={["amountMin", "amountMax"]}
-                  handleLabels={["Minimum amount", "Maximum amount"]}
-                  format={(minor, which) =>
-                    sliderAmount(minor, bounds.currency, which === "high", bounds.maxCents)
-                  }
-                />
-              </div>
-            </div>
-            {/* The page size rides along when the form submits. */}
-            {filters.pageSize !== PAYMENTS_DEFAULT_PAGE_SIZE ? (
-              <input type="hidden" name="perPage" value={String(filters.pageSize)} />
-            ) : null}
-          </FilterBar>
-        </div>
-      </div>
-
-      {/* Recova's rows-per-page links, right-aligned between the panel and the
-          table, as Capsomer's link chips. */}
-      <nav aria-label="Rows per page" className="fh-payments-rows">
-        <span className="fh-payments-rows-label fh-tiny fh-quiet" aria-hidden="true">
-          Rows per page
-        </span>
-        <ul className="cap-chips">
-          {PAYMENTS_PAGE_SIZE_OPTIONS.map((n) => (
-            <li key={n}>
-              <Link
-                className="cap-chip"
-                data-size="sm"
-                to={hrefWith(filters, bounds, {
-                  perPage: n === PAYMENTS_DEFAULT_PAGE_SIZE ? "" : String(n),
-                })}
-                aria-current={filters.pageSize === n ? "true" : undefined}
-              >
-                {n === "all" ? "All" : n}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <PaymentsFilters
+        filters={filters}
+        bounds={bounds}
+        pillCounts={pillCounts}
+        resultCount={result.totalCount}
+      />
 
       {rows.length === 0 ? (
         <Empty kind="no-match" title="No payments match your filters" />
       ) : (
-        <div className="cap-panel">
-          <div className="cap-panel-body" data-flush="">
-            <Table caption="Payments" captionHidden reflow="medium">
-              <thead>
-                <tr>
-                  {/* Recova gates both boxes on !isDemo, so the demo has no
-                        column at all. The 405 middleware is the boundary. */}
-                  {!isDemo ? (
-                    <th scope="col">
-                      <label className="cap-check">
-                        <input
-                          type="checkbox"
-                          checked={headerChecked}
-                          onChange={() => setSelected(toggleAllVisible(selected, rows))}
-                        />
-                        <span className="cap-sr-only">Select all payments</span>
-                      </label>
-                    </th>
-                  ) : null}
-                  <th scope="col">Customer</th>
-                  <th scope="col">Amount</th>
-                  <th scope="col">Decline</th>
-                  <th scope="col">Steps</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Detected</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((p) => {
-                  const name = p.customerName ?? p.customerEmail;
-                  const isSelected = selected.has(p.id);
-                  return (
-                    <tr key={p.id} data-state={isSelected ? "selected" : undefined}>
-                      {!isDemo ? (
-                        <td>
-                          <label className="cap-check">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => setSelected(toggleOne(selected, p.id))}
-                            />
-                            <span className="cap-sr-only">Select payment from {name}</span>
-                          </label>
-                        </td>
-                      ) : null}
-                      <th scope="row">
-                        {/* Recova's whole row opens the payment: Capsomer's
-                              stretched row link, under the box and the pills. */}
-                        <span className="fh-payments-name">
-                          <Link className="cap-table-open" to={`${BASE}/${p.id}`}>
-                            {name}
-                          </Link>
-                          {/* Recova's personal-outreach mark after the name (PaymentRow.tsx). */}
-                          {p.outreach ? (
-                            <Icon
-                              d={iconTrendingUp}
-                              className="fh-icon-12 fh-icon-fine fh-accent"
-                              label="Intelligence: personal outreach recommended"
-                            />
-                          ) : null}
-                          {p.priorFailures > 0 ? (
-                            <Pill tone="warn">{p.priorFailures + 1}x failure</Pill>
-                          ) : null}
-                          {p.hasNote ? <Pill>note</Pill> : null}
-                        </span>
-                        {p.customerName ? (
-                          <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-break fh-faint">
-                            {p.customerEmail}
-                          </span>
-                        ) : null}
-                        {p.planName ? (
-                          <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-faint">
-                            {p.planName}
-                          </span>
-                        ) : null}
-                      </th>
-                      <td data-label="Amount">
-                        <span className="fh-nowrap fh-mono fh-small fh-brand">
-                          {formatMoney(p.amountCents, p.currency)}
-                        </span>
-                      </td>
-                      <td data-label="Decline">
-                        <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
-                        {p.declineCode ? (
-                          <span className="fh-payments-sub fh-line fh-mono fh-tiny fh-break fh-faint">
-                            {p.declineCode}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td data-label="Steps">
-                        <span
-                          className={`fh-mono fh-tiny ${p.steps.completed > 0 ? "fh-text" : "fh-faint"}`}
-                        >
-                          {p.steps.completed}/{p.steps.total}
-                        </span>
-                        {p.steps.next ? (
-                          <span className="fh-payments-sub fh-line fh-tiny fh-brand">
-                            Next: {p.steps.next}
-                          </span>
-                        ) : null}
-                      </td>
-                      <td data-label="Status">
-                        <Pill tone={PILL_TONE[failedPaymentStatusTone(p.status)]}>
-                          {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
-                        </Pill>
-                      </td>
-                      <td data-label="Detected">
-                        <span className="fh-payments-amount">
-                          <span className="fh-tiny fh-faint">
-                            <span className="fh-line fh-nowrap">
-                              {relative(toMs(p.detectedAt), nowMs, "UTC")}
-                            </span>
-                            <span className="fh-payments-sub fh-line fh-nowrap">
-                              {formatDetectedDate(p.detectedAt)}
-                            </span>
-                          </span>
-                          {/* Recova's View, shown on hover. The row link above
-                                is the keyboard's way in, so this one is not a
-                                second tab stop. */}
-                          <Link
-                            to={`${BASE}/${p.id}`}
-                            tabIndex={-1}
-                            aria-hidden="true"
-                            className="fh-payments-open fh-nowrap fh-mono fh-tiny fh-quiet"
-                          >
-                            View{" "}
-                            <Icon
-                              d={iconArrowRight}
-                              className="fh-icon-13 fh-icon-fine fh-inline-icon"
-                            />
-                          </Link>
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          </div>
-        </div>
+        <PaymentsTable
+          rows={rows}
+          isDemo={isDemo}
+          selected={selected}
+          setSelected={setSelected}
+          headerChecked={headerChecked}
+          nowMs={nowMs}
+        />
       )}
 
       {/* Recova's pager: the range on the left, Previous and Next on the
           right, each present and disabled when it leads nowhere. */}
       {result.totalCount > 0 ? (
-        <div className="fh-payments-pager">
-          <nav className="cap-pagination" aria-label="Payment pages">
-            <p className="cap-pagination-status">{showing}</p>
-            <ul className="cap-pagination-list">
-              <li>
-                {result.page > 1 ? (
-                  <Link
-                    className="cap-page"
-                    data-kind="prev"
-                    to={pageHref(filters, bounds, result.page - 1)}
-                    rel="prev"
-                  >
-                    Previous
-                  </Link>
-                ) : (
-                  // oxlint-disable-next-line jsx-a11y/anchor-is-valid -- a disabled page link: no href, role="link" and aria-disabled keep it announced as a link
-                  <a className="cap-page" data-kind="prev" role="link" aria-disabled="true">
-                    Previous
-                  </a>
-                )}
-              </li>
-              <li>
-                {result.page < result.totalPages ? (
-                  <Link
-                    className="cap-page"
-                    data-kind="next"
-                    to={pageHref(filters, bounds, result.page + 1)}
-                    rel="next"
-                  >
-                    Next
-                  </Link>
-                ) : (
-                  // oxlint-disable-next-line jsx-a11y/anchor-is-valid -- a disabled page link: no href, role="link" and aria-disabled keep it announced as a link
-                  <a className="cap-page" data-kind="next" role="link" aria-disabled="true">
-                    Next
-                  </a>
-                )}
-              </li>
-            </ul>
-          </nav>
-        </div>
+        <PaymentsPager
+          page={result.page}
+          totalPages={result.totalPages}
+          showing={showing}
+          filters={filters}
+          bounds={bounds}
+        />
       ) : null}
 
       {/* Recova's BulkActionBar on Capsomer's bulk bar, in the delivered page
@@ -953,67 +329,19 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
           once; above 25 it asks first, naming every payment; above 100 it
           does nothing and says why (approved 2026-09-19). */}
       {!isDemo && selectionCount > 0 ? (
-        <Form method="post" className="fh-payments-bar">
-          {actionable.map((id) => (
-            <input key={id} type="hidden" name="ids" value={id} />
-          ))}
-          <div className="cap-bulk" data-cap="bulk-bar" role="region" aria-label="Bulk actions">
-            <p className="cap-bulk-count" role="status">
-              {selectionCount} selected
-            </p>
-            <div className="cap-bulk-actions">
-              {actionable.length > 0
-                ? (Object.keys(BULK_INTENTS) as BulkActionIntent[]).map((intent) => {
-                    const blocked = overCeiling || submitting;
-                    return (
-                      <button
-                        key={intent}
-                        type={needsConfirm || overCeiling ? "button" : "submit"}
-                        name="intent"
-                        value={intent}
-                        className="cap-btn"
-                        data-variant={BULK_VARIANTS[intent]}
-                        aria-disabled={blocked ? "true" : undefined}
-                        aria-busy={submittingIntent === intent ? "true" : undefined}
-                        aria-describedby={overCeiling ? "bulk-ceiling" : undefined}
-                        onClick={(e) => {
-                          if (blocked) {
-                            e.preventDefault();
-                            return;
-                          }
-                          if (needsConfirm) {
-                            setLastConfirm(intent);
-                            setConfirmFor({ from: bulk, intent });
-                          }
-                        }}
-                      >
-                        {submittingIntent === intent
-                          ? "Working..."
-                          : intent === "trigger"
-                            ? `${BULK_INTENTS[intent].label} (${actionable.length})`
-                            : BULK_INTENTS[intent].label}
-                      </button>
-                    );
-                  })
-                : null}
-            </div>
-            {overCeiling ? (
-              <p id="bulk-ceiling" className="fh-small fh-faint">
-                {actionable.length} payments selected. Bulk actions take at most{" "}
-                {BULK_ACTION_MAX_PER_SUBMISSION} at a time, and nothing is trimmed to fit. Narrow
-                the selection to {BULK_ACTION_MAX_PER_SUBMISSION} or fewer.
-              </p>
-            ) : null}
-            <button
-              type="button"
-              className="cap-btn cap-bulk-clear"
-              data-variant="quiet"
-              onClick={() => setSelected(new Set())}
-            >
-              Clear
-            </button>
-          </div>
-        </Form>
+        <BulkBar
+          actionable={actionable}
+          selectionCount={selectionCount}
+          overCeiling={overCeiling}
+          needsConfirm={needsConfirm}
+          submitting={submitting}
+          submittingIntent={submittingIntent}
+          onAsk={(intent) => {
+            setLastConfirm(intent);
+            setConfirmFor({ from: bulk, intent });
+          }}
+          onClear={() => setSelected(new Set())}
+        />
       ) : null}
 
       <ConfirmDialog

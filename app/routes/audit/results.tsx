@@ -9,13 +9,12 @@ import "capsomer/page-head.css";
 import "capsomer/panel.css";
 
 import {
-  AuditDisputesSection,
   AuditHealthSection,
   AuditRecoverySection,
   AuditSummary,
-  showDisputesSection,
-  type CtaState,
 } from "~/components/audit/sections";
+import { AuditDisputesSection, showDisputesSection } from "~/components/audit/disputes-section";
+import type { CtaState } from "~/components/audit/section-parts";
 import { getDb } from "~/db";
 import { saveAuditRun } from "~/lib/audit/persist.server";
 import { toAuditRunView } from "~/lib/audit/render";

@@ -46,12 +46,6 @@ export function roiColumn(
   return { recovered, fee, kept };
 }
 
-/** Totals side by side, each in its own currency; none at all reads as zero. */
-export function formatCurrencyTotals(rows: readonly CurrencyAmount[]): string {
-  if (rows.length === 0) return formatMoney(0, "usd");
-  return rows.map((r) => formatMoney(r.cents, r.currency)).join(" · ");
-}
-
 export function atRiskPctOfMrr(
   atRisk: readonly CurrencyAmount[],
   mrrEstimateCents: number | null,

@@ -7,7 +7,7 @@ import { getConnectedStripe } from "~/lib/stripe/client";
 import { findActiveConnection } from "~/lib/stripe/connections.server";
 import { decryptToken } from "~/lib/stripe/encryption";
 import { mergeEvidence, readDisputeIntakeContext } from "./context.server";
-import { buildDisputeIntakeBatch } from "~/lib/webhooks/batches";
+import { buildDisputeIntakeBatch } from "~/lib/webhooks/dispute-batches";
 import { resolveDisputedRecovery } from "~/lib/webhooks/lookups";
 
 //   1. The claim key is `manual_dispute:{stripeDisputeId}` (MANUAL_CLAIM_PREFIX

@@ -3,7 +3,7 @@ import { and, eq, isNotNull } from "drizzle-orm";
 import type { Db } from "~/db";
 import { billingInvoices, billingLineItems } from "~/db";
 import { getBillableDisputes } from "~/db/billable";
-import { SETTLED_STATUSES } from "~/lib/billing/charge-retry";
+import { SETTLED_STATUSES } from "~/lib/billing/stranded-invoices";
 
 import type { CurrencyAmount } from "~/lib/money/totals";
 

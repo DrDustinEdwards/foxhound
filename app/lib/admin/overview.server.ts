@@ -21,6 +21,7 @@ import {
 } from "drizzle-orm";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import {
   accounts,
   billingInvoices,
@@ -40,7 +41,8 @@ import { groupSumByCurrency, type CurrencyAmount } from "~/lib/money/totals";
 import { BILLABLE_ATTRIBUTION_KINDS, DAY_MS, DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { RESOLVED_DISPUTE_STATES } from "~/lib/disputes/labels";
 
-const NOT_DEMO = notLike(accounts.id, `${DEMO_ACCOUNT_ID_PREFIX}%`);
+const DEMO_LIKE = `${DEMO_ACCOUNT_ID_PREFIX}%`;
+const NOT_DEMO = notLike(accounts.id, DEMO_LIKE);
 
 const STALE_DISPUTE_DAYS = 7;
 const NEW_CONNECTION_DAYS = 7;
@@ -150,18 +152,16 @@ export interface AdminOverview extends PlatformOverview {
   };
 }
 
-async function countMerchants(db: Db): Promise<number> {
-  const rows = await db.select({ n: count() }).from(accounts).where(NOT_DEMO);
-  return rows[0]?.n ?? 0;
-}
-
-export async function countActiveRecoveries(db: Db): Promise<number> {
-  const rows = await db
-    .select({ n: count() })
-    .from(failedPayments)
-    .innerJoin(accounts, eq(accounts.id, failedPayments.accountId))
-    .where(and(eq(failedPayments.status, "active"), isNull(failedPayments.deletedAt), NOT_DEMO));
-  return rows[0]?.n ?? 0;
+export function countActiveRecoveries(db: Db): Promise<number> {
+  return countRows(
+    db,
+    failedPayments,
+    and(
+      eq(failedPayments.status, "active"),
+      isNull(failedPayments.deletedAt),
+      notLike(failedPayments.accountId, DEMO_LIKE),
+    ),
+  );
 }
 
 /**
@@ -202,19 +202,19 @@ export async function mrrUnderManagement(db: Db): Promise<PlatformOverview["mrrB
 }
 
 async function cronHealth(db: Db, nowMs: number): Promise<PlatformOverview["cronHealth"]> {
-  const [failedRuns, lastRunRows, disabledRows] = await Promise.all([
+  const [failedRuns, lastRunRows, disabledCount] = await Promise.all([
     failedCronRuns(db, nowMs - DAY_MS),
     db
       .select({ okAt: max(cronRuns.lastOkAt), failedAt: max(cronRuns.lastFailedAt) })
       .from(cronRuns),
-    db.select({ n: count() }).from(cronConfig).where(eq(cronConfig.enabled, false)),
+    countRows(db, cronConfig, eq(cronConfig.enabled, false)),
   ]);
   const lastRunMs = Math.max(lastRunRows[0]?.okAt ?? 0, lastRunRows[0]?.failedAt ?? 0);
   return {
     failedLast24h: failedRuns.length,
     failedRuns,
     lastRunAt: lastRunMs ? new Date(lastRunMs) : null,
-    disabledCount: disabledRows[0]?.n ?? 0,
+    disabledCount,
   };
 }
 
@@ -237,28 +237,16 @@ async function pausedMerchants(db: Db): Promise<PausedMerchant[]> {
     .orderBy(asc(accounts.name), asc(accounts.id));
 }
 
-async function countBillingExempt(db: Db): Promise<number> {
-  const rows = await db
-    .select({ n: count() })
-    .from(accounts)
-    .where(and(eq(accounts.billingExempt, true), NOT_DEMO));
-  return rows[0]?.n ?? 0;
-}
-
-async function countNewConnections(db: Db, nowMs: number): Promise<number> {
-  const since = new Date(nowMs - NEW_CONNECTION_DAYS * DAY_MS);
-  const rows = await db
-    .select({ n: count() })
-    .from(stripeConnections)
-    .innerJoin(accounts, eq(accounts.id, stripeConnections.accountId))
-    .where(
-      and(
-        gte(stripeConnections.connectedAt, since),
-        isNull(stripeConnections.disconnectedAt),
-        NOT_DEMO,
-      ),
-    );
-  return rows[0]?.n ?? 0;
+function countNewConnections(db: Db, nowMs: number): Promise<number> {
+  return countRows(
+    db,
+    stripeConnections,
+    and(
+      gte(stripeConnections.connectedAt, new Date(nowMs - NEW_CONNECTION_DAYS * DAY_MS)),
+      isNull(stripeConnections.disconnectedAt),
+      notLike(stripeConnections.accountId, DEMO_LIKE),
+    ),
+  );
 }
 
 const OPEN_DISPUTE = notInArray(disputes.state, [...RESOLVED_DISPUTE_STATES]);
@@ -268,23 +256,16 @@ async function openDisputes(
   nowMs: number,
 ): Promise<{ count: number; staleCount: number; stale: StaleDispute[] }> {
   const staleBefore = new Date(nowMs - STALE_DISPUTE_DAYS * DAY_MS);
+  const notDemo = notLike(disputes.accountId, DEMO_LIKE);
   const STALE = and(
     OPEN_DISPUTE,
     isNull(disputes.submittedAt),
     lt(disputes.createdAt, staleBefore),
-    NOT_DEMO,
+    notDemo,
   );
-  const [countRows, staleCountRows, stale] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(disputes)
-      .innerJoin(accounts, eq(accounts.id, disputes.accountId))
-      .where(and(OPEN_DISPUTE, NOT_DEMO)),
-    db
-      .select({ n: count() })
-      .from(disputes)
-      .innerJoin(accounts, eq(accounts.id, disputes.accountId))
-      .where(STALE),
+  const [openCount, staleCount, stale] = await Promise.all([
+    countRows(db, disputes, and(OPEN_DISPUTE, notDemo)),
+    countRows(db, disputes, STALE),
     db
       .select({
         id: disputes.id,
@@ -308,7 +289,7 @@ async function openDisputes(
       )
       .limit(ATTENTION_LIMIT),
   ]);
-  return { count: countRows[0]?.n ?? 0, staleCount: staleCountRows[0]?.n ?? 0, stale };
+  return { count: openCount, staleCount, stale };
 }
 
 /**
@@ -329,14 +310,10 @@ async function failedFeeInvoices(
   const FAILED = and(
     inArray(billingInvoices.status, [...FEE_ATTENTION_STATUSES]),
     sql`${failedAt} >= ${nowMs - FEE_ATTENTION_DAYS * DAY_MS}`,
-    NOT_DEMO,
+    notLike(billingInvoices.accountId, DEMO_LIKE),
   );
-  const [countRows, rows] = await Promise.all([
-    db
-      .select({ n: count() })
-      .from(billingInvoices)
-      .innerJoin(accounts, eq(accounts.id, billingInvoices.accountId))
-      .where(FAILED),
+  const [feeCount, rows] = await Promise.all([
+    countRows(db, billingInvoices, FAILED),
     db
       .select({
         id: billingInvoices.id,
@@ -355,7 +332,7 @@ async function failedFeeInvoices(
       .limit(ATTENTION_LIMIT),
   ]);
   return {
-    count: countRows[0]?.n ?? 0,
+    count: feeCount,
     rows: rows.map(({ failedAtMs, ...row }) => ({
       ...row,
       failedAt: new Date(Number(failedAtMs)),
@@ -401,7 +378,7 @@ export async function getPlatformOverview(
 ): Promise<PlatformOverview> {
   const [merchantCount, activeRecoveriesCount, mrrByCurrency, cronHealthSummary] =
     await Promise.all([
-      countMerchants(db),
+      countRows(db, accounts, NOT_DEMO),
       countActiveRecoveries(db),
       mrrUnderManagement(db),
       cronHealth(db, nowMs),
@@ -422,7 +399,7 @@ export async function getAdminOverview(db: Db, nowMs: number): Promise<AdminOver
   ] = await Promise.all([
     getPlatformOverview(db, nowMs),
     pausedMerchants(db),
-    countBillingExempt(db),
+    countRows(db, accounts, and(eq(accounts.billingExempt, true), NOT_DEMO)),
     countNewConnections(db, nowMs),
     openDisputes(db, nowMs),
     failedFeeInvoices(db, nowMs),

@@ -6,6 +6,7 @@ import {
 } from "~/lib/recovery/winback-metadata";
 import {
   assertSessionBelongsToAccount,
+  createSetupCheckoutSession,
   setupSessionPaymentMethod,
 } from "~/lib/billing/platform-customer";
 import { getConnectedStripe } from "~/lib/stripe/client";
@@ -50,22 +51,13 @@ export async function createCardUpdateSession(input: {
   cancelUrl: string;
 }): Promise<CardUpdateSession> {
   const stripe = getConnectedStripe(input.accessToken);
-  const session = await stripe.checkout.sessions.create({
-    mode: "setup",
-    customer: input.customerId,
-    client_reference_id: input.linkRef,
-    // Endive removed payment_method_types from Checkout. A setup session now
-    // takes a currency instead, and allowed_payment_method_types keeps it to
-    // cards, as before.
+  return createSetupCheckoutSession(stripe, {
+    customerId: input.customerId,
+    clientReferenceId: input.linkRef,
     currency: input.currency ?? (await customerCurrency(stripe, input.customerId)),
-    allowed_payment_method_types: ["card"],
-    success_url: input.successUrl,
-    cancel_url: input.cancelUrl,
+    successUrl: input.successUrl,
+    cancelUrl: input.cancelUrl,
   });
-  if (!session.url) {
-    throw new Error("stripe checkout session create returned no url");
-  }
-  return { url: session.url };
 }
 
 export interface FinalizeCardUpdateResult {

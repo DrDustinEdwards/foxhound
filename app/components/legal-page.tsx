@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { Link } from "capsomer/react/link";
 
 import { DISPUTE_AUTO_SUBMIT_HOURS } from "~/lib/disputes/approval";
 import { RECOVERY_SEQUENCE_DAYS } from "~/lib/marketing/decline-categories";
@@ -37,4 +38,9 @@ export function LegalServiceDescription() {
       background. Foxhound does not store card numbers or access payout or bank account information.
     </>
   );
+}
+
+/** A pointer from the summary to its section, in the summary's own words. */
+export function More({ to, children }: { to: string; children: string }) {
+  return <Link to={`#${to}`}>{children}</Link>;
 }

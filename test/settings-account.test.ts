@@ -334,9 +334,19 @@ describe("account: cancel and delete", () => {
   it("deletion is never an agent tool: no agent surface reaches it", () => {
     for (const path of [
       "app/lib/mcp/tools.server.ts",
+      "app/lib/mcp/tool-input.ts",
+      "app/lib/mcp/tools-alerts.server.ts",
+      "app/lib/mcp/tools-billing.server.ts",
+      "app/lib/mcp/tools-disputes.server.ts",
+      "app/lib/mcp/tools-intelligence.server.ts",
+      "app/lib/mcp/tools-recovery.server.ts",
+      "app/lib/mcp/tools-settings.server.ts",
       "app/lib/mcp/server.ts",
       "app/lib/mcp/handler.server.ts",
       "app/lib/admin-api/handler.server.ts",
+      "app/lib/admin-api/route.server.ts",
+      "app/lib/admin-api/merchant-routes.server.ts",
+      "app/lib/admin-api/email-routes.server.ts",
     ]) {
       const source = readFileSync(fileURLToPath(new URL(`../${path}`, import.meta.url)), "utf8");
       expect(source, path).not.toContain("delete-account");

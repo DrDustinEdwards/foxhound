@@ -184,7 +184,15 @@ describe("the write surface", () => {
         .split("\n")
         .filter((line) => !line.trim().startsWith("//"))
         .join("\n");
-    const apply = strip(read("app/lib/settings/apply.server.ts"));
+    const apply = strip(
+      [
+        "app/lib/settings/apply.server.ts",
+        "app/lib/settings/apply-alerts.server.ts",
+        "app/lib/settings/apply-sender-voice.server.ts",
+      ]
+        .map(read)
+        .join("\n"),
+    );
     for (const forbidden of [
       "executeMoneyWrite",
       "recordOutcome",
@@ -194,7 +202,20 @@ describe("the write surface", () => {
     ]) {
       expect(apply, `${forbidden} reached the apply layer`).not.toContain(forbidden);
     }
-    const tools = strip(read("app/lib/mcp/tools.server.ts"));
+    const tools = strip(
+      [
+        "app/lib/mcp/tools.server.ts",
+        "app/lib/mcp/tool-input.ts",
+        "app/lib/mcp/tools-alerts.server.ts",
+        "app/lib/mcp/tools-billing.server.ts",
+        "app/lib/mcp/tools-disputes.server.ts",
+        "app/lib/mcp/tools-intelligence.server.ts",
+        "app/lib/mcp/tools-recovery.server.ts",
+        "app/lib/mcp/tools-settings.server.ts",
+      ]
+        .map(read)
+        .join("\n"),
+    );
     for (const forbidden of [
       "executeMoneyWrite",
       "recordOutcome",
@@ -216,7 +237,7 @@ describe("the write surface", () => {
     const imports = [...tools.matchAll(/from "([^"]+)"/g)].map((m) => m[1]);
     for (const path of imports) {
       expect(path, `${path} is not a read or the settings apply module`).toMatch(
-        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|stats\.server|recommendations\.server|disputes\/approval|recovery\/expiring-card|recovery\/voice-samples|\.\/redact|\/render|settings\/apply\.server|\.\/confirm\.server|\.\/registry|site-runtime\/encoding)$/,
+        /(queries\.server|views\.server|directory\.server|trends\.server|persist\.server|preview\.server|audit-settings\.server|stats\.server|recommendations\.server|disputes\/approval|recovery\/expiring-card|recovery\/voice-samples|\.\/redact|\/render|settings\/apply(-alerts|-sender-voice)?\.server|\.\/confirm\.server|\.\/registry|\.\/tool-input|\.\/tools-[a-z]+\.server|site-runtime\/encoding)$/,
       );
     }
     // persist.server holds a writer too (saveAuditRun); only its two readers are taken from it.

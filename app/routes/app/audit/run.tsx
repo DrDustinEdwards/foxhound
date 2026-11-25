@@ -8,18 +8,15 @@ import "capsomer/copy.css";
 import "capsomer/page-head.css";
 
 import {
-  AuditDisputesSection,
   AuditHealthSection,
   AuditRecoverySection,
   AuditSummary,
-  showDisputesSection,
 } from "~/components/audit/sections";
-import { getDb } from "~/db";
+import { AuditDisputesSection, showDisputesSection } from "~/components/audit/disputes-section";
 import { readSavedRunLiveFigures } from "~/lib/audit/live-figures.server";
 import { getAuditRun } from "~/lib/audit/persist.server";
 import { toStoredAuditRun } from "~/lib/audit/render";
-import { authContext } from "~/lib/auth/context";
-import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { accountScope } from "~/lib/auth/context";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/run";
@@ -35,10 +32,7 @@ export function meta() {
 }
 
 export async function loader({ context, params }: Route.LoaderArgs) {
-  const { env } = context.get(cloudflareContext);
-  const auth = context.get(authContext);
-  const db = getDb(env);
-  const accountId = auth.membership.accountId;
+  const { env, db, accountId } = accountScope(context);
   const row = await getAuditRun(db, accountId, params.id);
   if (!row) throw new Response("Not Found", { status: 404 });
   // THE RUN IS THE PAGE; THE LIVE FIGURES ARE EXTRAS. A failed read of them is logged whole and the run renders without them, rather than a saved run the merchant cannot open.

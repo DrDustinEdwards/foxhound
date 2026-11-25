@@ -359,7 +359,7 @@ describe("the setup session's return leg", () => {
     ]) {
       const context = {
         get(key: unknown) {
-          if (key === cloudflareContext) return { env: {}, ctx: {} };
+          if (key === cloudflareContext) return { env: { DB: {} }, ctx: {} };
           if (key === authContext) {
             return {
               userId: "u",
@@ -389,7 +389,7 @@ describe("starting billing setup", () => {
   function contextFor(role: string) {
     return {
       get(key: unknown) {
-        if (key === cloudflareContext) return { env: {}, ctx: {} };
+        if (key === cloudflareContext) return { env: { DB: {} }, ctx: {} };
         if (key === authContext)
           return {
             userId: "u",

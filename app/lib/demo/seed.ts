@@ -46,20 +46,16 @@ import {
   TEAMFLOW_DEMO,
   type DemoBusiness,
 } from "./constants";
-import { buildBoltBase, buildTeamflowBase, type DemoCustomer } from "./customer-base";
-import {
-  BOLT_DISPUTE_SPECS,
-  buildDisputesSeed,
-  buildEarlyFraudWarningsSeed,
-  TEAMFLOW_DISPUTE_SPECS,
-  type DisputeSpec,
-} from "./disputes-seed";
+import type { DemoCustomer } from "./customer-base";
+import { buildBoltBase, buildTeamflowBase } from "./customer-roster";
+import { buildDisputesSeed, buildEarlyFraudWarningsSeed } from "./disputes-seed";
+import { BOLT_DISPUTE_SPECS, TEAMFLOW_DISPUTE_SPECS, type DisputeSpec } from "./disputes-specs";
 import {
   boltDisputeOnlyPlan,
-  buildIntelligenceSeed,
   teamflowDisputeOnlyPlan,
   type DisputeOnlyPlan,
-} from "./intelligence-seed";
+} from "./intelligence-disputes";
+import { buildIntelligenceSeed } from "./intelligence-seed";
 import { buildNarrativeSeed } from "./narratives-seed";
 import { buildRecoverySeed } from "./recovery-seed";
 import { resolveDemoMemberships } from "./session";

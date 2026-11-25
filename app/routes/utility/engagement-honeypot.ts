@@ -1,4 +1,5 @@
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { pixelResponse } from "~/lib/engagement/pixel";
 import { recordHoneypot } from "~/lib/engagement/record";
 import { verifyEngagementToken } from "~/lib/engagement/token";
 
@@ -8,29 +9,13 @@ import type { Route } from "./+types/engagement-honeypot";
 // IT ANSWERS EXACTLY LIKE THE PIXEL: anything distinguishable (a 404, a delay, a different body) tells a scanner author which link is the trap.
 // NO BOT CLASSIFICATION HERE. The click route skips automated agents before recording, because a recorded click is a billable event; this is the opposite: every fetch counts and none is filtered.
 
-const TRANSPARENT_GIF = Uint8Array.from([
-  0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x01, 0x00, 0x01, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00,
-  0xff, 0xff, 0xff, 0x21, 0xf9, 0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x2c, 0x00, 0x00, 0x00, 0x00,
-  0x01, 0x00, 0x01, 0x00, 0x00, 0x02, 0x02, 0x44, 0x01, 0x00, 0x3b,
-]);
-
-function pixel(): Response {
-  return new Response(TRANSPARENT_GIF, {
-    status: 200,
-    headers: {
-      "Content-Type": "image/gif",
-      "Cache-Control": "no-store, no-cache, must-revalidate, private",
-    },
-  });
-}
-
 export async function loader({ params, context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
   const payload = await verifyEngagementToken(env, params.token ?? "");
   // An unverifiable token answers identically. A different response would be a
   // probe oracle for which tokens are real.
-  if (!payload || payload.kind !== "honeypot") return pixel();
+  if (!payload || payload.kind !== "honeypot") return pixelResponse();
 
   await recordHoneypot(env, payload);
-  return pixel();
+  return pixelResponse();
 }

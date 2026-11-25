@@ -16,11 +16,11 @@ import {
   declineRowText,
   emailCategoryAlt,
   emailCategoryRows,
-  formatCurrencyTotals,
   formatShortDate,
   recoveredRevenueAlt,
   recoveryTimingAlt,
 } from "~/lib/dashboard/recovery-dashboard";
+import { formatAmounts } from "~/lib/money/totals";
 import type { DailyRatePoint } from "~/lib/dashboard/recovery-window";
 import { formatMoney, fromMajorUnits } from "@dustinedwards/site-runtime/money";
 import { markup } from "capsomer/behavior/trusted-html";
@@ -103,7 +103,7 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
         title={title}
         more={
           <span className="fh-mono fh-body fh-semibold cap-num fh-text">
-            {formatCurrencyTotals(w.recoveredRevenue)}
+            {formatAmounts(w.recoveredRevenue)}
           </span>
         }
         gridlines="none"

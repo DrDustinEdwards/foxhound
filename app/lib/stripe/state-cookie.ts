@@ -4,7 +4,7 @@ import {
   AUDIT_TOKEN_TTL_SECONDS,
   STRIPE_OAUTH_STATE_COOKIE,
   STRIPE_OAUTH_STATE_TTL_SECONDS,
-} from "~/lib/constants";
+} from "~/lib/stripe/constants";
 import { hostCookie, readCookie } from "@dustinedwards/site-runtime/headers";
 import { bare, setHostCookie } from "~/lib/http/cookies";
 import { decryptToken, encryptToken } from "~/lib/stripe/encryption";

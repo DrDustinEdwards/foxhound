@@ -8,7 +8,6 @@
 
 import {
   and,
-  count,
   desc,
   eq,
   isNotNull,
@@ -24,10 +23,11 @@ import { chunked } from "@dustinedwards/site-runtime/d1";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Db } from "~/db";
+import { countRows } from "~/db/scope";
 import { accounts, adminAuditLog, cronConfig } from "~/db";
 import { buildAdminAuditLogInsert, logAdminAction } from "~/lib/admin/audit.server";
 import { KNOWN_PAUSE_REASONS, PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import { buildSetProcessingPaused } from "~/lib/admin/merchants.server";
+import { buildSetProcessingPaused } from "~/lib/admin/merchant-controls.server";
 import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
 /**
@@ -356,11 +356,6 @@ function readEvent(
   };
 }
 
-async function countWhere(db: Db, where: SQL): Promise<number> {
-  const rows = await db.select({ n: count() }).from(accounts).where(where);
-  return rows[0]?.n ?? 0;
-}
-
 async function lastAction(db: Db, action: string) {
   const rows = await db
     .select({
@@ -378,7 +373,7 @@ async function lastAction(db: Db, action: string) {
 /**
  * Everything the panel renders. The last engage/release come from
  * admin_audit_log rather than a second state table: the umbrella rows already
- * carry actor, time and count, and the audit log is append-only.
+ * carry actor, time and and the audit log is append-only.
  */
 export async function getBrakeStatus(db: Db): Promise<BrakeStatus> {
   const [
@@ -389,9 +384,9 @@ export async function getBrakeStatus(db: Db): Promise<BrakeStatus> {
     engageRow,
     releaseRow,
   ] = await Promise.all([
-    countWhere(db, brakePausedCondition()),
-    countWhere(db, individuallyPausedCondition()),
-    countWhere(db, brakeEligibleCondition()),
+    countRows(db, accounts, brakePausedCondition()),
+    countRows(db, accounts, individuallyPausedCondition()),
+    countRows(db, accounts, brakeEligibleCondition()),
     db.select().from(cronConfig).where(eq(cronConfig.cronName, RECOVERY_TICK_CRON_NAME)).limit(1),
     lastAction(db, BRAKE_ACTION_ENGAGE),
     lastAction(db, BRAKE_ACTION_RELEASE),
@@ -440,12 +435,14 @@ export interface StaleMarkerCounts {
  */
 export async function countStaleMarkers(db: Db): Promise<StaleMarkerCounts> {
   const [markedButNotPaused, pausedWithUnknownReason] = await Promise.all([
-    countWhere(
+    countRows(
       db,
+      accounts,
       and(eq(accounts.processingPaused, false), isNotNull(accounts.pauseReason)) as SQL,
     ),
-    countWhere(
+    countRows(
       db,
+      accounts,
       and(
         eq(accounts.processingPaused, true),
         isNotNull(accounts.pauseReason),

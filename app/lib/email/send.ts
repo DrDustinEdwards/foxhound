@@ -1,5 +1,9 @@
 import { appOrigin } from "~/lib/app-origin";
-import { EMAIL_AUTH_SENDER_ADDRESS, EMAIL_FROM_ADDRESS, UNSUBSCRIBE_PATH } from "~/lib/constants";
+import {
+  EMAIL_AUTH_SENDER_ADDRESS,
+  EMAIL_FROM_ADDRESS,
+  UNSUBSCRIBE_PATH,
+} from "~/lib/email/constants";
 
 import { sendEmail as send } from "@dustinedwards/site-runtime/email";
 import type { Rendered } from "capsomer/email";

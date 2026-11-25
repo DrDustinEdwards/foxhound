@@ -1,4 +1,4 @@
-import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
+import type { AuditResult, MoneyTotals, ScopeOutcome } from "./types";
 import { moneyInputValue } from "@dustinedwards/site-runtime/money";
 import { PLAIN_WRITING_PROMPT } from "~/lib/ai/plain-writing";
 import { listText } from "capsomer/behavior/hooks";

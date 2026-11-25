@@ -6,11 +6,7 @@ import { billingInvoices } from "~/db";
 import { getStripe } from "~/lib/stripe/client";
 import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
 
-// Platform billing: turn a computed billing_invoices row into a real Stripe
-// invoice on Foxhound's OWN Stripe account (the merchant is a Customer there).
-// Only fee line items are charged; adjustment lines (admin-audited goodwill or
-// correction) are internal ledger entries and NEVER create a Stripe charge, and
-// admin_granted subscription rows never touch Stripe either (PRICING.md).
+// Turn a billing_invoices row into a Stripe invoice on Foxhound's OWN account. Only fee lines are charged; adjustment lines and admin_granted subscriptions never touch Stripe (PRICING.md).
 
 export interface PlatformInvoiceLineInput {
   /** billing_line_items.type */
@@ -18,12 +14,7 @@ export interface PlatformInvoiceLineInput {
   /** Billed amount in the invoice currency's minor units. */
   amountCents: number;
   description: string;
-  /**
-   * Deterministic Stripe idempotency key for THIS line's invoiceItems.create.
-   * Derived from the line's own evidence (the recovered payment, the dispute),
-   * never from a run-scoped value, so the same line replays the same key on any
-   * later retry.
-   */
+  /** Idempotency key for this line's invoiceItems.create, derived from its evidence, never a run-scoped value. */
   idempotencyKey: string;
 }
 
@@ -31,19 +22,11 @@ export interface CreatePlatformInvoiceInput {
   platformCustomerId: string;
   currency: string;
   lines: PlatformInvoiceLineInput[];
-  /**
-   * Our billing_invoices.id, attached as Stripe metadata for reconciliation.
-   */
+  /** Our billing_invoices.id, as Stripe metadata. */
   billingInvoiceId: string;
-  /**
-   * billing_invoices.period_start: the month the invoice bills, named in its
-   * Stripe description.
-   */
+  /** billing_invoices.period_start, named in the Stripe description. */
   periodStart: Date;
-  /**
-   * Resolves the billing email (platform-customer.ts
-   * lookupPlatformBillingEmail).
-   */
+  /** Resolves the billing email (lookupPlatformBillingEmail). */
   billingEmail?: () => Promise<string | null>;
 }
 
@@ -52,26 +35,15 @@ export interface PlatformInvoiceResult {
   hostedInvoiceUrl: string | null;
 }
 
-/**
- * Line-item types charged through Stripe. adjustment lines are internal only.
- */
+/** Line-item types charged through Stripe. */
 export const STRIPE_CHARGEABLE_TYPES = new Set(["recovery_fee", "dispute_fee", "subscription"]);
 
-/**
- * The subset of line items that become Stripe invoice items (chargeable,
- * positive). Pure.
- */
+/** Line items that become Stripe invoice items (chargeable, positive). Pure. */
 export function chargeableLines(lines: PlatformInvoiceLineInput[]): PlatformInvoiceLineInput[] {
   return lines.filter((l) => STRIPE_CHARGEABLE_TYPES.has(l.type) && l.amountCents > 0);
 }
 
-/**
- * Deterministic Stripe idempotency keys derived from our own invoice row id: a
- * retry that re-calls createPlatformInvoice for the SAME billing_invoices row
- * replays these exact keys, so Stripe returns the original invoice instead of
- * creating a second one. Exported so a future retry sweep and its tests can
- * assert against the same derivation.
- */
+/** Idempotency keys from our invoice row id: a retry for the same row replays them, so Stripe returns the original invoice. */
 export function platformInvoiceIdempotencyKey(billingInvoiceId: string): string {
   return `platform-invoice:${billingInvoiceId}`;
 }
@@ -79,15 +51,7 @@ export function platformInvoiceFinalizeIdempotencyKey(billingInvoiceId: string):
   return `platform-invoice-finalize:${billingInvoiceId}`;
 }
 
-/**
- * Per-LINE idempotency keys, the guard the invoice-level keys cannot provide.
- *
- * So a failure partway through the loop, followed by a retry of the whole
- * function, replayed the create key (Stripe returns the ORIGINAL invoice) and
- * then re-added every item that had already landed on it. That is the
- * duplicate-charge path, and it is reachable the first time the loop is longer
- * than one item and Stripe blips.
- */
+/** Per-LINE idempotency keys: without them a retry after a mid-loop failure re-adds items already on the original invoice (duplicate charge). */
 export function recoveryFeeItemIdempotencyKey(
   accountId: string,
   periodKey: string,
@@ -100,11 +64,7 @@ export function disputeFeeItemIdempotencyKey(disputeId: string): string {
   return `dispute_fee_item_${disputeId}`;
 }
 
-/**
- * The Stripe key for one committed billing_line_items row. The first charge
- * (run.ts) and every retry (charge-retry.ts) both derive it here, so they can
- * never disagree. A fee line keys on its evidence, as above.
- */
+/** The Stripe key for one committed line row; run.ts and charge-retry.ts both derive it here so they never disagree. */
 export function lineItemIdempotencyKey(
   row: { id: string; type: string; recoveredPaymentId: string | null; disputeId: string | null },
   ctx: { accountId: string; periodKey: string; currency: string },
@@ -122,11 +82,7 @@ export function lineItemIdempotencyKey(
   return `line_item_${row.id}`;
 }
 
-/**
- * A Stripe error described by its type and code only. Stripe's own message can
- * repeat what it was sent, the billing email included, and these strings reach
- * console.error and the sweep's result reason. Pure.
- */
+/** A Stripe error as type and code only: its message can repeat the billing email and these strings reach logs. Pure. */
 export function stripeErrorSummary(err: unknown): string {
   const e = (err ?? {}) as { type?: unknown; code?: unknown };
   const type = typeof e.type === "string" ? e.type : "error";
@@ -159,14 +115,7 @@ function platformInvoiceDescription(periodStart: Date): string {
 
 const FINALIZE_PARAMS: Stripe.InvoiceFinalizeInvoiceParams = { auto_advance: true };
 
-/**
- * Creates + finalizes the platform Stripe invoice for one billing_invoices row.
- *
- * A mid-loop failure (line 2 of 3 throws) can never leave an orphaned
- * "pending" item that a LATER period's invoice.create call silently sweeps in:
- * our billing_invoices row would say a period was never billed while Stripe's
- * records showed it was, bundled into a different period's invoice.
- */
+/** Creates and finalizes the platform Stripe invoice for one billing_invoices row. A mid-loop failure must not orphan a pending item that a later period's invoice would sweep in. */
 export async function createPlatformInvoice(
   env: Env,
   input: CreatePlatformInvoiceInput,
@@ -184,9 +133,7 @@ export async function createPlatformInvoice(
   const customer = await stripe.customers.retrieve(input.platformCustomerId);
   const sendByEmail = !hasDefaultPaymentMethod(customer);
   if (sendByEmail && !("email" in customer && customer.email)) {
-    // Stripe can email the invoice only to an address on the customer. Fill it
-    // in before anything is created; with none to be found, stop here so the
-    // row stays draft rather than finalizing an invoice nobody receives.
+    // Stripe emails only to an address on the customer. With none, stop so the row stays draft.
     const email = input.billingEmail ? await input.billingEmail() : null;
     if (!email) throw new Error("no billing email for an emailed platform invoice");
     try {
@@ -207,9 +154,7 @@ export async function createPlatformInvoice(
             days_until_due: SEND_INVOICE_DAYS_UNTIL_DUE,
           }
         : { collection_method: "charge_automatically" as const }),
-      // Held as a draft while items attach, on both paths: a half-built invoice
-      // must never advance, and for send_invoice never be emailed. The finalize
-      // below turns auto_advance on, which is when Stripe collects.
+      // Draft while items attach: a half-built invoice must never advance or be emailed. Finalize turns auto_advance on.
       auto_advance: false,
       pending_invoice_items_behavior: "exclude",
       metadata: { billing_invoice_id: input.billingInvoiceId },
@@ -233,10 +178,7 @@ export async function createPlatformInvoice(
     );
   }
 
-  // auto_advance on: Stripe now charges the card on file, or emails the invoice
-  // when there is none. The retry sweep never re-creates an invoice Stripe
-  // already has (findPlatformInvoiceByBillingId), so this is the one invoice
-  // Stripe collects on.
+  // auto_advance on: Stripe now charges the card or emails the invoice.
   const finalized = await stripe.invoices.finalizeInvoice(invoice.id, FINALIZE_PARAMS, {
     idempotencyKey: platformInvoiceFinalizeIdempotencyKey(input.billingInvoiceId),
   });
@@ -247,16 +189,8 @@ export async function createPlatformInvoice(
 }
 
 /**
- * Find an already-created platform invoice for one of our billing_invoices
- * rows, by the metadata createPlatformInvoice stamps on it. Returns null when
- * Stripe has none.
- *
- * This exists because Stripe idempotency keys EXPIRE AFTER 24 HOURS and the
- * charge-retry sweep runs monthly. Replaying platformInvoiceIdempotencyKey a
- * month later does not return the original invoice, it creates a second one, so
- * for the review-findings scenario-2 stranding (Stripe charged, our follow-up
- * ref-update write failed, our row still says draft with no stripe_invoice_id)
- * a key-only retry would double-charge the merchant.
+ * Find an existing platform invoice by the metadata createPlatformInvoice stamps; null when none.
+ * Needed because idempotency keys expire after 24 hours and the retry sweep runs monthly: a key-only retry of a stranded row (Stripe charged, our ref write failed) would double-charge.
  */
 export async function findPlatformInvoiceByBillingId(
   env: Env,
@@ -270,14 +204,7 @@ export async function findPlatformInvoiceByBillingId(
   return results.data[0] ?? null;
 }
 
-/**
- * Finalize an existing platform invoice that is still a Stripe DRAFT.
- *
- * Reachable whenever createPlatformInvoice got as far as attaching items and
- * then threw on its own finalize call: Stripe keeps the draft with the items on
- * it, our row stays 'draft', and the invoice is stranded. A draft cannot be
- * paid, so the retry sweep has to finalize before it can collect.
- */
+/** Finalize a stranded Stripe DRAFT (createPlatformInvoice threw on finalize); a draft cannot be paid. */
 export async function finalizePlatformInvoice(
   env: Env,
   stripeInvoiceId: string,
@@ -289,12 +216,7 @@ export async function finalizePlatformInvoice(
   });
 }
 
-/**
- * Attempt collection on an existing platform invoice, now. The retry sweep's
- * explicit attempt on an invoice still open a month on. Stripe pays an invoice
- * at most once, so this can fail against an invoice Stripe already collected
- * but never charge it twice.
- */
+/** Attempt collection now (the retry sweep). Stripe pays an invoice at most once, so this never double-charges. */
 export async function payPlatformInvoice(
   env: Env,
   stripeInvoiceId: string,
@@ -305,22 +227,12 @@ export async function payPlatformInvoice(
   return stripe.invoices.pay(
     stripeInvoiceId,
     {},
-    // Per-ATTEMPT key: two different attempts must really be two attempts, but
-    // a redelivered/duplicated single attempt must not double-charge.
+    // Per-attempt key: distinct attempts stay distinct, a redelivered one does not double-charge.
     { idempotencyKey: `platform-invoice-pay:${stripeInvoiceId}:${attemptNumber}` },
   );
 }
 
-/**
- * The money-write that stamps the Stripe invoice reference + status onto our
- * billing_invoices row. Rides the per-account money-write DO like every other
- * billing write.
- */
-/**
- * Statuses Stripe itself settled. A later write from our side (an attempt that
- * raced a payment, an eventually consistent search) never moves an invoice out
- * of one; only the platform webhook moves invoice status forward.
- */
+/** Statuses Stripe settled; only the platform webhook moves an invoice out of one. */
 export const STRIPE_SETTLED_STATUSES = ["paid", "void", "uncollectible"];
 
 export function buildInvoiceStripeRefUpdate(
@@ -351,12 +263,7 @@ export function buildInvoiceStripeRefUpdate(
   ];
 }
 
-/**
- * Deterministic key for the credit note that brings ONE fee line's credit up to
- * `creditedTotalCents`. A redelivered refund replays the same key and Stripe
- * returns the original note; a later, larger refund is a new total and so a new
- * note.
- */
+/** Key for the credit note bringing ONE fee line's credit up to `creditedTotalCents`; a larger later refund is a new total, so a new note. */
 export function creditNoteIdempotencyKey(lineItemId: string, creditedTotalCents: number): string {
   return `credit-note:${lineItemId}:${creditedTotalCents}`;
 }
@@ -364,29 +271,14 @@ export function creditNoteIdempotencyKey(lineItemId: string, creditedTotalCents:
 export interface CreditNoteInput {
   /** The Stripe invoice the fee was charged on. */
   stripeInvoiceId: string;
-  /**
-   * What this fee line's credit should come to in all, in minor units: the
-   * whole fee for a full refund or a chargeback, the refunded share for a
-   * partial refund.
-   */
+  /** The fee line's total credit, minor units: whole fee for a full refund or chargeback, else the refunded share. */
   creditedTotalCents: number;
-  /**
-   * Our billing_line_items.id for the fee, for the key and for reconciliation.
-   */
+  /** Our billing_line_items.id, for the key and reconciliation. */
   feeLineItemId: string;
   memo: string;
 }
 
-/**
- * Credit a fee line back on the platform invoice it was charged on, up to
- * `creditedTotalCents` in all.
- *
- * `credit_amount` is Stripe's "apply this to the customer's balance" mode, as
- * opposed to `refund_amount`, which moves cash. That is the whole point of the
- * ruling: Stripe holds the credit against the customer in THAT currency and
- * draws it down on their next finalized invoice, so no money leaves and no card
- * is touched.
- */
+/** Credit a fee line back on its platform invoice, up to `creditedTotalCents`. `credit_amount` applies to the customer's balance (not `refund_amount`, which moves cash), so no card is touched. */
 export async function createCreditNote(
   env: Env,
   input: CreditNoteInput,

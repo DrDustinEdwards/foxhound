@@ -1,0 +1,391 @@
+/* Parts of the pieces every kind of page can draw (the footer, the error view, the docs and audit widgets shared with the public site, the Carrel preview's post title). The public pages' own parts are in marketing.css. */
+@layer site {
+  /* The color and opacity fades, one rule each. */
+  .fh-mk-quiet-link,
+  .fh-archive-link,
+  .fh-archive-text-3,
+  .fh-blog-link,
+  .fh-blog-link-3 {
+    transition-property:
+      color, background-color, border-color, outline-color, text-decoration-color, fill, stroke;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: var(--dur-quick);
+  }
+  .fh-wordmark-label {
+    transition-property: opacity;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 500ms;
+  }
+  .fh-mk-doc-cards,
+  .fh-doc-widgets-grid,
+  .fh-recprev-grid,
+  .fh-payment-panels {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .fh-mk-doc-cards {
+    margin-block: var(--space-6);
+  }
+  @media (width >= 40rem) {
+    .fh-mk-doc-cards {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .fh-mk-point-wide {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-4);
+  }
+  :where(.fh-mk-rules > :not(:last-child)) {
+    border-bottom: var(--line-w) solid var(--line);
+  }
+  .fh-auditsec-block {
+    padding-block: var(--space-3);
+  }
+  .fh-auditsec-text {
+    margin-top: var(--space-1);
+  }
+  .fh-auditsec-text-2 {
+    margin-bottom: var(--space-5-5);
+  }
+  .fh-auditsec-col {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .fh-auditsec-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-5);
+    padding-block: var(--space-3);
+  }
+  .fh-auditsec-block-2 {
+    margin-bottom: var(--space-3);
+  }
+  .fh-auditsec-block-3 {
+    margin-bottom: var(--space-2);
+  }
+  .fh-auditsec-block-4 {
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-5);
+    margin-left: var(--space-5-5);
+  }
+  .fh-auditsec-block-5 {
+    margin-top: var(--space-3);
+  }
+  .fh-auditsec-block-6 {
+    margin-top: var(--space-5);
+    min-width: 0px;
+  }
+  .fh-auditsec-block-7 {
+    margin-top: var(--space-2);
+    margin-left: var(--space-5-5);
+  }
+  .fh-auditsec-block-8 {
+    margin-top: var(--space-4);
+    margin-bottom: var(--space-5);
+    margin-left: var(--space-5-5);
+  }
+  :where(.fh-auditsec-block-8 > :not(:last-child)) {
+    margin-block: 0 var(--space-3);
+  }
+  .fh-auditsec-row-2 {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+  .fh-auditsec-block-9 {
+    margin-block: var(--space-5-5);
+    border-top: var(--line-w) solid var(--line);
+  }
+  .fh-mk-kicker {
+    margin-bottom: var(--space-2);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+  }
+  .fh-auditsec-block-10 {
+    margin-top: var(--space-5-5);
+    border-top: var(--line-w) solid var(--line);
+    padding-top: var(--space-5-5);
+  }
+  .fh-auditsec-grid,
+  .fh-recovery-charts {
+    margin-bottom: var(--space-5-5);
+  }
+  @media (width >= 48rem) {
+    .fh-auditsec-grid,
+    .fh-recovery-charts {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .fh-mk-mark {
+    margin-top: var(--space-1);
+    flex-shrink: 0;
+  }
+  .fh-doc-widgets-block-2 {
+    margin-block: var(--space-5);
+  }
+  .fh-doc-widgets-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-5);
+  }
+  .fh-doc-widgets-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2-5);
+  }
+  .fh-doc-widgets-grid {
+    margin-block: var(--space-5);
+  }
+  @media (width >= 40rem) {
+    .fh-doc-widgets-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .fh-doc-widgets-label {
+    min-width: 0px;
+    overflow-wrap: break-word;
+  }
+  .fh-doc-widgets-block-3 {
+    margin-block: var(--space-6);
+  }
+  .fh-doc-widgets-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    border-bottom: var(--line-w) solid var(--line);
+    padding: var(--space-4) var(--space-5);
+  }
+  .fh-doc-widgets-row-2 {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .fh-error-view-row {
+    display: flex;
+    height: 3.5rem;
+    align-items: center;
+    border-bottom-style: solid;
+    border-bottom-width: var(--line-w);
+    background-color: var(--chrome);
+    padding-inline: var(--space-6);
+  }
+  .fh-error-view-link {
+    text-decoration-line: none;
+  }
+  .fh-error-view-footer {
+    width: 100%;
+    padding: var(--space-6);
+  }
+  /* The footer is Capsomer's site footer on the chrome, dark in both modes: the chrome's ink for
+     links, its secondary ink for labels and small print, amber for the current page and the pointer.
+     The columns are the one layout Capsomer has no part for. */
+  .fh-footer {
+    --site-footer-bg: var(--chrome);
+    --site-footer-pad: 0;
+    --muted: var(--chrome-text-secondary);
+    --accent-text: var(--header-brand);
+    --page-max: 75rem;
+    color: var(--chrome-text);
+  }
+  .fh-footer a {
+    color: var(--chrome-text);
+    text-decoration-line: none;
+    &:hover,
+    &[aria-current="page"] {
+      color: var(--header-brand);
+    }
+  }
+  .fh-footer .cap-site-footer-links a {
+    color: var(--muted);
+  }
+  .fh-footer-columns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-7-5) var(--space-6);
+    padding-block: var(--space-8);
+    & > :first-child {
+      grid-column: 1 / -1;
+    }
+  }
+  @media (width >= 64rem) {
+    .fh-footer-columns {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      & > :first-child {
+        grid-column: auto;
+      }
+    }
+  }
+  .fh-footer-mark {
+    flex: none;
+    inline-size: 1.75rem;
+    block-size: 1.75rem;
+    background: url("/favicon.svg") center / contain no-repeat;
+  }
+  .fh-footer-bar {
+    min-block-size: 3.5rem;
+    &[data-ruled] {
+      border-block-start: var(--line-w) solid var(--line);
+    }
+  }
+  .fh-mk-kicker-gap {
+    margin-bottom: var(--space-4);
+    letter-spacing: var(--tracking-widest);
+    text-transform: uppercase;
+  }
+  .fh-recprev-block {
+    margin-bottom: var(--space-4);
+  }
+  .fh-recprev-block-2 {
+    padding-bottom: var(--space-3);
+  }
+  .fh-mk-inline {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+  }
+  .fh-recprev-block-3 {
+    padding: var(--space-5-5);
+  }
+  .fh-recprev-row {
+    margin-bottom: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .fh-recprev-icon {
+    margin-bottom: var(--space-3);
+  }
+  .fh-recprev-text {
+    margin-bottom: var(--space-3);
+  }
+  .fh-recprev-text-2 {
+    letter-spacing: -0.5px;
+  }
+  .fh-recprev-block-4 {
+    margin-top: var(--space-2);
+  }
+  .fh-recprev-row-2 {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    column-gap: var(--space-4);
+  }
+  .fh-recprev-grid,
+  .fh-payment-panels {
+    margin-bottom: var(--space-5-5);
+  }
+  @media (width >= 48rem) {
+    .fh-recprev-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .fh-recprev-grid-2 {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .fh-recprev-block-5 {
+    min-width: 0px;
+    border-right: var(--line-w) solid var(--line);
+    padding-right: var(--space-6);
+  }
+  .fh-recprev-block-6 {
+    min-width: 0px;
+    padding-left: var(--space-6);
+  }
+  @media (width >= 40rem) {
+    .fh-recprev-list-2 {
+      display: none;
+    }
+  }
+  .fh-recprev-item {
+    border-bottom: var(--line-w) solid var(--line);
+    padding: var(--space-5) var(--space-5-5);
+  }
+  .fh-recprev-item:last-child {
+    border-bottom-style: solid;
+    border-bottom-width: 0px;
+  }
+  .fh-mk-card-top {
+    margin-bottom: var(--space-3);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .fh-recprev-block-7 {
+    display: none;
+  }
+  @media (width >= 40rem) {
+    .fh-recprev-block-7 {
+      display: block;
+    }
+  }
+  .fh-recprev-block-8 {
+    margin-top: var(--space-1);
+  }
+  .fh-tone-pills-col {
+    flex-direction: column;
+    gap: 0px;
+    border-radius: var(--radius-m-5);
+    padding: var(--space-2-5) var(--space-4);
+  }
+  .fh-wordmark-label {
+    translate: 0 -1px;
+    letter-spacing: -0.5px;
+  }
+  @media (hover: hover) {
+    .fh-wordmark-label:hover {
+      opacity: 80%;
+    }
+  }
+  .fh-page-frame {
+    display: flex;
+    min-height: 100vh;
+    flex-direction: column;
+    background-color: var(--ground);
+  }
+  .fh-auth-block {
+    flex: 1;
+  }
+  .fh-marketing-block {
+    flex: 1;
+  }
+  .fh-root-block {
+    height: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  .fh-root-block-2 {
+    min-height: 100%;
+  }
+  .fh-root-block-3 {
+    flex: 1;
+  }
+  .fh-post-title {
+    margin-bottom: var(--space-5);
+    line-height: var(--leading-tight-5);
+    letter-spacing: var(--tracking-tight);
+  }
+  .fh-chrome-text {
+    color: var(--chrome-text);
+  }
+  .fh-wordmark-ink {
+    color: var(--wordmark);
+  }
+  .fh-wordmark-size {
+    font-size: var(--fs-h3);
+    line-height: var(--line-box-7);
+  }
+  .fh-chrome-brand {
+    color: var(--header-brand);
+  }
+}
