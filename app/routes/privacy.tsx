@@ -62,9 +62,9 @@ const SECTIONS: LegalSection[] = [
           <li>contact preferences</li>
         </ul>
         <p>
-          Payment Data. You enter your card number and security code on Stripe, never on Foxhound.
-          For a card we watch for a merchant, we keep the brand, the last four digits and the expiry
-          month and year. Stripe stores the rest. You may find their privacy notice link(s) here:{" "}
+          Payment Data. You enter your card number and security code on Stripe. For a card we watch
+          for a merchant, we keep the brand, last four digits and expiry month and year. You may
+          find their privacy notice link(s) here:{" "}
           <AwayLink href="https://stripe.com/privacy">https://stripe.com/privacy</AwayLink>.
         </p>
         <p>
@@ -113,9 +113,8 @@ const SECTIONS: LegalSection[] = [
             precise location, such as GPS.
           </li>
           <li>
-            Cookies and Analytics. We set a cookie, fh_theme, to remember your light or dark
-            setting, and session cookies to keep you signed in. Public pages load Cloudflare Web
-            Analytics, which measures page views without cookies.
+            Cookies and Analytics. The fh_theme cookie remembers your light or dark setting, and
+            session cookies keep you signed in. Public pages load Cloudflare Web Analytics.
           </li>
           <li>
             Email Engagement Data. When someone opens a recovery or win-back email we send for a
@@ -384,15 +383,10 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           <em>In Short:</em> Foxhound is for businesses. We do not knowingly collect data from
-          anyone under 18.
-        </p>
-        <p>
-          We do not knowingly collect data from anyone under 18, and the Services are not for them.
-          By using the Services, you represent that you are at least 18. If we learn that we have
-          collected personal information from someone under 18, we will deactivate the account and
-          take reasonable measures to promptly delete the data from our records. If you become aware
-          of any data we may have collected from a person under 18, please contact us at{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+          anyone under 18. By using the Services, you represent that you are at least 18. If we
+          learn that we have collected personal information from someone under 18, we will
+          deactivate the account and promptly delete the data. If you become aware of any such data,
+          please contact us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </>
     ),

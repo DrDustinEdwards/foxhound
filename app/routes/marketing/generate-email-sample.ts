@@ -40,24 +40,19 @@ export async function action({ request, context }: Route.ActionArgs) {
   const categoryInput = String(form.get("category") ?? "");
   const category: MarketingEmailCategory = isValidCategory(categoryInput) ? categoryInput : "soft";
 
-  // Every call spends the Anthropic key with no account behind it: both limits fail closed, and the all-visitors
-  // bucket caps the spend when many addresses call at once.
-  try {
-    const allowed =
-      (await isIpWithinRateLimit(
-        env,
-        request,
-        "marketing_email_sample",
-        { max: 10, windowMs: 60_000 },
-        { failClosed: true },
-      )) &&
-      (await isWithinRateLimit(env, "marketing_email_sample_all", "all", 600, 60 * 60_000, {
-        failClosed: true,
-      }));
-    if (!allowed) return data(UNAVAILABLE, { status: 429 });
-  } catch {
-    return data(UNAVAILABLE, { status: 503 });
-  }
+  // Fail closed: this spends the Anthropic key. The second bucket caps all visitors.
+  const allowed =
+    (await isIpWithinRateLimit(
+      env,
+      request,
+      "marketing_email_sample",
+      { max: 10, windowMs: 60_000 },
+      { failClosed: true },
+    )) &&
+    (await isWithinRateLimit(env, "sample_all", "all", 600, 3_600_000, {
+      failClosed: true,
+    }));
+  if (!allowed) return data(UNAVAILABLE, { status: 429 });
 
   try {
     const copy = await generateMarketingEmailSample(env, category);

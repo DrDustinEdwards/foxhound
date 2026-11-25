@@ -76,10 +76,9 @@ const SECTIONS: LegalSection[] = [
       <>
         <p>
           The full card number and CVC are entered on Stripe and never reach Foxhound. For a card
-          Foxhound watches, it keeps the brand, the last four digits and the expiry month and year,
-          to warn the merchant before the card expires. When a customer updates a card through a
-          Foxhound link, the page collects nothing: it hands off to Stripe and Foxhound learns only
-          that the payment method changed.
+          Foxhound watches, it keeps the brand, last four digits and expiry month and year. When a
+          customer updates a card through a Foxhound link, the page collects nothing: it hands off
+          to Stripe and Foxhound learns only that the payment method changed.
         </p>
       </>
     ),

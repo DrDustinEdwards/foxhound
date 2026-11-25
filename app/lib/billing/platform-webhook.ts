@@ -222,42 +222,26 @@ export async function processPlatformWebhook(
   }
 }
 
-/**
- * A completed card setup on our own Checkout makes that card the customer's
- * default, so a dropped browser return does not leave fee invoices with no card.
- * The same ownership gate as the return leg: the session's customer must be the
- * account's platform customer. Setting the default twice is harmless, so the
- * claim follows the write, and a failure answers 500 for Stripe to redeliver.
- */
 async function processSetupSessionCompleted(
   env: Env,
   event: Stripe.Event,
   receivedAt: Date,
 ): Promise<WebhookOutcome> {
   const session = event.data.object as Stripe.Checkout.Session;
-  if (session.mode !== "setup") return { status: "ignored", reason: "not_a_setup_session" };
+  if (session.mode !== "setup") return { status: "ignored", reason: "not_setup" };
   const customerId = sessionCustomerId(session.customer);
-  const rows = customerId
-    ? await getDb(env)
-        .select({ id: accounts.id })
-        .from(accounts)
-        .where(eq(accounts.platformStripeCustomerId, customerId))
-        .limit(1)
-    : [];
-  const account = rows[0];
-  if (!customerId || !account) {
-    const claimed = await claimUnroutableEvent(env, event, receivedAt);
-    return claimed
-      ? { status: "ignored", reason: "no_platform_customer" }
-      : { status: "duplicate" };
-  }
+  const [account] = await getDb(env)
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.platformStripeCustomerId, customerId ?? ""))
+    .limit(1);
+  if (!account) return { status: "ignored", reason: "unknown_customer" };
 
   const finalized = await finalizeBillingSetupSession(env, {
     sessionId: session.id,
     expectedCustomerId: customerId,
   });
-  if (!finalized.ok)
-    return { status: "error", message: finalized.error ?? "setup session not finalized" };
+  if (!finalized.ok) return { status: "error", message: finalized.error ?? "setup" };
 
   const { applied } = await executeMoneyWrite(env, {
     accountId: account.id,
