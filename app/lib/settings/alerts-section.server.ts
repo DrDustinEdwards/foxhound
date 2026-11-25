@@ -5,7 +5,7 @@ import { data, redirect } from "react-router";
 import type { Db } from "~/db";
 import { loadAlertTarget } from "~/lib/intelligence/alert-notify.server";
 import { getAlertsView } from "~/lib/intelligence/views.server";
-import { applyAlertConfig, applyAlertCreate } from "~/lib/settings/apply.server";
+import { applyAlertConfig, applyAlertCreate } from "~/lib/settings/apply-alerts.server";
 
 /** Where the alerts live now. A created alert redirects here. */
 const ALERTS_PAGE = "/settings/notifications";

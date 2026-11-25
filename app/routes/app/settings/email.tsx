@@ -13,7 +13,8 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { REPLY_TO_EMAIL_MAX_LENGTH } from "~/lib/settings/reply-to";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
-import { applyFeatureSettings, applySenderName } from "~/lib/settings/apply.server";
+import { applyFeatureSettings } from "~/lib/settings/apply.server";
+import { applySenderName } from "~/lib/settings/apply-sender-voice.server";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { sendTestEmail } from "~/lib/settings/test-email.server";
 

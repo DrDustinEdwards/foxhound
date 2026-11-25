@@ -1,21 +1,12 @@
-import {
-  Icon,
-  iconArrowRight,
-  iconCheck,
-  iconCircle,
-  iconMail,
-  iconReset,
-  iconShield,
-} from "capsomer/react/icons";
-import { formatDate, relative, toMs, until } from "capsomer/behavior/time";
-import { useId, useState } from "react";
+import { Icon, iconArrowRight, iconCheck, iconShield } from "capsomer/react/icons";
+import { relative, toMs } from "capsomer/behavior/time";
+import { useId } from "react";
 
-import { Form, data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
-import { Link, ButtonLink } from "capsomer/react/link";
+import { data, useFetcher, useNavigation, useRouteLoaderData } from "react-router";
+import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
 import { Panel } from "capsomer/react/panel";
 import { CopyButton } from "capsomer/react/copy";
-import { ExpandToggle } from "capsomer/react/disclosure";
 import { Pill } from "capsomer/react/status";
 import { useShownFor } from "capsomer/react/hooks";
 import "capsomer/banner.css";
@@ -32,31 +23,23 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
-import {
-  ATTRIBUTION_KIND_LABELS,
-  FAILED_PAYMENT_STATUS_LABELS,
-  RECOVERY_LIFECYCLE_LABELS,
-  clickSuspectLabel,
-  failedPaymentStatusTone,
-  recoveryLifecycleStatus,
-  recoveryLifecycleTone,
-  stepResultTone,
-  type Tone,
-} from "~/lib/recovery/labels";
+import { FAILED_PAYMENT_STATUS_LABELS, failedPaymentStatusTone } from "~/lib/recovery/labels";
 import {
   ACTION_LABELS,
+  ACTION_SUCCESS_CLEAR_MS,
+  ACTIONS_VISIBLE_STATUS,
+  BACK_LINK_DEMO,
+  BACK_LINK_REAL,
+  MANUAL_ACTIONS,
+  NOTE_SAVED_CLEAR_MS,
+  isNotice,
   PILL_TONE,
   actionSuccessNotice,
-  declineValueClass,
   isDetailActionIntent,
   recoveredViaWords,
-  statusValueClass,
-  stepResultWords,
   visibleActionResult,
 } from "~/lib/recovery/payment-detail";
-import { declineWord } from "~/lib/recovery/payments-list";
 import { paymentStepLabel } from "~/lib/recovery/payments-list.server";
-import { isEmailStep } from "~/lib/recovery/schedule";
 import { lastResendableEmailStep, nextPendingStep } from "~/lib/recovery/step-state";
 import { getFailedPaymentDetail } from "~/lib/recovery/queries.server";
 import { dispatchManualAction, moneyWriteCommit } from "~/lib/recovery/manual-actions.server";
@@ -68,10 +51,16 @@ import type { AttributionKind } from "~/lib/constants";
 import type { loader as appShellLoader } from "~/layouts/app-shell";
 
 import type { Route } from "./+types/detail";
+import {
+  PaymentActionBar,
+  PaymentFactPanels,
+  PaymentTiles,
+  OutcomePanel,
+} from "~/components/payment-detail-parts";
+import { RecoveryTimeline } from "~/components/payment-timeline";
 import { NOINDEX } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
-import { markup } from "capsomer/behavior/trusted-html";
 
 export function meta() {
   return [{ title: "Payment detail - Foxhound" }, NOINDEX];
@@ -109,19 +98,6 @@ export async function loader({ context, params }: Route.LoaderArgs) {
     nowMs,
   ).catch(() => null);
   return { ...detail, steps, nextStepLabel, canResend, nowMs, prediction };
-}
-
-// Manual per-payment actions: all five commit through the per-account money-write DO. Mark as recovered enters through the spine's buildRecoveryBatch and is never a second writer of recovered_payments.
-
-/** The hold on a success message before it clears. An error stays until the next action. */
-export const ACTION_SUCCESS_CLEAR_MS = 2000;
-
-/** The hold on "Saved" beside Save note. */
-export const NOTE_SAVED_CLEAR_MS = 2000;
-
-/** A result that clears on its own: a success notice (an error stays). */
-function isNotice(result: object): boolean {
-  return "notice" in result;
 }
 
 export async function action({ context, params, request }: Route.ActionArgs) {
@@ -256,23 +232,6 @@ export async function action({ context, params, request }: Route.ActionArgs) {
   }
 }
 
-// The action set: trigger the next step, mark recovered, stop the sequence, resend the last email. "Stop recovery", not "Cancel recovery".
-export const MANUAL_ACTIONS = [
-  { intent: "trigger", label: "Trigger next step now", variant: "primary", needs: "nextStep" },
-  { intent: "mark_recovered", label: "Mark as recovered", variant: "default", needs: null },
-  { intent: "cancel", label: "Stop recovery", variant: "danger", needs: null },
-  { intent: "resend", label: "Resend last email", variant: "default", needs: "lastEmail" },
-] as const;
-
-// NO action buttons render in a terminal state; the gate is `payment.status === 'active'`.
-export const ACTIONS_VISIBLE_STATUS = "active";
-
-export const BACK_LINK_REAL = { href: "/recovery/dashboard", label: "Back to dashboard" };
-export const BACK_LINK_DEMO = { href: "/recovery/payments", label: "Back to payments" };
-
-/** The demo title on every control that needs a Stripe account. */
-const DEMO_DISABLED_REASON = "Connect Stripe to use this";
-
 export default function PaymentDetail({ loaderData, actionData }: Route.ComponentProps) {
   const {
     failedPayment,
@@ -286,7 +245,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
     nowMs,
     prediction,
   } = loaderData;
-  const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const shell = useRouteLoaderData<typeof appShellLoader>("app-shell");
   const isDemo = Boolean(shell?.isDemo);
   const backLink = isDemo ? BACK_LINK_DEMO : BACK_LINK_REAL;
@@ -307,17 +265,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   const [shownNote] = useShownFor(noteResult, NOTE_SAVED_CLEAR_MS, isNotice);
   const noteSaved = Boolean(shownNote && isNotice(shownNote));
   const noteError = noteResult && "error" in noteResult;
-
-  const attributionKind = recovery?.attributionKind as AttributionKind | undefined;
-  const creditedStep =
-    recovery?.recoveredByStepId != null
-      ? steps.find((s) => s.id === recovery.recoveredByStepId)
-      : undefined;
-
-  const executedSteps = steps.filter((s) => s.executedAt !== null);
-  const emailSteps = executedSteps.filter((s) => isEmailStep(s.stepType));
-  const openedEmails = emailSteps.filter((s) => s.openedAt);
-  const clickedEmails = emailSteps.filter((s) => s.clickedAt);
 
   const actionsVisible = failedPayment.status === ACTIONS_VISIBLE_STATUS;
   const visibleActions = MANUAL_ACTIONS.filter(
@@ -385,376 +332,41 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       {/* Recova's action buttons, PaymentDetailClient.tsx 289-327: only while
           the payment is active; in the demo the same buttons,
           disabled and titled as Recova's are. */}
-      {actionsVisible && !isDemo ? (
-        <div className="fh-payment-chips">
-          {visibleActions.map((a) => {
-            const pressed = pressedIntent === a.intent;
-            return (
-              <Form key={a.intent} method="post">
-                <input type="hidden" name="intent" value={a.intent} />
-                <button
-                  type="submit"
-                  className="cap-btn"
-                  data-variant={a.variant === "default" ? undefined : a.variant}
-                  aria-disabled={busy ? true : undefined}
-                  onClick={(e) => {
-                    if (busy) e.preventDefault();
-                  }}
-                >
-                  {pressed ? "Working..." : a.label}
-                </button>
-              </Form>
-            );
-          })}
-        </div>
-      ) : null}
-      {actionsVisible && isDemo ? (
-        <div className="fh-payment-chips">
-          {visibleActions.map((a) => (
-            <button
-              key={a.intent}
-              type="button"
-              className="cap-btn"
-              data-variant={a.variant === "default" ? undefined : a.variant}
-              aria-disabled="true"
-              aria-describedby={demoReasonId}
-              title={DEMO_DISABLED_REASON}
-            >
-              {a.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      {/* Recova's two Stripe links, PaymentDetailClient.tsx 329-360. */}
-      <div className="fh-payment-chips">
-        {isDemo ? (
-          <>
-            <button
-              type="button"
-              className="cap-btn"
-              data-size="sm"
-              aria-disabled="true"
-              aria-describedby={demoReasonId}
-              title={DEMO_DISABLED_REASON}
-            >
-              View invoice in Stripe
-            </button>
-            <button
-              type="button"
-              className="cap-btn"
-              data-size="sm"
-              aria-disabled="true"
-              aria-describedby={demoReasonId}
-              title={DEMO_DISABLED_REASON}
-            >
-              View customer in Stripe
-            </button>
-          </>
-        ) : (
-          <>
-            <ButtonLink
-              size="sm"
-              href={`https://dashboard.stripe.com/invoices/${failedPayment.stripeInvoiceId}`}
-              away
-              newTab
-            >
-              View invoice in Stripe
-            </ButtonLink>
-            <ButtonLink
-              size="sm"
-              href={`https://dashboard.stripe.com/customers/${failedPayment.stripeCustomerId}`}
-              away
-              newTab
-            >
-              View customer in Stripe
-            </ButtonLink>
-          </>
-        )}
-      </div>
-      {isDemo ? (
-        // Capsomer's disabled buttons keep focus and say why in visible text (button.md), not only in a title.
-        <p className="fh-payment-pull">
-          <span className="cap-btn-reason" id={demoReasonId}>
-            {DEMO_DISABLED_REASON}
-          </span>
-        </p>
-      ) : null}
+      <PaymentActionBar
+        isDemo={isDemo}
+        actionsVisible={actionsVisible}
+        visibleActions={visibleActions}
+        busy={busy}
+        pressedIntent={pressedIntent}
+        demoReasonId={demoReasonId}
+        failedPayment={failedPayment}
+      />
 
       {/* Recova's four info cards, PaymentDetailClient.tsx 362-368. Capsomer has
           no plain stat card (its tile is always a link), so each is a small
           Panel, as on the payments list. */}
-      <div className="fh-payment-tiles">
-        <Panel size="sm" title="Amount">
-          <p className="fh-mono fh-title fh-bold cap-num fh-brand">
-            {formatMoney(failedPayment.amountCents, failedPayment.currency)}
-          </p>
-        </Panel>
-        <Panel size="sm" title="Decline">
-          <p className={`fh-title fh-bold ${declineValueClass(failedPayment.declineCategory)}`}>
-            {declineWord(failedPayment.declineCategory)}
-          </p>
-        </Panel>
-        <Panel size="sm" title="Detected">
-          <p className="fh-title fh-bold fh-text">
-            {relative(toMs(failedPayment.detectedAt), nowMs, "UTC")}
-          </p>
-          <p className="fh-payment-tile-note fh-tiny fh-faint">
-            {formatDate(failedPayment.detectedAt, { style: "monthDay" }) ?? ""}
-          </p>
-        </Panel>
-        <Panel size="sm" title="Customer age">
-          <p className="fh-mono fh-title fh-bold cap-num fh-text">
-            {failedPayment.customerAgeDays != null ? `${failedPayment.customerAgeDays}d` : "-"}
-          </p>
-          {/* Recova shows no subtext below two recovered payments. */}
-          {estimatedLtvCents != null ? (
-            <p className="fh-payment-tile-note fh-tiny fh-faint">
-              ~{formatMoney(Math.round(estimatedLtvCents), failedPayment.currency)} est. LTV
-            </p>
-          ) : null}
-        </Panel>
-      </div>
+      <PaymentTiles
+        failedPayment={failedPayment}
+        estimatedLtvCents={estimatedLtvCents}
+        nowMs={nowMs}
+      />
 
       {/* Recova's Decline details and Email engagement cards, 371-421. */}
-      <div className="fh-payment-panels">
-        <Panel title="Decline details">
-          <dl className="">
-            <DetailRow
-              label="Category"
-              value={declineWord(failedPayment.declineCategory)}
-              valueClass={declineValueClass(failedPayment.declineCategory)}
-            />
-            {failedPayment.declineCode ? (
-              <DetailRow label="Code" value={failedPayment.declineCode} mono />
-            ) : null}
-            <DetailRow label="Invoice ID" value={failedPayment.stripeInvoiceId} mono small />
-            <DetailRow label="Customer ID" value={failedPayment.stripeCustomerId} mono small />
-            {failedPayment.customerSince ? (
-              <DetailRow
-                label="Customer since"
-                value={failedPayment.customerSince.toLocaleDateString("en-US", {
-                  month: "short",
-                  year: "numeric",
-                  timeZone: "UTC",
-                })}
-              />
-            ) : null}
-            {failedPayment.resolvedAt ? (
-              <DetailRow
-                label={failedPayment.status === "recovered" ? "Recovered" : "Resolved"}
-                value={formatDate(failedPayment.resolvedAt, { style: "medium" }) ?? ""}
-              />
-            ) : null}
-          </dl>
-        </Panel>
-
-        <Panel title="Email engagement">
-          {emailSteps.length === 0 ? (
-            <p className="fh-small fh-faint">No emails sent yet</p>
-          ) : (
-            <dl className="">
-              <DetailRow label="Emails sent" value={String(emailSteps.length)} />
-              <DetailRow
-                label="Opened"
-                value={`${openedEmails.length} of ${emailSteps.length}`}
-                valueClass={openedEmails.length > 0 ? "fh-green" : "fh-faint"}
-              />
-              <DetailRow
-                label="Clicked"
-                value={`${clickedEmails.length} of ${emailSteps.length}`}
-                valueClass={clickedEmails.length > 0 ? "fh-green" : "fh-faint"}
-              />
-              {recovery ? (
-                <DetailRow
-                  label="Recovery method"
-                  value={ATTRIBUTION_KIND_LABELS[attributionKind ?? "stripe_baseline"]}
-                  valueClass="fh-green"
-                />
-              ) : null}
-            </dl>
-          )}
-
-          {previousFailures.length > 0 ? (
-            <>
-              <p className="fh-payment-links-title fh-tiny fh-medium fh-faint">
-                Previous failures ({previousFailures.length})
-              </p>
-              <ul className="">
-                {previousFailures.map((p) => (
-                  <li key={p.id}>
-                    <a href={`/recovery/payments/${p.id}`} className="fh-payment-link">
-                      <span className="fh-tiny fh-faint">
-                        {relative(toMs(p.detectedAt), nowMs, "UTC")}
-                      </span>
-                      <span className="fh-payment-link-label">
-                        <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
-                        <span className={`fh-mono fh-tiny ${statusValueClass(p.status)}`}>
-                          {formatMoney(p.amountCents, p.currency)}
-                        </span>
-                      </span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </>
-          ) : null}
-        </Panel>
-      </div>
+      <PaymentFactPanels
+        failedPayment={failedPayment}
+        steps={steps}
+        recovery={recovery}
+        previousFailures={previousFailures}
+        nowMs={nowMs}
+      />
 
       {/* The Outcome card has no Recova counterpart and stays beside Recova's
           success banner, distinct from every other card (approved 2026-08-10).
           It is the receipt for the attribution fee. */}
-      <div className="fh-payment-outcome">
-        <h2 className="fh-mono fh-tiny fh-brand fh-caps">Outcome</h2>
-        {recovery ? (
-          <div className="cap-stack fh-payment-note" data-gap="3">
-            <div className="cap-cluster" data-gap="3">
-              <Pill tone={PILL_TONE[recoveryLifecycleTone(recovery)]}>
-                {RECOVERY_LIFECYCLE_LABELS[recoveryLifecycleStatus(recovery)]}
-              </Pill>
-            </div>
-            {attributionKind ? (
-              <div className="cap-cluster" data-gap="3">
-                <span className="fh-mono fh-tiny fh-soft fh-caps">Attribution</span>
-                <Pill variant="outline">
-                  {ATTRIBUTION_KIND_LABELS[attributionKind]}
-                  {attributionKind === "stripe_baseline" ? " - FREE" : ""}
-                </Pill>
-                {creditedStep ? (
-                  <span className="fh-small fh-soft">Credited to {creditedStep.label}</span>
-                ) : null}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+      <OutcomePanel recovery={recovery} steps={steps} />
 
       {/* Recova's recovery timeline, PaymentDetailClient.tsx 423-571. */}
-      <div className="fh-payment-block">
-        <Panel
-          title="Recovery timeline"
-          src={`${executedSteps.length} of ${steps.length} steps executed`}
-          flush
-        >
-          {steps.length === 0 ? (
-            <div className="fh-payment-empty fh-center">
-              <p className="fh-small fh-faint">No recovery steps scheduled</p>
-            </div>
-          ) : (
-            <ol className="fh-payment-steps">
-              {steps.map((step) => {
-                const executed = step.executedAt !== null;
-                const pending = !executed && step.result === null;
-                const email = isEmailStep(step.stepType);
-                const showEngagement = executed && email && step.result !== "email_failed";
-                const showExpander = executed && step.previewHtml !== null;
-                const expanded = expandedStepId === step.id;
-                return (
-                  <li key={step.id} className="fh-payment-step">
-                    <StepGlyph
-                      executed={executed}
-                      isEmail={email}
-                      tone={stepResultTone(step.result)}
-                    />
-                    <div className="cap-grow">
-                      <div className="fh-payment-step-top">
-                        <div className="fh-payment-step-meta">
-                          <span className="fh-small fh-medium fh-text">{step.label}</span>
-                          <Pill tone={PILL_TONE[stepResultTone(step.result)]}>
-                            {stepResultWords(step.result, executed)}
-                          </Pill>
-                        </div>
-                        <span className="fh-nowrap fh-mono fh-tiny fh-faint">
-                          {executed
-                            ? relative(toMs(step.executedAt), nowMs, "UTC")
-                            : pending
-                              ? until(toMs(step.scheduledAt), nowMs)
-                              : ""}
-                        </span>
-                      </div>
-                      {email && step.aiSubject ? (
-                        <p className="fh-payment-step-subject fh-tiny fh-faint">
-                          &quot;{step.aiSubject}&quot;
-                        </p>
-                      ) : null}
-                      <p className="fh-tiny fh-faint">
-                        {executed
-                          ? `Executed ${formatDate(step.executedAt, { style: "medium" }) ?? ""}`
-                          : `Scheduled ${formatDate(step.scheduledAt, { style: "medium" }) ?? ""}`}
-                      </p>
-
-                      {showEngagement || showExpander ? (
-                        <div className="cap-cluster fh-payment-note" data-gap="5">
-                          {showEngagement ? (
-                            <>
-                              <span
-                                data-gap="2"
-                                className={`cap-cluster fh-tiny ${
-                                  step.openedAt ? "fh-green" : "fh-faint"
-                                }`}
-                              >
-                                {step.openedAt ? (
-                                  <Icon d={iconCheck} className="fh-icon-12 fh-icon-fine" />
-                                ) : (
-                                  <Icon d={iconCircle} className="fh-icon-12 fh-icon-fine" />
-                                )}
-                                {step.openedAt
-                                  ? `Opened ${relative(toMs(step.openedAt), nowMs, "UTC")}`
-                                  : "Not opened"}
-                              </span>
-                              {/* A suspect click is shown as what it is:
-                                  something fetched the link, and it is not billed. */}
-                              <span
-                                data-gap="2"
-                                className={`cap-cluster fh-tiny ${
-                                  step.clickedAt && !step.clickSuspectReason
-                                    ? "fh-green"
-                                    : "fh-faint"
-                                }`}
-                              >
-                                {step.clickedAt && !step.clickSuspectReason ? (
-                                  <Icon d={iconCheck} className="fh-icon-12 fh-icon-fine" />
-                                ) : (
-                                  <Icon d={iconCircle} className="fh-icon-12 fh-icon-fine" />
-                                )}
-                                {step.clickedAt
-                                  ? step.clickSuspectReason
-                                    ? `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}, not counted (${clickSuspectLabel(step.clickSuspectReason)})`
-                                    : `Clicked ${relative(toMs(step.clickedAt), nowMs, "UTC")}`
-                                  : "Not clicked"}
-                              </span>
-                            </>
-                          ) : null}
-                          {showExpander ? (
-                            <span className="fh-tiny">
-                              <ExpandToggle
-                                label="View email"
-                                openLabel="Hide email"
-                                open={expanded}
-                                onToggle={() => setExpandedStepId(expanded ? null : step.id)}
-                                controls={`step-email-${step.id}`}
-                              />
-                            </span>
-                          ) : null}
-                        </div>
-                      ) : null}
-                      {step.previewHtml && expanded ? (
-                        <div
-                          id={`step-email-${step.id}`}
-                          className="fh-box fh-payment-preview fh-small fh-text"
-                          // Sanitized in the loader by sanitizeEmailPreviewHtml; the raw body never reaches the browser.
-                          dangerouslySetInnerHTML={markup(step.previewHtml)}
-                        />
-                      ) : null}
-                    </div>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </Panel>
-      </div>
+      <RecoveryTimeline steps={steps} nowMs={nowMs} />
 
       {/* Recova's internal notes, 573-597, hidden in the demo as Recova hides
           it. Saved in place through a fetcher, so the page does not move. */}
@@ -822,57 +434,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           ) : null}
         </Banner>
       ) : null}
-    </div>
-  );
-}
-
-/** The timeline node: a 32px round node with an envelope on an email step and a repeat glyph on a retry, tinted by the result once executed and gray while pending, the same tone as the result chip beside it so the two always agree. Capsomer has no timeline node; this is the page's own until it does. */
-function StepGlyph({
-  executed,
-  isEmail,
-  tone,
-}: {
-  executed: boolean;
-  isEmail: boolean;
-  tone: Tone;
-}) {
-  const skin = !executed
-    ? "fh-payment-dot-pending"
-    : tone === "success"
-      ? "fh-payment-dot-success"
-      : tone === "failure"
-        ? "fh-payment-dot-failure"
-        : "fh-payment-dot-neutral";
-  return (
-    <span className={`fh-payment-step-dot ${skin}`}>
-      <Icon d={isEmail ? iconMail : iconReset} className="fh-icon-14 fh-icon-fine" />
-    </span>
-  );
-}
-
-function DetailRow({
-  label,
-  value,
-  mono,
-  small,
-  valueClass,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  small?: boolean;
-  valueClass?: string;
-}) {
-  return (
-    <div className="fh-payment-fact">
-      <dt className="cap-keep fh-tiny fh-faint">{label}</dt>
-      <dd
-        className={`fh-payment-fact-value fh-truncate fh-right ${small ? "fh-tiny" : "fh-small"} ${
-          mono ? "fh-mono" : ""
-        } ${valueClass ?? "fh-text"}`}
-      >
-        {value}
-      </dd>
     </div>
   );
 }

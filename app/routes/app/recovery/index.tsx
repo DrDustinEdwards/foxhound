@@ -35,7 +35,7 @@ import {
   type PaymentStepSummary,
   type RoiColumn,
 } from "~/lib/dashboard/recovery-dashboard";
-import { listStepsForFailedPayments } from "~/lib/recovery/queries.server";
+import { listStepsForFailedPayments } from "~/lib/recovery/step-queries.server";
 import {
   getDashboardOnboardingProfile,
   getDeliverabilityCounts,
@@ -62,8 +62,8 @@ import {
   WinBackCard,
   RecoveryQueue,
   DeliverabilityPanel,
-  PaymentsTable,
 } from "../../../components/recovery-dashboard-panels";
+import { PaymentsTable } from "../../../components/recovery-dashboard-payments";
 import { NOINDEX } from "~/lib/seo/meta";
 
 // /recovery/dashboard: the getting-started checklist or the watching banner, the head, the primary stats, the ROI widget, the two time-series panels, decline analysis, timing beside win-back, the queue, the secondary stats, then the failed-payments table. Every chart is Enarratio's; components/charts.css hides Enarratio's gridlines and the frame's title under a Panel heading.

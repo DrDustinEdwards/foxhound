@@ -1,14 +1,10 @@
 import {
-  ContentTag,
-  contentVersion,
   NotFoundError,
   orderAndPage,
   RefusedError,
   VersionConflictError,
   type ContentDoc,
-  type ContentSummary,
   type DueSchedule,
-  type ListQuery,
   type SiteAdapter,
   type WriteResult,
 } from "@dustinedwards/site-api";
@@ -20,9 +16,8 @@ import {
   type D1Like,
 } from "@dustinedwards/site-api/schedules";
 import { RENDER_VERSION } from "@drdustinedwards/site-helpers/render/nomath";
-import { and, desc, eq, isNull, like, ne } from "drizzle-orm";
-
-import { blogPostLinks, blogPostVersions, blogPosts, type Db } from "~/db";
+import { eq } from "drizzle-orm";
+import { blogPosts, type Db } from "~/db";
 import {
   createBlogPost,
   deleteBlogPost,
@@ -32,186 +27,31 @@ import {
   updatePostWithVersion,
 } from "~/lib/blog/admin-queries.server";
 import { isWithdrawnBlogSlug } from "~/lib/blog/withdrawn";
-
-import { parsePostSource, serializePostSource, SourceError, type PostSource } from "./source";
-import { toPost, type BlogPost } from "~/lib/blog/queries.server";
-import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { isSlug, uniqueSlug } from "@drdustinedwards/site-helpers/slug";
-import { readingMinutes, wordCount } from "@drdustinedwards/site-helpers/text";
+
+import { serializePostSource, type PostSource } from "./source";
+import {
+  CARREL_SITE,
+  type Actor,
+  type Post,
+  type PostRow,
+  versionOf,
+  summary,
+  ORDER,
+  listed,
+  sourceOf,
+  parse,
+  keepSlug,
+  notTrashed,
+  fieldsOf,
+} from "./post-model.server";
+import { findBacklinks, listRevisions, revisionSourceOf } from "./post-reads.server";
+import { renderPreview, type RenderDocument } from "./post-preview.server";
 
 // The Carrel site adapter over Foxhound's blog. Posts live in D1 (blog_posts,
 // blog_post_versions) and are edited in Carrel, which replaced Foxhound's own
 // /admin/blog editor; the adapter writes through admin-queries, the one write
 // path.
-
-const CARREL_SITE = {
-  id: "foxhound",
-  name: "Foxhound",
-  origin: SITE_ORIGIN,
-} as const;
-
-const KIND = "post";
-/** The signed-in person Carrel sends with a write. */
-type Actor = { name: string };
-const DEFAULT_AUTHOR = "Foxhound";
-const REVISION_PREFIX = "rev-";
-
-type PostRow = typeof blogPosts.$inferSelect;
-interface Pending {
-  publishAt: string;
-  changeId: string;
-}
-interface Post {
-  row: PostRow;
-  pending: Pending | null;
-  version: string;
-}
-
-const iso = (d: Date | null): string | null => (d ? d.toISOString() : null);
-
-async function versionOf(row: PostRow, pending: Pending | null): Promise<string> {
-  // A post with search fields set carries their hash, so a source read before
-  // Carrel saw them is a conflict, not a save that clears them.
-  const search = [
-    row.ogTitle,
-    row.ogDescription,
-    row.ogImageUrl,
-    row.ogImageAlt,
-    row.canonicalUrl,
-    row.noindex,
-  ];
-  const updated =
-    String(row.updatedAt.getTime()) +
-    (search.some(Boolean) ? `.s${(await contentVersion(search)).slice(0, 8)}` : "");
-  if (!pending) return updated;
-  return `${updated}.${(await contentVersion([pending.publishAt, pending.changeId])).slice(0, 16)}`;
-}
-
-function summary({ row, pending, version }: Post): ContentSummary {
-  const scheduled = !row.published && pending !== null;
-  return {
-    id: row.id,
-    kind: KIND,
-    title: row.title,
-    status: row.published ? "published" : scheduled ? "scheduled" : "draft",
-    path: row.publishedAt ? `/blog/${row.slug}` : null,
-    publishAt: scheduled ? pending.publishAt : null,
-    publishedAt: iso(row.publishedAt),
-    updatedAt: iso(row.updatedAt),
-    version,
-    // Only tags the contract can carry, so one odd tag never fails the list.
-    tags: (row.tags ?? []).filter((t) => ContentTag.safeParse(t).success),
-    authors: row.author.trim() ? [row.author] : [],
-    excerpt: row.excerpt.slice(0, 5000),
-    trashedAt: iso(row.trashedAt),
-    scheduledUpdate: row.published && pending ? { ...pending } : null,
-  };
-}
-
-/**
- * The list's orderings: the dates newest first and titles A to Z unless `dir`
- * says otherwise.
- */
-const ORDER = {
-  updated: ({ row }: { row: PostRow }) => row.updatedAt.getTime(),
-  published: ({ row }: { row: PostRow }) => row.publishedAt?.getTime() ?? 0,
-  title: ({ row }: { row: PostRow }) => row.title.toLowerCase(),
-};
-
-/**
- * A row the list's filters keep. Trashed posts appear only when the trash is
- * asked for, and then alone.
- */
-function listed(row: PostRow, query: ListQuery): boolean {
-  const needle = query.q?.toLowerCase();
-  const at = row.publishedAt?.getTime() ?? null;
-  const after = query.publishedAfter ? Date.parse(query.publishedAfter) : null;
-  const before = query.publishedBefore ? Date.parse(query.publishedBefore) : null;
-  return (
-    Boolean(row.trashedAt) === Boolean(query.trashed) &&
-    (!query.kind || query.kind === KIND) &&
-    (!query.tag || (row.tags ?? []).some((t) => t.toLowerCase() === query.tag!.toLowerCase())) &&
-    (!query.author || row.author === query.author) &&
-    (after === null || (at !== null && at >= after)) &&
-    (before === null || (at !== null && at < before)) &&
-    (!needle || [row.title, row.body, row.slug].some((t) => t.toLowerCase().includes(needle)))
-  );
-}
-
-function sourceOf(row: PostRow): PostSource {
-  return {
-    title: row.title,
-    slug: row.slug,
-    excerpt: row.excerpt,
-    author: row.author,
-    tags: row.tags ?? [],
-    featured: row.featured,
-    searchTitle: row.ogTitle,
-    description: row.ogDescription,
-    canonical: row.canonicalUrl,
-    image: row.ogImageUrl,
-    imageAlt: row.ogImageAlt,
-    noindex: row.noindex,
-    body: row.body,
-  };
-}
-
-function parse(source: string, options?: { preview?: boolean }): PostSource {
-  try {
-    return parsePostSource(source, { author: DEFAULT_AUTHOR }, options);
-  } catch (error) {
-    if (error instanceof SourceError) throw new RefusedError(error.message);
-    throw error;
-  }
-}
-
-/**
- * A slug moves its public URL, so only a rename changes it (it leaves the
- * redirect).
- */
-function keepSlug(post: PostSource, current: PostRow) {
-  if (post.slug !== null && post.slug !== current.slug) {
-    throw new RefusedError("A post's slug is its address: rename the post to move it.");
-  }
-}
-
-function notTrashed(row: PostRow) {
-  if (row.trashedAt) throw new RefusedError("This post is in the trash. Restore it first.");
-}
-
-/**
- * A post's source as the columns a save writes; the cover and the date toggles
- * are the post's own, which a source does not carry.
- */
-function fieldsOf(
-  post: PostSource,
-  kept: Pick<PostRow, "coverImageUrl" | "coverImageAlt" | "showUpdatedAt" | "showPublishedAt">,
-) {
-  return {
-    title: post.title,
-    excerpt: post.excerpt,
-    body: post.body,
-    author: post.author,
-    tags: post.tags,
-    featured: post.featured,
-    coverImageUrl: kept.coverImageUrl,
-    coverImageAlt: kept.coverImageAlt,
-    ogTitle: post.searchTitle ?? null,
-    ogDescription: post.description ?? null,
-    canonicalUrl: post.canonical ?? null,
-    ogImageUrl: post.image ?? null,
-    ogImageAlt: post.imageAlt ?? null,
-    noindex: post.noindex ?? false,
-    showUpdatedAt: kept.showUpdatedAt,
-    showPublishedAt: kept.showPublishedAt,
-  };
-}
-
-/**
- * The site's own render of a route (workers/app.ts), with the draft on its
- * context; nothing stored or cached.
- */
-export type RenderDocument = (request: Request, draft: BlogPost) => Promise<Response>;
 
 /**
  * `renderDocument` draws the preview through the post's own route; the cron has
@@ -502,82 +342,19 @@ export function carrelAdapter(
       async backlinks(id) {
         const post = await load(id);
         if (!post) return [];
-        const { slug } = post.row;
-        const linked = await db
-          .select({ id: blogPosts.id, title: blogPosts.title, slug: blogPosts.slug })
-          .from(blogPostLinks)
-          .innerJoin(blogPosts, eq(blogPosts.id, blogPostLinks.sourceId))
-          .where(and(eq(blogPostLinks.targetId, id), isNull(blogPosts.trashedAt)));
-        const inText = new RegExp(
-          `(?:\\]\\(|href=")(?:${SITE_ORIGIN.replace(/[.]/g, "\\.")})?/blog/${slug}(?=[/?#)"\\s]|$)`,
-        );
-        const mentioning = (
-          await db
-            .select({
-              id: blogPosts.id,
-              title: blogPosts.title,
-              slug: blogPosts.slug,
-              body: blogPosts.body,
-            })
-            .from(blogPosts)
-            .where(
-              and(
-                ne(blogPosts.id, id),
-                isNull(blogPosts.trashedAt),
-                like(blogPosts.body, `%/blog/${slug}%`),
-              ),
-            )
-        ).filter((r) => inText.test(r.body));
-        const byId = new Map([...linked, ...mentioning].map((r) => [r.id, r]));
-        return [...byId.values()]
-          .filter((r) => r.id !== id)
-          .sort((a, b) => a.slug.localeCompare(b.slug))
-          .map((r) => ({ id: r.id, title: r.title, path: `/blog/${r.slug}` }));
+        return findBacklinks(db, id, post.row.slug);
       },
 
       async revisions(id) {
         const post = await load(id);
         if (!post) return null;
-        const { row } = post;
-        const versions = await db
-          .select()
-          .from(blogPostVersions)
-          .where(eq(blogPostVersions.postId, id))
-          .orderBy(desc(blogPostVersions.savedAt));
-        return [
-          {
-            version: post.version,
-            at: row.updatedAt.toISOString(),
-            author: row.author,
-            message: "current",
-          },
-          ...versions.map((v) => ({
-            version: `${REVISION_PREFIX}${v.id}`,
-            at: v.savedAt.toISOString(),
-            author: v.savedBy ?? "unknown",
-            message: "content before the edit made at this time",
-          })),
-        ];
+        return listRevisions(db, post);
       },
 
       async revisionSource(id, version) {
         const post = await load(id);
         if (!post) return null;
-        if (version === post.version) return serializePostSource(sourceOf(post.row));
-        if (!version.startsWith(REVISION_PREFIX)) return null;
-        const rows = await db
-          .select()
-          .from(blogPostVersions)
-          .where(eq(blogPostVersions.id, version.slice(REVISION_PREFIX.length)))
-          .limit(1);
-        const old = rows[0];
-        if (!old || old.postId !== id) return null;
-        return serializePostSource({
-          ...sourceOf(post.row),
-          title: old.title,
-          excerpt: old.excerpt,
-          body: old.body,
-        });
+        return revisionSourceOf(db, post, id, version);
       },
     },
 
@@ -653,41 +430,7 @@ export function carrelAdapter(
     // the page shows.
     preview: {
       async render({ id, source }) {
-        const { renderDocument } = options;
-        if (!renderDocument) throw new Error("the document renderer is not on this request");
-        const post = parse(source, { preview: true });
-        const current = id ? ((await load(id))?.row ?? null) : null;
-        const slug = current?.slug ?? post.slug ?? (id && isSlug(id) ? id : "preview");
-        const now = new Date();
-        const response = await renderDocument(
-          new Request(new URL(`/blog/${slug}`, SITE_ORIGIN), { headers: { Accept: "text/html" } }),
-          toPost({
-            id: current?.id ?? id ?? slug,
-            slug,
-            ...fieldsOf(post, {
-              coverImageUrl: current?.coverImageUrl ?? null,
-              coverImageAlt: current?.coverImageAlt ?? null,
-              showUpdatedAt: current?.showUpdatedAt ?? true,
-              showPublishedAt: current?.showPublishedAt ?? true,
-            }),
-            published: current?.published ?? false,
-            publishedAt: current?.publishedAt ?? null,
-            createdAt: current?.createdAt ?? now,
-            updatedAt: current?.updatedAt ?? now,
-            readingMinutes: readingMinutes(wordCount(post.body)),
-            trashedAt: null,
-          }),
-        );
-        if (!response.ok)
-          throw new RefusedError(
-            `The preview did not render: /blog/${slug} answered ${response.status}.`,
-          );
-        // The page's own robots tag indexes it; the strictest wins, so this
-        // keeps a preview out of every index.
-        return (await response.text()).replace(
-          /<head\b[^>]*>/i,
-          (head) => `${head}<meta name="robots" content="noindex, nofollow">`,
-        );
+        return renderPreview(options.renderDocument, { id, source }, load);
       },
     },
   };

@@ -2,7 +2,8 @@ import type Database from "better-sqlite3";
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runAudit, type AuditInputs, type ScopeOutcome } from "~/lib/audit/engine";
+import { runAudit } from "~/lib/audit/engine";
+import { type AuditInputs, type ScopeOutcome } from "~/lib/audit/types";
 import { toStoredAuditRun } from "~/lib/audit/render";
 import { AUDIT_SUMMARY_FALLBACK } from "~/lib/audit/summary";
 import { authContext } from "~/lib/auth/context";

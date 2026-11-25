@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it } from "vitest";
 
-import * as constants from "~/lib/constants";
+import * as constants from "~/lib/queue/constants";
 
 // The queue names the worker routes on match the queues wrangler.jsonc consumes; both sides are derived.
 

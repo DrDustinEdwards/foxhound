@@ -6,7 +6,7 @@ import type { CurrencyCents } from "~/lib/audit/full-audit.server";
 import { formatBps } from "capsomer/behavior/format";
 import { formatTotals, SCOPE_UNREAD } from "~/lib/audit/render";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
-import type { AuditResult, MoneyTotals, ScopeOutcome } from "./engine";
+import type { AuditResult, MoneyTotals, ScopeOutcome } from "./types";
 import { percent } from "capsomer/behavior/meter";
 
 export interface CurrencyComparison {

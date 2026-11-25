@@ -5,11 +5,8 @@ import { describe, expect, it } from "vitest";
 import * as schema from "~/db/schema";
 import { resolveAttribution } from "~/lib/recovery/attribution";
 import { DISPUTE_FEE_CAP_CENTS } from "~/lib/constants";
-import {
-  buildDisputeResolutionBatch,
-  buildRecoverBatch,
-  type WebhookClaimInput,
-} from "~/lib/webhooks/batches";
+import { buildRecoverBatch, type WebhookClaimInput } from "~/lib/webhooks/batches";
+import { buildDisputeResolutionBatch } from "~/lib/webhooks/dispute-batches";
 import { classifyStripeEvent } from "~/lib/webhooks/events";
 
 const now = new Date("2026-07-12T00:00:00.000Z");

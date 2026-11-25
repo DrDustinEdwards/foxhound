@@ -17,11 +17,11 @@ import {
   isCardInAttentionWindow,
   isSequenceExhausted,
 } from "./console";
+import { listActiveFailedPayments } from "~/lib/recovery/queries.server";
 import {
-  listActiveFailedPayments,
   listExpiringCardAlerts,
   listStepsForFailedPayments,
-} from "~/lib/recovery/queries.server";
+} from "~/lib/recovery/step-queries.server";
 import { customerCurrency } from "~/lib/intelligence/recommendations.server";
 import { getConnectionSummary } from "~/lib/recovery/dashboard-queries.server";
 

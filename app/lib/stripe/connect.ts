@@ -4,7 +4,7 @@ import {
   STRIPE_AUDIT_SCOPE,
   STRIPE_CONNECT_AUTHORIZE_URL,
   STRIPE_CONNECT_SCOPE,
-} from "~/lib/constants";
+} from "~/lib/stripe/constants";
 
 import { getStripe } from "./client";
 

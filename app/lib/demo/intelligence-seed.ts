@@ -1,28 +1,30 @@
 import type { alertHistory, alerts, customerContext, healthScoreHistory, mrrSnapshots } from "~/db";
 import type { HealthFactor } from "~/lib/intelligence/risk";
-import { buildMrrSnapshotFields, type CustomerMrrPoint } from "~/lib/intelligence/mrr";
-
 import type { DisputeInsert } from "./disputes-seed";
 import type { FailedPaymentInsert, RecoveredPaymentInsert } from "./recovery-seed";
-import {
-  monthlyMrrCents,
-  planNameFor,
-  seededInt,
-  type DemoCustomer,
-  type DemoEngagementOverride,
-} from "./customer-base";
+import { monthlyMrrCents, planNameFor, seededInt, type DemoCustomer } from "./customer-base";
 import { DAY_MS } from "~/lib/constants";
-import { monthKey } from "@dustinedwards/site-runtime/time";
+import {
+  aggregateRecovery,
+  engagementSignalsFor,
+  heuristicTrajectory,
+} from "./intelligence-signals";
+import {
+  type DisputeOnlyPlan,
+  aggregateDispute,
+  disputeTrajectory,
+  teamflowDisputeOnlyPlan,
+} from "./intelligence-disputes";
+import { buildMrrRoster, buildSnapshots } from "./intelligence-mrr";
+import { buildAlerts } from "./intelligence-alerts";
 
 // Intelligence seed: customer_context, health history, mrr_snapshots and demo alert rules, derived from the other seed modules' rows with the real movement math (computeMrrMovements / buildMrrSnapshotFields), never a second narrative. Pure.
-const MONTH_COUNT = 12;
-const DAILY_SNAPSHOT_DAYS = 90;
 
 type CustomerContextInsert = typeof customerContext.$inferInsert;
 type HealthScoreHistoryInsert = typeof healthScoreHistory.$inferInsert;
-type MrrSnapshotInsert = typeof mrrSnapshots.$inferInsert;
-type AlertInsert = typeof alerts.$inferInsert;
-type AlertHistoryInsert = typeof alertHistory.$inferInsert;
+export type MrrSnapshotInsert = typeof mrrSnapshots.$inferInsert;
+export type AlertInsert = typeof alerts.$inferInsert;
+export type AlertHistoryInsert = typeof alertHistory.$inferInsert;
 
 export interface IntelligenceSeedResult {
   customerContext: CustomerContextInsert[];
@@ -32,7 +34,7 @@ export interface IntelligenceSeedResult {
   alertHistory: AlertHistoryInsert[];
 }
 
-interface TrajectoryPoint {
+export interface TrajectoryPoint {
   daysAgo: number;
   healthScore: number;
   reason: string;
@@ -49,380 +51,6 @@ function deriveHealthFactors(trajectory: TrajectoryPoint[]): HealthFactor[] {
       detail: `Health trended from ${first.healthScore} to ${last.healthScore} (${last.reason.replace(/_/g, " ")}).`,
     },
   ];
-}
-
-// Recovery + engagement signals (from the recovery seed's own output, so this
-// never re-derives a competing view of the same rows)
-
-interface RecoveryAggregate {
-  failedPaymentCount: number;
-  recoveredCount: number;
-  recoveredAmountCents: number;
-  lastFailedAt: Date | null;
-  lastRecoveredAt: Date | null;
-  activeRecoveryId: string | null;
-  unrecoveredCount: number;
-}
-
-function aggregateRecovery(
-  stripeCustomerId: string,
-  failedPayments: FailedPaymentInsert[],
-  recoveredPayments: RecoveredPaymentInsert[],
-): RecoveryAggregate {
-  const mine = failedPayments.filter((f) => f.stripeCustomerId === stripeCustomerId);
-  const recoveredByFpId = new Map(recoveredPayments.map((r) => [r.failedPaymentId, r]));
-  const recoveredMine = mine.filter((f) => recoveredByFpId.has(f.id as string));
-  const recoveredAmountCents = recoveredMine.reduce(
-    (s, f) => s + (recoveredByFpId.get(f.id as string)?.amountCents ?? 0),
-    0,
-  );
-  const lastFailedAt =
-    mine.map((f) => f.detectedAt).sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-  const lastRecoveredAt =
-    recoveredMine
-      .map((f) => recoveredByFpId.get(f.id as string)!.recoveredAt)
-      .sort((a, b) => b.getTime() - a.getTime())[0] ?? null;
-  const active = mine.find((f) => f.status === "active");
-  return {
-    failedPaymentCount: mine.length,
-    recoveredCount: recoveredMine.length,
-    recoveredAmountCents,
-    lastFailedAt,
-    lastRecoveredAt,
-    activeRecoveryId: (active?.id as string) ?? null,
-    unrecoveredCount: mine.filter((f) => f.status === "failed_unrecovered").length,
-  };
-}
-
-function engagementSignalsFor(
-  stripeCustomerId: string,
-  override: DemoEngagementOverride | undefined,
-  recovery: RecoveryAggregate,
-  now: Date,
-): Record<string, unknown> {
-  if (override) {
-    return {
-      emailOpened30d: override.emailOpened30d ?? 0,
-      emailClicked30d: override.emailClicked30d ?? 0,
-      lastEmailOpenedAt:
-        override.lastEmailOpenedAtDaysAgo == null
-          ? null
-          : new Date(now.getTime() - override.lastEmailOpenedAtDaysAgo * DAY_MS),
-    };
-  }
-  const idxNum = parseInt(stripeCustomerId.replace(/[^0-9]/g, ""), 10) || 0;
-  const opened30 = recovery.failedPaymentCount > 0 && idxNum % 10 < 3 ? 1 + (idxNum % 3) : 0;
-  const clicked30 = opened30 > 0 && idxNum % 25 < 2 ? 1 : 0;
-  return {
-    emailOpened30d: opened30,
-    emailClicked30d: clicked30,
-    lastEmailOpenedAt:
-      opened30 > 0
-        ? new Date(now.getTime() - (seededInt(`${stripeCustomerId}:eng`, 25) + 1) * DAY_MS)
-        : null,
-  };
-}
-
-// Health score + trajectory (scripted trajectory wins; anonymous customers get
-// a heuristic trajectory driven by their own recovery outcome)
-
-function heuristicTrajectory(recovery: RecoveryAggregate, seed: string): TrajectoryPoint[] {
-  const baseline = 70 + seededInt(`${seed}:base`, 15);
-  const hasUnrecovered = recovery.unrecoveredCount > 0;
-  const hasActive = recovery.activeRecoveryId !== null;
-  const hasRecovered = recovery.recoveredCount > 0;
-  const dipped = Math.max(35, baseline - 25);
-  const final = hasUnrecovered
-    ? Math.max(40, baseline - 20)
-    : hasActive
-      ? Math.max(45, baseline - 15)
-      : hasRecovered
-        ? Math.max(60, baseline - 8)
-        : baseline;
-  return [
-    { daysAgo: 180, healthScore: baseline, reason: "baseline" },
-    { daysAgo: 120, healthScore: baseline, reason: "stable" },
-    { daysAgo: 60, healthScore: baseline - 3, reason: "stable" },
-    {
-      daysAgo: 30,
-      healthScore: recovery.failedPaymentCount > 0 ? dipped : baseline,
-      reason: recovery.failedPaymentCount > 0 ? "failed_payment" : "stable",
-    },
-    {
-      daysAgo: 15,
-      healthScore: hasRecovered
-        ? dipped + 10
-        : recovery.failedPaymentCount > 0
-          ? dipped - 3
-          : baseline,
-      reason: hasRecovered
-        ? "in_recovery"
-        : recovery.failedPaymentCount > 0
-          ? "still_unrecovered"
-          : "stable",
-    },
-    {
-      daysAgo: 3,
-      healthScore: final,
-      reason: hasRecovered
-        ? "recovery_succeeded"
-        : hasActive
-          ? "in_recovery"
-          : hasUnrecovered
-            ? "declining"
-            : "stable",
-    },
-  ];
-}
-
-// Dispute-only customers (net-new: a demo business's disputes mostly belong to
-// customers not otherwise in its 200-customer base. A disputed customer who IS
-// in the base, Teamflow's Harborline Group, just gets its dispute_signals
-// merged in.)
-
-/**
- * The plan a net-new dispute-only customer is on, read off the disputed charge.
- * Teamflow's rule by default; Bolt Analytics sells Pro only.
- */
-export interface DisputeOnlyPlan {
-  tier: string;
-  planName: string;
-  mrrCents: number;
-}
-
-export function teamflowDisputeOnlyPlan(amountCents: number): DisputeOnlyPlan {
-  return amountCents >= 30000
-    ? { tier: "scale", planName: "Scale", mrrCents: 29900 }
-    : { tier: "growth", planName: "Growth", mrrCents: 9900 };
-}
-
-export function boltDisputeOnlyPlan(): DisputeOnlyPlan {
-  return { tier: "pro", planName: "Pro", mrrCents: 9900 };
-}
-
-interface DisputeAggregate {
-  openDisputesCount: number;
-  wonCount: number;
-  lostCount: number;
-  totalDisputedCents: number;
-  lastDisputeAt: Date;
-  lastOutcome: string | null;
-  activeDisputeId: string | null;
-}
-
-function aggregateDispute(d: DisputeInsert): DisputeAggregate {
-  const isOpen = d.outcome == null;
-  return {
-    openDisputesCount: isOpen ? 1 : 0,
-    wonCount: d.outcome === "won" ? 1 : 0,
-    lostCount: d.outcome === "lost" ? 1 : 0,
-    totalDisputedCents: d.amountCents,
-    lastDisputeAt: d.createdAt as Date,
-    lastOutcome: d.outcome ?? null,
-    activeDisputeId: isOpen ? (d.id as string) : null,
-  };
-}
-
-function disputeTrajectory(agg: DisputeAggregate, now: Date, seed: string): TrajectoryPoint[] {
-  const baseline = 70 + seededInt(`${seed}:b`, 12);
-  const won = agg.wonCount > 0;
-  const lost = agg.lostCount > 0;
-  const final = won
-    ? Math.max(60, baseline - 5)
-    : lost
-      ? Math.max(30, baseline - 35)
-      : Math.max(45, baseline - 18);
-  const disputeAgeDays = Math.round((now.getTime() - agg.lastDisputeAt.getTime()) / DAY_MS);
-  return [
-    { daysAgo: Math.max(150, disputeAgeDays + 40), healthScore: baseline, reason: "baseline" },
-    { daysAgo: Math.max(90, disputeAgeDays + 30), healthScore: baseline + 2, reason: "stable" },
-    { daysAgo: Math.max(60, disputeAgeDays + 20), healthScore: baseline, reason: "stable" },
-    {
-      daysAgo: Math.max(40, disputeAgeDays + 10),
-      healthScore: Math.max(40, baseline - 20),
-      reason: "dispute_opened",
-    },
-    {
-      daysAgo: Math.max(20, disputeAgeDays),
-      healthScore: won ? baseline - 8 : lost ? baseline - 30 : baseline - 18,
-      reason: won ? "dispute_won" : lost ? "dispute_lost" : "dispute_in_progress",
-    },
-    { daysAgo: 3, healthScore: final, reason: "present" },
-  ];
-}
-
-interface MrrRosterEntry {
-  stripeCustomerId: string;
-  planName: string;
-  cohortKey: string;
-  joinedAt: Date;
-  churnedAt: Date | null;
-  activeMonthlyMrrCents: number;
-}
-
-function buildMrrRoster(
-  customers: DemoCustomer[],
-  disputeOnly: { id: string; planName: string; joinedAt: Date; mrrCents: number }[],
-): MrrRosterEntry[] {
-  const fromBase: MrrRosterEntry[] = customers.map((c) => ({
-    stripeCustomerId: c.stripeCustomerId,
-    planName: planNameFor(c),
-    cohortKey: monthKey(c.customerSince),
-    joinedAt: c.customerSince,
-    churnedAt: c.status === "churned" ? c.churnedAt : null,
-    // Ignore the *current* churned/paused status for the historical-arc walk;
-    // months before any churn date should still show the customer's normal
-    // contribution (monthlyMrrCents zeroes churned customers unconditionally).
-    activeMonthlyMrrCents: monthlyMrrCents({ ...c, status: "active" }),
-  }));
-  const fromDisputes: MrrRosterEntry[] = disputeOnly.map((d) => ({
-    stripeCustomerId: d.id,
-    planName: d.planName,
-    cohortKey: monthKey(d.joinedAt),
-    joinedAt: d.joinedAt,
-    churnedAt: null,
-    activeMonthlyMrrCents: d.mrrCents,
-  }));
-  return [...fromBase, ...fromDisputes];
-}
-
-/**
- * The demo's snapshot dates, oldest first: one a month for the year before the
- * last DAILY_SNAPSHOT_DAYS, then one a day, as intelligence-sync writes them,
- * so the dashboard's 90 days and the console's twelve months both have rows.
- */
-function snapshotDates(now: Date): Date[] {
-  const today = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
-  const dailyFrom = today - (DAILY_SNAPSHOT_DAYS - 1) * DAY_MS;
-  const dates: Date[] = [];
-  for (let m = MONTH_COUNT - 1; m >= 1; m--) {
-    const d = Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - m, now.getUTCDate());
-    if (d < dailyFrom) dates.push(new Date(d));
-  }
-  for (let t = dailyFrom; t <= today; t += DAY_MS) dates.push(new Date(t));
-  return dates;
-}
-
-function buildSnapshots(
-  accountId: string,
-  idPrefix: string,
-  roster: MrrRosterEntry[],
-  now: Date,
-): MrrSnapshotInsert[] {
-  const rows: MrrSnapshotInsert[] = [];
-  let priorByCustomer: Map<string, number> | null = null;
-
-  const dates = snapshotDates(now);
-  for (const [m, snapshotDate] of dates.entries()) {
-    const current: CustomerMrrPoint[] = roster.map((r) => {
-      const joined = r.joinedAt.getTime() <= snapshotDate.getTime();
-      const churnedByNow = r.churnedAt !== null && r.churnedAt.getTime() <= snapshotDate.getTime();
-      return {
-        stripeCustomerId: r.stripeCustomerId,
-        mrrCents: joined && !churnedByNow ? r.activeMonthlyMrrCents : 0,
-        planName: r.planName,
-        cohortKey: r.cohortKey,
-        churnReason: churnedByNow ? "involuntary" : null,
-      };
-    });
-
-    const fields = buildMrrSnapshotFields(priorByCustomer, current);
-    rows.push({
-      id: `${idPrefix}mrr_${dates.length - 1 - m}`,
-      accountId,
-      snapshotDate,
-      totalMrrCents: fields.totalMrrCents,
-      newMrrCents: fields.newMrrCents,
-      expansionMrrCents: fields.expansionMrrCents,
-      contractionMrrCents: fields.contractionMrrCents,
-      churnMrrCents: fields.churnMrrCents,
-      reactivationMrrCents: fields.reactivationMrrCents,
-      activeCustomersCount: fields.activeCustomersCount,
-      newCustomersCount: fields.newCustomersCount,
-      churnedCustomersCount: fields.churnedCustomersCount,
-      perPlanBreakdown: fields.perPlanBreakdown,
-      perCohortBreakdown: fields.perCohortBreakdown,
-      perChannelBreakdown: fields.perChannelBreakdown,
-      voluntaryChurnRateBps: fields.voluntaryChurnRateBps,
-      involuntaryChurnRateBps: fields.involuntaryChurnRateBps,
-      netRevenueRetentionBps: fields.netRevenueRetentionBps,
-      grossRevenueRetentionBps: fields.grossRevenueRetentionBps,
-      currency: "usd",
-      createdAt: snapshotDate,
-    });
-
-    // Only customers who had signed up by this date, as the sync's
-    // customer_context holds only customers Stripe has: one who signs up later
-    // is new MRR then, not a reactivation.
-    priorByCustomer = new Map(
-      current
-        .filter((_, i) => roster[i].joinedAt.getTime() <= snapshotDate.getTime())
-        .map((c) => [c.stripeCustomerId, c.mrrCents]),
-    );
-  }
-
-  return rows;
-}
-
-function buildAlerts(
-  accountId: string,
-  p: string,
-  now: Date,
-): { alerts: AlertInsert[]; history: AlertHistoryInsert[] } {
-  const threeDaysAgo = new Date(now.getTime() - 3 * DAY_MS);
-  const alertRows: AlertInsert[] = [
-    {
-      id: `${p}alert_recovery_rate`,
-      accountId,
-      metric: "recovery_rate_pct",
-      thresholdValue: 25,
-      direction: "below",
-      channel: "email",
-      label: "Low recovery rate warning",
-      enabled: true,
-      lastTriggeredAt: null,
-      createdAt: now,
-    },
-    {
-      id: `${p}alert_mrr_at_risk`,
-      accountId,
-      metric: "mrr_at_risk_cents",
-      thresholdValue: 200000,
-      direction: "above",
-      channel: "email",
-      label: "High MRR at risk",
-      enabled: true,
-      lastTriggeredAt: threeDaysAgo,
-      createdAt: now,
-    },
-    {
-      id: `${p}alert_active_sequences`,
-      accountId,
-      metric: "active_sequences",
-      thresholdValue: 10,
-      direction: "above",
-      channel: "email",
-      label: "Active sequence count",
-      enabled: false,
-      lastTriggeredAt: null,
-      createdAt: now,
-    },
-  ];
-  const historyRows: AlertHistoryInsert[] = [
-    {
-      id: `${p}alerthist_mrr_at_risk`,
-      alertId: `${p}alert_mrr_at_risk`,
-      accountId,
-      metric: "mrr_at_risk_cents",
-      thresholdValue: 200000,
-      direction: "above",
-      actualValue: 247300,
-      channel: "email",
-      firedAt: threeDaysAgo,
-      notificationSent: true,
-    },
-  ];
-  return { alerts: alertRows, history: historyRows };
 }
 
 export interface IntelligenceSeedInputs {

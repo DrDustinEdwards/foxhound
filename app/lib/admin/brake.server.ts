@@ -27,7 +27,7 @@ import type { Db } from "~/db";
 import { accounts, adminAuditLog, cronConfig } from "~/db";
 import { buildAdminAuditLogInsert, logAdminAction } from "~/lib/admin/audit.server";
 import { KNOWN_PAUSE_REASONS, PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import { buildSetProcessingPaused } from "~/lib/admin/merchants.server";
+import { buildSetProcessingPaused } from "~/lib/admin/merchant-controls.server";
 import { DEMO_ACCOUNT_ID_PREFIX, RECOVERY_TICK_CRON_NAME } from "~/lib/constants";
 
 /**

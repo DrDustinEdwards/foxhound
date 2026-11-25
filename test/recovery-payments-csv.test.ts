@@ -2,7 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import { accounts, failedPayments, recoverySteps } from "~/db/schema";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
-import { countStepsForFailedPayments, type FailedPaymentRow } from "~/lib/recovery/queries.server";
+import { type FailedPaymentRow } from "~/lib/recovery/queries.server";
+import { countStepsForFailedPayments } from "~/lib/recovery/step-queries.server";
 
 import { createInMemoryDb, runStatement } from "./helpers/inmemory-db";
 

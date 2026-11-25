@@ -7,7 +7,7 @@ import type { DisputeState } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import { getConnectedStripe } from "~/lib/stripe/client";
 import { decryptToken } from "~/lib/stripe/encryption";
-import { buildDisputeResolutionUpdate } from "~/lib/webhooks/batches";
+import { buildDisputeResolutionUpdate } from "~/lib/webhooks/dispute-batches";
 
 import { canApproveDispute } from "./approval";
 

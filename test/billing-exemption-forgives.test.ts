@@ -12,7 +12,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { getBillableDisputes, getBillableRecoveries } = await import("~/db/billable");
-const { setBillingExempt } = await import("~/lib/admin/merchants.server");
+const { setBillingExempt } = await import("~/lib/admin/merchant-controls.server");
 const { listBillableRecoveredForRoi } = await import("~/lib/recovery/dashboard-queries.server");
 const schema = await import("~/db/schema");
 

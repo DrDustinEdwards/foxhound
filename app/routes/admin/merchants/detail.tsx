@@ -21,12 +21,8 @@ import { data, Form, useNavigation } from "react-router";
 import { ViewAsForm } from "~/components/admin-merchants-parts";
 import { getDb } from "~/db";
 import { PAUSE_REASON_BRAKE } from "~/lib/admin/brake";
-import {
-  getMerchantDetail,
-  listAdjustmentCurrencies,
-  setBillingExempt,
-  setProcessingPaused,
-} from "~/lib/admin/merchants.server";
+import { getMerchantDetail, listAdjustmentCurrencies } from "~/lib/admin/merchants.server";
+import { setBillingExempt, setProcessingPaused } from "~/lib/admin/merchant-controls.server";
 import { merchantCancelHref } from "~/lib/admin/merchants";
 import { adminContext } from "~/lib/admin/context";
 import { createAdjustment } from "~/lib/billing/adjustment";

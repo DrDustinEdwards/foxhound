@@ -2,12 +2,8 @@ import { drizzle } from "drizzle-orm/d1";
 import { describe, expect, it } from "vitest";
 
 import * as schema from "~/db/schema";
-import {
-  buildBillingInvoiceBatch,
-  computeBillingPeriod,
-  shouldAttemptPlatformCharge,
-  type InvoiceBatchInput,
-} from "~/lib/billing/run";
+import { buildBillingInvoiceBatch, type InvoiceBatchInput } from "~/lib/billing/invoice-batch";
+import { computeBillingPeriod, shouldAttemptPlatformCharge } from "~/lib/billing/run";
 import {
   recoveryFeeItemIdempotencyKey,
   type PlatformInvoiceLineInput,

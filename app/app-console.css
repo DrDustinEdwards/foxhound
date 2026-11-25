@@ -1,0 +1,303 @@
+/* The merchant app's console and its shared panels: the console tiles and rows, the recovery panels and charts, sign-in providers, alerts and warnings. In the site layer (app.css), after app-pages.css. Loaded by the app shell. */
+@layer site {
+  .fh-console-sub {
+    margin-top: var(--space-2);
+  }
+  .fh-console-tiles {
+    margin-bottom: var(--space-6);
+  }
+  @media (width >= 40rem) {
+    .fh-console-tiles {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .fh-console-products,
+  .fh-recpanel-tiles,
+  .fh-intel-tiles,
+  .fh-payment-tiles,
+  .fh-payments-tiles,
+  .fh-sequence-tiles {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  .fh-console-products {
+    margin-bottom: var(--space-7);
+  }
+  @media (width >= 64rem) {
+    .fh-console-products {
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+  }
+  .fh-fill {
+    display: grid;
+  }
+  .fh-rec-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    column-gap: var(--space-5);
+    row-gap: var(--space-2);
+  }
+  .fh-rec-why {
+    margin-bottom: var(--space-3);
+  }
+  .fh-rec-facts {
+    display: flex;
+    flex-wrap: wrap;
+    column-gap: var(--space-4);
+    row-gap: var(--space-1);
+  }
+  .fh-rec-note {
+    margin-top: var(--space-3);
+  }
+  .fh-signin-title {
+    margin-bottom: var(--space-4);
+  }
+  .fh-signin-list {
+    margin-bottom: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+  }
+  .fh-signin-providers {
+    margin-top: var(--space-5-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    padding-top: var(--space-5-5);
+  }
+  .fh-split-center {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .fh-signin-note {
+    margin-bottom: var(--space-4);
+  }
+  .fh-signin-subtitle {
+    margin-bottom: var(--space-4);
+  }
+  .fh-signin-devices {
+    margin-bottom: var(--space-5);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+  .fh-signin-more {
+    margin-top: var(--space-5);
+  }
+  .fh-signin-rename {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--space-3);
+  }
+  .fh-grow {
+    flex-grow: 1;
+  }
+  .fh-signin-item {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .fh-pair {
+    display: flex;
+    gap: var(--space-3);
+  }
+  .fh-invoice-link {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    gap: var(--space-1);
+  }
+  .fh-alerts {
+    margin-top: var(--space-8);
+  }
+  .fh-alerts-head {
+    margin-bottom: var(--space-6);
+  }
+  .fh-alerts-sub {
+    margin-top: var(--space-2);
+  }
+  .fh-alerts-banner {
+    margin-bottom: var(--space-5);
+    min-width: 0px;
+  }
+  .fh-alerts-banner-row {
+    display: flex;
+    min-width: 0px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .fh-alerts-empty {
+    min-width: 0px;
+    padding-block: var(--space-7);
+  }
+  .fh-alerts-table {
+    margin-top: var(--space-5-5);
+    min-width: 0px;
+  }
+  .fh-alerts-form {
+    margin-top: var(--space-6);
+    min-width: 0px;
+  }
+  .fh-alerts-field {
+    margin-top: var(--space-5);
+  }
+  .fh-alerts-actions {
+    margin-top: var(--space-5-5);
+  }
+  .fh-dispute-fact {
+    display: flex;
+    gap: var(--space-5);
+  }
+  .fh-dispute-fact-label {
+    width: 140px;
+    flex-shrink: 0;
+  }
+  .fh-dispute-fact-value {
+    flex: 1;
+  }
+  .fh-warnings {
+    margin-top: var(--space-7);
+    scroll-margin-top: var(--space-10);
+  }
+  .fh-warnings-head {
+    margin-bottom: var(--space-5);
+  }
+  .fh-warnings-empty {
+    padding-inline: var(--space-5);
+    padding-block: var(--space-6);
+  }
+  .fh-warnings-actions-cell {
+    grid-column: 1/-1;
+  }
+  .fh-warnings-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--space-3);
+  }
+  .fh-warnings-note {
+    align-self: center;
+  }
+  .fh-warnings-foot {
+    padding-inline: var(--space-5);
+    padding-bottom: var(--space-5);
+  }
+  .fh-recchart-grid {
+    display: grid;
+    height: 100%;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+  @media (width >= 48rem) {
+    .fh-recchart-grid {
+      grid-template-columns: 2fr 1fr;
+    }
+  }
+  .fh-recchart-axis {
+    display: flex;
+    justify-content: space-between;
+  }
+  .fh-recchart-key {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+  }
+  .fh-recchart-swatch {
+    display: inline-flex;
+  }
+  .fh-recpanel-label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  @media (width >= 48rem) {
+    .fh-recpanel-hero {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  @media (width >= 48rem) {
+    .fh-recpanel-tiles {
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+    }
+  }
+  .fh-recpanel-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+  }
+  .fh-recpanel-pair {
+    display: grid;
+    grid-template-columns: repeat(1, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+  @media (width >= 40rem) {
+    .fh-recpanel-pair {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  .fh-recpanel-title {
+    margin-bottom: var(--space-4);
+  }
+  .fh-recpanel-foot {
+    margin-top: var(--space-5);
+    padding-top: var(--space-5);
+  }
+  .fh-recpanel-empty {
+    padding-inline: var(--space-2);
+    padding-block: var(--space-4);
+  }
+  .fh-recpanel-figures {
+    margin-bottom: var(--space-5-5);
+  }
+  .fh-recpanel-figure-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-6);
+  }
+  .fh-recpanel-legend {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+  }
+  @media (width >= 40rem) {
+    .fh-phone-list {
+      display: none;
+    }
+  }
+  .fh-wide-list {
+    display: none;
+  }
+  @media (width >= 40rem) {
+    .fh-wide-list {
+      display: block;
+    }
+  }
+  .fh-sync {
+    margin-top: var(--space-7);
+  }
+  .fh-sync-card {
+    margin-inline: auto;
+    max-width: 28rem;
+  }
+  .fh-sync-row {
+    margin-top: var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+  }
+  .fh-sync-note {
+    margin-top: var(--space-3);
+  }
+}

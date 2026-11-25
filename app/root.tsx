@@ -14,6 +14,7 @@ import type { Route } from "./+types/root";
 import { ErrorPage } from "capsomer/react/error-page";
 import { LinkPrefetch } from "capsomer/react/link";
 import "./app.css";
+import "./app-parts.css";
 import { SITE_SCRIPT } from "virtual:islands";
 import {
   ErrorBar,

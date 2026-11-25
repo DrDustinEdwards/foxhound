@@ -17,7 +17,7 @@ import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { sanitizeEmailPreviewHtml } from "~/lib/recovery/email-preview.server";
-import { listExecutedRecoverySteps } from "~/lib/recovery/queries.server";
+import { listExecutedRecoverySteps } from "~/lib/recovery/step-queries.server";
 import {
   SEQUENCE_CATEGORY_DESCRIPTIONS,
   SEQUENCE_CATEGORY_NAMES,

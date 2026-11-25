@@ -1,0 +1,219 @@
+/* The merchant app's audit dashboard and disputes pages. In the site layer (app.css), after app-console.css. Loaded by the app shell. */
+@layer site {
+  .fh-auditd-delta {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  .fh-auditd-line {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-5);
+    padding-block: var(--space-3);
+  }
+  .fh-auditd-line:last-child {
+    border-bottom-style: solid;
+    border-bottom-width: 0px;
+  }
+  .fh-auditd-figures {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: flex-end;
+    gap: var(--space-3);
+  }
+  .fh-auditd-figure {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-2);
+  }
+  .fh-auditd-lookback {
+    margin-bottom: var(--space-5-5);
+    min-width: 0px;
+  }
+  .fh-auditd-label {
+    margin-bottom: var(--space-2);
+  }
+  .fh-auditd-digest {
+    display: flex;
+    min-width: 0px;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-5);
+    padding-block: var(--space-4);
+  }
+  .fh-auditd-digest-text {
+    padding-right: var(--space-5);
+  }
+  .fh-auditd-digest-label {
+    margin-bottom: var(--space-1);
+  }
+  .fh-auditd-block {
+    margin-bottom: var(--space-5-5);
+  }
+  .fh-auditd-page,
+  .fh-payments {
+    width: 100%;
+    min-width: 0px;
+    gap: 0px;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7-5);
+  }
+  @media (width >= 48rem) {
+    .fh-auditd-page {
+      padding-inline: var(--space-7);
+    }
+  }
+  .fh-auditd-head {
+    margin-bottom: var(--space-6);
+  }
+  .fh-dispute-actions {
+    margin-top: var(--space-3);
+  }
+  .fh-dispute {
+    margin-inline: auto;
+    max-width: 960px;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7-5);
+  }
+  @media (width >= 48rem) {
+    .fh-dispute {
+      padding-inline: var(--space-7);
+    }
+  }
+  .fh-dispute-back {
+    margin-bottom: var(--space-6);
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    text-decoration-line: none;
+  }
+  @media (hover: hover) {
+    .fh-dispute-back:hover {
+      color: var(--text);
+    }
+  }
+  .fh-dispute-header {
+    margin-bottom: var(--space-6);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-5);
+  }
+  .fh-dispute-title {
+    margin-top: var(--space-4);
+  }
+  .fh-dispute-reason {
+    margin-top: var(--space-1);
+  }
+  .fh-dispute-status {
+    margin-bottom: var(--space-2);
+  }
+  .fh-dispute-section {
+    margin-bottom: var(--space-6);
+  }
+  :where(.fh-dispute-timeline > :not(:last-child)) {
+    margin-block: 0 var(--space-3);
+  }
+  .fh-dispute-event {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-5);
+  }
+  .fh-dispute-lede {
+    margin-bottom: var(--space-4);
+  }
+  .fh-dispute-group {
+    margin-bottom: var(--space-5);
+  }
+  .fh-dispute-group-title {
+    margin-bottom: var(--space-3);
+  }
+  :where(.fh-dispute-facts > :not(:last-child)) {
+    margin-block: 0 var(--space-2);
+  }
+  .fh-dispute-charges {
+    width: 100%;
+  }
+  .fh-dispute-cell {
+    padding-block: var(--space-2);
+  }
+  .fh-dispute-cell-pad {
+    padding-block: var(--space-2);
+    padding-left: var(--space-4);
+  }
+  .fh-dispute-charge,
+  .fh-dispute-context,
+  .fh-customer-stats {
+    border-top-style: solid;
+    border-top-width: var(--line-w);
+    border-color: var(--border-sub);
+  }
+  .fh-dispute-context {
+    margin-top: var(--space-4);
+    padding-top: var(--space-4);
+  }
+  .fh-dispute-more {
+    margin-top: var(--space-5);
+  }
+  .fh-dispute-evidence {
+    margin-bottom: var(--space-5);
+  }
+  :where(.fh-dispute-evidence > :not(:last-child)) {
+    margin-block: 0 var(--space-3);
+  }
+  .fh-dispute-input {
+    margin-top: var(--space-2);
+  }
+  @media (width >= 48rem) {
+    .fh-dispute-fields {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  .fh-dispute-submit {
+    margin-top: var(--space-6);
+  }
+  .fh-dispute-gap {
+    margin-top: var(--space-4);
+  }
+  .fh-disputes {
+    gap: 0px;
+    padding-inline: var(--space-5);
+    padding-block: var(--space-7);
+  }
+  @media (width >= 48rem) {
+    .fh-disputes {
+      padding-inline: var(--space-7);
+      padding-block: var(--space-7-5);
+    }
+  }
+  .fh-disputes-head {
+    margin-bottom: var(--space-7);
+  }
+  .fh-disputes-tiles {
+    margin-bottom: var(--space-7);
+    --tiles-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (width >= 48rem) {
+    .fh-disputes-tiles {
+      --tiles-columns: repeat(5, minmax(0, 1fr));
+    }
+  }
+  .fh-disputes-score {
+    margin-left: var(--space-2-5);
+  }
+  .fh-disputes-link {
+    display: inline-flex;
+    min-height: 1.5rem;
+    align-items: center;
+    text-decoration-line: none;
+  }
+  @media (hover: hover) {
+    .fh-disputes-link:hover {
+      color: var(--accent-hover);
+    }
+  }
+}

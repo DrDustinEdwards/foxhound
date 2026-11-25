@@ -6,7 +6,7 @@ import type {
   AuditInvoice,
   AuditSubscription,
   ReadOutcome,
-} from "~/lib/audit/engine";
+} from "~/lib/audit/types";
 
 // The Stripe half the pure engine takes as injected input.
 // EVERY ROW IS NARROWED AS IT IS READ: each page is cut down to the fields the engine reads before the next page arrives, and the full object is never kept.

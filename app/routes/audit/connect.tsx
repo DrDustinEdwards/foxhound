@@ -12,7 +12,8 @@ import "capsomer/panel.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the button, the alert and the focus ring read, as on /connect.
 import "~/site-header.css";
 
-import { AUDIT_LOOKBACK_DAYS, RATE_LIMIT_AUDIT } from "~/lib/constants";
+import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
+import { RATE_LIMIT_AUDIT } from "~/lib/http/rate-limit-buckets";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { AUDIT_ACCESS_ASK, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";

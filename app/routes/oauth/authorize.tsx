@@ -18,7 +18,7 @@ import { MEMBER_ROLE } from "~/lib/auth";
 import { resolveActiveMembership } from "~/lib/auth/account";
 import { getSession } from "~/lib/auth/session";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { RATE_LIMIT_OAUTH_APPROVE } from "~/lib/constants";
+import { RATE_LIMIT_OAUTH_APPROVE } from "~/lib/http/rate-limit-buckets";
 import { isWithinRateLimit } from "~/lib/http/rate-limit";
 import { CONSENT_CAPABILITIES } from "~/lib/oauth/consent-copy";
 import { grantedScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";

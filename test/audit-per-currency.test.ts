@@ -5,12 +5,10 @@ import { createRoutesStub } from "react-router";
 import type Stripe from "stripe";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-  AuditDisputesSection,
-  AuditHealthSection,
-  AuditRecoverySection,
-} from "~/components/audit/sections";
-import { runAudit, type ScopeOutcome } from "~/lib/audit/engine";
+import { AuditHealthSection, AuditRecoverySection } from "~/components/audit/sections";
+import { AuditDisputesSection } from "~/components/audit/disputes-section";
+import { runAudit } from "~/lib/audit/engine";
+import { type ScopeOutcome } from "~/lib/audit/types";
 import { buildMonthlyAuditEmail } from "~/lib/audit/monthly-email";
 import { toAuditRunView, type AuditRunView } from "~/lib/audit/render";
 import { authContext } from "~/lib/auth/context";

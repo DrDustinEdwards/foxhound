@@ -1,4 +1,3 @@
-import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import "capsomer/banner.css";
 import "capsomer/button.css";
@@ -10,8 +9,7 @@ import "capsomer/status.css";
 import "~/site-header.css";
 import { type DisputeState } from "~/lib/constants";
 import { useDraftDirty } from "capsomer/react/form-hooks";
-import { Form, useFetcher, useNavigation, useSearchParams } from "react-router";
-import { InlineConfirm } from "capsomer/react/inline-confirm";
+import { useFetcher, useNavigation, useSearchParams } from "react-router";
 import "capsomer/inline-confirm.css";
 import { Link } from "capsomer/react/link";
 import { Banner } from "capsomer/react/banner";
@@ -24,7 +22,6 @@ import { MEMBER_ROLE } from "~/lib/auth";
 import { authContext } from "~/lib/auth/context";
 import { canApproveDispute } from "~/lib/disputes/approval";
 import {
-  ACCEPT_UNAVAILABLE_APPROVED_LINE,
   BACK_LINK_DEMO,
   BACK_LINK_REAL,
   SHIPPING_CARRIERS,
@@ -32,21 +29,12 @@ import {
   SHIPPING_DATE_FIELD,
   SHIPPING_TRACKING_FIELD,
   deadlineRemaining,
-  disputeFeeTerms,
   evidenceFieldLabel,
   outcomeWord,
   splitEvidence,
-  ACCEPT_CONFIRM_LINE,
 } from "~/lib/disputes/detail";
 import { EVIDENCE_FILE_FIELD } from "~/lib/disputes/evidence-files";
 import { getDisputeFindings } from "~/lib/disputes/findings.server";
-import {
-  humanCardCheck,
-  humanSmartDisputes,
-  radarWords,
-  readPriorCharges,
-  readSubscription,
-} from "~/lib/disputes/triage";
 import {
   daysUntilDeadline,
   deadlineClassName,
@@ -58,18 +46,17 @@ import {
 import { getDisputeDetail, readDisputeSettings } from "~/lib/disputes/queries.server";
 import { buildDisputeTimeline } from "~/lib/disputes/timeline";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
-import { FAILED_PAYMENT_STATUS_LABELS } from "~/lib/recovery/labels";
-import { declineWord } from "~/lib/recovery/payments-list";
 import { recommendOneCustomer } from "~/lib/intelligence/recommendations.server";
 import { RecommendationBanner } from "~/components/recommendation-banner";
 import type { Route } from "./+types/detail";
 import { disputeDetailAction } from "./detail.action.server";
 import {
-  ApproveButton,
   FieldRow,
   EvidenceFileForms,
   EvidenceFiles,
 } from "../../../components/dispute-detail-parts";
+import { DisputeApproval } from "~/components/dispute-approval";
+import { DisputeFindings } from "~/components/dispute-findings";
 import { NOINDEX } from "~/lib/seo/meta";
 
 // /disputes/:id: the back link, the header, the timeline, what Foxhound found, the staged evidence, the additional evidence, the sync form, and the approve card. A recommendation banner after the triage banner is worked out when the page loads (recommendOneCustomer). The triage banner and What Foxhound found (billing address, AVS, CVV, Stripe Radar, 3D Secure, Smart Disputes, prior charge history and subscription) are read from Stripe at intake (app/lib/disputes/triage.ts). Evidence files sit between Staged and Additional evidence, over the EVIDENCE R2 bucket (app/lib/disputes/evidence-files.server.ts) and the account-scoped view at /disputes/:id/files/:fileId; until the bucket is bound the upload control's place says so. Shipping fields show in Additional evidence when the account ships physical goods (/settings/disputes) and save with the draft as Stripe's shipping evidence fields. Accept dispute is a two-step "Accept dispute", "Yes, accept", "Cancel", closing the dispute at Stripe and resolving it lost with no fee (app/lib/disputes/accept.server.ts), then back to the list. Auto-submit is not on this page: it is the disputes cron's job (app/lib/cron/dispute-auto-submit.ts), through the same approveAndSubmitDispute as Approve and submit. The approve-and-submit card stands in place of a sticky action bar.
@@ -183,9 +170,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   // The merchant's uploaded files have their own section; "drafted" is
   // everything else, which is what Staged evidence speaks of.
   const files = evidence.filter((e) => e.fieldName === EVIDENCE_FILE_FIELD);
-  const priorCharges = readPriorCharges(dispute.priorChargesJson);
-  const subscription = readSubscription(dispute.subscriptionJson);
-  const radar = radarWords(dispute.radarRiskScore, dispute.radarRiskLevel);
   const drafted = evidence.filter((e) => e.fieldName !== EVIDENCE_FILE_FIELD);
   const timeline = buildDisputeTimeline({
     createdAt: dispute.createdAt,
@@ -319,163 +303,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       </div>
 
       {/* 4. Recova's DisputeEvidenceSummary, over what Foxhound writes. */}
-      <div className="fh-dispute-section">
-        <Panel title="What Foxhound found">
-          <div className="fh-small">
-            {findings.fraudDecline ? (
-              <p className="fh-dispute-lede">
-                <Status tone="warn">
-                  Fraud decline on record ({findings.fraudDecline.code ?? "fraud category"})
-                </Status>
-              </p>
-            ) : null}
-
-            <div className="fh-dispute-group">
-              <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">Customer context</h3>
-              <dl className="fh-dispute-facts">
-                {dispute.customerName ? (
-                  <FieldRow label="Name" value={dispute.customerName} />
-                ) : null}
-                {dispute.customerEmail ? (
-                  <FieldRow label="Email" value={dispute.customerEmail} />
-                ) : null}
-                {dispute.billingAddress ? (
-                  <FieldRow label="Billing address" value={dispute.billingAddress} />
-                ) : null}
-                {dispute.avsResult ? (
-                  <FieldRow label="AVS" value={humanCardCheck(dispute.avsResult)} />
-                ) : null}
-                {dispute.cvvResult ? (
-                  <FieldRow label="CVV" value={humanCardCheck(dispute.cvvResult)} />
-                ) : null}
-                {radar ? <FieldRow label="Stripe Radar" value={radar} /> : null}
-                {dispute.threeDSecure ? (
-                  <FieldRow label="3D Secure" value={dispute.threeDSecure} />
-                ) : null}
-                {dispute.smartDisputesStatus ? (
-                  <FieldRow
-                    label="Smart Disputes"
-                    value={humanSmartDisputes(dispute.smartDisputesStatus)}
-                  />
-                ) : null}
-                {findings.disputeHistory ? (
-                  <FieldRow
-                    label="Dispute history"
-                    value={`${findings.disputeHistory.won} won · ${findings.disputeHistory.lost} lost`}
-                  />
-                ) : null}
-              </dl>
-            </div>
-
-            {dispute.priorChargesCount !== null && dispute.priorChargesCount > 0 ? (
-              <div className="fh-dispute-group">
-                <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">
-                  Prior charge history
-                </h3>
-                <p className="fh-dispute-group-title fh-text">
-                  {plural(dispute.priorChargesCount, "prior successful charge")} totaling{" "}
-                  {formatMoney(dispute.priorChargesTotal ?? 0, dispute.currency)}
-                </p>
-                {priorCharges.length > 0 ? (
-                  <table className="fh-dispute-charges fh-tiny">
-                    <thead>
-                      <tr className="fh-quiet">
-                        <th className="fh-dispute-cell fh-left fh-medium">Date</th>
-                        <th className="fh-dispute-cell fh-right fh-medium">Amount</th>
-                        <th className="fh-dispute-cell-pad fh-left fh-medium">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {priorCharges.slice(0, 5).map((c, i) => (
-                        <tr key={i} className="fh-dispute-charge">
-                          <td className="fh-dispute-cell fh-quiet">{c.date.slice(0, 10)}</td>
-                          <td className="fh-dispute-cell fh-right fh-mono">
-                            {formatMoney(c.amount, c.currency)}
-                          </td>
-                          <td className="fh-dispute-cell-pad fh-quiet">{c.status}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                ) : null}
-              </div>
-            ) : null}
-
-            {findings.recovery && findings.recovery.emails.length > 0 ? (
-              <div className="fh-dispute-group">
-                <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">
-                  Recovery email history
-                </h3>
-                <ul className="fh-dispute-facts">
-                  {findings.recovery.emails.map((e) => (
-                    <li key={e.id} className="fh-text">
-                      <span className="fh-quiet">
-                        {formatDate(e.executedAt, { style: "medium" }) ?? ""}
-                      </span>{" "}
-                      {e.label}
-                      {e.openedCount !== null && e.openedCount > 0 ? (
-                        <span className="fh-faint"> · opened {e.openedCount}x</span>
-                      ) : null}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {findings.recovery ? (
-              <div className="fh-dispute-context">
-                <h3 className="fh-dispute-group-title fh-tiny fh-quiet fh-caps-wide">
-                  Recovery context
-                </h3>
-                <div className="fh-dispute-facts fh-soft">
-                  <div>
-                    Decline category:{" "}
-                    <span className="fh-text">
-                      {declineWord(findings.recovery.declineCategory)}
-                    </span>
-                  </div>
-                  <div>
-                    Steps attempted:{" "}
-                    <span className="fh-text">{findings.recovery.stepsAttempted}</span>
-                  </div>
-                  <div>
-                    Sequence outcome:{" "}
-                    <span className="fh-text">
-                      {FAILED_PAYMENT_STATUS_LABELS[findings.recovery.status] ??
-                        findings.recovery.status}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ) : null}
-
-            {subscription ? (
-              <div className="fh-dispute-more">
-                <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">Subscription</h3>
-                <dl className="fh-dispute-facts">
-                  <FieldRow label="Status" value={subscription.status} />
-                  {subscription.start_date ? (
-                    <FieldRow
-                      label="Started"
-                      value={
-                        formatDate(new Date(subscription.start_date), { style: "medium" }) ?? ""
-                      }
-                    />
-                  ) : null}
-                  {subscription.canceled_at ? (
-                    <FieldRow
-                      label="Canceled"
-                      value={
-                        formatDate(new Date(subscription.canceled_at), { style: "medium" }) ?? ""
-                      }
-                    />
-                  ) : null}
-                </dl>
-              </div>
-            ) : null}
-          </div>
-        </Panel>
-      </div>
+      <DisputeFindings dispute={dispute} findings={findings} />
 
       {/* 5 and 7. Staged evidence and Additional evidence share Recova's one
           draft: Save draft saves the narrative and the Customer IP together. */}
@@ -634,80 +462,19 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       {/* 8. Where Recova's action bar sits: Foxhound's approve-and-submit card
           (approved 2026-08-28), and once submitted, its approval record and
           fee receipt. */}
-      {editable ? (
-        <div className="fh-dispute-submit">
-          <Panel title="Approve and submit">
-            <div className="fh-small">
-              <p className="fh-soft">
-                Submitting this evidence to Stripe approves a fee ({disputeFeeTerms()}, converted at
-                Stripe's rate) if Foxhound wins this dispute. Merchant-fought or lost disputes are
-                never billed.
-              </p>
-              {approveError ? (
-                <div className="fh-dispute-gap">
-                  <Banner tone="crit">{approveError}</Banner>
-                </div>
-              ) : null}
-              {!isOwner ? (
-                <p className="fh-dispute-more fh-soft">
-                  Only the account owner can approve or accept a dispute.
-                </p>
-              ) : (
-                <div className="cap-cluster fh-dispute-more" data-gap="4">
-                  <Form method="post">
-                    <input type="hidden" name="intent" value="approve" />
-                    <ApproveButton label="Approve and submit" approving={approving} dirty={dirty} />
-                  </Form>
-                  {approval ? (
-                    <p className="fh-soft">{ACCEPT_UNAVAILABLE_APPROVED_LINE}</p>
-                  ) : (
-                    // "Accept dispute", then in its place the line, "Yes, accept" and "Cancel". Opening lands on Cancel, so a second Enter cannot concede the dispute.
-                    <InlineConfirm
-                      form={Form}
-                      size="default"
-                      label="Accept dispute"
-                      question={ACCEPT_CONFIRM_LINE}
-                      confirmLabel="Yes, accept"
-                      openHref="?confirm=accept"
-                      closeHref="?"
-                      defaultOpen={acceptOpen}
-                      pending={accepting}
-                      pendingLabel="Accepting…"
-                    >
-                      <input type="hidden" name="intent" value="accept" />
-                    </InlineConfirm>
-                  )}
-                </div>
-              )}
-            </div>
-          </Panel>
-        </div>
-      ) : approval || resolved ? (
-        <div className="fh-dispute-submit">
-          <Panel title="Approval">
-            <div className="fh-small">
-              <p className="fh-soft">
-                {approval
-                  ? `Approved by ${approval.approvedByEmail} on ${formatDate(approval.approvedAt, { style: "medium", time: true }) ?? ""}`
-                  : "No approval record."}
-              </p>
-              {resolved ? (
-                <p className="fh-dispute-help-text fh-text">
-                  {state === "resolved_won"
-                    ? dispute.resolvedFeeCents != null
-                      ? `Won. Fee of ${formatMoney(dispute.resolvedFeeCents, dispute.resolvedFeeCurrency ?? dispute.currency)} billed at the next monthly run.`
-                      : dispute.submittedAt != null
-                        ? "Won. The fee is not priced yet, so it is not billed until it is."
-                        : "Won. No fee: this dispute was not submitted through Foxhound."
-                    : state === "inquiry_closed"
-                      ? "Inquiry closed. Not billed."
-                      : "Lost. Not billed."}
-                </p>
-              ) : null}
-            </div>
-          </Panel>
-        </div>
-      ) : null}
+      <DisputeApproval
+        dispute={dispute}
+        approval={approval}
+        state={state}
+        editable={editable}
+        resolved={resolved}
+        isOwner={isOwner}
+        approveError={approveError}
+        approving={approving}
+        accepting={accepting}
+        acceptOpen={acceptOpen}
+        dirty={dirty}
+      />
     </div>
   );
 }

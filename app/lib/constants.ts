@@ -274,78 +274,6 @@ export const DECLINE_CATEGORIES = [
 ] as const;
 export type DeclineCategory = (typeof DECLINE_CATEGORIES)[number];
 
-/** Authenticated send domain (warmed independently of Worker routing). */
-const EMAIL_SEND_DOMAIN = "send.foxhoundapp.com";
-/**
- * Envelope From address for merchant dunning copy (merchant display name is
- * prefixed per send).
- */
-export const EMAIL_FROM_ADDRESS = `recovery@${EMAIL_SEND_DOMAIN}`;
-/**
- * Authenticated domain for transactional platform mail (signup verification,
- * password reset), kept apart from EMAIL_SEND_DOMAIN so auth mail's reputation
- * never mixes with bulk dunning mail's. Never use for merchant-customer sends.
- */
-const EMAIL_AUTH_DOMAIN = "auth.foxhoundapp.com";
-/**
- * Envelope From address for transactional auth mail only
- * (sendTransactionalEmail); never EMAIL_FROM_ADDRESS.
- */
-export const EMAIL_AUTH_SENDER_ADDRESS = `noreply@${EMAIL_AUTH_DOMAIN}`;
-/**
- * Public utility path bases for CAN-SPAM one-click unsubscribe and the hosted
- * card-update page.
- */
-export const UNSUBSCRIBE_PATH = "/u";
-export const CARD_UPDATE_PATH = "/p";
-/** Engagement tracking path bases (first-party open pixel + click redirect). */
-export const ENGAGEMENT_OPEN_PATH = "/e/o";
-export const ENGAGEMENT_CLICK_PATH = "/e/c";
-/**
- * The honeypot link's route; shaped like its siblings so it is
- * indistinguishable in the markup.
- */
-export const ENGAGEMENT_HONEYPOT_PATH = "/e/h";
-
-/**
- * A click landing sooner than this after the email was sent is `too_fast`.
- * Enterprise link scanners (SafeLinks, Proofpoint, Mimecast) present a full
- * browser user agent and fetch on delivery, seconds after the send, while a
- * person has to receive and open the mail; `clicked_at - executed_at` is the
- * one stored signal that separates them.
- */
-export const CLICK_SUSPECT_MIN_SECONDS = 60;
-export const CLICK_SUSPECT_MIN_MS = CLICK_SUSPECT_MIN_SECONDS * 1000;
-
-/**
- * Why a click is not trusted. Stored on recovery_steps.click_suspect_reason.
- */
-export const CLICK_SUSPECT_TOO_FAST = "too_fast";
-export const CLICK_SUSPECT_HONEYPOT = "honeypot";
-/**
- * Queue consumer retry ceiling before dead-letter (mirrors the wrangler
- * consumer config).
- */
-export const EMAIL_QUEUE_MAX_RETRIES = 3;
-/** Queue names. */
-export const EMAIL_QUEUE_NAME = "foxhound-email";
-/** The dead-letter queue for EMAIL_QUEUE_NAME (the consumer's `dead_letter_queue` in wrangler.jsonc). */
-export const EMAIL_DLQ_QUEUE_NAME = "foxhound-email-dlq";
-export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
-/**
- * The monthly audit queue: the cron sends one message per opted-in account, so
- * each account's Stripe pages are spent inside its own invocation's subrequest
- * budget.
- */
-export const AUDIT_QUEUE_NAME = "foxhound-audit";
-/**
- * Mirrors max_retries on the foxhound-audit consumer in wrangler.jsonc; the
- * delivery whose attempts exceed this is the last one and raises the alert.
- */
-export const AUDIT_QUEUE_MAX_RETRIES = 3;
-/** Cloudflare Queues accepts at most 100 messages per sendBatch call. */
-export const AUDIT_QUEUE_SEND_BATCH_MAX = 100;
-
 /**
  * Max age of a /p/:token card-update link before it is treated as expired
  * (mirrors the longest recovery step schedule, EMAIL_DAY30, so a link stays
@@ -551,77 +479,6 @@ export type AlertMetric = (typeof ALERT_METRICS)[number];
 export const ALERT_DIRECTIONS = ["above", "below"] as const;
 export type AlertDirection = (typeof ALERT_DIRECTIONS)[number];
 
-/**
- * Pinned Stripe API version (the installed `stripe` package's default), so
- * behavior does not depend on the account's dashboard default.
- */
-export const STRIPE_API_VERSION = "2026-11-18.endive";
-/**
- * The public-preview channel of the same release, for preview-only endpoints
- * such as FX Quotes, which Stripe serves only on a `.preview` version.
- */
-export const STRIPE_PREVIEW_API_VERSION = STRIPE_API_VERSION.replace(/\.[a-z]+$/, ".preview");
-/** Stripe Connect OAuth authorize endpoint. */
-export const STRIPE_CONNECT_AUTHORIZE_URL = "https://connect.stripe.com/oauth/authorize";
-/**
- * Connect OAuth scope at merchant onboarding (/connect): read_write. An audit
- * prospect who converts re-authorizes here.
- */
-export const STRIPE_CONNECT_SCOPE = "read_write";
-export const STRIPE_AUDIT_SCOPE = "read_write";
-/** CSRF state cookie name for the Connect OAuth flow. */
-export const STRIPE_OAUTH_STATE_COOKIE = "__Host-stripe_oauth_state";
-/**
- * CSRF state cookie name for the AUDIT OAuth flow: a separate name from
- * Connect's because both flows can be in flight in one browser, and a shared
- * one would overwrite the other's state (`invalid_state`).
- */
-export const AUDIT_OAUTH_STATE_COOKIE = "__Host-audit_oauth_state";
-/** Connect OAuth state cookie lifetime: 10 minutes. */
-export const STRIPE_OAUTH_STATE_TTL_SECONDS = 600;
-/**
- * The anonymous audit's access-token cookie: HttpOnly, Secure, SameSite=Lax,
- * five minutes, scoped to /audit. It carries the whole token (stored in no
- * table); the Stripe grant is revoked when this window ends unless a Foxhound
- * account holds that Stripe account live.
- */
-// __Secure-, not __Host-: __Host- requires Path=/, and Path=/audit is what
-// keeps the token off every other request.
-export const AUDIT_TOKEN_COOKIE = "__Secure-audit_access_token";
-/**
- * Audit access-token cookie lifetime: 5 minutes. Also the delay before Foxhound
- * revokes the audit's Stripe grant.
- */
-export const AUDIT_TOKEN_TTL_SECONDS = 300;
-/**
- * The audit OAuth pair's IP rate limit: 10 per hour, applied to the start and
- * the callback.
- */
-export const RATE_LIMIT_AUDIT = { max: 10, windowMs: 60 * 60 * 1000 } as const;
-/** The team invite's IP rate limit: 5 per hour on `invite:{ip}`. */
-export const RATE_LIMIT_INVITE = { max: 5, windowMs: 60 * 60 * 1000 } as const;
-
-/**
- * The unsubscribe page's IP rate limit: 10 requests per 60 seconds per IP, on
- * its own bucket.
- */
-export const RATE_LIMIT_UNSUBSCRIBE = { max: 10, windowMs: 60 * 1000 } as const;
-
-/**
- * The admin API's authenticated bucket, keyed on the api_keys row id. 120 per
- * minute: an agent fans out several tool calls per turn and a read-only surface
- * has no write to serialize, yet a runaway loop is capped within a minute.
- * Keyed on the key, not the IP, because the caller is the credential.
- */
-export const RATE_LIMIT_MCP = { max: 120, windowMs: 60 * 1000 } as const;
-/**
- * The merchant MCP endpoint's unauthenticated bucket, keyed on cf-connecting-ip
- * and spent only when authentication FAILS: 20 per minute, matching the
- * `public` bucket. Not spent on successful requests, which would break a team
- * behind one NAT for no gain (each agent is bounded by its own key bucket).
- */
-export const RATE_LIMIT_MCP_ANON = { max: 20, windowMs: 60 * 1000 } as const;
-
 /** An access token lives one hour. */
 export const OAUTH_ACCESS_TOKEN_TTL_SECONDS = 3600;
 
@@ -633,15 +490,3 @@ export const OAUTH_REFRESH_TOKEN_TTL_MS = 30 * DAY_MS;
  * recommends.
  */
 export const OAUTH_CODE_TTL_MS = 10 * MINUTE_MS;
-
-/** OAuth limits: approve is per signed-in user, token and revoke per IP. */
-export const RATE_LIMIT_OAUTH_APPROVE = { max: 20, windowMs: 60 * 1000 } as const;
-export const RATE_LIMIT_OAUTH_TOKEN = { max: 30, windowMs: 60 * 1000 } as const;
-/**
- * Registration: site-runtime's registrationLimited numbers, the limit every
- * family MCP door runs: five an hour from one address (every registration),
- * thirty a day from everyone (allowlisted only).
- */
-export const RATE_LIMIT_OAUTH_REGISTER = { max: 5, windowMs: 60 * 60 * 1000 } as const;
-export const RATE_LIMIT_OAUTH_REGISTER_DAILY = { max: 30, windowMs: 24 * 60 * 60 * 1000 } as const;
-export const RATE_LIMIT_OAUTH_REVOKE = { max: 30, windowMs: 60 * 1000 } as const;

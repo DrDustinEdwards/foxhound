@@ -8,7 +8,7 @@ import {
   failedPayments,
   recoveredPayments,
 } from "~/db/schema";
-import { buildBillingInvoiceBatch } from "~/lib/billing/run";
+import { buildBillingInvoiceBatch } from "~/lib/billing/invoice-batch";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

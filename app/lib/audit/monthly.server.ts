@@ -5,7 +5,7 @@ import { type Db, accounts, auditDigestRuns, getDb, stripeConnections } from "~/
 import { computeFoxhoundAddsCents, type CurrencyCents } from "~/lib/audit/full-audit.server";
 import { saveAuditRun } from "~/lib/audit/persist.server";
 import { runFullAudit } from "~/lib/audit/run.server";
-import { AUDIT_QUEUE_MAX_RETRIES, AUDIT_QUEUE_SEND_BATCH_MAX } from "~/lib/constants";
+import { AUDIT_QUEUE_MAX_RETRIES, AUDIT_QUEUE_SEND_BATCH_MAX } from "~/lib/queue/constants";
 import { alertCronFailure } from "~/lib/cron/alerts.server";
 import { accountProcessingEligibleCondition } from "~/lib/cron/due-steps";
 import { processEmailJob } from "~/lib/email/dispatch";

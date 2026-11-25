@@ -3,11 +3,8 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { csvResponse } from "@dustinedwards/site-runtime/csv";
 import { buildPaymentsCsv } from "~/lib/recovery/payments-csv";
-import {
-  countStepsForFailedPayments,
-  listFilteredFailedPayments,
-  readPaymentFilters,
-} from "~/lib/recovery/queries.server";
+import { listFilteredFailedPayments, readPaymentFilters } from "~/lib/recovery/queries.server";
+import { countStepsForFailedPayments } from "~/lib/recovery/step-queries.server";
 
 import type { Route } from "./+types/export";
 

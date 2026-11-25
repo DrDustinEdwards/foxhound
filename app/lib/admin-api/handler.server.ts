@@ -7,34 +7,12 @@ import {
 import { notFoundReport } from "@dustinedwards/site-runtime/not-found";
 import { eq } from "drizzle-orm";
 import { jsonResponse } from "@dustinedwards/site-runtime/http";
-
 import { getDb, type Db } from "~/db";
 import { accounts, adminApiCalls } from "~/db/schema";
 import { listAdminAuditLog } from "~/lib/admin/audit-log.server";
-import { logAdminAction } from "~/lib/admin/audit.server";
-import {
-  ADMIN_EMAIL_AUDIT_ACTION,
-  ADMIN_EMAIL_STAND_IN_PATH,
-  ADMIN_EMAIL_TYPES,
-  findAdminEmailType,
-  loadMerchantEmailSettings,
-  prepareAdminEmail,
-  previewAdminEmail,
-  resolveTestRecipient,
-  sendAdminEmail,
-  testRecipientAllowList,
-  unknownTypeMessage,
-  type AdminEmailType,
-  type AdminSendResult,
-  type MerchantEmailSettings,
-} from "~/lib/admin/email-send.server";
 import { countStaleMarkers, engageBrake, getBrakeStatus } from "~/lib/admin/brake.server";
 import { listCronRows } from "~/lib/admin/crons.server";
-import {
-  getMerchantDetail,
-  listMerchants,
-  setProcessingPaused,
-} from "~/lib/admin/merchants.server";
+import { setProcessingPaused } from "~/lib/admin/merchant-controls.server";
 import { getD1SizeBytes, getMigrationStatus } from "~/lib/admin/operations.server";
 import { getPlatformOverview } from "~/lib/admin/overview.server";
 import {
@@ -47,13 +25,22 @@ import { getWebhookHealthSummary } from "~/lib/admin/webhooks.server";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { isAdminEmail } from "@dustinedwards/site-runtime/access";
 import { bearerToken } from "@dustinedwards/site-runtime/agent-keys";
-import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
+import { RATE_LIMIT_MCP, RATE_LIMIT_MCP_ANON } from "~/lib/http/rate-limit-buckets";
 import { isIpWithinRateLimit, isWithinRateLimit } from "~/lib/http/rate-limit";
-import { ToolInputError } from "~/lib/mcp/registry";
-import { MERCHANT_TOOLS } from "~/lib/mcp/tools.server";
 import { readJson } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
-import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding";
+
+import {
+  ADMIN_API_PREFIX,
+  ApiError,
+  page,
+  slice,
+  type ApiRoute,
+  type Caller,
+  type Json,
+} from "./route.server";
+import { EMAIL_ROUTES } from "./email-routes.server";
+import { MERCHANT_ROUTES } from "./merchant-routes.server";
 
 // THE FOXHOUND ADMIN API at /api/admin/v1.
 //
@@ -62,27 +49,7 @@ import { pageCursor, readPageCursor } from "@dustinedwards/site-runtime/encoding
 // binding. It is served only on the AdminApi entrypoint (workers/admin-api.ts),
 // which that binding names; the public fetch handler never routes it.
 
-const ADMIN_API_PREFIX = "/api/admin/v1";
 const ACTING_ADMIN_HEADER = "Foxhound-Acting-Admin";
-const PAGE_SIZE = 25;
-const MERCHANT_FILTERS = ["paused", "billing_exempt", "canceled"] as const;
-type MerchantFilter = (typeof MERCHANT_FILTERS)[number];
-
-type Json = Record<string, unknown>;
-
-interface Caller {
-  keyId: string;
-  actorEmail: string;
-}
-
-class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 const UNAUTHORIZED = () => jsonResponse({ ok: false, error: "Unauthorized" }, 401);
 
@@ -128,144 +95,9 @@ async function authenticate(request: Request, env: Env, db: Db): Promise<Caller 
   return { keyId: verified.keyId, actorEmail: actor };
 }
 
-function page(url: URL, route: string): number {
-  const raw = url.searchParams.get("cursor");
-  if (!raw) return 1;
-  const p = readPageCursor(route, raw);
-  if (p !== null && p >= 1) return p;
-  throw new ApiError(
-    400,
-    `That cursor was not issued by ${route}. Omit cursor to start from the first page.`,
-  );
-}
-
-function slice<T>(route: string, rows: T[], pageNumber: number) {
-  const items = rows.slice((pageNumber - 1) * PAGE_SIZE, pageNumber * PAGE_SIZE);
-  const hasMore = pageNumber * PAGE_SIZE < rows.length;
-  return {
-    items,
-    total: rows.length,
-    has_more: hasMore,
-    next_cursor: hasMore ? pageCursor(route, pageNumber + 1) : null,
-  };
-}
-
-interface RouteContext {
-  db: Db;
-  env: Env;
-  caller: Caller;
-  url: URL;
-  params: string[];
-  body: Json;
-  now: Date;
-}
-
-type Handler = (ctx: RouteContext) => Promise<Json>;
-
-interface ApiRoute {
-  method: "GET" | "POST";
-  pattern: string;
-  handler: Handler;
-}
-
 function stagedForAgent(row: StagedRow) {
   return { ...row, summary: describeStaged(row) };
 }
-
-/**
- * One merchant, minus every credential its rows carry: the Stripe access token
- * on each connection and the Slack webhook URL on the account.
- */
-async function merchantForAgent(db: Db, accountId: string) {
-  const detail = await getMerchantDetail(db, accountId);
-  if (!detail) {
-    throw new ApiError(
-      404,
-      `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
-    );
-  }
-  const { account } = detail;
-  return {
-    account: {
-      id: account.id,
-      name: account.name,
-      currency: account.currency,
-      createdAt: account.createdAt,
-      cancelledAt: account.cancelledAt,
-      billingExempt: account.billingExempt,
-      processingPaused: account.processingPaused,
-      pauseReason: account.pauseReason,
-      notificationEmail: account.notificationEmail,
-      slackWebhookConfigured: Boolean(account.slackWebhookUrl),
-    },
-    connections: detail.connections.map((c) => ({
-      id: c.id,
-      name: c.name,
-      stripeUserId: c.stripeUserId,
-      isPrimary: c.isPrimary,
-      connectedAt: c.connectedAt,
-      disconnectedAt: c.disconnectedAt,
-    })),
-    subscriptions: detail.subscriptions,
-    recoveryActivity: detail.recoveryActivity,
-    disputeActivity: detail.disputeActivity,
-    recentInvoices: detail.recentInvoices,
-  };
-}
-
-/**
- * The merchant whose settings a test mail renders with. Customer mail and the
- * weekly digest need one; other merchant and platform mail use it when given.
- */
-async function emailMerchant(
-  db: Db,
-  body: Json,
-  types: AdminEmailType[],
-): Promise<MerchantEmailSettings | null> {
-  const accountId = typeof body.account_id === "string" && body.account_id ? body.account_id : null;
-  if (!accountId) {
-    if (types.some((t) => t.audience === "customer" || t.type === "weekly_digest")) {
-      throw new ApiError(
-        400,
-        `Customer mail renders with a merchant's sender name and Reply-To, and the weekly digest's unsubscribe is signed for a merchant: send account_id. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
-      );
-    }
-    return null;
-  }
-  const merchant = await loadMerchantEmailSettings(db, accountId);
-  if (!merchant)
-    throw new ApiError(
-      400,
-      `No merchant ${accountId}. Find one with GET ${ADMIN_API_PREFIX}/merchants?query=.`,
-    );
-  return merchant;
-}
-
-function emailRecipient(
-  env: Env,
-  caller: Caller,
-  body: Json,
-): { to: string; kind: "self" | "allow_list" } {
-  const recipient = resolveTestRecipient(env, caller.actorEmail, body.to);
-  if (!recipient.ok) throw new ApiError(400, recipient.error);
-  return recipient;
-}
-
-function merchantForPreview(merchant: MerchantEmailSettings | null) {
-  if (!merchant) return null;
-  return {
-    account_id: merchant.accountId,
-    name: merchant.name,
-    sender_name: merchant.senderName,
-    reply_to: merchant.replyTo,
-    brand_voice: merchant.brandVoice,
-  };
-}
-
-const EMAIL_NOTE =
-  `Sample customer data and template copy; no customer row is read and the model is not called, so brand voice is shown, not applied. ` +
-  `Every button points at ${ADMIN_EMAIL_STAND_IN_PATH} instead of a tracked or card-update link, so a click records nothing. ` +
-  `The unsubscribe link is real: following it suppresses that inbox.`;
 
 const ROUTES: ApiRoute[] = [
   {
@@ -300,82 +132,7 @@ const ROUTES: ApiRoute[] = [
     pattern: "/platform",
     handler: async ({ db }) => ({ platform: await getPlatformOverview(db) }),
   },
-  {
-    method: "GET",
-    pattern: "/merchants",
-    handler: async ({ db, url }) => {
-      const query = (url.searchParams.get("query") ?? "").trim().toLowerCase();
-      const filter = url.searchParams.get("filter");
-      if (filter !== null && !MERCHANT_FILTERS.includes(filter as MerchantFilter)) {
-        throw new ApiError(400, `filter must be one of ${MERCHANT_FILTERS.join(", ")}.`);
-      }
-      const all = (await listMerchants(db)).filter(
-        (m) =>
-          filter === null ||
-          (filter === "paused" && m.processingPaused) ||
-          (filter === "billing_exempt" && m.billingExempt) ||
-          (filter === "canceled" && m.cancelledAt !== null),
-      );
-      const matching = query
-        ? all.filter(
-            (m) =>
-              m.id.toLowerCase().includes(query) || (m.name ?? "").toLowerCase().includes(query),
-          )
-        : all;
-      const { items, ...rest } = slice("/merchants", matching, page(url, "/merchants"));
-      return { merchants: items, ...rest };
-    },
-  },
-  {
-    method: "GET",
-    pattern: "/merchants/:id",
-    handler: async ({ db, params }) => ({ merchant: await merchantForAgent(db, params[0]) }),
-  },
-  {
-    // VIEW AS MERCHANT for an agent: one of the merchant MCP's own READ tools, run
-    // for the named account, so an admin sees exactly the answer the merchant's
-    // agent would get (the same picks, masking and pagination) and nothing the
-    // merchant's key could not read. Allowlisted by the registry itself (a tool
-    // whose scope is "read"): a write tool cannot be named, and a new one is covered.
-    method: "POST",
-    pattern: "/merchants/:id/view",
-    handler: async ({ db, env, caller, params, body, now }) => {
-      const accountId = params[0];
-      await merchantForAgent(db, accountId);
-      const toolName = typeof body.tool === "string" ? body.tool : "";
-      const tool = MERCHANT_TOOLS.get(toolName);
-      if (!tool || tool.scope !== "read") {
-        throw new ApiError(
-          400,
-          `tool must be one of the merchant read tools: ${MERCHANT_TOOLS.list()
-            .filter((t) => MERCHANT_TOOLS.get(t.name)?.scope === "read")
-            .map((t) => t.name)
-            .join(", ")}.`,
-        );
-      }
-      const args =
-        body.arguments && typeof body.arguments === "object" && !Array.isArray(body.arguments)
-          ? (body.arguments as Record<string, unknown>)
-          : {};
-      await logAdminAction(db, {
-        actorEmail: caller.actorEmail,
-        action: "merchant.view_as_read",
-        metadata: { accountId, tool: toolName },
-      });
-      try {
-        const result = await tool.execute(
-          { env, db, accountId, now, trace: { apiKeyId: caller.keyId, tool: toolName, now } },
-          args,
-        );
-        return { tool: toolName, result } as Json;
-      } catch (error) {
-        // A refusal written for the agent (a missing id, a bad cursor) is the
-        // same sentence the merchant's agent would read.
-        if (error instanceof ToolInputError) throw new ApiError(400, error.message);
-        throw error;
-      }
-    },
-  },
+  ...MERCHANT_ROUTES,
   {
     method: "GET",
     pattern: "/health",
@@ -470,99 +227,7 @@ const ROUTES: ApiRoute[] = [
       };
     },
   },
-  {
-    // The email types the owner can preview or send, and who may receive them.
-    method: "GET",
-    pattern: "/emails",
-    handler: async ({ env, caller }) => ({
-      types: ADMIN_EMAIL_TYPES,
-      recipients: { default: caller.actorEmail, allow_list: testRecipientAllowList(env) },
-      note: EMAIL_NOTE,
-    }),
-  },
-  {
-    // Render one email exactly as it would be sent. Sends and writes nothing.
-    method: "POST",
-    pattern: "/emails/preview",
-    handler: async ({ db, env, caller, body, now }) => {
-      const recipient = emailRecipient(env, caller, body);
-      const type = findAdminEmailType(body.type);
-      if (!type) throw new ApiError(400, unknownTypeMessage(body.type));
-      const merchant = await emailMerchant(db, body, [type]);
-      let preview;
-      try {
-        preview = previewAdminEmail(
-          env,
-          type,
-          await prepareAdminEmail(env, { type, to: recipient.to, merchant, now }),
-        );
-      } catch (err) {
-        // The real send would refuse for the same reason (a CAN-SPAM guard, a
-        // missing signing key), so the refusal is the answer.
-        throw new ApiError(409, `This email cannot be built: ${errorMessage(err)}.`);
-      }
-      return { preview, merchant: merchantForPreview(merchant), note: EMAIL_NOTE };
-    },
-  },
-  {
-    // Send one, several or all ("all") types to the caller's own inbox or an
-    // allow-listed one. Each send is audited before it is attempted.
-    method: "POST",
-    pattern: "/emails/send",
-    handler: async ({ db, env, caller, body, now }) => {
-      const recipient = emailRecipient(env, caller, body);
-      const requested =
-        body.types === "all"
-          ? ADMIN_EMAIL_TYPES.map((t) => t.type)
-          : Array.isArray(body.types)
-            ? body.types
-            : [body.type];
-      const types: AdminEmailType[] = [];
-      for (const id of requested) {
-        const type = findAdminEmailType(id);
-        if (!type) throw new ApiError(400, `${unknownTypeMessage(id)} Or send types: "all".`);
-        if (!types.includes(type)) types.push(type);
-      }
-      const merchant = await emailMerchant(db, body, types);
-      const results: AdminSendResult[] = [];
-      for (const type of types) {
-        // Intent before state, as the /admin screens do: the row exists before
-        // the send is attempted, so no test mail leaves unrecorded.
-        await logAdminAction(db, {
-          actorEmail: caller.actorEmail,
-          action: ADMIN_EMAIL_AUDIT_ACTION,
-          targetEmail: recipient.to,
-          metadata: {
-            type: type.type,
-            accountId: merchant?.accountId ?? null,
-            recipient: recipient.kind,
-            via: "admin-api",
-            keyId: caller.keyId,
-          },
-        });
-        let prepared;
-        try {
-          prepared = await prepareAdminEmail(env, { type, to: recipient.to, merchant, now });
-        } catch (err) {
-          results.push({
-            type: type.type,
-            status: "failed",
-            provider_message_id: null,
-            error: errorMessage(err),
-          });
-          continue;
-        }
-        results.push(await sendAdminEmail(env, type, prepared));
-      }
-      return {
-        to: recipient.to,
-        account_id: merchant?.accountId ?? null,
-        results,
-        sent: results.filter((r) => r.status === "sent").length,
-        note: EMAIL_NOTE,
-      };
-    },
-  },
+  ...EMAIL_ROUTES,
 ];
 
 const ADMIN_API_ROUTES = ROUTES.map((r) => `${r.method} ${r.pattern}`);

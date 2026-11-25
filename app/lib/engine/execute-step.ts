@@ -6,7 +6,7 @@ import {
   ENGAGEMENT_CLICK_PATH,
   ENGAGEMENT_HONEYPOT_PATH,
   ENGAGEMENT_OPEN_PATH,
-} from "~/lib/constants";
+} from "~/lib/email/constants";
 import { signCardUpdateToken } from "~/lib/card-update/token";
 import { processEmailJob, type EmailJobResult } from "~/lib/email/dispatch";
 import { recoveryFooterNote } from "~/lib/email/templates";

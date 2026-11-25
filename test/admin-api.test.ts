@@ -442,7 +442,13 @@ describe("no money path exists on the API", () => {
   });
 
   it("the API and the staging module import no money writer, cancel or disconnect", () => {
-    for (const path of ["app/lib/admin-api/handler.server.ts", "app/lib/admin/staged.server.ts"]) {
+    for (const path of [
+      "app/lib/admin-api/handler.server.ts",
+      "app/lib/admin-api/route.server.ts",
+      "app/lib/admin-api/merchant-routes.server.ts",
+      "app/lib/admin-api/email-routes.server.ts",
+      "app/lib/admin/staged.server.ts",
+    ]) {
       const body = code(read(path));
       for (const forbidden of [
         "cancelMerchant",

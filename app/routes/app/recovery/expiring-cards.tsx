@@ -7,7 +7,7 @@ import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { authContext } from "~/lib/auth/context";
 import { isCardExpired, isCardExpiringSoon } from "~/lib/recovery/expiring-card";
-import { listExpiringCardAlerts } from "~/lib/recovery/queries.server";
+import { listExpiringCardAlerts } from "~/lib/recovery/step-queries.server";
 
 import type { Route } from "./+types/expiring-cards";
 import { NOINDEX } from "~/lib/seo/meta";

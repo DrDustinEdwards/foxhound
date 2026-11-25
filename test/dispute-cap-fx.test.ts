@@ -62,7 +62,7 @@ vi.mock("~/lib/money/execute", () => ({
 vi.mock("~/lib/stripe/encryption", () => ({ decryptToken: async () => "sk_test" }));
 
 const { resolveDisputeCap, DisputeCapQuoteError } = await import("~/lib/billing/dispute-cap");
-const { buildDisputeResolutionBatch } = await import("~/lib/webhooks/batches");
+const { buildDisputeResolutionBatch } = await import("~/lib/webhooks/dispute-batches");
 const schema = await import("~/db/schema");
 
 async function seed(currency: string, amountCents: number) {

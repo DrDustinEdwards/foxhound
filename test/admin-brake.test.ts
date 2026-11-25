@@ -14,7 +14,10 @@ import {
   listBrakePausedAccountIds,
   releaseBrake,
 } from "~/lib/admin/brake.server";
-import { buildSetProcessingPaused, setProcessingPaused } from "~/lib/admin/merchants.server";
+import {
+  buildSetProcessingPaused,
+  setProcessingPaused,
+} from "~/lib/admin/merchant-controls.server";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";

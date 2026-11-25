@@ -9,9 +9,8 @@ import {
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_WEBHOOK_EVENTS_DAYS,
-  STRIPE_AUDIT_SCOPE,
-  STRIPE_CONNECT_SCOPE,
 } from "~/lib/constants";
+import { STRIPE_AUDIT_SCOPE, STRIPE_CONNECT_SCOPE } from "~/lib/stripe/constants";
 import { AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
 import { STRIPE_WRITES, STRIPE_WRITES_LIMITS, SUBPROCESSORS } from "~/lib/marketing/trust-copy";
 import { GOVERNING_LAW_JURISDICTION, SUPPORT_EMAIL } from "~/lib/seo/jsonld";

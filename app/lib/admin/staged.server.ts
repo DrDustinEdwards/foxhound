@@ -17,7 +17,7 @@ import { logAdminAction } from "./audit.server";
 import { BRAKE_CONFIRM_PHRASES, cronEnableConfirmPhrase } from "./brake";
 import { releaseBrake } from "./brake.server";
 import { isKnownCronName, setCronEnabled } from "./crons.server";
-import { setBillingExempt, setProcessingPaused } from "./merchants.server";
+import { setBillingExempt, setProcessingPaused } from "./merchant-controls.server";
 import { DAY_MS } from "~/lib/constants";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";

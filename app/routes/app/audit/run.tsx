@@ -8,12 +8,11 @@ import "capsomer/copy.css";
 import "capsomer/page-head.css";
 
 import {
-  AuditDisputesSection,
   AuditHealthSection,
   AuditRecoverySection,
   AuditSummary,
-  showDisputesSection,
 } from "~/components/audit/sections";
+import { AuditDisputesSection, showDisputesSection } from "~/components/audit/disputes-section";
 import { getDb } from "~/db";
 import { readSavedRunLiveFigures } from "~/lib/audit/live-figures.server";
 import { getAuditRun } from "~/lib/audit/persist.server";

@@ -1,7 +1,7 @@
 import { formatCount } from "@drdustinedwards/site-helpers/text";
 import { groupSumByCurrency } from "~/lib/money/totals";
 import { DEMO_ACCOUNT_ID, DEMO_MEMBER_EMAIL } from "~/lib/demo/constants";
-import { buildTeamflowBase } from "~/lib/demo/customer-base";
+import { buildTeamflowBase } from "~/lib/demo/customer-roster";
 import { buildDisputesSeed } from "~/lib/demo/disputes-seed";
 import { buildIntelligenceSeed } from "~/lib/demo/intelligence-seed";
 import { buildNarrativeSeed } from "~/lib/demo/narratives-seed";

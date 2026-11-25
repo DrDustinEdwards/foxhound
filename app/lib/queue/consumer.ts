@@ -1,4 +1,4 @@
-import { AUDIT_QUEUE_NAME, EMAIL_EVENTS_QUEUE_NAME, EMAIL_QUEUE_NAME } from "~/lib/constants";
+import { AUDIT_QUEUE_NAME, EMAIL_EVENTS_QUEUE_NAME, EMAIL_QUEUE_NAME } from "~/lib/queue/constants";
 import { processEmailJob } from "~/lib/email/dispatch";
 import { processEmailEvent } from "~/lib/email/events";
 import type { EmailJob } from "~/lib/email/types";

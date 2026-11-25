@@ -1,35 +1,20 @@
 import { formatCount } from "@drdustinedwards/site-helpers/text";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
-
 import type { Db } from "~/db";
-import { accounts, alerts, mcpWrites, stripeConnections } from "~/db";
-
-import { isAlertDirection, isAlertMetric, isCentsMetric } from "./alert-metrics";
-import {
-  buildAlertDelete,
-  buildAlertEnabledUpdate,
-  buildAlertHistoryDelete,
-  buildAlertInsert,
-} from "./alerts.server";
-import { normalizeLookback } from "./audit-settings";
+import { accounts, mcpWrites } from "~/db";
 import { parseMoneyInput } from "@dustinedwards/site-runtime/money";
+import { sealSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
+
+import { normalizeLookback } from "./audit-settings";
 import {
-  buildBrandVoiceUpdate,
-  buildVoiceSamplesUpdate,
-  buildCategoryVoicesUpdate,
   buildFeatureSettingsUpdate,
   buildIntelligenceContextUpdate,
   buildNotificationSettingsUpdate,
-  buildSenderSettingsUpdate,
 } from "./persist.server";
 import { DISPUTE_PRODUCT_DESCRIPTION_MAX_LENGTH } from "./dispute-description";
-import { isValidReplyToEmail, REPLY_TO_EMAIL_MAX_LENGTH } from "./reply-to";
-import { SENDER_NAME_MAX_LENGTH } from "./sender-name";
-import { asBoolean, asLabel, asNotificationEmail, asOptionalText, asVoice } from "./setting-input";
+import { asBoolean, asLabel, asNotificationEmail, asOptionalText } from "./setting-input";
 import { normalizeSlackWebhookUrl } from "./slack-webhook";
-import { sealSlackWebhook } from "~/lib/notify/slack-webhook-secret.server";
-import { readVoiceSamples, storeVoiceSamples } from "~/lib/recovery/voice-samples";
 
 // THE ONE PLACE A SETTING IS VALIDATED AND WRITTEN. The settings forms and the MCP write tools must
 // agree exactly: same bounds, allowlist and refusal string. A DISCRIMINATED OUTCOME, never a throw.
@@ -60,7 +45,7 @@ function traceInsert(db: Db, accountId: string, fields: string[], trace: WriteTr
 }
 
 /** Run the write, plus its trace when there is one, as one batch. */
-async function commit(
+export async function commit(
   db: Db,
   accountId: string,
   fields: string[],
@@ -269,187 +254,6 @@ export async function applyNotificationSettings(
   return { ok: true, fields, state };
 }
 
-export interface SenderNameState {
-  connectionId: string;
-  senderName: string | null;
-  /** Present only when the caller sent the field. */
-  replyToEmail?: string | null;
-}
-
-/**
- * The sender name on one connection. TWO REFUSALS, both the form's own strings: no connection, and
- * over the bound. The bound is 80.
- */
-export async function applySenderName(
-  db: Db,
-  accountId: string,
-  input: { connectionId: unknown; senderName: unknown; replyToEmail?: unknown },
-  trace?: WriteTrace,
-): Promise<ApplyResult<SenderNameState>> {
-  const connectionId = typeof input.connectionId === "string" ? input.connectionId.trim() : "";
-  if (!connectionId) {
-    return { ok: false, error: "Connect Stripe before setting a sender name." };
-  }
-
-  const senderName = asOptionalText(input.senderName);
-  if (senderName && senderName.length > SENDER_NAME_MAX_LENGTH) {
-    return {
-      ok: false,
-      error: `Sender name must be ${SENDER_NAME_MAX_LENGTH} characters or fewer.`,
-    };
-  }
-
-  const writesReplyTo = input.replyToEmail !== undefined;
-  const replyToEmail = writesReplyTo ? asOptionalText(input.replyToEmail) : undefined;
-  if (replyToEmail && replyToEmail.length > REPLY_TO_EMAIL_MAX_LENGTH) {
-    return {
-      ok: false,
-      error: `Reply-to email must be ${REPLY_TO_EMAIL_MAX_LENGTH} characters or fewer.`,
-    };
-  }
-  if (replyToEmail && !isValidReplyToEmail(replyToEmail)) {
-    return { ok: false, error: "Enter a valid reply-to email address." };
-  }
-
-  const owned = await db
-    .select({ id: stripeConnections.id })
-    .from(stripeConnections)
-    .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)))
-    .limit(1);
-  if (owned.length === 0) {
-    return { ok: false, error: "Connect Stripe before setting a sender name." };
-  }
-
-  const fields = writesReplyTo ? ["sender_name", "reply_to_email"] : ["sender_name"];
-  await commit(
-    db,
-    accountId,
-    fields,
-    buildSenderSettingsUpdate(db, accountId, connectionId, { senderName, replyToEmail }),
-    trace,
-  );
-  const state: SenderNameState = { connectionId, senderName };
-  if (writesReplyTo) state.replyToEmail = replyToEmail ?? null;
-  return { ok: true, fields, state };
-}
-
-export interface BrandVoiceState {
-  connectionId: string;
-  general: string | null;
-  soft: string | null;
-  expired: string | null;
-  network: string | null;
-  fraud: string | null;
-  /** The merchant's own past emails, as they will be read back. */
-  samples: string[];
-}
-
-/** The five voice columns, keyed the way callers name them and valued the way
- *  the trace records them. Naming each one IS the allowlist. */
-const BRAND_VOICE_COLUMNS = {
-  general: "brand_voice",
-  soft: "brand_voice_soft",
-  expired: "brand_voice_expired",
-  network: "brand_voice_network",
-  fraud: "brand_voice_fraud",
-} as const;
-
-type BrandVoiceKey = keyof typeof BRAND_VOICE_COLUMNS;
-
-/** One sentence for both refusals, and it is the form's own. */
-const NO_CONNECTION_FOR_VOICE = "Connect Stripe before setting a brand voice.";
-
-/**
- * The general voice plus the four decline-category voices, on one connection. ABSENT MEANS LEAVE
- * ALONE; EMPTY MEANS CLEAR. A TOOL caller can omit a key, and omission must not wipe four
- * categories the merchant set in the UI. It only decides which columns are in the SET.
- */
-export async function applyBrandVoice(
-  db: Db,
-  accountId: string,
-  input: {
-    connectionId: unknown;
-    general?: unknown;
-    soft?: unknown;
-    expired?: unknown;
-    network?: unknown;
-    fraud?: unknown;
-    /** The pasted past emails, one string per box. Absent leaves them alone;
-     *  a list of empty boxes clears them. */
-    samples?: unknown;
-  },
-  trace?: WriteTrace,
-): Promise<ApplyResult<BrandVoiceState>> {
-  const connectionId = typeof input.connectionId === "string" ? input.connectionId.trim() : "";
-  if (!connectionId) return { ok: false, error: NO_CONNECTION_FOR_VOICE };
-
-  // The ownership check and the read of the current voices are ONE query: the
-  // fallback below needs the stored values, and a separate existence check
-  // would be a second round trip for the same row.
-  const found = await db
-    .select({
-      general: stripeConnections.brandVoice,
-      soft: stripeConnections.brandVoiceSoft,
-      expired: stripeConnections.brandVoiceExpired,
-      network: stripeConnections.brandVoiceNetwork,
-      fraud: stripeConnections.brandVoiceFraud,
-      samples: stripeConnections.brandVoiceSamples,
-    })
-    .from(stripeConnections)
-    .where(and(eq(stripeConnections.id, connectionId), eq(stripeConnections.accountId, accountId)))
-    .limit(1);
-  if (found.length === 0) return { ok: false, error: NO_CONNECTION_FOR_VOICE };
-  const stored = found[0];
-
-  const fields: string[] = [];
-  let tooLong: string | null = null;
-  const resolve = (key: BrandVoiceKey): string | null => {
-    const supplied = input[key];
-    if (supplied === undefined) return stored[key];
-    fields.push(BRAND_VOICE_COLUMNS[key]);
-    const text = asVoice(supplied);
-    if (!text.ok) tooLong = text.error;
-    return text.ok ? text.value : null;
-  };
-
-  const state: BrandVoiceState = {
-    connectionId,
-    general: resolve("general"),
-    soft: resolve("soft"),
-    expired: resolve("expired"),
-    network: resolve("network"),
-    fraud: resolve("fraud"),
-    samples: readVoiceSamples(stored.samples),
-  };
-  if (tooLong) return { ok: false, error: tooLong };
-  let storedSamples = stored.samples;
-  if (input.samples !== undefined) {
-    if (!Array.isArray(input.samples))
-      return { ok: false, error: "Sample emails must be a list of texts." };
-    fields.push("brand_voice_samples");
-    storedSamples = storeVoiceSamples(input.samples);
-    state.samples = readVoiceSamples(storedSamples);
-  }
-
-  await commit(
-    db,
-    accountId,
-    fields,
-    [
-      buildCategoryVoicesUpdate(db, accountId, connectionId, {
-        soft: state.soft,
-        expired: state.expired,
-        network: state.network,
-        fraud: state.fraud,
-      }),
-      buildBrandVoiceUpdate(db, accountId, connectionId, state.general),
-      buildVoiceSamplesUpdate(db, accountId, connectionId, storedSamples),
-    ],
-    trace,
-  );
-  return { ok: true, fields, state };
-}
-
 export interface IntelligenceContextState {
   merchantIndustry: string | null;
   primaryCustomerType: string | null;
@@ -530,121 +334,4 @@ export async function applyIntelligenceContext(
     trace,
   );
   return { ok: true, fields, state };
-}
-
-// Alerts, in TWO functions, because the action is in two shapes THE FORM'S ACTION BRANCHES EXACTLY
-// HERE and the split follows it rather than inventing one: `if (intent === "create")` validates
-// four fields and takes no id, then `if (intent === "toggle" || intent === "delete")` shares the id
-// reading and the refusal between two verbs that operate on a row that already exists.
-
-export interface AlertCreateState {
-  id: string;
-  metric: string;
-  direction: string;
-  thresholdValue: number;
-  label: string | null;
-  channel: string;
-}
-
-const ALERT_CHANNELS = ["email", "slack"] as const;
-
-/** The three refusals, the form's own sentences. */
-const ALERT_METRIC_ERROR = "Choose a metric Foxhound tracks.";
-const ALERT_DIRECTION_ERROR = "Choose whether the metric rises or drops.";
-const ALERT_THRESHOLD_ERROR = "Enter a threshold of zero or more.";
-const ALERT_NOT_FOUND_ERROR = "Select an alert.";
-
-/** Create one alert. THE ENUMS ARE THE EVALUATOR'S, not the select's. */
-export async function applyAlertCreate(
-  db: Db,
-  accountId: string,
-  input: {
-    metric: unknown;
-    direction: unknown;
-    threshold: unknown;
-    label?: unknown;
-    channel?: unknown;
-  },
-  now: Date,
-  trace?: WriteTrace,
-): Promise<ApplyResult<AlertCreateState>> {
-  const metric = typeof input.metric === "string" ? input.metric : "";
-  const direction = typeof input.direction === "string" ? input.direction : "";
-  if (!isAlertMetric(metric)) return { ok: false, error: ALERT_METRIC_ERROR };
-  if (!isAlertDirection(direction)) return { ok: false, error: ALERT_DIRECTION_ERROR };
-
-  const raw =
-    typeof input.threshold === "number"
-      ? String(input.threshold)
-      : String(input.threshold ?? "").trim();
-  const parsed = Number(raw);
-  if (!raw || !Number.isFinite(parsed) || parsed < 0) {
-    return { ok: false, error: ALERT_THRESHOLD_ERROR };
-  }
-  const thresholdValue = isCentsMetric(metric) ? Math.round(parsed * 100) : parsed;
-  const label = asLabel(input.label, "the label");
-  if (!label.ok) return label;
-  const channel = (ALERT_CHANNELS as readonly unknown[]).includes(input.channel)
-    ? String(input.channel)
-    : "email";
-
-  const state: AlertCreateState = {
-    id: crypto.randomUUID(),
-    metric,
-    direction,
-    thresholdValue,
-    label: label.value,
-    channel,
-  };
-  // A new row, so every column it names is a field this write touched.
-  const fields = ["metric", "direction", "threshold_value", "label", "channel"];
-  await commit(db, accountId, fields, buildAlertInsert(db, accountId, state, now, state.id), trace);
-  return { ok: true, fields, state };
-}
-
-export interface AlertConfigState {
-  id: string;
-  enabled: boolean;
-  deleted: boolean;
-}
-
-/** Enable, disable or delete one existing alert. It then returned `ok: true`. */
-export async function applyAlertConfig(
-  db: Db,
-  accountId: string,
-  input: { alertId: unknown; enabled?: unknown; deleted?: unknown },
-  trace?: WriteTrace,
-): Promise<ApplyResult<AlertConfigState>> {
-  const alertId = typeof input.alertId === "string" ? input.alertId.trim() : "";
-  if (!alertId) return { ok: false, error: ALERT_NOT_FOUND_ERROR };
-
-  const owned = await db
-    .select({ id: alerts.id })
-    .from(alerts)
-    .where(and(eq(alerts.id, alertId), eq(alerts.accountId, accountId)))
-    .limit(1);
-  if (owned.length === 0) return { ok: false, error: ALERT_NOT_FOUND_ERROR };
-
-  if (asBoolean(input.deleted)) {
-    const fields = ["deleted"];
-    await commit(
-      db,
-      accountId,
-      fields,
-      [buildAlertHistoryDelete(db, accountId, alertId), buildAlertDelete(db, accountId, alertId)],
-      trace,
-    );
-    return { ok: true, fields, state: { id: alertId, enabled: false, deleted: true } };
-  }
-
-  const enabled = asBoolean(input.enabled);
-  const fields = ["enabled"];
-  await commit(
-    db,
-    accountId,
-    fields,
-    buildAlertEnabledUpdate(db, accountId, alertId, enabled),
-    trace,
-  );
-  return { ok: true, fields, state: { id: alertId, enabled, deleted: false } };
 }

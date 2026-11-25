@@ -15,7 +15,8 @@ import {
   unauthorized as bearerChallenge,
 } from "@dustinedwards/site-runtime/mcp-server";
 import { getDb } from "~/db";
-import { DEMO_ACCOUNT_ID_PREFIX, RATE_LIMIT_MCP_ANON } from "~/lib/constants";
+import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
+import { RATE_LIMIT_MCP_ANON } from "~/lib/http/rate-limit-buckets";
 import { MCP_TOKEN_PREFIX, MCP_TOKEN_SCOPE, verifyMcpToken } from "~/lib/auth/mcp-tokens";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 import { mcpResource, MERCHANT_SCOPES } from "~/lib/oauth/metadata";

@@ -1,6 +1,6 @@
 import Stripe from "stripe";
 
-import { STRIPE_API_VERSION } from "~/lib/constants";
+import { STRIPE_API_VERSION } from "~/lib/stripe/constants";
 
 // The Stripe client factory. Built per-request from env so the secret key never leaves the binding.
 const NETWORK = {

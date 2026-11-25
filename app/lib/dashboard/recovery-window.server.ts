@@ -2,11 +2,8 @@ import { relative, toMs } from "capsomer/behavior/time";
 import type { Db } from "~/db";
 import { DAY_MS, DECLINE_CATEGORIES, type DeclineCategory, HOUR_MS } from "~/lib/constants";
 import { isCardExpiringSoon } from "~/lib/recovery/expiring-card";
-import {
-  listExpiringCardAlerts,
-  listActiveFailedPayments,
-  type FailedPaymentRow,
-} from "~/lib/recovery/queries.server";
+import { listActiveFailedPayments, type FailedPaymentRow } from "~/lib/recovery/queries.server";
+import { listExpiringCardAlerts } from "~/lib/recovery/step-queries.server";
 import {
   countActiveWinbacks,
   countFailuresByCustomer,

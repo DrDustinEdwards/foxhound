@@ -3,12 +3,12 @@
     "jscpd": "jscpd@5.4.1"
   },
   "baseline": {
-    "measured_at": "25f1a7a",
+    "measured_at": "9d6cd3b",
     "knip": {},
     "jscpd": {
-      "clones": 76,
-      "lines": 667,
-      "percentage": 0.64,
+      "clones": 73,
+      "lines": 642,
+      "percentage": 0.61,
       "unread": 1
     },
     "shared copies": {
@@ -16,53 +16,15 @@
       "lines": 0
     },
     "legacy": {},
-    "size": {
-      "app/app-pages.css": 1718,
-      "app/app.css": 887,
-      "app/components/audit/sections.tsx": 522,
-      "app/components/recovery-dashboard-panels.tsx": 547,
-      "app/lib/admin-api/handler.server.ts": 675,
-      "app/lib/admin/email-send.server.ts": 861,
-      "app/lib/admin/merchants.server.ts": 568,
-      "app/lib/audit/engine.ts": 539,
-      "app/lib/billing/charge-retry.ts": 655,
-      "app/lib/billing/credit-note.ts": 512,
-      "app/lib/billing/run.ts": 589,
-      "app/lib/carrel/adapter.server.ts": 694,
-      "app/lib/constants.ts": 647,
-      "app/lib/cron/recovery-tick.ts": 550,
-      "app/lib/decline-codes/content.ts": 1238,
-      "app/lib/demo/customer-base.ts": 1039,
-      "app/lib/demo/disputes-seed.ts": 533,
-      "app/lib/demo/intelligence-seed.ts": 598,
-      "app/lib/demo/recovery-seed.ts": 777,
-      "app/lib/intelligence/sync.server.ts": 543,
-      "app/lib/marketing/docs-content.ts": 1004,
-      "app/lib/marketing/features-content.ts": 836,
-      "app/lib/mcp/tools.server.ts": 1294,
-      "app/lib/oauth/provider.server.ts": 608,
-      "app/lib/recovery/queries.server.ts": 616,
-      "app/lib/settings/apply.server.ts": 650,
-      "app/lib/webhooks/batches.ts": 617,
-      "app/lib/webhooks/events.ts": 520,
-      "app/lib/webhooks/lookups.ts": 648,
-      "app/marketing.css": 518,
-      "app/routes/app/disputes/detail.tsx": 713,
-      "app/routes/app/recovery/payments/detail.tsx": 878,
-      "app/routes/app/recovery/payments/index.tsx": 1030,
-      "app/routes/app/settings/account.tsx": 765,
-      "app/routes/home.tsx": 521,
-      "app/routes/privacy.tsx": 892,
-      "app/routes/terms.tsx": 789
-    },
+    "size": {},
     "tests": {
       "files": 264,
       "cases": 1369
     },
     "comments": {
-      "lines": 13273,
-      "code": 125898,
-      "percentage": 9.54
+      "lines": 13297,
+      "code": 126808,
+      "percentage": 9.49
     }
   }
 }

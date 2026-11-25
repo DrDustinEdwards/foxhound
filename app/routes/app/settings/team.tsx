@@ -21,7 +21,7 @@ import {
   MEMBER_ROLE,
 } from "~/lib/auth";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { RATE_LIMIT_INVITE } from "~/lib/constants";
+import { RATE_LIMIT_INVITE } from "~/lib/http/rate-limit-buckets";
 import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
 import { getPrimarySenderConnection } from "~/lib/settings/queries.server";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";

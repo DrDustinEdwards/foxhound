@@ -12,7 +12,7 @@ import { routerRenderLink } from "capsomer/react/link";
 import { getDb } from "~/db";
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { applyBrandVoice } from "~/lib/settings/apply.server";
+import { applyBrandVoice } from "~/lib/settings/apply-sender-voice.server";
 import { getPrimaryBrandVoices } from "~/lib/settings/queries.server";
 import {
   MAX_VOICE_SAMPLES,

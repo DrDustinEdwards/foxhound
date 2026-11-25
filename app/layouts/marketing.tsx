@@ -15,6 +15,7 @@ import type { Route } from "./+types/marketing";
 // system; the base cues are app.css's capsomer/links.css).
 import "capsomer/link.css";
 import "~/marketing.css";
+import "~/marketing-looks.css";
 
 // Anonymous visitors stay zero-DB. An authenticated visitor additionally resolves their memberships (for the account switcher), without resolveNavContext's last-visited-product logic, which marketing pages have no use for.
 export async function loader({ request, context }: Route.LoaderArgs) {

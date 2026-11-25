@@ -1,8 +1,9 @@
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { RATE_LIMIT_OAUTH_REVOKE } from "~/lib/constants";
+import { RATE_LIMIT_OAUTH_REVOKE } from "~/lib/http/rate-limit-buckets";
 import { isIpWithinRateLimit } from "~/lib/http/rate-limit";
-import { oauthResponse, parseOAuthBody, revokeOAuthToken } from "~/lib/oauth/provider.server";
+import { oauthResponse, parseOAuthBody } from "~/lib/oauth/provider.server";
+import { revokeOAuthToken } from "~/lib/oauth/token.server";
 
 import type { Route } from "./+types/oauth-revoke";
 

@@ -1,7 +1,8 @@
 import type Stripe from "stripe";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { runAudit, type AuditInputs, type ScopeOutcome } from "~/lib/audit/engine";
+import { runAudit } from "~/lib/audit/engine";
+import { type AuditInputs, type ScopeOutcome } from "~/lib/audit/types";
 
 import { readDisputes } from "~/lib/stripe/reads";
 

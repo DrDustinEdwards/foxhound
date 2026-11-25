@@ -26,7 +26,7 @@ const { action, loader } = await import("~/routes/app/settings/email");
 const { buildEmailMessage } = await import("~/lib/email/send");
 const { toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
-const { EMAIL_FROM_ADDRESS } = await import("~/lib/constants");
+const { EMAIL_FROM_ADDRESS } = await import("~/lib/email/constants");
 
 const BASE = "https://foxhoundapp.test";
 const ACCOUNT = "acct_1";

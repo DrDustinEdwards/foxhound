@@ -17,7 +17,7 @@ import { draftPostContext } from "~/lib/preview-context";
 import { siteFiles } from "~/lib/seo/files";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 import { codePagePaths } from "~/routes/files/sitemap";
-import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/constants";
+import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/queue/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { TOKEN_ROUTES } from "~/lib/errors/token-routes";

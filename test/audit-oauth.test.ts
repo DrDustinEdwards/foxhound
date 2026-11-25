@@ -10,7 +10,7 @@ import {
   AUDIT_TOKEN_COOKIE,
   AUDIT_TOKEN_TTL_SECONDS,
   STRIPE_AUDIT_SCOPE,
-} from "~/lib/constants";
+} from "~/lib/stripe/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 

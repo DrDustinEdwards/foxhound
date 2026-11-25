@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { accounts, stripeConnections } from "~/db";
-import { AUDIT_QUEUE_NAME } from "~/lib/constants";
+import { AUDIT_QUEUE_NAME } from "~/lib/queue/constants";
 import { handleQueueBatch } from "~/lib/queue/consumer";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
