@@ -3,6 +3,7 @@ import {
   itemList,
   organization,
   person,
+  softwareApplication,
   thing,
   website,
 } from "@drdustinedwards/site-helpers/schema";
@@ -46,8 +47,8 @@ export function organizationJsonLd(url: string) {
 }
 
 export function softwareApplicationJsonLd(url: string) {
-  return thing("SoftwareApplication", {
-    "@id": `${url}/#software`,
+  return softwareApplication({
+    id: `${url}/#software`,
     name: "Foxhound",
     applicationCategory: "BusinessApplication",
     operatingSystem: "Web",
