@@ -3,6 +3,7 @@ import type Stripe from "stripe";
 
 import type { Db, MoneyWriteBatch } from "~/db";
 import { accounts, billingInvoices, getDb } from "~/db";
+import { finalizeBillingSetupSession, sessionCustomerId } from "~/lib/billing/platform-customer";
 import { executeMoneyWrite } from "~/lib/money/execute";
 import {
   buildWebhookClaim,
@@ -172,6 +173,9 @@ export async function processPlatformWebhook(
   if (event.account) return { status: "ignored", reason: "connected_account_event" };
 
   try {
+    if (event.type === "checkout.session.completed") {
+      return await processSetupSessionCompleted(env, event, receivedAt);
+    }
     const target = await resolvePlatformBillingTarget(env, event);
 
     if (!target) {
@@ -219,4 +223,41 @@ export async function processPlatformWebhook(
       message: err instanceof Error ? err.message : "platform webhook error",
     };
   }
+}
+
+async function processSetupSessionCompleted(
+  env: Env,
+  event: Stripe.Event,
+  receivedAt: Date,
+): Promise<WebhookOutcome> {
+  const session = event.data.object as Stripe.Checkout.Session;
+  if (session.mode !== "setup") return { status: "ignored", reason: "not_setup" };
+  const customerId = sessionCustomerId(session.customer);
+  const [account] = await getDb(env)
+    .select({ id: accounts.id })
+    .from(accounts)
+    .where(eq(accounts.platformStripeCustomerId, customerId ?? ""))
+    .limit(1);
+  if (!account) return { status: "ignored", reason: "unknown_customer" };
+
+  const finalized = await finalizeBillingSetupSession(env, {
+    sessionId: session.id,
+    expectedCustomerId: customerId,
+  });
+  if (!finalized.ok) return { status: "error", message: finalized.error ?? "setup" };
+
+  const { applied } = await executeMoneyWrite(env, {
+    accountId: account.id,
+    idempotencyKey: `platform-webhook:${event.id}`,
+    build: (db) => [
+      buildWebhookClaim(db, {
+        stripeEventId: event.id,
+        eventType: event.type,
+        accountId: account.id,
+        receivedAt,
+        payload: {},
+      }),
+    ],
+  });
+  return applied ? { status: "applied" } : { status: "duplicate" };
 }

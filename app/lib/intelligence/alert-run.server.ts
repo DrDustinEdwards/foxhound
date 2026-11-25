@@ -133,7 +133,7 @@ async function computeAlertMetrics(
       .limit(2),
   ]);
 
-  // Counts add across currencies; amounts never do (hard rule 2). A threshold is one number, so an amount alert
+  // Counts add across currencies; amounts never do (CLAUDE.md, Money writes). A threshold is one number, so an amount alert
   // fires when any one currency's largest total crosses it.
   const totalCount = (rows: { n: number }[]) => rows.reduce((sum, r) => sum + r.n, 0);
   const largestCents = (rows: { cents: number }[]) =>

@@ -98,8 +98,8 @@ export const PRIVACY_HANDLING: LegalSection[] = [
         <p>
           The Stripe connection carries read and write scope, because retrying a failed invoice is a
           write. Foxhound uses the write half for these things and no others: {STRIPE_WRITES}. It{" "}
-          {STRIPE_WRITES_LIMITS}. Foxhound never stores card numbers, and Stripe access tokens are
-          encrypted at rest with AES-256.
+          {STRIPE_WRITES_LIMITS}. Foxhound never stores full card numbers or security codes, and
+          Stripe access tokens are encrypted at rest with AES-256.
         </p>
       </>
     ),
@@ -110,21 +110,11 @@ export const PRIVACY_HANDLING: LegalSection[] = [
     body: (
       <>
         <p>
-          <em>In Short:</em> We do not knowingly collect data from or market to children under 18
-          years of age or the equivalent age as specified by law in your jurisdiction.
-        </p>
-        <p>
-          We do not knowingly collect, solicit data from, or market to children under 18 years of
-          age or the equivalent age as specified by law in your jurisdiction, nor do we knowingly
-          sell such personal information. By using the Services, you represent that you are at least
-          18 or the equivalent age as specified by law in your jurisdiction or that you are the
-          parent or guardian of such a minor and consent to such minor dependent&apos;s use of the
-          Services. If we learn that personal information from users less than 18 years of age or
-          the equivalent age as specified by law in your jurisdiction has been collected, we will
-          deactivate the account and take reasonable measures to promptly delete such data from our
-          records. If you become aware of any data we may have collected from children under age 18
-          or the equivalent age as specified by law in your jurisdiction, please contact us at{" "}
-          <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
+          <em>In Short:</em> Foxhound is for businesses. We do not knowingly collect data from
+          anyone under 18. By using the Services, you represent that you are at least 18. If we
+          learn that we have collected personal information from someone under 18, we will
+          deactivate the account and promptly delete the data. If you become aware of any such data,
+          please contact us at <a href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a>.
         </p>
       </>
     ),

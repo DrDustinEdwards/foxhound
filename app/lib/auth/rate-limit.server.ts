@@ -17,7 +17,7 @@ const SIGNUP_RULES = [{ limit: 5, windowSeconds: 60 * 60 }];
 export const SIGN_IN_LIMITED = "Too many attempts. Please try again in a minute.";
 export const SIGN_UP_LIMITED = "Too many requests. Please try again later.";
 
-const ON_UNAVAILABLE = "allow" as const;
+const ON_UNAVAILABLE = "refuse" as const;
 
 export type AuthAttempt = "credential" | "signup";
 

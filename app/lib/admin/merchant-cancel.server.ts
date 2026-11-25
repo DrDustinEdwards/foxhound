@@ -37,7 +37,7 @@ function buildCancelMerchantBatch(
   connections: CancelledConnection[],
   now: Date,
 ): CancelBatch {
-  // Each disconnect is joined to the account stamp it depends on (hard rule 3):
+  // Each disconnect is joined to the account stamp it depends on (CLAUDE.md, Money writes):
   // it fires only where the account row now carries THIS cancel's stamp, so an
   // unknown account id disconnects nothing even though D1 runs the rest of a
   // batch after a zero-row UPDATE.
@@ -171,7 +171,7 @@ export async function cancelMerchant(
 
 // The stamp matches only a live connection of this account and returns the row
 // it changed, so a connection that is unknown, another account's or already
-// disconnected matches nothing and is told apart (hard rule 3).
+// disconnected matches nothing and is told apart (CLAUDE.md, Money writes).
 function buildDisconnectConnectionBatch(
   db: Db,
   accountId: string,

@@ -43,8 +43,8 @@ input before any DB access. The plaintext is shown once, at issuance.
 ## Rules
 
 - A merchant token's `account_id` is the tenant. No tool takes an account
-  argument (CLAUDE.md hard rule 8), and every query goes through the
+  argument (CLAUDE.md, Agent tools and demo), and every query goes through the
   account-scoped helpers.
 - No tool submits a dispute, cancels, disconnects, connects, or writes an
-  outcome or a bill (CLAUDE.md hard rule 4).
+  outcome or a bill (CLAUDE.md, Agent tools and demo).
 - Never log the plaintext token or `key_hash` beside identifying data.

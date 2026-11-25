@@ -43,7 +43,7 @@
   // returned a stored anonymous `/` to a signed-in request and was reverted;
   // 348 re-enabled it behind `Vary: Cookie`, which keys the cache by cookie.
   // The gateway now makes that decision in code that runs on every request,
-  // and Vary stays as the second lock (CLAUDE.md hard rule 9).
+  // and Vary stays as the second lock (CLAUDE.md, Tenants).
   //
   // A stored page carries no CSP nonce (its inline scripts are trusted by
   // hash), sets no cookie, and is purged by its "pages" tag on every Carrel

@@ -1,43 +1,24 @@
 # CLAUDE.md - foxhound
 
-Foxhound, https://foxhoundapp.com: failed-payment recovery, disputes and subscription intelligence for Stripe merchants, the Cloudflare-native rebuild of Recova. React Router 8 on Workers, Drizzle on D1, Durable Objects for money writes, Queues for email events and audits, Access for the admin. The legacy Recova app is the separate, frozen repo DrDustinEdwards/recova.
+Foxhound, https://foxhoundapp.com: failed-payment recovery and disputes for Stripe merchants, the Cloudflare-native rebuild of Recova (frozen repo DrDustinEdwards/recova). Fees are `foxhound/PRICING.md` in Capsid.
 
 ## Rules every repo shares
 
-- **Tests.** Reproduce a reported failure before fixing it, and report red before and green after. Keep the minimal set: a few browser tests for flows that must never break, one integration test per real behavior, unit tests only for tricky logic, shared code tested once where it lives. Remove a test that pins design, repeats coverage or never caught a mistake, unless it guards a harm that cannot be undone.
-- **UI copy.** Let the layout explain: no eyebrows, restating subtitles, "this page lets you" intros, hints a label already gives or empty-state essays. Labels, accessible names, errors, one-way warnings and legal text stay (Dustin, 2026-11-18; capsid/conventions.md).
-- **Shared code.** Before writing anything another site might have, check https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md. Change shared code in place and delete what the change replaces in the same PR.
-- **Browser support.** devkit's docs/browser-support.md: Baseline Widely available freely, Newly available with a small fallback, Limited only feature-detected, no polyfills.
-- **Secrets.** Never commit or print a key, token, `.dev.vars` or `.env`.
-- **Deploys.** A merge to the default branch deploys; never deploy from a session.
-- **D1.** Never hand-run production DDL; CI applies additive migrations and refuses the rest. Back up and restore with d1-dump, never `wrangler d1 export` (it fails on FTS5 tables).
-- **Site copy and AI.** Copy describes only what the current build does. An AI provider key stays on the server, never in a client.
+- **Tests.** Reproduce a reported failure before fixing it: red before, green after.
+- **UI copy.** No eyebrows, restating subtitles, intros or hints a label already gives (Dustin, 2026-11-18).
+- **Shared code.** Check devkit's [SHARED.md](https://github.com/DrDustinEdwards/devkit/blob/shared-list/SHARED.md) before writing anything another repo might have; change it in place.
+- **Secrets.** Never commit or print a key or token. AI provider keys stay on the server.
+- **Production.** Never deploy, tag, release or run production DDL from a session; a merge deploys. Back up and restore D1 only with d1-dump.
 
 ## Rules for this repo
 
-- Fees are `foxhound/PRICING.md` in Capsid; read it before touching billing.
-- Recova is the spec (Dustin: "I want the new site to be like the old site, except built to be native on Cloudflare"): its content, layout, widths, text sizes and features, with Capsomer's components in Recova's amber and the shared family pieces in place of Foxhound's own. Shared pieces, their defaults, not copying Recova's bugs, and plain improvements need no ruling; a visible change carries after screenshots in the PR. Only dropping a Recova feature or content needs his quoted word in `foxhound/parity/APPROVED-DIFFERENCES.md`, which also lists what is deliberately not built.
+- **Money writes.** One writer per money table (recoveries through buildRecoveryBatch, account state through cancelMerchant, outcomes through recordOutcome); money parameters have no default; totals go through groupSumByCurrency. An UPDATE that matches zero rows is a failure: join each guard to the write it guards.
+- **Tenants.** The active account lives on the session row and every query helper takes accountId first. Private or cookie-carrying responses are private, no-store; public pages send Vary: Cookie.
+- **Agent tools and demo.** No agent tool submits a dispute, cancels, disconnects, connects, writes an outcome or a bill, or takes an account argument; they mask customer name, phone, IP, billing address and email. The demo refuses every non-GET before any database work and never calls Stripe or Anthropic.
+- **Live tests.** A test against production runs on a billing-exempt account. A migration that recreates a money table is proven against real D1 with row counts before and after. Never delete a Cloudflare resource Dustin has not named.
+- **Launch.** No paying merchant's money moves until an LLC exists. Copy makes no claim, statistic or promise without a real source. Recova is the spec; dropping a Recova feature needs Dustin's quoted word in `foxhound/parity/APPROVED-DIFFERENCES.md`.
 
 ## Commands
 
-- `npm run check:all` (typecheck, lint, test, tokens, gates) before a push. `npm run db:generate` and `npm run db:migrate` for migrations.
-- One Worker `foxhound` and one D1 `foxhound`, no `--env` anywhere: every deploy is production. The only second Worker is the admin MCP in `mcp/`, whose only bindings are a service binding to `foxhound`, its own OAuth KV, rate limit and tool-call log, and the R2 bucket for that log's copies, so it can never touch Stripe, D1 or money.
-- Read legacy code through Capsid's repo tools (`repo: "legacy"` or `"legacy-mcp"`), never by cloning it here. Legacy Supabase is read-only reference.
-- Public repo: never commit real merchant data.
-
-## Hard rules
-
-A ruling number or "RULES.md n.n" in a code comment is a reference to retired rules: look it up in `foxhound/RULES-INDEX.md` in Capsid.
-
-1. Product facts in copy come from Foxhound's engine constants, never retyped and never Recova's numbers. Every statistic names its source URL and date. No recovery-rate promise, testimonial, counter or security attestation until a real one exists. A control that cannot do its job yet is left out. Stripe scope is read_write at /connect and for the free audit (Stripe gives read_only only to Extensions), and Foxhound revokes the audit grant when its window ends; when copy and scope disagree, fix the copy.
-2. One writer per money table: recoveries only through buildRecoveryBatch, account state through cancelMerchant, alerts and win-back events through recordOutcome (never billable). Money parameters are required arguments with no default. Totals go through groupSumByCurrency. A second writer is a billing error a merchant finds first, and no test notices one being added.
-3. An UPDATE that matches zero rows is a failure, and in a D1 batch it does not stop the statements after it, so join each guard to the write it guards.
-4. No agent tool submits a dispute, cancels, disconnects, connects, or writes an outcome or a bill.
-5. Migrations that recreate a table are proven against real D1 with defer_foreign_keys (D1 ignores foreign_keys=OFF and the local harness enforces no keys), with row counts before and after on money tables.
-6. Any test against production runs on a billing-exempt account with live sends on for it alone, because a test that mints a fee row is a fake bill.
-7. Never delete a Cloudflare resource unless Dustin names it and a same-minute check shows it is not the live one. Never work around a credential; the fix is Dustin's.
-8. Tenant isolation: the active account lives on the session row; every query helper takes accountId first; no agent tool takes an account argument; one live Foxhound account per Stripe account. Agent tools mask customer name, phone, IP, billing address and email by default. Audit runs are private, and a refusal never names who holds an account.
-9. Anything private or carrying a session cookie is private, no-store; public pages send Vary: Cookie. One signed-in cache HIT means turn page caching off.
-10. The demo refuses every non-GET with 405 before any membership or database work, and nothing under app/lib/demo/ calls Stripe or Anthropic.
-11. Security headers come from site-runtime and its defaults are taken as they change. Never weaken production, or go back to Recova's weaker setup, to make a measurement easier. Merchant-visible HTML from AI is sanitized on the server.
-12. No paying merchant's money moves until an LLC exists; until then Terms are under Texas law and name Dustin Edwards as operator. Recova is retired only after Dustin says Foxhound is matched, in the order in `foxhound/CUTOVER-PLAN.md`.
+- `npm run check:all` before a push. Public repo: never commit real merchant data.
+- `RULES.md n.n` in an old comment points to `foxhound/RULES-INDEX.md` in Capsid.

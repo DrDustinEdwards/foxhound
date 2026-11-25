@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { createPlatformInvoice } from "~/lib/billing/stripe-invoice";
 
-// Charging is switched on here (hard rule 12).
+// Charging is switched on here (CLAUDE.md, Launch).
 vi.mock("~/lib/billing/charges-switch", () => ({ PLATFORM_CHARGES_ENABLED: true }));
 
 describe("createPlatformInvoice preconditions", () => {

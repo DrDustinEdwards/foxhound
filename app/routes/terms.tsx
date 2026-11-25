@@ -11,7 +11,7 @@ import { TERMS_CONTENT } from "~/components/legal/terms-content";
 import { TERMS_CLOSING } from "~/components/legal/terms-closing";
 import type { Route } from "./+types/terms";
 
-// The terms of service. Foxhound differs from the standard wording where it works differently: the operator is Dustin Edwards, sole proprietor, Texas (hard rule 12); the product description is the one /privacy carries (LegalServiceDescription); the API terms and the MCP exception to "no automated access" (agent keys); sign-in is passwordless, and Foxhound has no usernames; billing follows PRICING.md (attribution, the maturity window, the dispute cap and free Intelligence), with every number from the engine's constants; "Erath, Texas" names the county, Erath County. The chrome kit is shared with /privacy in ~/components/legal-page.
+// The terms of service. Foxhound differs from the standard wording where it works differently: the operator is Dustin Edwards, sole proprietor, Texas (CLAUDE.md, Launch); the product description is the one /privacy carries (LegalServiceDescription); the API terms and the MCP exception to "no automated access" (agent keys); sign-in is passwordless, and Foxhound has no usernames; billing follows PRICING.md (attribution, the maturity window, the dispute cap and free Intelligence), with every number from the engine's constants; "Erath, Texas" names the county, Erath County. The chrome kit is shared with /privacy in ~/components/legal-page.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({

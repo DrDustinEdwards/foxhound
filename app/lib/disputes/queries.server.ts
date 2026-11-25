@@ -425,7 +425,7 @@ export async function readDisputeSettings(
  * Who turned dispute auto-submit on and when: the merchant's standing approval
  * that every automatic submission's dispute_approvals row stands on. Read only;
  * the toggle is written by applyDisputeSettings from the signed-in settings
- * page and by nothing else (no agent tool turns it on, CLAUDE.md hard rule 4).
+ * page and by nothing else (no agent tool turns it on, CLAUDE.md, Agent tools and demo).
  */
 export async function readDisputeAutoSubmit(
   db: Db,

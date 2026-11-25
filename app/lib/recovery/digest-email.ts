@@ -14,7 +14,7 @@ export const DIGEST_TEMPLATE = "weekly_digest";
 export interface DigestNumbers {
   totalFailed: number;
   totalRecovered: number;
-  /** Per currency (hard rule 2): a merchant paid in two currencies sees both. */
+  /** Per currency (CLAUDE.md, Money writes): a merchant paid in two currencies sees both. */
   recoveredRevenue: CurrencyAmount[];
   atRiskRevenue: CurrencyAmount[];
   activeCount: number;

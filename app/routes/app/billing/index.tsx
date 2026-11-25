@@ -56,7 +56,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
   // Return leg of the Stripe-hosted setup session: finalize once, then redirect to the clean URL so a refresh never re-processes the same session_id. The session_id is an unauthenticated URL param, so finalize verifies it belongs to THIS account: pass our OWN stored platform customer id as the expected owner; a foreign session never mutates a customer.
   const sessionId = new URL(request.url).searchParams.get("session_id");
   if (sessionId) {
-    // The demo never calls Stripe (hard rule 10), and an admin viewing as a merchant does not finalize the merchant's card for them: both just land on the clean URL.
+    // The demo never calls Stripe (CLAUDE.md, Agent tools and demo), and an admin viewing as a merchant does not finalize the merchant's card for them: both just land on the clean URL.
     if (auth.isDemo || auth.viewingAs) throw redirect("/billing");
     const accountRow = await loadAccountBillingRow(env, accountId);
     await finalizeBillingSetupSession(env, {

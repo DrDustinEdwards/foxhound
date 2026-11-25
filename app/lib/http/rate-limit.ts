@@ -103,14 +103,15 @@ export async function isWithinRateLimit(
   );
 }
 
-/** isWithinRateLimit on the caller's address (an IPv6 address by its /64). Fails open. */
+/** isWithinRateLimit on the caller's address (an IPv6 address by its /64). Fails open unless { failClosed: true }. */
 export function isIpWithinRateLimit(
   env: Env,
   request: Request,
   bucket: string,
   rule: { readonly max: number; readonly windowMs: number },
+  options: { failClosed?: boolean } = {},
 ): Promise<boolean> {
-  return isWithinRateLimit(env, bucket, clientIp(request), rule.max, rule.windowMs);
+  return isWithinRateLimit(env, bucket, clientIp(request), rule.max, rule.windowMs, options);
 }
 
 /** Check the request against the applicable rate-limit rule; return the 429 to send, or null to proceed.

@@ -32,12 +32,10 @@ export const PRIVACY_COLLECTION: LegalSection[] = [
           <li>business names</li>
           <li>contact preferences</li>
         </ul>
-        <p>Sensitive Information. We do not process sensitive information.</p>
         <p>
-          Payment Data. We may collect data necessary to process your payment if you choose to make
-          purchases, such as your payment instrument number, and the security code associated with
-          your payment instrument. All payment data is handled and stored by Stripe. You may find
-          their privacy notice link(s) here:{" "}
+          Payment Data. You enter your card number and security code on Stripe. For a card we watch
+          for a merchant, we keep the brand, last four digits and expiry month and year. You may
+          find their privacy notice link(s) here:{" "}
           <AwayLink href="https://stripe.com/privacy">https://stripe.com/privacy</AwayLink>.
         </p>
         <p>
@@ -84,6 +82,10 @@ export const PRIVACY_COLLECTION: LegalSection[] = [
             information. When you sign in, we keep the city, region, and country Cloudflare matches
             to your IP address, for the session list in your account settings. We do not collect
             precise location, such as GPS.
+          </li>
+          <li>
+            Cookies and Analytics. The fh_theme cookie remembers your light or dark setting, and
+            session cookies keep you signed in. Public pages load Cloudflare Web Analytics.
           </li>
           <li>
             Email Engagement Data. When someone opens a recovery or win-back email we send for a

@@ -32,7 +32,7 @@ import { plural } from "@drdustinedwards/site-helpers/text";
 // The audit's render sections, shared by the live /audit/results and a saved run at /audit/results/:id.
 // ONE LINE PER CURRENCY: each money figure is its totals per currency, stacked as /billing stacks its totals.
 // THE NULL: every figure is number | null and says "could not be read" rather than a zero, so a failed Stripe read never reads as a merchant with no disputes.
-// THE RECOVERABLE ESTIMATE is a fixed share (30%) of the failed invoices with its count-up; the line under the figure names it as an assumption and quotes no outside range, which would need a sourced page and date (CLAUDE.md hard rule 1).
+// THE RECOVERABLE ESTIMATE is a fixed share (30%) of the failed invoices with its count-up; the line under the figure names it as an assumption and quotes no outside range, which would need a sourced page and date (CLAUDE.md, Launch).
 // Not rendered: "Platform median" churn figures, which have no source and no Foxhound ledger behind them.
 
 /** A labeled card holding one paragraph. Renders nothing when there is no summary. Shared with /audit/dashboard. */

@@ -464,7 +464,7 @@ export function jobsForSchedule(cron: string): CronJob[] {
  * app/lib/operator.server.ts). An allowlist, so a job added later is not
  * runnable now until someone decides it is safe: none of these moves money,
  * submits a dispute, sends a merchant or customer email or spends AI budget
- * (CLAUDE.md hard rule 4).
+ * (CLAUDE.md, Agent tools and demo).
  */
 const RUN_NOW: Record<string, { backup?: boolean }> = {
   "d1-backup": { backup: true },
