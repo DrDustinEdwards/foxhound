@@ -73,11 +73,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   // Only an owner attaches a Stripe account to an existing account, checked before the exchange. "add_account" needs none.
   let target: Membership | null = null;
   if (action !== ADD_ACCOUNT_ACTION) {
-    target = await resolveActiveMembershipFrom(
-      db,
-      memberships,
-      session.session.activeAccountId ?? null,
-    );
+    target = resolveActiveMembershipFrom(memberships, session.session.activeAccountId ?? null);
     // No account to attach to; back to setup, where /connect creates one.
     if (!target) return bounce("no_code");
     if (target.role !== MEMBER_ROLE.OWNER) return bounce("owner_required");

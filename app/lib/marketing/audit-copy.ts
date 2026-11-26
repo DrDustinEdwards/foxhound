@@ -118,17 +118,18 @@ export const AUDIT_PRICING = {
 
 export const AUDIT_FAQS = [
   {
-    q: "Does the audit require a Foxhound account?",
-    a: "No. Connect your Stripe account at /audit and results appear immediately. No email, no signup, no credit card. If you want to save results and enable monthly auto-run, you can create a free account afterward.",
+    question: "Does the audit require a Foxhound account?",
+    answer:
+      "No. Connect your Stripe account at /audit and results appear immediately. No email, no signup, no credit card. If you want to save results and enable monthly auto-run, you can create a free account afterward.",
   },
   {
-    q: "What Stripe access does the audit request?",
-    a: `${AUDIT_ACCESS_ASK} The audit reads your invoices, subscriptions, disputes, and customer data. It never modifies payment methods, subscription logic, or any other Stripe settings. ${AUDIT_ACCESS_PROMISE} You can also disconnect from your Stripe dashboard at any time.`,
+    question: "What Stripe access does the audit request?",
+    answer: `${AUDIT_ACCESS_ASK} The audit reads your invoices, subscriptions, disputes, and customer data. It never modifies payment methods, subscription logic, or any other Stripe settings. ${AUDIT_ACCESS_PROMISE} You can also disconnect from your Stripe dashboard at any time.`,
   },
   {
-    q: "How accurate is the recovery estimate?",
+    question: "How accurate is the recovery estimate?",
     // The baseline is read from the constant the results page uses; there is no platform rate.
-    a: `It is an assumption, not a measurement. The estimate is ${AUDIT_RECOVERY_ESTIMATE_PCT}% of your unrecovered failed invoices. Foxhound does not yet have a recovery rate of its own to base it on, so your real result may be higher or lower. The other figures in the audit are what your account actually shows.`,
+    answer: `It is an assumption, not a measurement. The estimate is ${AUDIT_RECOVERY_ESTIMATE_PCT}% of your unrecovered failed invoices. Foxhound does not yet have a recovery rate of its own to base it on, so your real result may be higher or lower. The other figures in the audit are what your account actually shows.`,
   },
 ];
 

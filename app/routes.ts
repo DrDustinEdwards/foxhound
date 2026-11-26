@@ -34,10 +34,7 @@ export default [
     ...prefix("docs", [index("./routes/docs/index.tsx"), route(":slug", "./routes/docs/page.tsx")]),
     ...prefix("demos", [
       index("./routes/demos.tsx"),
-      route("dashboard", "./routes/demos/dashboard.ts"),
-      route("recovery", "./routes/demos/recovery.ts"),
-      route("disputes", "./routes/demos/disputes.ts"),
-      route("intelligence", "./routes/demos/intelligence.ts"),
+      route(":product", "./routes/demos/product.ts"),
     ]),
     route("features", "./routes/features.tsx"),
     route("about", "./routes/about.tsx"),
