@@ -71,7 +71,6 @@ export function afterTransientFailure(
   });
 }
 
-/** An email step the merchant's "Email customers" switch held back: executed, nothing sent. */
 export const EMAIL_SKIPPED_SENDS_OFF = "email_skipped_sends_off";
 
 /** Next state after a PERMANENT send failure: terminal immediately. */

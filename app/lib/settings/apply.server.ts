@@ -93,7 +93,6 @@ export async function applyAuditSettings(
 export interface FeatureSettingsState {
   winbackNotificationsEnabled: boolean;
   expiringCardNotificationsEnabled: boolean;
-  /** The "Email customers" switch (accounts.live_sends_enabled). Only the settings form sends it: no agent tool turns customer mail on. */
   liveSendsEnabled?: boolean;
 }
 

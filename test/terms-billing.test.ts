@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 import { TERMS_USE } from "~/components/legal/terms-use";
 import { INVOICE_DAYS_UNTIL_DUE } from "~/lib/constants";
 
-// The Terms say how Foxhound bills the way the billing code does it (run.ts, stripe-invoice.ts, credit-note.ts).
 const text = renderToStaticMarkup(
   createElement(
     Fragment,

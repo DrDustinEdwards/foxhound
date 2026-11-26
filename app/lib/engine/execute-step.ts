@@ -55,7 +55,6 @@ export interface EmailStepContext {
   stepType: string;
   attemptCount: number;
   declineCategory: string;
-  /** accounts.live_sends_enabled: the merchant's "Email customers" switch. Off skips the step before any copy is written. */
   liveSendsEnabled: boolean;
   customerEmail: string;
   /** failed_payments.customer_name, raw; templates greet with it, falling back to "there". */
@@ -394,8 +393,7 @@ export async function executeEmailStep(
   const generate = deps.generate ?? defaultGenerate;
 
   const now = new Date();
-  // Customer emails off: the step ends as skipped, before any AI copy is paid for. It is not a send
-  // failure, so it neither backs off nor raises the failed-for-good alert. The dispatch gate stays the backstop.
+  // Customer emails off: skipped before any AI copy is paid for; not a send failure, so no backoff and no alert.
   if (!ctx.liveSendsEnabled) {
     await persistPatch(env, ctx.stepId, {
       attemptCount: ctx.attemptCount,
