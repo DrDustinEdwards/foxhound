@@ -71,7 +71,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
   // max-w-[1280px] mx-auto px-4 md:px-8 py-8. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-intel-page cap-admin-page" data-width="page">
-      <div className="fh-intel-head">
+      <div className="fh-mb-6">
         <PageHead title="Recommendations" />
       </div>
 
@@ -88,7 +88,7 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
       )}
 
       {totalPages > 1 ? (
-        <div className="fh-pager">
+        <div className="fh-mt-5">
           <Pagination
             form="steps"
             page={page}

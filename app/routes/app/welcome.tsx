@@ -59,12 +59,12 @@ export default function WelcomePage({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="fh-welcome">
-      <div className="fh-welcome-head fh-center">
-        <h1 className="fh-welcome-title fh-section fh-medium fh-text">You&apos;re connected.</h1>
-        <div className="fh-welcome-account fh-mono fh-copy fh-quiet">{connectionLabel}</div>
+      <div className="fh-mb-7-5 fh-center">
+        <h1 className="fh-mb-3 fh-section fh-medium fh-text">You&apos;re connected.</h1>
+        <div className="fh-mb-6 fh-mono fh-copy fh-quiet">{connectionLabel}</div>
       </div>
 
-      <div className="fh-welcome-steps">
+      <div className="fh-mb-7">
         <SetupChecklist
           title="Two quick steps"
           steps={[

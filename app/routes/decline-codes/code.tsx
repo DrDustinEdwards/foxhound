@@ -63,7 +63,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
       />
 
       <div className="fh-code-wrap">
-        <div className="cap-cluster fh-code-block-2" data-gap="3">
+        <div className="cap-cluster fh-mb-7" data-gap="3">
           <span className="cap-pill fh-mono fh-regular" data-variant="outline" data-tone="muted">
             {view.code}
           </span>
@@ -72,17 +72,17 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           </Pill>
         </div>
 
-        <section className="fh-code-band">
+        <section className="fh-mb-7-5">
           <h2 className="fh-code-title fh-title fh-medium fh-text">Why it happens</h2>
           <p className="fh-body fh-relaxed fh-soft">{content.whyItHappens}</p>
         </section>
 
-        <section className="fh-code-band">
+        <section className="fh-mb-7-5">
           <h2 className="fh-code-title fh-title fh-medium fh-text">How to fix it</h2>
           <p className="fh-body fh-relaxed fh-soft">{content.howToFix}</p>
         </section>
 
-        <section className={`fh-code-band ${CARD_MD}`}>
+        <section className={`fh-mb-7-5 ${CARD_MD}`}>
           <div className="cap-panel-body">
             <div>
               <h2 className="fh-code-title fh-title fh-medium fh-text">How Foxhound recovers it</h2>
@@ -91,8 +91,8 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
           </div>
         </section>
 
-        <section className="fh-code-band">
-          <h2 className="fh-code-title-2 fh-title fh-medium fh-text">Questions</h2>
+        <section className="fh-mb-7-5">
+          <h2 className="fh-mb-5 fh-title fh-medium fh-text">Questions</h2>
           <Faq variant="cards" name="decline-code-faq" items={content.faqs} />
         </section>
 
@@ -102,7 +102,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
               <p className="fh-code-text fh-body fh-medium fh-text">
                 See what this looks like on your account
               </p>
-              <p className="fh-code-text-2 fh-small fh-soft">
+              <p className="fh-mb-5-5 fh-small fh-soft">
                 The free audit shows what Stripe already recovered and what is still dying, no
                 signup required.
               </p>

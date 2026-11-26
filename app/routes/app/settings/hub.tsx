@@ -117,7 +117,7 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
   return (
     <>
       <div className="fh-phone-only">
-        <h1 className="fh-hub-title fh-title fh-semibold fh-text">Settings</h1>
+        <h1 className="fh-mb-6 fh-title fh-semibold fh-text">Settings</h1>
         <nav aria-label="Settings sections">
           <RowList label="Settings sections" gap="xs">
             {SETTINGS_HUB_ENTRIES.map((entry) => (
@@ -129,11 +129,11 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
 
       {/* Desktop: the overview. */}
       <div className="fh-wide-only">
-        <div className="fh-hub-block">
+        <div className="fh-mb-6">
           <PageHead title="Settings" />
         </div>
 
-        <div className="fh-hub-block">
+        <div className="fh-mb-6">
           <StatTiles label="Settings overview">
             <StatTile
               href="/settings/stripe"

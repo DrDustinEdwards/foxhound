@@ -94,7 +94,7 @@ export function DashboardPreview({ preview }: { preview: IntelligencePreview }) 
 /** Block 2: the customer table, worst health first. */
 export function CustomerTablePreview({ preview }: { preview: IntelligencePreview }) {
   return (
-    <div className="fh-intelprev-block-2">
+    <div className="fh-p-5-5">
       <Table caption="Customers by health score, lowest first" captionHidden reflow>
         <thead>
           <tr>
@@ -139,7 +139,7 @@ export function CustomerTablePreview({ preview }: { preview: IntelligencePreview
 /** Block 3: the churn summary, the three bands, high risk first. */
 export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview }) {
   return (
-    <div className="fh-intelprev-block-2">
+    <div className="fh-p-5-5">
       <ul className="fh-intelprev-grid" aria-label="MRR by health band">
         {preview.bands.map((b) => (
           <li key={b.band} className="cap-panel">
@@ -149,7 +149,7 @@ export function ChurnBandsPreview({ preview }: { preview: IntelligencePreview })
                   <Pill tone={METER_TONE[b.band]}>{BAND_LABEL[b.band]}</Pill>
                 </p>
                 <p className="fh-mono fh-title fh-medium cap-num fh-text">{b.customerCount}</p>
-                <p className="fh-intelprev-text-2 fh-mono fh-small fh-soft">
+                <p className="fh-mt-1 fh-mono fh-small fh-soft">
                   {b.mrr}/mo{b.band === "at_risk" ? " at risk" : ""}
                 </p>
               </div>

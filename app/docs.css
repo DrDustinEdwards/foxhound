@@ -26,26 +26,14 @@
   :where(.fh-doc-blocks-list-2 > :not(:last-child)) {
     margin-block: 0 var(--space-3);
   }
-  .fh-doc-blocks-block {
-    margin-block: var(--space-6);
-  }
   .fh-docs-block {
     margin-top: var(--space-8);
-  }
-  .fh-docs-text {
-    margin-top: var(--space-6);
   }
   .fh-docs-link {
     border-radius: var(--radius-m-5);
     --card-lift: 0px;
     --gap: var(--space-5-5);
     --pad-card: var(--space-5-5);
-  }
-  .fh-docs-block-2 {
-    margin-bottom: var(--space-3);
-  }
-  .fh-docs-block-3 {
-    margin-bottom: var(--space-5);
   }
   .fh-doc-wrap {
     margin-inline: auto;
@@ -68,9 +56,6 @@
     margin-top: var(--space-9);
     margin-bottom: var(--space-6);
     scroll-margin-top: var(--space-9-5);
-  }
-  .fh-doc-para {
-    margin-bottom: var(--space-5);
   }
   .fh-doc-note {
     margin-block: var(--space-5);

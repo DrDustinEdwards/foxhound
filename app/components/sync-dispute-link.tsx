@@ -108,7 +108,7 @@ export function SyncDisputeLink({
               Cancel
             </Button>
           </div>
-          <div role="status" className="fh-sync-note fh-tiny">
+          <div role="status" className="fh-mt-3 fh-tiny">
             {shown ? <Status tone={shown.ok ? "ok" : "crit"}>{shown.message}</Status> : null}
           </div>
         </div>

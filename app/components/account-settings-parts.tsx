@@ -103,10 +103,10 @@ export function ProfileForm({
         </div>
       </section>
 
-      <div className="fh-account-confirm">
+      <div className="fh-mt-5">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="fh-account-field">
+            <div className="fh-mb-5-5">
               <Field announce label="Industry">
                 {(p) => (
                   <Select
@@ -119,7 +119,7 @@ export function ProfileForm({
               </Field>
             </div>
 
-            <div className="fh-account-field">
+            <div className="fh-mb-5-5">
               <fieldset className="cap-field">
                 <legend className="cap-field-label">Customer Type</legend>
                 <div className="fh-account-pair">
@@ -218,12 +218,12 @@ export function Appearance({ initial, isDemo }: { initial: Theme; isDemo: boolea
           onChange={(next) => void select(next)}
         />
         {error ? (
-          <p role="alert" className="fh-account-alert fh-small">
+          <p role="alert" className="fh-mt-3 fh-small">
             <Status tone="crit">{error}</Status>
           </p>
         ) : null}
         {refused ? (
-          <div className="fh-account-actions">
+          <div className="fh-mt-4">
             <Alert tone="neutral">{DEMO_READ_ONLY_MESSAGE}</Alert>
           </div>
         ) : null}
@@ -342,7 +342,7 @@ export function DangerZone({
 
   return (
     <div className="fh-settings-group">
-      <h2 className="fh-danger-title fh-small fh-regular fh-quiet">Danger zone</h2>
+      <h2 className="fh-mb-4 fh-small fh-regular fh-quiet">Danger zone</h2>
 
       <div className="cap-stack" data-gap="4">
         {cancelledAt ? (

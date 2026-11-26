@@ -162,7 +162,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
   return (
     <div className="fh-recovery cap-admin-page" data-width="page">
       {hasBanners ? (
-        <div className="fh-recovery-banner">
+        <div className="fh-mt-6">
           {onboarding.needed ? (
             <SetupChecklist steps={onboardingSteps(onboarding)} ready={ONBOARDING_READY} />
           ) : null}
@@ -197,13 +197,13 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
       </div>
 
       {/* ROW 1: primary stat cards, always 30 days. */}
-      <div className="fh-recovery-block">
+      <div className="fh-mb-5-5">
         <StatCardsPrimary w={data30d} />
       </div>
 
       {/* ROW 2: ROI widget. */}
       {roi ? (
-        <div className="fh-recovery-block">
+        <div className="fh-mb-5-5">
           <RoiWidget roi={roi} />
         </div>
       ) : null}
@@ -215,8 +215,8 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
       </div>
 
       {/* ROW 4: decline analysis, 3/2. */}
-      <div className="fh-recovery-block">
-        <p className="fh-recovery-label fh-tiny fh-medium fh-quiet fh-caps">Decline analysis</p>
+      <div className="fh-mb-5-5">
+        <p className="fh-mb-4 fh-tiny fh-medium fh-quiet fh-caps">Decline analysis</p>
         <div className="fh-recovery-declines">
           <div className="fh-recovery-declines-main">
             <DeclineBreakdown w={data} />
@@ -234,12 +234,12 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
       </div>
 
       {/* ROW 6: the recovery queue. */}
-      <div className="fh-recovery-block">
+      <div className="fh-mb-5-5">
         <RecoveryQueue w={data} nowMs={nowMs} hours={queueHours} />
       </div>
 
       {/* ROW 7: secondary stat cards, always 30 days. */}
-      <div className="fh-recovery-block">
+      <div className="fh-mb-5-5">
         <StatCardsSecondary w={data30d} />
       </div>
 
@@ -248,7 +248,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
 
       {/* ROW 9: failed payments. */}
       <PaymentsTable w={data} steps={paymentSteps} nowMs={nowMs} />
-      <div className="fh-recovery-more fh-right">
+      <div className="fh-mt-4 fh-right">
         <Link
           to="/recovery/payments"
           aria-label="View all failed payments"

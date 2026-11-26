@@ -160,7 +160,7 @@ export default function NotificationSettings({ loaderData, actionData }: Route.C
       <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="fh-email-block">
+            <div className="fh-mb-5-5">
               {/* Recova puts help under the control. */}
               <TextField
                 helpPlacement="after"

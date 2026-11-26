@@ -1,5 +1,82 @@
 /* Parts of the pieces every kind of page can draw (the footer, the error view, the docs and audit widgets shared with the public site, the Carrel preview's post title). The public pages' own parts are in marketing.css. */
 @layer site {
+  /* Spacing utilities: one class per spacing step, used where a part needs only that one margin or padding. */
+  .fh-mb-1 {
+    margin-bottom: var(--space-1);
+  }
+  .fh-mb-2 {
+    margin-bottom: var(--space-2);
+  }
+  .fh-mb-2-5 {
+    margin-bottom: var(--space-2-5);
+  }
+  .fh-mb-3 {
+    margin-bottom: var(--space-3);
+  }
+  .fh-mb-4 {
+    margin-bottom: var(--space-4);
+  }
+  .fh-mb-5 {
+    margin-bottom: var(--space-5);
+  }
+  .fh-mb-5-5 {
+    margin-bottom: var(--space-5-5);
+  }
+  .fh-mb-6 {
+    margin-bottom: var(--space-6);
+  }
+  .fh-mb-7 {
+    margin-bottom: var(--space-7);
+  }
+  .fh-mb-7-5 {
+    margin-bottom: var(--space-7-5);
+  }
+  .fh-mb-8 {
+    margin-bottom: var(--space-8);
+  }
+  .fh-ml-3 {
+    margin-left: var(--space-3);
+  }
+  .fh-mt-1 {
+    margin-top: var(--space-1);
+  }
+  .fh-mt-2 {
+    margin-top: var(--space-2);
+  }
+  .fh-mt-3 {
+    margin-top: var(--space-3);
+  }
+  .fh-mt-4 {
+    margin-top: var(--space-4);
+  }
+  .fh-mt-5 {
+    margin-top: var(--space-5);
+  }
+  .fh-mt-6 {
+    margin-top: var(--space-6);
+  }
+  .fh-mt-7 {
+    margin-top: var(--space-7);
+  }
+  .fh-mt-7-5 {
+    margin-top: var(--space-7-5);
+  }
+  .fh-my-5 {
+    margin-block: var(--space-5);
+  }
+  .fh-my-6 {
+    margin-block: var(--space-6);
+  }
+  .fh-p-5-5 {
+    padding: var(--space-5-5);
+  }
+  .fh-pr-5 {
+    padding-right: var(--space-5);
+  }
+  .fh-py-3 {
+    padding-block: var(--space-3);
+  }
+
   /* The color and opacity fades, one rule each. */
   .fh-mk-quiet-link,
   .fh-archive-link,
@@ -46,9 +123,6 @@
   .fh-auditsec-text {
     margin-top: var(--space-1);
   }
-  .fh-auditsec-text-2 {
-    margin-bottom: var(--space-5-5);
-  }
   .fh-auditsec-col {
     display: flex;
     flex-direction: column;
@@ -61,19 +135,10 @@
     gap: var(--space-5);
     padding-block: var(--space-3);
   }
-  .fh-auditsec-block-2 {
-    margin-bottom: var(--space-3);
-  }
-  .fh-auditsec-block-3 {
-    margin-bottom: var(--space-2);
-  }
   .fh-auditsec-block-4 {
     margin-top: var(--space-4);
     margin-bottom: var(--space-5);
     margin-left: var(--space-5-5);
-  }
-  .fh-auditsec-block-5 {
-    margin-top: var(--space-3);
   }
   .fh-auditsec-block-6 {
     margin-top: var(--space-5);
@@ -124,9 +189,6 @@
     margin-top: var(--space-1);
     flex-shrink: 0;
   }
-  .fh-doc-widgets-block-2 {
-    margin-block: var(--space-5);
-  }
   .fh-doc-widgets-list {
     display: flex;
     flex-wrap: wrap;
@@ -149,9 +211,6 @@
   .fh-doc-widgets-label {
     min-width: 0px;
     overflow-wrap: break-word;
-  }
-  .fh-doc-widgets-block-3 {
-    margin-block: var(--space-6);
   }
   .fh-doc-widgets-row {
     display: flex;
@@ -251,26 +310,14 @@
     align-items: center;
     gap: var(--space-2);
   }
-  .fh-recprev-block-3 {
-    padding: var(--space-5-5);
-  }
   .fh-recprev-row {
     margin-bottom: var(--space-3);
     display: flex;
     align-items: center;
     gap: var(--space-3);
   }
-  .fh-recprev-icon {
-    margin-bottom: var(--space-3);
-  }
-  .fh-recprev-text {
-    margin-bottom: var(--space-3);
-  }
   .fh-recprev-text-2 {
     letter-spacing: -0.5px;
-  }
-  .fh-recprev-block-4 {
-    margin-top: var(--space-2);
   }
   .fh-recprev-row-2 {
     display: flex;
@@ -328,9 +375,6 @@
     .fh-recprev-block-7 {
       display: block;
     }
-  }
-  .fh-recprev-block-8 {
-    margin-top: var(--space-1);
   }
   .fh-tone-pills-col {
     flex-direction: column;

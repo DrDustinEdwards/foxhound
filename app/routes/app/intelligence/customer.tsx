@@ -100,7 +100,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
   // max-w-[1080px] mx-auto px-4 md:px-8 py-8. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-customer">
-      <div className="fh-customer-back">
+      <div className="fh-mb-5">
         <Breadcrumb
           items={[
             { label: "Customers", href: "/intelligence/customers" },
@@ -110,7 +110,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
         />
       </div>
 
-      <div className="cap-cluster fh-customer-links fh-small" data-gap="5">
+      <div className="cap-cluster fh-mb-5-5 fh-small" data-gap="5">
         {/* Recova computes `account.name ?? 'Customers'`, so an account with no
             name read "All Customers customers"; with no name this reads "All
             customers". */}
@@ -164,7 +164,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
           <Panel title="Why this customer needs attention">
             <p className="fh-body fh-relaxed fh-text">{customer.aiAssessment}</p>
             {customer.aiAssessmentGeneratedAt ? (
-              <p className="fh-customer-note fh-mono fh-tiny fh-quiet">
+              <p className="fh-mt-4 fh-mono fh-tiny fh-quiet">
                 Updated {formatDate(customer.aiAssessmentGeneratedAt, { style: "medium" }) ?? ""}
               </p>
             ) : null}
@@ -245,7 +245,7 @@ function HeaderCard({
         <div className="fh-customer-top">
           <div className="cap-shrink">
             <h1 className="fh-title fh-semibold fh-text">{customer.customerName ?? "(no name)"}</h1>
-            <p className="fh-customer-sub fh-break fh-mono fh-small fh-quiet">
+            <p className="fh-mt-2 fh-break fh-mono fh-small fh-quiet">
               {customer.customerEmail ?? "-"} ·{" "}
               <span className="fh-quiet">{customer.stripeCustomerId}</span>
             </p>
@@ -270,13 +270,13 @@ function HeaderCard({
         {/* A planned change or cancellation from the customer's Stripe
             subscription schedule or cancel_at, beside what they pay now. */}
         {customer.scheduled ? (
-          <p className="fh-customer-note fh-right fh-small fh-soft">{customer.scheduled}</p>
+          <p className="fh-mt-4 fh-right fh-small fh-soft">{customer.scheduled}</p>
         ) : null}
         <dl className="fh-customer-stats">
           {stats.map((s) => (
             <div key={s.label}>
               <dt className="fh-tiny fh-quiet fh-caps">{s.label}</dt>
-              <dd className="fh-customer-sub fh-mono fh-small fh-text">{s.value}</dd>
+              <dd className="fh-mt-2 fh-mono fh-small fh-text">{s.value}</dd>
             </div>
           ))}
         </dl>
@@ -345,11 +345,11 @@ function HeldSections({ customer }: { customer: Loaded["customer"] }) {
       <section className="fh-customer-section">
         <p className="fh-mono fh-tiny fh-quiet fh-caps">Factors</p>
         {factors.length === 0 ? (
-          <p className="fh-customer-section-lede fh-body fh-quiet">
+          <p className="fh-mt-3 fh-body fh-quiet">
             No factors moved this score away from the baseline.
           </p>
         ) : (
-          <ul className="cap-stack fh-customer-list" data-gap="3">
+          <ul className="cap-stack fh-mt-4" data-gap="3">
             {factors.map((f) => (
               <li key={f.signal} className="fh-customer-factor">
                 <span className="fh-small fh-text">{f.detail}</span>

@@ -53,12 +53,8 @@ export default function ProductsIndexPage() {
                     <div className="fh-products-block fh-item-title fh-medium fh-text">
                       {p.name}
                     </div>
-                    <div className="fh-products-block-2 fh-small fh-relaxed fh-soft">
-                      {copy.description}
-                    </div>
-                    <div className="fh-products-block-3 fh-mono fh-small fh-brand">
-                      {copy.price}
-                    </div>
+                    <div className="fh-mb-4 fh-small fh-relaxed fh-soft">{copy.description}</div>
+                    <div className="fh-mb-5 fh-mono fh-small fh-brand">{copy.price}</div>
                     <div className="fh-small fh-brand">
                       Learn more{" "}
                       <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />

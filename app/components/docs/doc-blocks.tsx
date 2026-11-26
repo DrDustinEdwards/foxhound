@@ -49,7 +49,7 @@ function Rich({ content }: { content: DocRich }) {
   );
 }
 
-const P = "fh-doc-para fh-subhead fh-relaxed fh-soft";
+const P = "fh-mb-5 fh-subhead fh-relaxed fh-soft";
 
 /** A note: a 2px rule down the left, amber for the one that matters (info), the plain border otherwise, read in the flow. */
 function Callout({ tone, word, body }: { tone: "neutral" | "info"; word: string; body: DocRich }) {
@@ -122,7 +122,7 @@ function Block({ block }: { block: DocBlock }) {
 
     case "table":
       return (
-        <Table caption={block.label} captionHidden className="fh-doc-blocks-block">
+        <Table caption={block.label} captionHidden className="fh-my-6">
           <thead>
             <tr>
               {block.columns.map((column) => (

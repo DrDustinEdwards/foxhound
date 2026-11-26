@@ -336,7 +336,7 @@ function CallLogPanel({ log }: { log: Exclude<CallLog, { state: "owner-only" }> 
   const headingId = useId();
   const last = log.state === "ok" ? log.calls.at(-1) : undefined;
   return (
-    <section className="fh-keys-panel cap-panel" aria-labelledby={headingId}>
+    <section className="fh-mt-6 cap-panel" aria-labelledby={headingId}>
       <div className="cap-panel-body">
         <h2 id={headingId} className="">
           Agent activity

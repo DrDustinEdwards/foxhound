@@ -57,7 +57,7 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
 
 export function CategorySequencePreview() {
   return (
-    <div className="cap-stack fh-recprev-block-3" data-gap="5">
+    <div className="cap-stack fh-p-5-5" data-gap="5">
       {CATEGORIES.map((category) => (
         <div key={category} data-category={category}>
           <div className="fh-recprev-row">
@@ -97,10 +97,10 @@ function Figure({
     <li className="cap-panel">
       <div className="cap-panel-body">
         <div>
-          <Icon d={icon} className={`fh-recprev-icon fh-icon-16 fh-icon-fine ${className}`} />
-          <p className="fh-recprev-text fh-tiny fh-medium fh-quiet">{label}</p>
+          <Icon d={icon} className={`fh-mb-3 fh-icon-16 fh-icon-fine ${className}`} />
+          <p className="fh-mb-3 fh-tiny fh-medium fh-quiet">{label}</p>
           <p className={`fh-recprev-text-2 fh-mono fh-display fh-bold ${className}`}>{value}</p>
-          {sub ? <div className="fh-recprev-block-4 fh-tiny">{sub}</div> : null}
+          {sub ? <div className="fh-mt-2 fh-tiny">{sub}</div> : null}
         </div>
       </div>
     </li>
@@ -141,7 +141,7 @@ export function DashboardPreview({ preview }: { preview: RecoveryPreview }) {
   const month: RoiColumn = roi.thisMonth;
   const all: RoiColumn = roi.allTime;
   return (
-    <div className="fh-recprev-block-3">
+    <div className="fh-p-5-5">
       <ul className="fh-recprev-grid" aria-label="Recovery figures">
         <Figure
           icon={iconTrendingUp}
@@ -215,7 +215,7 @@ const HEADING_ID = "recovery-preview-payments";
 export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
   const { totalCount, activeCount, rows } = preview.payments;
   return (
-    <div className="fh-recprev-block-3">
+    <div className="fh-p-5-5">
       <section className="cap-panel">
         <header className="cap-panel-head">
           <h4 id={HEADING_ID}>Failed payments</h4>
@@ -267,14 +267,10 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                         <FailureCount row={row} />
                       </div>
                       {row.email ? (
-                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-quiet">
-                          {row.email}
-                        </div>
+                        <div className="fh-mt-1 fh-tiny fh-regular fh-quiet">{row.email}</div>
                       ) : null}
                       {row.plan ? (
-                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-quiet">
-                          {row.plan}
-                        </div>
+                        <div className="fh-mt-1 fh-tiny fh-regular fh-quiet">{row.plan}</div>
                       ) : null}
                     </th>
                     <td data-label="Amount" className="fh-nowrap">
@@ -283,9 +279,7 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                     <td data-label="Decline">
                       <CategoryPill category={row.category} />
                       {row.declineCode ? (
-                        <div className="fh-recprev-block-4 fh-mono fh-tiny fh-quiet">
-                          {row.declineCode}
-                        </div>
+                        <div className="fh-mt-2 fh-mono fh-tiny fh-quiet">{row.declineCode}</div>
                       ) : null}
                     </td>
                     <td data-label="Steps">
@@ -295,9 +289,7 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                         {row.stepsDone}/{row.stepsTotal}
                       </span>
                       {row.nextStep ? (
-                        <div className="fh-recprev-block-8 fh-tiny fh-brand">
-                          Next: {row.nextStep}
-                        </div>
+                        <div className="fh-mt-1 fh-tiny fh-brand">Next: {row.nextStep}</div>
                       ) : null}
                     </td>
                     <td data-label="Status">
@@ -305,7 +297,7 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                     </td>
                     <td data-label="Detected" className="fh-nowrap">
                       <div className="fh-tiny fh-quiet">{row.detectedAgo}</div>
-                      <div className="fh-recprev-block-8 fh-tiny fh-quiet">{row.detectedDate}</div>
+                      <div className="fh-mt-1 fh-tiny fh-quiet">{row.detectedDate}</div>
                     </td>
                   </tr>
                 ))}

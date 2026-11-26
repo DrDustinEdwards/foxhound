@@ -42,7 +42,7 @@ import "~/features.css";
 function SectionInlineExample({ id }: { id: string }) {
   if (id === "automation") {
     return (
-      <div className="fh-features-block-2">
+      <div className="fh-my-5">
         <SequenceSteps category="soft" />
       </div>
     );
@@ -126,8 +126,8 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
             <div className="fh-features-block-4">
               {sections.map((s) => (
                 <section key={s.id} id={s.id} className="fh-features-band">
-                  <div className="fh-features-block-5">
-                    <h2 className="fh-features-title fh-title fh-medium fh-text">{s.title}</h2>
+                  <div className="fh-mb-6">
+                    <h2 className="fh-mb-2 fh-title fh-medium fh-text">{s.title}</h2>
                     <p className="fh-copy fh-relaxed fh-soft">{s.intro}</p>
                   </div>
                   <SectionInlineExample id={s.id} />

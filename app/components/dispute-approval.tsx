@@ -40,7 +40,7 @@ export function DisputeApproval({
   dirty: boolean;
 }) {
   return editable ? (
-    <div className="fh-dispute-submit">
+    <div className="fh-mt-6">
       <Panel title="Approve and submit">
         <div className="fh-small">
           <p className="fh-soft">
@@ -49,16 +49,16 @@ export function DisputeApproval({
             billed.
           </p>
           {approveError ? (
-            <div className="fh-dispute-gap">
+            <div className="fh-mt-4">
               <Banner tone="crit">{approveError}</Banner>
             </div>
           ) : null}
           {!isOwner ? (
-            <p className="fh-dispute-more fh-soft">
+            <p className="fh-mt-5 fh-soft">
               Only the account owner can approve or accept a dispute.
             </p>
           ) : (
-            <div className="cap-cluster fh-dispute-more" data-gap="4">
+            <div className="cap-cluster fh-mt-5" data-gap="4">
               <Form method="post">
                 <input type="hidden" name="intent" value="approve" />
                 <ApproveButton label="Approve and submit" approving={approving} dirty={dirty} />
@@ -88,7 +88,7 @@ export function DisputeApproval({
       </Panel>
     </div>
   ) : approval || resolved ? (
-    <div className="fh-dispute-submit">
+    <div className="fh-mt-6">
       <Panel title="Approval">
         <div className="fh-small">
           <p className="fh-soft">

@@ -210,9 +210,6 @@
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
   }
-  .fh-post-text-3 {
-    margin-bottom: var(--space-2);
-  }
   .fh-post-grid-2 {
     margin-inline: auto;
     margin-top: var(--space-9);
@@ -260,9 +257,6 @@
     margin-top: var(--space-9);
     max-width: 760px;
     padding-top: var(--space-8);
-  }
-  .fh-post-title-2 {
-    margin-bottom: var(--space-3);
   }
   .fh-post-wrap-2 {
     margin-inline: auto;

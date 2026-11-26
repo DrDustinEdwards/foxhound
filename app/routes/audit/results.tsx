@@ -144,11 +144,11 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
           <span className="fh-nowrap">Start recovering this revenue.</span>{" "}
           <span className="fh-nowrap">Free until we do.</span>
         </ButtonLink>
-        <p className="fh-results-text-2 fh-small fh-soft">
+        <p className="fh-mt-3 fh-small fh-soft">
           Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}%
           of what we recover. Nothing until then.
         </p>
-        <p className="fh-results-text-3 fh-tiny fh-quiet">
+        <p className="fh-mt-2 fh-tiny fh-quiet">
           These results are from a {AUDIT_GRANT_MINUTES}-minute session. Create an account to save
           them.
         </p>
@@ -164,8 +164,8 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
   // Capsomer's page class sets the width and gutters; the text stays Foxhound's 16px (--fs-page, app.css). The page sits under the marketing shell, which is not a Capsomer family, so it names the amber family itself, as the legal pages do.
   return (
     <div className="fh-results-block fh-cap cap-page" data-cap-site="foxhound" data-family="amber">
-      <div className="fh-results-block-2">
-        <div className="fh-results-block-3 fh-mono fh-tiny fh-quiet fh-caps-wide">
+      <div className="fh-mb-6">
+        <div className="fh-mb-3 fh-mono fh-tiny fh-quiet fh-caps-wide">
           Stripe Account Diagnostic &middot; <Time at={run.runAt} tip />
         </div>
         <PageHead title={`Analyzed last ${run.lookbackDays} days of payment history`} />

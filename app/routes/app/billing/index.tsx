@@ -157,12 +157,12 @@ export default function Billing({ loaderData }: Route.ComponentProps) {
       so Foxhound was 48px WIDER, not 512px narrower. Legacy also steps
       horizontal padding at sm, not md, and starts from px-5 not px-4. Same
       720/px-5 kit legacy uses on /help and the legal pages. */}
-      <div className="fh-billing-head">
+      <div className="fh-mb-7">
         <PageHead title="Billing" />
       </div>
 
       {actionData && "error" in actionData ? (
-        <div className="fh-billing-banner">
+        <div className="fh-mb-6">
           <Alert tone="crit">{actionData.error}</Alert>
         </div>
       ) : null}

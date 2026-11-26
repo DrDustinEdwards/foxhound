@@ -15,7 +15,7 @@ export function Unread({ label }: { label: string }) {
 }
 
 export function NoneDetected() {
-  return <p className="fh-auditsec-text-2 fh-small fh-quiet">None detected in this period.</p>;
+  return <p className="fh-mb-5-5 fh-small fh-quiet">None detected in this period.</p>;
 }
 
 /** One line per currency, stacked, each an element of its own. */
@@ -64,8 +64,8 @@ export function Headline({
   valueClassName: string;
 }) {
   return (
-    <div className="fh-auditsec-block-2">
-      <div className="fh-auditsec-block-3 fh-tiny fh-quiet fh-caps">{label}</div>
+    <div className="fh-mb-3">
+      <div className="fh-mb-2 fh-tiny fh-quiet fh-caps">{label}</div>
       {value.map((line) => (
         <div key={line} className={`fh-mono fh-display fh-bold ${valueClassName}`}>
           {line}

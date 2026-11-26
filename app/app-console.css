@@ -1,8 +1,5 @@
 /* The merchant app's console and its shared panels: the console tiles and rows, the recovery panels and charts, sign-in providers, alerts and warnings. In the site layer (app.css), after app-pages.css. Loaded by the app shell. */
 @layer site {
-  .fh-console-sub {
-    margin-top: var(--space-2);
-  }
   .fh-console-tiles {
     margin-bottom: var(--space-6);
   }
@@ -40,20 +37,11 @@
     column-gap: var(--space-5);
     row-gap: var(--space-2);
   }
-  .fh-rec-why {
-    margin-bottom: var(--space-3);
-  }
   .fh-rec-facts {
     display: flex;
     flex-wrap: wrap;
     column-gap: var(--space-4);
     row-gap: var(--space-1);
-  }
-  .fh-rec-note {
-    margin-top: var(--space-3);
-  }
-  .fh-signin-title {
-    margin-bottom: var(--space-4);
   }
   .fh-signin-list {
     margin-bottom: var(--space-5);
@@ -74,20 +62,11 @@
     justify-content: space-between;
     gap: var(--space-4);
   }
-  .fh-signin-note {
-    margin-bottom: var(--space-4);
-  }
-  .fh-signin-subtitle {
-    margin-bottom: var(--space-4);
-  }
   .fh-signin-devices {
     margin-bottom: var(--space-5);
     display: flex;
     flex-direction: column;
     gap: var(--space-3);
-  }
-  .fh-signin-more {
-    margin-top: var(--space-5);
   }
   .fh-signin-rename {
     display: flex;
@@ -118,12 +97,6 @@
   .fh-alerts {
     margin-top: var(--space-8);
   }
-  .fh-alerts-head {
-    margin-bottom: var(--space-6);
-  }
-  .fh-alerts-sub {
-    margin-top: var(--space-2);
-  }
   .fh-alerts-banner {
     margin-bottom: var(--space-5);
     min-width: 0px;
@@ -148,9 +121,6 @@
     margin-top: var(--space-6);
     min-width: 0px;
   }
-  .fh-alerts-field {
-    margin-top: var(--space-5);
-  }
   .fh-alerts-actions {
     margin-top: var(--space-5-5);
   }
@@ -168,9 +138,6 @@
   .fh-warnings {
     margin-top: var(--space-7);
     scroll-margin-top: var(--space-10);
-  }
-  .fh-warnings-head {
-    margin-bottom: var(--space-5);
   }
   .fh-warnings-empty {
     padding-inline: var(--space-5);
@@ -246,9 +213,6 @@
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
   }
-  .fh-recpanel-title {
-    margin-bottom: var(--space-4);
-  }
   .fh-recpanel-foot {
     margin-top: var(--space-5);
     padding-top: var(--space-5);
@@ -256,9 +220,6 @@
   .fh-recpanel-empty {
     padding-inline: var(--space-2);
     padding-block: var(--space-4);
-  }
-  .fh-recpanel-figures {
-    margin-bottom: var(--space-5-5);
   }
   .fh-recpanel-figure-row {
     display: flex;
@@ -296,8 +257,5 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
-  }
-  .fh-sync-note {
-    margin-top: var(--space-3);
   }
 }

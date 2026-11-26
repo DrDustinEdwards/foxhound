@@ -56,7 +56,7 @@ export function RecoveryCalculator() {
     >
       <div className="cap-panel-body">
         <div>
-          <div className="fh-calc-block-2">
+          <div className="fh-mb-6">
             <RangeField
               id="mrr-slider"
               label={
@@ -81,7 +81,7 @@ export function RecoveryCalculator() {
             />
           </div>
 
-          <div className="fh-calc-block-2">
+          <div className="fh-mb-6">
             <RangeField
               id="failure-share-slider"
               label={
@@ -102,7 +102,7 @@ export function RecoveryCalculator() {
             />
           </div>
 
-          <div className="fh-calc-block-2">
+          <div className="fh-mb-6">
             <RangeField
               id="recovery-share-slider"
               label={
@@ -123,7 +123,7 @@ export function RecoveryCalculator() {
             />
           </div>
 
-          <div className="cap-stack fh-calc-block-2" data-gap="4">
+          <div className="cap-stack fh-mb-6" data-gap="4">
             <Row
               name="failedRevenue"
               label="Failed payments per month"
@@ -181,7 +181,7 @@ export function RecoveryCalculator() {
             </div>
           </div>
 
-          <p className="fh-calc-block-2 fh-center fh-mono fh-source fh-quiet">
+          <p className="fh-mb-6 fh-center fh-mono fh-source fh-quiet">
             Stripe {STRIPE_RECOVERY_RATE_PERCENT}% recovery: stripe.com/billing, read {STAT_AS_OF}.
             The failure and recovery shares are assumptions you set, not Foxhound results: Foxhound
             does not project a failure or recovery rate.
@@ -197,7 +197,7 @@ export function RecoveryCalculator() {
               Get your actual numbers free
             </ButtonLink>
           </div>
-          <p className="fh-calc-text-2 fh-center fh-mono fh-tiny fh-quiet">
+          <p className="fh-mt-4 fh-center fh-mono fh-tiny fh-quiet">
             Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
           </p>
         </div>

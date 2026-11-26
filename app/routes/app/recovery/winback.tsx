@@ -62,7 +62,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                 <td data-label="Plan" className="fh-quiet">
                   {seq.planName ?? "-"}
                   {seq.amountCents != null && seq.currency ? (
-                    <span className="fh-payments-gap fh-mono fh-text">
+                    <span className="fh-ml-3 fh-mono fh-text">
                       {formatMoney(seq.amountCents, seq.currency)}
                     </span>
                   ) : null}

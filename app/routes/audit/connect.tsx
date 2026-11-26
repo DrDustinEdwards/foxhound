@@ -126,7 +126,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
 
   return (
     <AuditConnectFrame>
-      <h1 className="fh-auditconnect-title fh-center fh-title fh-semibold fh-text">
+      <h1 className="fh-mb-3 fh-center fh-title fh-semibold fh-text">
         Connect your Stripe account
       </h1>
       <p className="fh-auditconnect-text fh-center fh-small fh-relaxed fh-quiet">
@@ -136,7 +136,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
       </p>
 
       {message ? (
-        <div className="fh-auditconnect-block-3">
+        <div className="fh-mb-6">
           <Alert tone="crit">{message}</Alert>
         </div>
       ) : null}
@@ -171,7 +171,7 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
         </p>
       )}
 
-      <p className="fh-auditconnect-text-2 fh-center fh-tiny fh-quiet">
+      <p className="fh-mt-5 fh-center fh-tiny fh-quiet">
         {"Reads only · Secure · Free · "}
         <AuthLink to="/demos/recovery">See a demo first</AuthLink>
       </p>

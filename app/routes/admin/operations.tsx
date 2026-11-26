@@ -330,7 +330,7 @@ export default function AdminOperations({ loaderData, actionData }: Route.Compon
       </Panel>
 
       {/* Once /admin/mcps, folded in here (Dustin, 2026-10-29). */}
-      <h2 className="fh-section-title fh-semibold fh-text">MCP servers</h2>
+      <h2 className="fh-mt-5 fh-semibold fh-text">MCP servers</h2>
       <AdminMcpPanels data={mcp} reading={pending} keyAction={actionData} />
     </div>
   );

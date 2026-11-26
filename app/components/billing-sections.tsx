@@ -166,15 +166,15 @@ export function RecoverySection({
             fee
           />
         </div>
-        <p className="fh-billing-note fh-tiny fh-quiet">
+        <p className="fh-mt-4 fh-tiny fh-quiet">
           {stateNote ?? `Next invoice: ${formatInvoiceDate(nextRunAtMs)}`}
         </p>
         {accountBillingState.cancelledAt && !stateNote ? (
-          <p className="fh-billing-fine fh-tiny fh-quiet">
+          <p className="fh-mt-2 fh-tiny fh-quiet">
             This account is canceled. Fees already earned still appear on the next invoice.
           </p>
         ) : null}
-        <p className="fh-billing-fine fh-tiny fh-quiet">
+        <p className="fh-mt-2 fh-tiny fh-quiet">
           We never bill a recovery until you&apos;ve held the money for {RECOVERY_MATURITY_DAYS}{" "}
           days.
         </p>
@@ -224,7 +224,7 @@ export function DisputeFeesSection({
       meta={`${DISPUTE_FEE_PERCENT}% of disputes won, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} each`}
       footer={
         // PRICING.md: "$500, converted at Stripe's rate on the day the dispute resolves".
-        <p className="fh-billing-fine fh-tiny fh-quiet">
+        <p className="fh-mt-2 fh-tiny fh-quiet">
           Converted at Stripe&apos;s rate on the day the dispute resolves. Disputes won by Stripe
           Smart Disputes or submitted by you are not charged.
         </p>
@@ -232,7 +232,7 @@ export function DisputeFeesSection({
     >
       <SummaryBox>
         <SummaryRow label="Pending fees this month" value={estimatedDisputeFees} fee />
-        <p className="fh-billing-fine fh-tiny fh-quiet">
+        <p className="fh-mt-2 fh-tiny fh-quiet">
           {stateNote ?? `Added to your next monthly invoice on ${formatInvoiceDate(nextRunAtMs)}.`}
         </p>
       </SummaryBox>
@@ -267,7 +267,7 @@ export function PaymentMethodSection({ card, busy }: { card: CardSummary | null;
             <p className="fh-small fh-text">
               {capitalize(card.brand)} ending {card.last4}
             </p>
-            <p className="fh-billing-fine fh-tiny fh-quiet">
+            <p className="fh-mt-2 fh-tiny fh-quiet">
               Expires {String(card.expMonth).padStart(2, "0")}/{card.expYear}
             </p>
           </div>
@@ -277,7 +277,7 @@ export function PaymentMethodSection({ card, busy }: { card: CardSummary | null;
             {/* Truthfulness fix: Recova said "We'll email you a payment link with
                 each invoice". Foxhound's invoices are charge_automatically with
                 no emailed link (app/lib/billing/stripe-invoice.ts). */}
-            <p className="fh-billing-fine fh-tiny fh-quiet">
+            <p className="fh-mt-2 fh-tiny fh-quiet">
               Add one so Foxhound can charge each monthly invoice automatically on the {INVOICE_DAY}
               .
             </p>

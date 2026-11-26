@@ -92,7 +92,7 @@ export function HomeStats() {
     <section className="fh-home-band-2">
       <div className="fh-mk-wrap">
         <div className="cap-reveal">
-          <div className="fh-home-block-4 fh-center">
+          <div className="fh-mb-8 fh-center">
             <h2 className={H2}>The revenue you&apos;re losing isn&apos;t showing up as churn.</h2>
             <p className="fh-subhead fh-soft">
               Stripe&apos;s own data on failed payments and what happens next.
@@ -105,7 +105,7 @@ export function HomeStats() {
               <div className={CARD}>
                 <div className="cap-panel-body">
                   <div className="fh-home-col">
-                    <div className="fh-home-block-5 fh-mono fh-hero fh-semibold fh-tight fh-brand">
+                    <div className="fh-mb-5 fh-mono fh-hero fh-semibold fh-tight fh-brand">
                       {item.stat}
                     </div>
                     <p className="fh-home-text-2 fh-copy fh-soft">{item.body}</p>
@@ -127,7 +127,7 @@ export function HomeComparison() {
     <section className="fh-mk-band">
       <div className="fh-mk-wrap">
         <div className="cap-reveal">
-          <div className="fh-home-block-4 fh-center">
+          <div className="fh-mb-8 fh-center">
             <h2 className={H2}>Stripe plus Foxhound</h2>
           </div>
         </div>
@@ -137,10 +137,8 @@ export function HomeComparison() {
               <div className={CARD}>
                 <div className="cap-panel-body">
                   <div>
-                    <div className="fh-home-block-7 fh-caption fh-quiet">Stripe does this</div>
-                    <div className="fh-home-block-8 fh-body fh-medium fh-text">
-                      {row.stripeTitle}
-                    </div>
+                    <div className="fh-mb-4 fh-caption fh-quiet">Stripe does this</div>
+                    <div className="fh-mb-3 fh-body fh-medium fh-text">{row.stripeTitle}</div>
                     <p className="fh-home-text-3 fh-copy fh-soft">{row.stripeBody}</p>
                   </div>
                 </div>
@@ -148,14 +146,10 @@ export function HomeComparison() {
               <Link to={row.foxhoundHref} className={`${CARD} fh-hover-group`}>
                 <div className="cap-panel-body">
                   <div>
-                    <div className="fh-home-block-7 fh-caption fh-medium fh-brand">
-                      Foxhound adds this
-                    </div>
-                    <div className="fh-home-block-8 fh-body fh-semibold fh-text">
-                      {row.foxhoundTitle}
-                    </div>
+                    <div className="fh-mb-4 fh-caption fh-medium fh-brand">Foxhound adds this</div>
+                    <div className="fh-mb-3 fh-body fh-semibold fh-text">{row.foxhoundTitle}</div>
                     <p className="fh-home-text-3 fh-copy fh-soft">{row.foxhoundBody}</p>
-                    <div className="fh-home-block-9 fh-mono fh-caption fh-brand">
+                    <div className="fh-mt-5 fh-mono fh-caption fh-brand">
                       Learn more <Arrow />
                     </div>
                   </div>

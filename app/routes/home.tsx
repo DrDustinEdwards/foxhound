@@ -214,7 +214,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="fh-mk-band-short speakable-how-it-works">
         <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="fh-home-block-4 fh-center">
+            <div className="fh-mb-8 fh-center">
               <h2 className={H2}>How it works</h2>
             </div>
           </div>
@@ -226,7 +226,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     key={s.title}
                     className={`fh-home-block-10 cap-reveal ${i < 2 ? "fh-home-step-ruled" : ""}`}
                   >
-                    <div className="fh-home-block-8 fh-body fh-medium fh-text">{s.title}</div>
+                    <div className="fh-mb-3 fh-body fh-medium fh-text">{s.title}</div>
                     <p className="fh-home-text-3 fh-copy fh-soft">{s.body}</p>
                   </div>
                 ))}
@@ -240,7 +240,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="fh-home-band-2">
         <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="fh-home-block-11 fh-center">
+            <div className="fh-mb-7-5 fh-center">
               <h2 className={H2}>How much are you leaving on the table?</h2>
               <p className="fh-mk-lede fh-subhead fh-soft">
                 Foxhound takes <span className="fh-mono">{RECOVERY_FEE}</span> of what it recovers.
@@ -257,7 +257,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section id="products" className="fh-home-band-4">
         <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="fh-home-block-4 fh-center">
+            <div className="fh-mb-8 fh-center">
               <h2 className={H2}>Start with recovery.</h2>
             </div>
           </div>
@@ -273,7 +273,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                         <div className="fh-mk-tile-icon">
                           <Icon d={icon} className="fh-icon-18 fh-icon-180 fh-brand" />
                         </div>
-                        <div className="fh-home-block-12 fh-body fh-medium fh-text">
+                        <div className="fh-mb-2-5 fh-body fh-medium fh-text">
                           {PRODUCTS[key].name}
                         </div>
                         <p className="fh-home-text-5 fh-small fh-soft">{card.description}</p>
@@ -292,7 +292,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="fh-mk-band">
         <div className="fh-mk-wrap">
           <div className="cap-reveal">
-            <div className="fh-home-block-11 fh-center">
+            <div className="fh-mb-7-5 fh-center">
               {/* Recova: "The actual email Recova would send" and "Same AI, same
                   prompts, same output as the product." The sample runs its own
                   prompt on its own model (MODEL_MARKETING_EMAIL_SAMPLE) for a
@@ -309,7 +309,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
       <section className="fh-mk-band-short speakable-faq">
         <div className="fh-mk-wrap-text">
           <div className="cap-reveal">
-            <div className="fh-home-block-4 fh-center">
+            <div className="fh-mb-8 fh-center">
               <h2 className={H2}>Common questions</h2>
             </div>
           </div>

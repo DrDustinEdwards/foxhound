@@ -131,7 +131,7 @@ function BlogHero({
             </Link>
           </h2>
           <p className="fh-blog-text fh-body fh-relaxed fh-soft">{post.excerpt}</p>
-          <div className="cap-cluster fh-blog-block-3 fh-mono fh-copy fh-quiet" data-gap="3">
+          <div className="cap-cluster fh-mt-5 fh-mono fh-copy fh-quiet" data-gap="3">
             <span>{post.readingTimeMinutes} min read</span>
             {post.tags[0] ? (
               <>
@@ -149,7 +149,7 @@ function BlogHero({
             ) : null}
           </div>
           {/* Wrapped so the spacing above is the page's, not a class on the button. */}
-          <div className="fh-blog-block-4">
+          <div className="fh-mt-6">
             <ButtonLink to={`/blog/${post.slug}`} className="group" variant="primary" size="lg">
               Read the guide
               <Icon

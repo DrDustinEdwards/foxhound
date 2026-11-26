@@ -291,7 +291,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
         />
         <div>
           <p className="fh-post-text-2 fh-mono fh-tiny fh-quiet">Published by</p>
-          <p className="fh-post-text-3 fh-item-title fh-medium fh-text">{post.author}</p>
+          <p className="fh-mb-2 fh-item-title fh-medium fh-text">{post.author}</p>
           <p className="fh-copy fh-relaxed fh-soft">
             Foxhound recovers failed Stripe payments, handles disputes, and surfaces subscription
             intelligence. {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries only, nothing
@@ -345,9 +345,7 @@ export default function BlogPostPage({ loaderData }: Route.ComponentProps) {
       ) : null}
 
       <div className="fh-post-wrap fh-cap fh-center" data-cap-site="foxhound" data-family="amber">
-        <h2 className="fh-post-title-2 fh-feature-title fh-medium fh-text">
-          Run your free Stripe audit
-        </h2>
+        <h2 className="fh-mb-3 fh-feature-title fh-medium fh-text">Run your free Stripe audit</h2>
         <p className="fh-post-wrap-2 fh-item-title fh-relaxed fh-soft">
           See exactly what your account is leaking. Free, no account required.
         </p>

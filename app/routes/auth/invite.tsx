@@ -100,9 +100,7 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
       <div className="fh-center">
         {error ? (
           <div role="alert">
-            <h1 className="fh-auth-title-tight fh-subsection fh-semibold fh-text">
-              Invite invalid
-            </h1>
+            <h1 className="fh-mb-3 fh-subsection fh-semibold fh-text">Invite invalid</h1>
             <p className="fh-copy fh-quiet">{error}</p>
           </div>
         ) : (

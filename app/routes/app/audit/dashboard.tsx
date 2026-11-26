@@ -252,7 +252,7 @@ export function AuditSettingsForm({
         <div className="fh-auditd-lookback">
           {/* The visible label repeats the legend's words, which name the group
             for a screen reader, so it is hidden from one to be read once. */}
-          <div className="fh-auditd-label fh-small fh-medium fh-text" aria-hidden="true">
+          <div className="fh-mb-2 fh-small fh-medium fh-text" aria-hidden="true">
             Lookback period
           </div>
           <Segmented
@@ -272,8 +272,8 @@ export function AuditSettingsForm({
         </div>
 
         <div className="fh-auditd-digest">
-          <div className="fh-auditd-digest-text">
-            <div id={digestLabel} className="fh-auditd-digest-label fh-small fh-text">
+          <div className="fh-pr-5">
+            <div id={digestLabel} className="fh-mb-1 fh-small fh-text">
               Monthly audit digest
             </div>
             <p id={digestHelp} className="fh-tiny fh-quiet">
@@ -321,7 +321,7 @@ function SettingsPanel({
   const saving =
     navigation.state === "submitting" && navigation.formMethod?.toUpperCase() === "POST";
   return (
-    <div className="fh-auditd-block">
+    <div className="fh-mb-5-5">
       <Panel title="Settings">
         <AuditSettingsForm
           defaultLookbackDays={settings.lookbackDays}
@@ -349,7 +349,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   if (runs.length === 0) {
     return (
       <div className="fh-auditd-page cap-admin-page" data-width="page">
-        <div className="fh-auditd-head">
+        <div className="fh-mb-6">
           <div className="cap-empty" data-kind="nothing-yet">
             <div className="cap-empty-header">
               <h1 className="cap-empty-title">No audit runs yet</h1>
@@ -374,14 +374,14 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
 
   return (
     <div className="fh-auditd-page cap-admin-page" data-width="page">
-      <div className="fh-auditd-head">
+      <div className="fh-mb-6">
         <PageHead title="Audit history" actions={<RunNewAudit>Run new audit</RunNewAudit>} />
       </div>
 
       <AuditSummary summary={last.summary} />
 
       {previous ? (
-        <div className="fh-auditd-block">
+        <div className="fh-mb-5-5">
           <Panel title="Since last run">
             <TrendRow
               label="Failed invoices"
@@ -405,7 +405,7 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
         </div>
       ) : null}
 
-      <div className="fh-auditd-block">
+      <div className="fh-mb-5-5">
         <Panel title="History" flush>
           <Table caption="Audit runs" captionHidden reflow>
             <thead>

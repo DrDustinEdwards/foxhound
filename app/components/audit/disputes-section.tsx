@@ -58,7 +58,7 @@ export function AuditDisputesSection({
   const cur = run.currency;
   const data = run.disputes;
   return (
-    <div className="fh-auditsec-text-2">
+    <div className="fh-mb-5-5">
       <Panel title="Disputes unmanaged" footer={<DisputesCta state={ctaState} />}>
         {data === null ? (
           <Unread label="Disputes" />
@@ -106,7 +106,7 @@ function DisputeFigures({
       />
 
       {foxhoundWinRate !== null ? (
-        <div className="fh-auditsec-block-5 fh-small fh-soft">
+        <div className="fh-mt-3 fh-small fh-soft">
           Foxhound win rate:{" "}
           <span
             className={`fh-mono fh-medium ${

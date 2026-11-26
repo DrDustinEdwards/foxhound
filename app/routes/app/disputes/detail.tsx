@@ -181,7 +181,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
   });
 
   const saveControls = (
-    <div className="cap-cluster fh-dispute-actions" data-gap="4">
+    <div className="cap-cluster fh-mt-3" data-gap="4">
       <button
         type="submit"
         className="cap-btn"
@@ -214,17 +214,15 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           <div className="fh-mono fh-display fh-bold fh-tight fh-brand">
             {formatMoney(dispute.amountCents, dispute.currency)}
           </div>
-          <h1 className="fh-dispute-title fh-title fh-medium fh-text">
+          <h1 className="fh-mt-4 fh-title fh-medium fh-text">
             {dispute.customerName || "Unknown customer"}
           </h1>
-          <div className="fh-dispute-reason fh-small fh-quiet">
-            {humanizeDisputeReason(dispute.reason)}
-          </div>
+          <div className="fh-mt-1 fh-small fh-quiet">{humanizeDisputeReason(dispute.reason)}</div>
         </div>
         <div className="fh-right">
           {/* An inquiry is not a chargeback; Recova did not tell them apart. */}
           {!resolved && isInquiryStatus(dispute.status) ? (
-            <div className="fh-dispute-status">
+            <div className="fh-mb-2">
               <Pill>Inquiry</Pill>
             </div>
           ) : null}
@@ -246,7 +244,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       </header>
 
       {dispute.triageRecommendation ? (
-        <div className="fh-dispute-section">
+        <div className="fh-mb-6">
           <Banner
             tone={dispute.triageRecommendation === "fight" ? "ok" : "warn"}
             title={
@@ -259,7 +257,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             body={
               <>
                 {dispute.triageReasoning ? (
-                  <p className="fh-dispute-status fh-small fh-text">{dispute.triageReasoning}</p>
+                  <p className="fh-mb-2 fh-small fh-text">{dispute.triageReasoning}</p>
                 ) : null}
                 {typeof dispute.triageConfidence === "number" ? (
                   <p className="fh-tiny fh-quiet">Confidence: {dispute.triageConfidence}%</p>
@@ -273,7 +271,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       <RecommendationBanner prediction={prediction} surface="dispute" nowMs={nowMs} />
 
       {/* 3. Timeline. */}
-      <div className="fh-dispute-section">
+      <div className="fh-mb-6">
         <Panel title="Timeline">
           <ol className="fh-dispute-timeline">
             {timeline.map((item, i) => (
@@ -300,7 +298,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         onSubmit={() => draftSubmitted()}
       >
         <input type="hidden" name="intent" value="save" />
-        <div className="fh-dispute-section">
+        <div className="fh-mb-6">
           <Panel title="Staged evidence">
             <div className="fh-small">
               {drafted.length === 0 ? (
@@ -325,7 +323,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     <div>
                       <label
                         htmlFor="dispute_evidence_narrative"
-                        className="fh-dispute-group-title fh-line fh-tiny fh-medium fh-quiet fh-caps"
+                        className="fh-mb-3 fh-line fh-tiny fh-medium fh-quiet fh-caps"
                       >
                         Evidence narrative
                       </label>
@@ -346,7 +344,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           </Panel>
         </div>
 
-        <div className="fh-dispute-section">
+        <div className="fh-mb-6">
           <EvidenceFiles
             disputeId={dispute.id}
             files={files}
@@ -356,13 +354,13 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         </div>
 
         {draftEditable ? (
-          <div className="fh-dispute-section">
+          <div className="fh-mb-6">
             <Panel title="Additional evidence (optional)">
               <div className="fh-small">
                 <label htmlFor="dispute_customer_ip" className="cap-field-label">
                   Customer IP
                 </label>
-                <div className="fh-dispute-input">
+                <div className="fh-mt-2">
                   <input
                     id="dispute_customer_ip"
                     name="customer_ip"
@@ -373,11 +371,11 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     aria-describedby="dispute_customer_ip_help"
                   />
                 </div>
-                <p id="dispute_customer_ip_help" className="fh-dispute-input fh-tiny fh-quiet">
+                <p id="dispute_customer_ip_help" className="fh-mt-2 fh-tiny fh-quiet">
                   From your own logs only.
                 </p>
                 {shippingEditable ? (
-                  <div className="fh-dispute-more">
+                  <div className="fh-mt-5">
                     <div className="fh-dispute-fields">
                       <div className="cap-field">
                         <label htmlFor="dispute_tracking_number" className="cap-field-label">

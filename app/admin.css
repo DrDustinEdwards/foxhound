@@ -93,12 +93,6 @@
     align-items: center;
     gap: var(--space-2);
   }
-  .fh-cron-schedule {
-    margin-left: var(--space-3);
-  }
-  .fh-cron-failures {
-    margin-top: var(--space-3);
-  }
   .fh-cron-run {
     border-radius: var(--radius-s-5);
   }
@@ -118,9 +112,6 @@
     border-color: var(--line);
     padding-inline: var(--space-5);
     padding-block: var(--space-4);
-  }
-  .fh-section-title {
-    margin-top: var(--space-5);
   }
   .fh-staged-submit {
     align-self: flex-end;

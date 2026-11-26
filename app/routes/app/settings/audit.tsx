@@ -67,11 +67,11 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   return (
     <SettingsLayout renderLink={routerRenderLink} title="Audit">
       <DemoForm method="post">
-        <div className="fh-field-block">
+        <div className="fh-mb-5">
           <div className="cap-panel">
             <div className="cap-panel-body">
               <div className="fh-shrink">
-                <div className="fh-setting-label fh-small fh-text" aria-hidden="true">
+                <div className="fh-mb-1 fh-small fh-text" aria-hidden="true">
                   Lookback period
                 </div>
                 <Segmented
@@ -84,8 +84,8 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
               </div>
 
               <div className="fh-audit-switch">
-                <div className="fh-audit-switch-text">
-                  <div className="fh-setting-label fh-small fh-text" aria-hidden="true">
+                <div className="fh-pr-5">
+                  <div className="fh-mb-1 fh-small fh-text" aria-hidden="true">
                     Monthly audit digest
                   </div>
                   <p id={digestHelp} className="fh-tiny fh-quiet">

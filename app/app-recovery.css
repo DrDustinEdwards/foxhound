@@ -13,9 +13,6 @@
       padding-bottom: var(--space-7-5);
     }
   }
-  .fh-recovery-banner {
-    margin-top: var(--space-6);
-  }
   .fh-recovery-head {
     margin-bottom: var(--space-6-5);
     padding-top: var(--space-7);
@@ -31,9 +28,6 @@
     align-items: flex-end;
     gap: var(--space-2-5);
   }
-  .fh-recovery-block {
-    margin-bottom: var(--space-5-5);
-  }
   .fh-recovery-pair {
     margin-bottom: var(--space-5-5);
     display: grid;
@@ -45,9 +39,6 @@
     .fh-recovery-pair {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-  }
-  .fh-recovery-label {
-    margin-bottom: var(--space-4);
   }
   @media (width >= 48rem) {
     .fh-recovery-declines {
@@ -69,9 +60,6 @@
     .fh-recovery-declines-side {
       grid-column: span 2 / span 2;
     }
-  }
-  .fh-recovery-more {
-    margin-top: var(--space-4);
   }
   .fh-inline-icon {
     display: inline-block;
@@ -106,12 +94,6 @@
     justify-content: space-between;
     gap: var(--space-5);
   }
-  .fh-payment-badges {
-    margin-bottom: var(--space-2);
-  }
-  .fh-payment-block {
-    margin-bottom: var(--space-5-5);
-  }
   .fh-payment-chips {
     margin-bottom: var(--space-6);
     display: flex;
@@ -129,9 +111,6 @@
     .fh-payment-tiles {
       grid-template-columns: repeat(4, minmax(0, 1fr));
     }
-  }
-  .fh-payment-tile-note {
-    margin-top: var(--space-2);
   }
   @media (width >= 48rem) {
     .fh-payment-panels {
@@ -171,9 +150,6 @@
     padding-inline: var(--space-6);
     padding-block: var(--space-7-5);
   }
-  .fh-payment-steps {
-    padding-block: var(--space-3);
-  }
   .fh-payment-step {
     display: flex;
     gap: var(--space-5);
@@ -197,15 +173,9 @@
     align-items: center;
     gap: var(--space-3-5);
   }
-  .fh-payment-step-subject {
-    margin-bottom: var(--space-2);
-  }
   .fh-payment-preview {
     margin-top: var(--space-4);
     background-color: var(--ground);
-  }
-  .fh-payment-pull-gap {
-    margin-top: var(--space-4);
   }
   .fh-payment-saved {
     display: inline-flex;
@@ -235,9 +205,6 @@
       padding-inline: var(--space-7);
     }
   }
-  .fh-payments-head {
-    margin-bottom: var(--space-6);
-  }
   .fh-payments-tiles {
     margin-bottom: var(--space-5-5);
   }
@@ -250,12 +217,6 @@
     .fh-payments-tiles {
       grid-template-columns: repeat(5, minmax(0, 1fr));
     }
-  }
-  .fh-payments-bulk {
-    margin-bottom: var(--space-5);
-  }
-  .fh-payments-gap {
-    margin-left: var(--space-3);
   }
   .fh-payments-filters {
     display: flex;
@@ -306,9 +267,6 @@
     align-items: center;
     gap: var(--space-2-5);
   }
-  .fh-payments-sub {
-    margin-top: var(--space-1);
-  }
   .fh-payments-amount {
     display: flex;
     align-items: center;
@@ -321,9 +279,6 @@
   }
   tr:hover .fh-payments-open {
     opacity: 100%;
-  }
-  .fh-payments-pager {
-    margin-top: var(--space-5);
   }
   .fh-payments-bar {
     position: sticky;
@@ -359,12 +314,6 @@
   .fh-sequence-body {
     overflow-x: auto;
   }
-  .fh-sequence-title {
-    margin-bottom: var(--space-2-5);
-  }
-  .fh-sequence-desc {
-    margin-bottom: var(--space-4);
-  }
   .fh-sequence {
     gap: 0px;
     padding-inline: var(--space-5);
@@ -374,15 +323,6 @@
     .fh-sequence {
       padding-inline: var(--space-7);
     }
-  }
-  .fh-sequence-head {
-    margin-bottom: var(--space-6);
-  }
-  .fh-sequence-banner {
-    margin-top: var(--space-6);
-  }
-  .fh-sequence-list {
-    margin-top: var(--space-7-5);
   }
   .fh-winback-cell {
     display: flex;
@@ -394,9 +334,6 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-5-5);
-  }
-  .fh-payment-note {
-    margin-top: var(--space-3);
   }
   .fh-payment-fact-value {
     margin-left: var(--space-4);

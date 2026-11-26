@@ -11,18 +11,6 @@
       padding-inline: var(--space-7);
     }
   }
-  .fh-welcome-head {
-    margin-bottom: var(--space-7-5);
-  }
-  .fh-welcome-title {
-    margin-bottom: var(--space-3);
-  }
-  .fh-welcome-account {
-    margin-bottom: var(--space-6);
-  }
-  .fh-welcome-steps {
-    margin-bottom: var(--space-7);
-  }
   .fh-help {
     margin-inline: auto;
     max-width: 720px;
@@ -34,17 +22,8 @@
       padding-inline: var(--space-7);
     }
   }
-  .fh-help-head {
-    margin-bottom: var(--space-7);
-  }
-  .fh-help-section {
-    margin-bottom: var(--space-8);
-  }
   :where(.fh-help-faq > :not(:last-child)) {
     margin-block: 0 var(--space-6);
-  }
-  .fh-help-question {
-    margin-bottom: var(--space-2);
   }
   .fh-console-charts,
   .fh-console-tiles,
@@ -54,9 +33,6 @@
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
     gap: var(--space-4);
-  }
-  .fh-help-contact {
-    margin-bottom: var(--space-5);
   }
   .fh-team-list {
     display: flex;
@@ -107,12 +83,6 @@
   .fh-team-invite {
     padding-top: var(--space-5-5);
   }
-  .fh-field-gap {
-    margin-top: var(--space-3);
-  }
-  .fh-stripe-head {
-    margin-bottom: var(--space-4);
-  }
   .fh-setting-row {
     display: flex;
     flex-direction: column;
@@ -126,42 +96,15 @@
       justify-content: space-between;
     }
   }
-  .fh-setting-label {
-    margin-bottom: var(--space-1);
-  }
-  .fh-stripe-more {
-    margin-top: var(--space-4);
-  }
   .fh-stripe-foot {
     padding-top: var(--space-3);
-  }
-  .fh-email-block {
-    margin-bottom: var(--space-5-5);
-  }
-  .fh-email-group {
-    margin-bottom: var(--space-6);
   }
   .fh-email-sequence {
     margin-top: var(--space-7-5);
   }
-  .fh-email-sequence-title {
-    margin-bottom: var(--space-4);
-  }
-  .fh-account-confirm {
-    margin-top: var(--space-5);
-  }
-  .fh-account-field {
-    margin-bottom: var(--space-5-5);
-  }
   .fh-account-pair {
     display: flex;
     gap: var(--space-5);
-  }
-  .fh-account-alert {
-    margin-top: var(--space-3);
-  }
-  .fh-account-actions {
-    margin-top: var(--space-4);
   }
   .fh-account-list {
     margin-top: var(--space-5);
@@ -173,28 +116,16 @@
     margin-top: var(--space-5-5);
     padding-top: var(--space-5-5);
   }
-  .fh-danger-title {
-    margin-bottom: var(--space-4);
-  }
   .fh-account-end {
     display: flex;
     flex-direction: column;
     align-items: flex-end;
     gap: var(--space-4);
   }
-  .fh-account-top {
-    margin-bottom: var(--space-7-5);
-  }
-  .fh-account-part {
-    margin-top: var(--space-7-5);
-  }
   @media (width >= 48rem) {
     .fh-phone-only {
       display: none;
     }
-  }
-  .fh-hub-title {
-    margin-bottom: var(--space-6);
   }
   .fh-wide-only {
     display: none;
@@ -203,9 +134,6 @@
     .fh-wide-only {
       display: block;
     }
-  }
-  .fh-hub-block {
-    margin-bottom: var(--space-6);
   }
   .fh-hub-grid {
     display: grid;
@@ -245,12 +173,6 @@
   .fh-voice-dot[data-tone="red"] {
     background-color: var(--red);
   }
-  .fh-help-label {
-    margin-bottom: var(--space-6);
-  }
-  .fh-rec-gap {
-    margin-bottom: var(--space-6);
-  }
   .fh-voice-head {
     margin-bottom: var(--space-3-5);
     display: flex;
@@ -263,9 +185,6 @@
   .fh-voice-control {
     margin-top: var(--space-3-5);
   }
-  .fh-voice-preview {
-    margin-top: var(--space-6);
-  }
   .fh-voice-rows {
     display: grid;
     gap: var(--space-5);
@@ -276,9 +195,6 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--space-4);
-  }
-  .fh-keys-panel {
-    margin-top: var(--space-6);
   }
   .fh-keys-actions {
     display: flex;
@@ -296,12 +212,6 @@
     border-color: var(--line);
     padding-block: var(--space-5);
   }
-  .fh-dispute-help {
-    margin-bottom: var(--space-3);
-  }
-  .fh-field-block {
-    margin-bottom: var(--space-5);
-  }
   .fh-shrink {
     min-width: 0px;
   }
@@ -312,9 +222,6 @@
     justify-content: space-between;
     gap: var(--space-5);
     padding-top: var(--space-5);
-  }
-  .fh-audit-switch-text {
-    padding-right: var(--space-5);
   }
   .fh-notify-group {
     border-block-style: solid;
@@ -350,21 +257,12 @@
     justify-content: space-between;
     gap: var(--space-5);
   }
-  .fh-invoice-currency {
-    margin-top: var(--space-2);
-  }
   .fh-invoice-actions {
     margin-top: var(--space-5);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     gap: var(--space-3);
-  }
-  .fh-invoice-lines {
-    margin-top: var(--space-6);
-  }
-  .fh-invoice-empty {
-    margin-top: var(--space-3);
   }
   .fh-invoice-list {
     margin-top: var(--space-4);
@@ -387,12 +285,6 @@
       padding-block: var(--space-7-5);
     }
   }
-  .fh-billing-head {
-    margin-bottom: var(--space-7);
-  }
-  .fh-billing-banner {
-    margin-bottom: var(--space-6);
-  }
   .fh-ledger {
     display: flex;
     flex-direction: column;
@@ -408,12 +300,6 @@
       padding-block: var(--space-7-5);
     }
   }
-  .fh-console-head {
-    margin-bottom: var(--space-6);
-  }
-  .fh-console-section {
-    margin-top: var(--space-7-5);
-  }
   .fh-console-charts {
     margin-top: var(--space-5);
   }
@@ -421,9 +307,6 @@
     .fh-console-charts {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-  }
-  .fh-console-more {
-    margin-top: var(--space-5);
   }
   .fh-demo-badge {
     border-radius: var(--radius-s-5);
@@ -487,11 +370,5 @@
     align-items: baseline;
     justify-content: space-between;
     gap: var(--space-5);
-  }
-  .fh-billing-note {
-    margin-top: var(--space-4);
-  }
-  .fh-billing-fine {
-    margin-top: var(--space-2);
   }
 }
