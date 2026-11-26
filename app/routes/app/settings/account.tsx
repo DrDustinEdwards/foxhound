@@ -1,4 +1,3 @@
-import { isEmail } from "@dustinedwards/site-runtime/email";
 import { data, redirect } from "react-router";
 import { eq } from "drizzle-orm";
 import "capsomer/banner.css";
@@ -9,14 +8,9 @@ import {
   accountSessions,
   passkeyLastUsed,
   passkeyRows,
-  requireFreshSession,
-  revokeSessionById,
   securityHistory,
-  SessionNotFresh,
   signInMethods,
 } from "@dustinedwards/site-runtime/sign-in";
-import { isAPIError } from "better-auth/api";
-import { errorMessage, logEvent } from "@dustinedwards/site-runtime/log";
 
 import "capsomer/inline-confirm.css";
 import {
@@ -36,7 +30,7 @@ import { cancelMerchant } from "~/lib/admin/merchant-cancel.server";
 import { getBetterAuth, getSession, listMemberships, setSessionActiveAccount } from "~/lib/auth";
 import type { AuthContext } from "~/lib/auth/context";
 import { ownedAccountNames } from "~/lib/auth/deletion-copy";
-import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
+import { accountFormAction } from "@dustinedwards/site-runtime/sign-in-form";
 import { MEMBER_ROLE } from "~/lib/auth/roles";
 import { isThemeChoice } from "capsomer/theme-server";
 import { DEFAULT_THEME } from "~/lib/theme";
@@ -141,20 +135,20 @@ async function devicesOrStale(
 
 const SECURITY_HISTORY_SHOWN = 10;
 
-/** The session when it was made in the last 10 minutes (site-runtime
- *  requireFreshSession), else null, which the page answers by asking for a
- *  new sign-in. */
-async function freshSession(env: Env, request: Request) {
-  return requireFreshSession(await getBetterAuth(env), request).catch((error: unknown) => {
-    if (error instanceof SessionNotFresh) return null;
-    throw error;
-  });
-}
-
 export async function action({ request, context }: Route.ActionArgs) {
   const { env, auth, accountId } = accountScope(context);
   const form = await readForm(request, BODY_MAX_BYTES);
-  const intent = String(form.get("_action") ?? "");
+  // Changing the email, signing a device out and deleting the account: site-runtime's accountFormAction, the same on
+  // every site (a sign-in from the last 10 minutes for each; a deletion runs Foxhound's hooks, then lands on "/").
+  const shared = await accountFormAction(await getBetterAuth(env), request, form, {
+    deletedLanding: "/",
+  });
+  if (shared) {
+    return "location" in shared
+      ? redirect(shared.location, { headers: shared.headers })
+      : data<ActionResult>(shared.state, { status: shared.status });
+  }
+  const intent = String(form.get("intent") ?? "");
 
   switch (intent) {
     case "profile": {
@@ -164,7 +158,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         // An empty name is refused before anything is written: the name is the business's name in the header and in every recovery email's prompt.
         return data<ActionResult>(
           {
-            action: intent,
+            intent,
             ok: false,
             error: "Account name is required.",
             field: "name",
@@ -191,27 +185,27 @@ export async function action({ request, context }: Route.ActionArgs) {
           return data<ActionResult>(
             result.error === MRR_ERROR
               ? {
-                  action: intent,
+                  intent,
                   ok: false,
                   error: result.error,
                   field: "merchantMrrSelfReported",
                 }
-              : { action: intent, ok: false, error: result.error },
+              : { intent, ok: false, error: result.error },
             { status: 400 },
           );
         }
       } catch (err) {
         // A failed update answers with the SaveBar line, not an error page. The whole error is logged, stack included; it carries no form values.
         console.error("account settings write failed:", err);
-        return data<ActionResult>({ action: intent, ok: false }, { status: 500 });
+        return data<ActionResult>({ intent, ok: false }, { status: 500 });
       }
-      return data<ActionResult>({ action: intent, ok: true });
+      return data<ActionResult>({ intent, ok: true });
     }
     case "cancel-account": {
       // OWNER ONLY, refused before any read or write. Canceling disconnects every Stripe connection and stops all recovery on the account, so a member never does it (same shape as team.tsx's gate).
       if (auth.membership.role !== MEMBER_ROLE.OWNER) {
         return data<ActionResult>(
-          { action: intent, ok: false, error: "Only the account owner can cancel the account." },
+          { intent, ok: false, error: "Only the account owner can cancel the account." },
           { status: 403 },
         );
       }
@@ -229,7 +223,7 @@ export async function action({ request, context }: Route.ActionArgs) {
         }
       }
       return data<ActionResult>({
-        action: intent,
+        intent,
         ok: true,
         warning:
           outcome.deauthorizeErrors.length > 0
@@ -237,91 +231,9 @@ export async function action({ request, context }: Route.ActionArgs) {
             : undefined,
       });
     }
-    case "delete-account": {
-      // A sign-in from the last 10 minutes first (site-runtime requireFreshSession, the rule Better Auth holds its own risky changes to): a borrowed or forgotten session cannot delete the account. Stale answers as signing a device out does, and the page asks for a new sign-in.
-      const fresh = await freshSession(env, request);
-      if (!fresh)
-        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      // Better Auth's own delete (/delete-user), for the SIGNED-IN user only: it takes no id, so a person deletes themselves and nobody else. Foxhound's deletion runs in its hooks (delete-account.server.ts), and site-runtime's log line and notice follow it. Its answer clears the session cookie, and the person goes to "/".
-      let deleted: Response | null = null;
-      try {
-        deleted = await (
-          await getBetterAuth(env)
-        ).api.deleteUser({ body: {}, headers: request.headers, asResponse: true });
-      } catch (err) {
-        console.error("account deletion failed:", err);
-      }
-      if (!deleted?.ok) {
-        if (deleted)
-          logEvent("account_deletion_failed", { status: deleted.status }, { level: "error" });
-        return data<ActionResult>(
-          {
-            action: intent,
-            ok: false,
-            error: "Failed to delete account. Please contact support.",
-          },
-          { status: 500 },
-        );
-      }
-      const headers = new Headers();
-      for (const cookie of deleted.headers.getSetCookie()) headers.append("Set-Cookie", cookie);
-      return redirect("/", { headers });
-    }
-    case "change-email": {
-      // Through Better Auth's /change-email: the link goes to the CURRENT address first (auth.server.ts). A sign-in from the last 10 minutes first, as for delete; site-runtime refuses the endpoint without one too.
-      const fresh = await freshSession(env, request);
-      if (!fresh)
-        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      const newEmail = String(form.get("newEmail") ?? "")
-        .trim()
-        .toLowerCase();
-      const refuse = (error: string) =>
-        data<ActionResult>({ action: intent, ok: false, error }, { status: 400 });
-      if (!isEmail(newEmail)) return refuse("Enter an email address.");
-      if (newEmail === fresh.user.email.toLowerCase())
-        return refuse("That is already your address.");
-      if (isDisposableEmail(newEmail)) return refuse("Disposable email addresses are not allowed.");
-      // An address nobody has confirmed would get the link at the new address alone (Better Auth's other branch), so it is refused: every way into Foxhound confirms the address, so this is only ever an old account.
-      if (!fresh.user.emailVerified)
-        return refuse("Sign in with an email link first, then change your address.");
-      try {
-        await (
-          await getBetterAuth(env)
-        ).api.changeEmail({
-          body: { newEmail },
-          headers: request.headers,
-        });
-      } catch (error) {
-        if (isAPIError(error) && error.body?.code === "SESSION_NOT_FRESH") {
-          return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-        }
-        logEvent("email_change_failed", { error: errorMessage(error) }, { level: "error" });
-        return data<ActionResult>(
-          { action: intent, ok: false, error: "The email was not sent. Try again in a minute." },
-          { status: 500 },
-        );
-      }
-      // Better Auth answers the same whether or not the new address is taken,
-      // so this says nothing about it either.
-      return data<ActionResult>({ action: intent, ok: true, sentTo: fresh.user.email });
-    }
-    case "sign-out-device": {
-      // By the session's id, so no session token reaches the page (site-runtime ./sign-in).
-      try {
-        const ok = await revokeSessionById(
-          await getBetterAuth(env),
-          request,
-          String(form.get("session") ?? ""),
-        );
-        return data<ActionResult>({ action: intent, ok }, { status: ok ? 200 : 404 });
-      } catch (error) {
-        if (!isAPIError(error) || error.body?.code !== "SESSION_NOT_FRESH") throw error;
-        return data<ActionResult>({ action: intent, ok: false, error: "stale" }, { status: 403 });
-      }
-    }
     default:
       return data<ActionResult>(
-        { action: intent, ok: false, error: "Unknown settings action." },
+        { intent, ok: false, error: "Unknown settings action." },
         { status: 400 },
       );
   }
@@ -334,7 +246,7 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
   return (
     <SettingsLayout renderLink={routerRenderLink} title="My account">
       <div className="fh-mb-7-5">
-        <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
+        <ProfileForm account={account} result={result?.intent === "profile" ? result : undefined} />
       </div>
 
       <Appearance initial={theme ?? DEFAULT_THEME} isDemo={Boolean(isDemo)} />
