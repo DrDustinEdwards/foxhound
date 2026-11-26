@@ -20,8 +20,8 @@ export default adminMcpWorker<AdminMcpEnv>({
   name: "Foxhound Admin",
   server: SERVER,
   site: foxhoundMcp,
-  // The network's address and Expires, as foxhoundapp.com sends.
-  securityTxt: { contact: "security@dustinedwards.info", expires: "2027-09-28T00:00:00Z" },
+  // Foxhound's own contact and Expires, as foxhoundapp.com sends (workers/app.ts securityContact).
+  securityTxt: { contact: "support@foxhoundapp.com", expires: "2027-09-28T00:00:00Z" },
   about: `<p>It can read Foxhound. With changes allowed, it can also pause merchants, stage changes and send test emails to your own inbox.</p>
 <p>It can never refund, adjust, cancel or disconnect anything. Resuming, releasing the brake, enabling a cron and billing exemption are only staged, for you to confirm in /admin/staged.</p>`,
   admit: (env, user) => isFoxhoundAdmin(env, user.email.toLowerCase()),

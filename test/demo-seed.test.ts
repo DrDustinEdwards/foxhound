@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 
 import { getRecoveryStats, getMrrAnalytics } from "~/lib/dashboard/stats.server";
 import { DEMO_ACCOUNT_ID, DEMO_BOLT_ACCOUNT_ID } from "~/lib/demo/constants";
+import { BOLT_DISPUTE_SPECS, TEAMFLOW_DISPUTE_SPECS } from "~/lib/demo/disputes-specs";
 import { seedDemoAccount } from "~/lib/demo/seed";
 import { getIntelligenceOverview } from "~/lib/intelligence/views.server";
 import { listFailedPayments } from "~/lib/recovery/queries.server";
@@ -53,5 +54,14 @@ describe("demo seeder -> real loaders render populated data", () => {
     const overview = await getIntelligenceOverview(db, DEMO_ACCOUNT_ID);
     expect(overview.scoredCustomerCount).toBe(207); // not 414
     expect((await listFailedPayments(db, DEMO_ACCOUNT_ID)).length).toBe(76);
+  });
+});
+
+// The public demo shows these addresses, so none may sit on a real company's domain.
+describe("demo dispute customers", () => {
+  it("use only the reserved .demo domain", () => {
+    for (const spec of [...TEAMFLOW_DISPUTE_SPECS, ...BOLT_DISPUTE_SPECS]) {
+      expect(spec.customerEmail).toMatch(/@[a-z0-9-]+\.demo$/);
+    }
   });
 });
