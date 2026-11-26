@@ -79,7 +79,6 @@ describe("queue consumers", () => {
 
   it("max_retries mirrors the constants that claim to mirror it", () => {
     for (const [queue, retries] of [
-      [constants.EMAIL_QUEUE_NAME, constants.EMAIL_QUEUE_MAX_RETRIES],
       [constants.AUDIT_QUEUE_NAME, constants.AUDIT_QUEUE_MAX_RETRIES],
     ] as const) {
       expect(WRANGLER_CONSUMERS.find((c) => c.queue === queue)?.max_retries, queue).toBe(retries);

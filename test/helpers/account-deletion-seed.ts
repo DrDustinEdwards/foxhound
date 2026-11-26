@@ -261,13 +261,6 @@ export async function seedRecords(
     accountId,
     reason: "unsubscribe",
   });
-  await db.insert(schema.emailDeadLetters).values({
-    id: `${p}-dlq`,
-    accountId,
-    recipientHash: `hash-of-${t("ada@customer.test")}`,
-    error: `failed for ${t("ada@customer.test")}`,
-    createdAt: OLD,
-  });
   await db.insert(schema.customerContext).values({
     id: `${p}-cc`,
     accountId,

@@ -1,15 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { emailDeadLetters } from "~/db/schema";
 import { runCronHealthCheck, SCHEDULE_PERIOD_MS } from "~/lib/cron/alerts.server";
 import { CRON_JOBS } from "~/lib/cron/registry";
-import { recordDeadLetters } from "~/lib/email/dead-letters.server";
-import type { EmailJob } from "~/lib/email/types";
+import { executeEmailStep } from "~/lib/engine/execute-step";
 
 import { loggedRuns, runJob } from "./helpers/cron";
 import { createInMemoryDb, d1Over } from "./helpers/inmemory-db";
 
-// Cron failure alerts and dead letters; sends are faked at the EMAIL binding, not the alert module.
+// Cron failure alerts; sends are faked at the EMAIL binding, not the alert module.
 
 const NOW = new Date("2026-08-16T12:00:00.000Z");
 
@@ -47,65 +45,6 @@ describe("the never-executed detector", () => {
   });
 });
 
-describe("the dead-letter trace", () => {
-  const job: EmailJob = {
-    accountId: "acct_1",
-    recoveryStepId: "step_1",
-    to: "customer@example.com",
-    subject: "Your payment failed",
-    bodyHtml: "<p>x</p>",
-    template: "recovery_dunning",
-    unsubscribeToken: "t",
-    physicalAddress: "addr",
-    idempotencyKey: "step_1:0",
-  };
-
-  it("writes a row for an exhausted send, storing a hash and never the recipient address", async () => {
-    const { db, env } = setup();
-    const result = await recordDeadLetters(env, db, [{ id: "qm_1", attempts: 3, body: job }], NOW);
-    expect(result.written).toBe(1);
-    expect(result.failed).toBe(0);
-
-    const rows = await db.select().from(emailDeadLetters);
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({
-      accountId: "acct_1",
-      recoveryStepId: "step_1",
-      queueMessageId: "qm_1",
-      template: "recovery_dunning",
-      attempts: 3,
-    });
-    expect(rows[0].recipientHash).toBeTruthy();
-    expect(JSON.stringify(rows)).not.toContain("customer@example.com");
-  });
-
-  it("one bad message does not discard the batch", async () => {
-    const { db, env } = setup();
-    const result = await recordDeadLetters(
-      env,
-      db,
-      [
-        { id: "qm_1", attempts: 3, body: job },
-        { id: "qm_2", attempts: 3, body: null },
-        { id: "qm_3", attempts: 3, body: job },
-      ],
-      NOW,
-    );
-    expect(result.written).toBe(2);
-    expect(result.failed).toBe(1);
-  });
-
-  it("raises one alert for the batch, deduped with the cron alerts", async () => {
-    const { db, env, alerts } = setup();
-    await recordDeadLetters(env, db, [{ id: "a", attempts: 3, body: job }], NOW);
-    await recordDeadLetters(env, db, [{ id: "b", attempts: 3, body: job }], NOW);
-
-    expect(alerts()).toHaveLength(1); // a burst is one problem, not N
-    expect(alerts()[0].kind).toBe("dead_letter");
-    expect(await db.select().from(emailDeadLetters)).toHaveLength(2); // both rows still written
-  });
-});
-
 // Driven through the real runner: this proves the runner actually calls the alert module.
 const harness = vi.hoisted(() => ({ db: null as unknown }));
 vi.mock("~/db", async (importOriginal) => ({
@@ -140,5 +79,57 @@ describe("the runner actually alerts", () => {
       "failed",
     ]); // both runs recorded
     expect(sqlite.prepare("SELECT * FROM alerts_sent").all()).toHaveLength(1); // one alert
+  });
+});
+
+describe("a recovery email that fails for good", () => {
+  const step = (stepId: string) => ({
+    stepId,
+    accountId: "acct_1",
+    failedPaymentId: "fp_1",
+    stepType: "email_day1",
+    attemptCount: 4,
+    declineCategory: "expired",
+    customerEmail: "jane@example.com",
+    customerName: "Jane",
+    amountCents: 4900,
+    currency: "usd",
+    merchantName: "Teamflow",
+    senderName: "Teamflow",
+    voiceDescription: null,
+    cached: { customBody: null, cachedSubject: null, cachedBodyHtml: null },
+  });
+
+  it("alerts the support inbox once a day, after the last retry", async () => {
+    const sent: { subject: string }[] = [];
+    const { env, alerts } = setup(async (m?: unknown) => {
+      sent.push(m as { subject: string });
+      return { id: "msg_1" };
+    });
+    Object.assign(env, {
+      ENCRYPTION_KEY: "ab".repeat(32),
+      BETTER_AUTH_URL: "https://foxhoundapp.test",
+      PHYSICAL_ADDRESS: "1 Test Way",
+    });
+    const deps = {
+      generate: async () => {
+        throw new Error("no model");
+      },
+      send: async () => ({
+        status: "failed" as const,
+        providerMessageId: null,
+        error: "E_DAILY_LIMIT_EXCEEDED",
+        retryable: true,
+      }),
+      persistPatch: async () => {},
+    };
+
+    const first = await executeEmailStep(env, step("step_1"), deps);
+    await executeEmailStep(env, step("step_2"), deps);
+
+    expect(first.result).toBe("email_failed");
+    expect(alerts()).toHaveLength(1);
+    expect(alerts()[0].kind).toBe("email_failed");
+    expect(sent.map((m) => m.subject)).toEqual(["Foxhound recovery email failed for good"]);
   });
 });

@@ -1,12 +1,3 @@
-/**
- * Queue consumer retry ceiling before dead-letter (mirrors the wrangler
- * consumer config).
- */
-export const EMAIL_QUEUE_MAX_RETRIES = 3;
-/** Queue names. */
-export const EMAIL_QUEUE_NAME = "foxhound-email";
-/** The dead-letter queue for EMAIL_QUEUE_NAME (the consumer's `dead_letter_queue` in wrangler.jsonc). */
-export const EMAIL_DLQ_QUEUE_NAME = "foxhound-email-dlq";
 export const EMAIL_EVENTS_QUEUE_NAME = "foxhound-email-events";
 /**
  * The monthly audit queue: the cron sends one message per opted-in account, so

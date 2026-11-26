@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, index, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { id, ts } from "./columns";
 import { recoverySteps, winBackSteps } from "./recovery";
@@ -37,25 +37,6 @@ export const emailSends = sqliteTable(
       .on(t.idempotencyKey)
       .where(sql`${t.idempotencyKey} is not null`),
   ],
-);
-
-/** Dead-lettered dunning emails: the trace of a dunning email that keeps failing after max_retries. Writing the row is the whole job; retry-from-DLQ is not built. Carries a recipientHash rather than an address, matching email_sends' privacy shape. */
-export const emailDeadLetters = sqliteTable(
-  "email_dead_letters",
-  {
-    id: id(),
-    accountId: text("account_id"),
-    recoveryStepId: text("recovery_step_id"),
-    winBackStepId: text("win_back_step_id"),
-    queueMessageId: text("queue_message_id"),
-    template: text("template"),
-    recipientHash: text("recipient_hash"),
-    /** Delivery attempts the queue made before giving up. */
-    attempts: integer("attempts"),
-    error: text("error"),
-    createdAt: ts("created_at").notNull(),
-  },
-  (t) => [index("email_dead_letters_account_idx").on(t.accountId)],
 );
 
 // site-runtime ./cron-alert's ALERTS_SQL, written and read only by alertOnce and cronAlert.

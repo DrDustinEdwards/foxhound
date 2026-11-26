@@ -4,7 +4,7 @@ import { CRON_SCHEDULE_DAILY } from "~/lib/constants";
 import {
   buildFailureAlertEmail,
   buildStaleAlertEmail,
-  deadLetterAlertMessage,
+  emailFailedAlertMessage,
   renderCronAlertEmail,
 } from "~/lib/cron/alerts.server";
 import {
@@ -87,11 +87,14 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
     );
     return { channel: "rendered", to, rendered: renderCronAlertEmail(to, message, baseUrl, now) };
   }
-  if (type.type === "dead_letter_alert") {
+  if (type.type === "email_failed_alert") {
     return {
       channel: "transactional",
       to,
-      ...deadLetterAlertMessage({ written: 2, failed: 0 }, now),
+      ...emailFailedAlertMessage(
+        { accountId: "acct_sample", stepId: "step_sample", attempts: 5 },
+        now,
+      ),
     };
   }
   throw new Error(`no builder for ${type.type}`);

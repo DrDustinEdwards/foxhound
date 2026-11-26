@@ -165,10 +165,10 @@ export const ADMIN_EMAIL_TYPES: readonly AdminEmailType[] = [
       "The operations alert (E27) the support inbox gets when a cron has not succeeded within its expected interval.",
   },
   {
-    type: "dead_letter_alert",
+    type: "email_failed_alert",
     audience: "platform",
     description:
-      "The operations alert the support inbox gets when dunning emails exhaust their queue retries and are dead-lettered.",
+      "The operations alert the support inbox gets when a recovery email fails after every retry.",
   },
 ];
 

@@ -19,10 +19,10 @@
     "size": {},
     "tests": {
       "files": 265,
-      "cases": 1384
+      "cases": 1382
     },
     "comments": {
-      "lines": 12678,
+      "lines": 12659,
       "code": 126032,
       "percentage": 9.14
     }
