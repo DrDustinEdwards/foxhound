@@ -66,7 +66,7 @@ describe("readCronLocks with a lock that never answers", () => {
       idFromName: (name: string) => ({ name }),
       get: (id: { name: string }) => ({
         peek: () =>
-          id.name === "d1-backup"
+          id.name === "backup"
             ? new Promise(() => {})
             : Promise.resolve(id.name === "recovery-tick" ? NOW + MIN : null),
       }),
@@ -80,8 +80,8 @@ describe("readCronLocks with a lock that never answers", () => {
     expect(settled).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     const locks = await pending;
-    expect(locks.find((l) => l.name === "d1-backup")).toEqual({
-      name: "d1-backup",
+    expect(locks.find((l) => l.name === "backup")).toEqual({
+      name: "backup",
       state: "unreadable",
       heldUntil: null,
     });

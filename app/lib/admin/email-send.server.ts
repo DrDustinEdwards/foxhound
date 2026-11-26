@@ -79,7 +79,7 @@ export async function prepareAdminEmail(env: Env, input: PrepareInput): Promise<
   if (type.type === "cron_stale") {
     const message = buildStaleAlertEmail(
       {
-        cronName: "retention-sweep",
+        cronName: "retention",
         lastRunAt: new Date(now.getTime() - 3 * 86_400_000),
         schedule: CRON_SCHEDULE_DAILY,
       },

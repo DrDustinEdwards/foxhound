@@ -16,7 +16,7 @@ vi.mock("~/db", async (importOriginal) => ({
 }));
 
 const { CRON_LOCK_LEASE_MS } = await import("~/lib/constants");
-const { runJobNowList, runScheduledJobs } = await import("~/lib/cron/run");
+const { cronSteps, runJobNowList, runScheduledJobs } = await import("~/lib/cron/run");
 const { RUN_NOW_JOBS } = await import("~/lib/cron/registry");
 
 const DAILY = "0 3 * * *";
@@ -186,10 +186,50 @@ describe("run a job now", () => {
       "expiring-cards",
     ])
       expect(names).not.toContain(money);
-    expect(RUN_NOW_JOBS.filter((j) => j.backup).map((j) => j.name)).toEqual([
-      "d1-backup",
-      "media-backup",
-      "evidence-backup",
+    expect(RUN_NOW_JOBS.filter((j) => j.backup).map((j) => j.name)).toEqual(["backup"]);
+  });
+});
+
+describe("a job made of steps", () => {
+  it("runs every step after a failed one, records the run failed and names each step's result", async () => {
+    const { env, sqlite } = envWith([true]);
+    const last = vi.fn(async () => ({ rowsProcessed: 1, message: "done" }));
+
+    await runJob(
+      env,
+      "retention",
+      cronSteps([
+        { name: "first", handler: async () => ({ rowsProcessed: 2 }) },
+        {
+          name: "second",
+          handler: async () => {
+            throw new Error("D1 busy");
+          },
+        },
+        { name: "third", handler: last },
+      ]),
+    );
+
+    expect(last).toHaveBeenCalledTimes(1);
+    expect(loggedRuns(sqlite, "retention").map((r) => [r.outcome, r.reason])).toEqual([
+      ["failed", "Error: 1 of 3 steps failed: second failed: D1 busy; first: 2 rows; third: done"],
+    ]);
+  });
+
+  it("a run whose steps all succeed is ok, with each step's line and the rows summed", async () => {
+    const { env, sqlite } = envWith([true]);
+
+    await runJob(
+      env,
+      "backup",
+      cronSteps([
+        { name: "d1", handler: async () => ({ rowsProcessed: 5, message: "74 tables" }) },
+        { name: "media", handler: async () => ({ rowsProcessed: 0 }) },
+      ]),
+    );
+
+    expect(loggedRuns(sqlite, "backup").map((r) => [r.outcome, r.reason])).toEqual([
+      ["ok", "d1: 74 tables; media: 0 rows"],
     ]);
   });
 });

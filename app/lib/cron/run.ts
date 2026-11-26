@@ -32,6 +32,29 @@ interface CronRunContext {
 }
 export type CronHandler = (env: Env, ctx?: CronRunContext) => Promise<CronJobResult>;
 
+/** Steps in turn, none skipped by a failure; then it throws, failed steps first (cron_run_log keeps 500 characters). */
+export function cronSteps(steps: { name: string; handler: CronHandler }[]): CronHandler {
+  return async (env, ctx) => {
+    const done: string[] = [];
+    const failed: string[] = [];
+    let rowsProcessed = 0;
+    for (const step of steps) {
+      try {
+        const result = await step.handler(env, ctx);
+        rowsProcessed += result.rowsProcessed;
+        done.push(`${step.name}: ${reasonOf(result)}`);
+      } catch (err) {
+        failed.push(`${step.name} failed: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+    if (failed.length > 0)
+      throw new Error(
+        `${failed.length} of ${steps.length} steps failed: ${[...failed, ...done].join("; ")}`,
+      );
+    return { rowsProcessed, message: done.join("; ") };
+  };
+}
+
 /**
  * cron_run_log's bounds. The Crons page shows each job's last day of failures,
  * and blog-schedules runs every minute, so a job keeps its newest 1,500 runs

@@ -57,7 +57,7 @@ import { describeWinbackRun, runWinbackSends } from "~/lib/cron/winback";
 import { runCodePageDates } from "~/lib/page-dates.server";
 import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./alerts.server";
 import { runRecoveryTick } from "./recovery-tick";
-import type { CronHandler } from "./run";
+import { cronSteps, type CronHandler } from "./run";
 import {
   sweepAiCalls,
   sweepEmailSends,
@@ -248,13 +248,12 @@ const expiringCards: CronHandler = async (env) => {
   return { rowsProcessed: result.send.sent, message: describeExpiringCardRun(result) };
 };
 
-/**
- * The nightly D1 dump into R2. Reuses the daily schedule, so no new
- * wrangler.jsonc trigger. See app/lib/backup/d1-backup.ts.
- */
-const d1Backup: CronHandler = (env) => runD1Backup(env, new Date());
-const mediaBackup: CronHandler = (env) => runMediaFilesBackup(env);
-const evidenceBackup: CronHandler = (env) => runEvidenceBackup(env);
+/** The nightly D1 dump into R2, then the media and dispute evidence copies beside it. */
+const backup = cronSteps([
+  { name: "d1", handler: (env) => runD1Backup(env, new Date()) },
+  { name: "media", handler: (env) => runMediaFilesBackup(env) },
+  { name: "evidence", handler: (env) => runEvidenceBackup(env) },
+]);
 
 /**
  * The 404 count's retention, by site-runtime's pruneNotFound at Foxhound's own
@@ -387,6 +386,17 @@ const toolCallLogExport: CronHandler = async (env) => {
   };
 };
 
+const retention = cronSteps([
+  { name: "engagement-events", handler: sweepEngagementEvents },
+  { name: "email-sends", handler: sweepEmailSends },
+  { name: "webhook-events", handler: sweepWebhookEvents },
+  { name: "health-score", handler: sweepHealthScoreHistory },
+  { name: "page-404", handler: retentionPage404 },
+  { name: "ai-calls", handler: sweepAiCalls },
+  { name: "auth-events", handler: retentionAuthEvents },
+  { name: "tool-call-log", handler: toolCallLogExport },
+]);
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -417,9 +427,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "blog-schedules", schedule: CRON_SCHEDULE_BLOG, handler: blogSchedules },
   { name: "cron-health", schedule: CRON_SCHEDULE_DAILY, handler: cronHealth },
   { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
-  { name: "d1-backup", schedule: CRON_SCHEDULE_DAILY, handler: d1Backup },
-  { name: "media-backup", schedule: CRON_SCHEDULE_DAILY, handler: mediaBackup },
-  { name: "evidence-backup", schedule: CRON_SCHEDULE_DAILY, handler: evidenceBackup },
+  { name: "backup", schedule: CRON_SCHEDULE_DAILY, handler: backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
   { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
   {
@@ -433,22 +441,7 @@ export const CRON_JOBS: CronJob[] = [
   { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
   { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
-  {
-    name: "retention-engagement-events",
-    schedule: CRON_SCHEDULE_DAILY,
-    handler: sweepEngagementEvents,
-  },
-  { name: "retention-email-sends", schedule: CRON_SCHEDULE_DAILY, handler: sweepEmailSends },
-  { name: "retention-webhook-events", schedule: CRON_SCHEDULE_DAILY, handler: sweepWebhookEvents },
-  {
-    name: "retention-health-score",
-    schedule: CRON_SCHEDULE_DAILY,
-    handler: sweepHealthScoreHistory,
-  },
-  { name: "retention-page-404", schedule: CRON_SCHEDULE_DAILY, handler: retentionPage404 },
-  { name: "retention-ai-calls", schedule: CRON_SCHEDULE_DAILY, handler: sweepAiCalls },
-  { name: "retention-auth-events", schedule: CRON_SCHEDULE_DAILY, handler: retentionAuthEvents },
-  { name: "tool-call-log-export", schedule: CRON_SCHEDULE_DAILY, handler: toolCallLogExport },
+  { name: "retention", schedule: CRON_SCHEDULE_DAILY, handler: retention },
   // The day each code-written sitemap page last changed, for /sitemap.xml's
   // lastmod.
   { name: "page-dates", schedule: CRON_SCHEDULE_DAILY, handler: runCodePageDates },
@@ -467,20 +460,11 @@ export function jobsForSchedule(cron: string): CronJob[] {
  * (CLAUDE.md, Agent tools and demo).
  */
 const RUN_NOW: Record<string, { backup?: boolean }> = {
-  "d1-backup": { backup: true },
-  "media-backup": { backup: true },
-  "evidence-backup": { backup: true },
-  "tool-call-log-export": {},
+  backup: { backup: true },
+  retention: {},
   "cron-health": {},
   "blog-schedules": {},
   "page-dates": {},
-  "retention-engagement-events": {},
-  "retention-email-sends": {},
-  "retention-webhook-events": {},
-  "retention-health-score": {},
-  "retention-page-404": {},
-  "retention-ai-calls": {},
-  "retention-auth-events": {},
 };
 
 export const RUN_NOW_JOBS: (CronJob & { backup?: boolean })[] = CRON_JOBS.filter((j) =>
