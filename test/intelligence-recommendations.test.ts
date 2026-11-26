@@ -95,22 +95,6 @@ describe("recommendations, from the nightly batch to the page", () => {
       { stripe_customer_id: "cus_small", recommended_action: "continue_automated" },
       { stripe_customer_id: "cus_two", recommended_action: "continue_automated" },
     ]);
-
-    const log = sqlite
-      .prepare(
-        "SELECT action, engagement_band, recovery_band, value_band, outcome, outcome_at FROM recommendation_log WHERE stripe_customer_id = 'cus_big'",
-      )
-      .all();
-    expect(log).toEqual([
-      {
-        action: "personal_outreach",
-        engagement_band: "red",
-        recovery_band: "unknown",
-        value_band: "high",
-        outcome: null,
-        outcome_at: null,
-      },
-    ]);
   });
 
   it("the page reads the action the batch wrote, highest MRR first", async () => {

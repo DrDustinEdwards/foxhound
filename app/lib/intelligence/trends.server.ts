@@ -1,10 +1,10 @@
 // Intelligence trend views: the MRR snapshot series, the health-score distribution over time and the churn view.
 
-import { and, asc, desc, eq, gte, lt, sql } from "drizzle-orm";
-import { customerContext, healthScoreHistory, mrrSnapshots, type Db } from "~/db";
+import { and, asc, desc, eq, gte, isNotNull, lt, sql } from "drizzle-orm";
+import { customerContext, healthScoreHistory, mrrSnapshots, predictions, type Db } from "~/db";
 import { DAY_MS, HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
 import { sampleEveryNth } from "./dashboard";
-import { healthScoreBand, type HealthScoreBand } from "./health-band";
+import { healthScoreBand, WATCH_CEILING, type HealthScoreBand } from "./health-band";
 import { healthBandCondition } from "./directory.server";
 
 /** The last 90 days of DAILY snapshots (`intelligence-sync` runs daily). The series is every row; the NRR card
@@ -147,6 +147,28 @@ export interface ChurnView {
   scoredCustomerCount: number;
   topHighRisk: ChurnHighRiskRow[];
   ratePoints: ChurnRatePoint[];
+  outcomes: PredictionOutcomeBand[];
+}
+
+interface PredictionOutcomeBand {
+  band: HealthScoreBand;
+  graded: number;
+  churned: number;
+}
+
+/** Graded predictions counted by the band their score fell in, the backing for the bands' churn claim. */
+async function getPredictionOutcomes(db: Db, accountId: string): Promise<PredictionOutcomeBand[]> {
+  const band = sql<HealthScoreBand>`case when ${predictions.score} < ${HEALTH_SCORE_AT_RISK_THRESHOLD} then 'at_risk' when ${predictions.score} < ${WATCH_CEILING} then 'watch' else 'healthy' end`;
+  const rows = await db
+    .select({
+      band,
+      graded: sql<number>`count(*)`,
+      churned: sql<number>`sum(case when ${predictions.realizedOutcome} = 'churned' then 1 else 0 end)`,
+    })
+    .from(predictions)
+    .where(and(eq(predictions.accountId, accountId), isNotNull(predictions.gradedAt)))
+    .groupBy(band);
+  return rows.map((r) => ({ band: r.band, graded: Number(r.graded), churned: Number(r.churned) }));
 }
 
 /** Per-band customer counts and MRR, aggregated in SQL rather than in JS. */
@@ -177,8 +199,9 @@ async function getChurnBands(db: Db, accountId: string): Promise<ChurnBand[]> {
 export async function getChurnView(db: Db, accountId: string, nowMs: number): Promise<ChurnView> {
   const chartCutoff = new Date(nowMs - CHURN_CHART_DAYS * DAY_MS);
 
-  const [bands, topHighRisk, snapshots] = await Promise.all([
+  const [bands, outcomes, topHighRisk, snapshots] = await Promise.all([
     getChurnBands(db, accountId),
+    getPredictionOutcomes(db, accountId),
     db
       .select({
         stripeCustomerId: customerContext.stripeCustomerId,
@@ -211,6 +234,7 @@ export async function getChurnView(db: Db, accountId: string, nowMs: number): Pr
 
   return {
     bands,
+    outcomes,
     scoredMrrCents: bands.reduce((sum, b) => sum + b.mrrCents, 0),
     scoredCustomerCount: bands.reduce((sum, b) => sum + b.customerCount, 0),
     topHighRisk: topHighRisk.map((r) => ({

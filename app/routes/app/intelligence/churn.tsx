@@ -13,7 +13,7 @@ import "capsomer/table.css";
 
 import "~/components/charts.css";
 import { accountScope } from "~/lib/auth/context";
-import { HEALTH_SCORE_AT_RISK_THRESHOLD } from "~/lib/constants";
+import { HEALTH_SCORE_AT_RISK_THRESHOLD, PREDICTION_HORIZON_DAYS } from "~/lib/constants";
 import {
   healthScoreClassName,
   WATCH_CEILING,
@@ -26,7 +26,7 @@ import { formatMoney } from "@dustinedwards/site-runtime/money";
 import type { Route } from "./+types/churn";
 import { noindexMeta } from "~/lib/seo/meta";
 
-// /intelligence/churn: the head, the churn-rate chart (Enarratio), the three band cards, then the high-risk customers table; or, when nobody is scored yet, a "being calculated" card in place of the bands and table. Band cutoffs are Foxhound's engine (40/70), derived from the constants below.
+// /intelligence/churn: the head, the churn-rate chart (Enarratio), the three band cards (each with how often its graded predictions churned), then the high-risk customers table; or, when nobody is scored yet, a "being calculated" card in place of the bands and table. Band cutoffs are Foxhound's engine (40/70), derived from the constants below.
 
 export const meta = noindexMeta("Churn Risk - Foxhound");
 
@@ -58,6 +58,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
   const currency = "usd";
 
   const byBand = new Map(view.bands.map((b) => [b.band, b]));
+  const outcomeByBand = new Map(view.outcomes.map((o) => [o.band, o]));
   // The chart returns null unless some rate is above zero.
   const hasRateData = view.ratePoints.some(
     (p) => (p.voluntaryPct ?? 0) > 0 || (p.involuntaryPct ?? 0) > 0,
@@ -93,6 +94,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
           <div className="fh-churn-bands">
             {BAND_ORDER.map((band) => {
               const row = byBand.get(band) ?? { band, customerCount: 0, mrrCents: 0 };
+              const outcome = outcomeByBand.get(band);
               return (
                 <Panel key={band} title={BAND_LABEL[band]} src={BAND_RANGE_LABEL[band]} size="sm">
                   <p className="fh-mono fh-display fh-medium cap-num fh-text">
@@ -102,6 +104,12 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                     {plural(row.customerCount, "customer")} ·{" "}
                     {percent(row.mrrCents, view.scoredMrrCents)}% of scored MRR
                   </p>
+                  {outcome ? (
+                    <p className="fh-small fh-quiet">
+                      {percent(outcome.churned, outcome.graded)}% churned within{" "}
+                      {PREDICTION_HORIZON_DAYS} days · {plural(outcome.graded, "graded prediction")}
+                    </p>
+                  ) : null}
                 </Panel>
               );
             })}

@@ -617,6 +617,13 @@
       "when": 1795716590347,
       "tag": "0091_drop_email_dead_letters",
       "breakpoints": true
+    },
+    {
+      "idx": 88,
+      "version": "6",
+      "when": 1795717808784,
+      "tag": "0092_drop_recommendation_log",
+      "breakpoints": true
     }
   ]
 }

@@ -212,6 +212,7 @@ export const RETENTION_ENGAGEMENT_DAYS = 180;
 export const RETENTION_EMAIL_SENDS_DAYS = 180;
 export const RETENTION_WEBHOOK_EVENTS_DAYS = 90;
 export const RETENTION_HEALTH_SCORE_DAYS = 90;
+export const RETENTION_PREDICTIONS_DAYS = 180;
 export const RETENTION_CRON_LOG_DAYS = 90;
 export const RETENTION_AI_CALLS_DAYS = 90;
 /** The admin API call log; the database trigger refuses to delete a row younger than 30 days. */

@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
 import { describe, expect, it } from "vitest";
 
-import { accounts, customerContext, healthScoreHistory, mrrSnapshots } from "~/db";
+import { accounts, customerContext, healthScoreHistory, mrrSnapshots, predictions } from "~/db";
 import { percent } from "capsomer/behavior/meter";
 import { churnRateAlt } from "~/lib/intelligence/churn";
 import { WATCH_CEILING } from "~/lib/intelligence/health-band";
@@ -97,6 +97,39 @@ describe("getChurnView bands", () => {
   });
 });
 
+describe("getChurnView prediction outcomes", () => {
+  it("counts graded predictions by the band of their score, and leaves pending ones out", async () => {
+    const db = await setup({ scored: [{ score: 20, mrrCents: 5000 }] });
+    const graded = new Date(NOW);
+    const rows: { score: number; outcome: "churned" | "retained" | null }[] = [
+      { score: 10, outcome: "churned" },
+      { score: 30, outcome: "retained" },
+      { score: WATCH_CEILING - 1, outcome: "churned" },
+      { score: WATCH_CEILING, outcome: "retained" },
+      { score: 15, outcome: null },
+    ];
+    await db.insert(predictions).values(
+      rows.map((r, i) => ({
+        id: `pred_${i}`,
+        accountId: ACCOUNT_ID,
+        stripeCustomerId: `cus_${i}`,
+        score: r.score,
+        horizonDays: 30,
+        predictedAt: graded,
+        realizedOutcome: r.outcome,
+        gradedAt: r.outcome ? graded : null,
+      })),
+    );
+    const view = await getChurnView(db, ACCOUNT_ID, NOW);
+    const byBand = Object.fromEntries(view.outcomes.map((o) => [o.band, o]));
+    expect(byBand).toEqual({
+      at_risk: { band: "at_risk", graded: 2, churned: 1 },
+      watch: { band: "watch", graded: 1, churned: 1 },
+      healthy: { band: "healthy", graded: 1, churned: 0 },
+    });
+  });
+});
+
 describe("getChurnView rate series", () => {
   it("converts basis points to percent", async () => {
     const db = await setup({
@@ -160,6 +193,7 @@ describe("the churn page", () => {
       scoredCustomerCount: 0,
       topHighRisk: [],
       ratePoints: [{ at: new Date("2026-01-01T00:00:00Z"), voluntaryPct: 0, involuntaryPct: null }],
+      outcomes: [],
     };
     const html = renderToStaticMarkup(
       createElement(
@@ -170,6 +204,25 @@ describe("the churn page", () => {
     );
     expect(html).not.toContain("Churn rate over time");
     expect(html).not.toContain("data-enarratio");
+  });
+
+  it("shows each band's churn rate once its predictions are graded", () => {
+    const Page = IntelligenceChurn as unknown as (props: {
+      loaderData: { view: ChurnView };
+    }) => ReactElement;
+    const view: ChurnView = {
+      bands: [{ band: "at_risk", customerCount: 1, mrrCents: 5000 }],
+      scoredMrrCents: 5000,
+      scoredCustomerCount: 1,
+      topHighRisk: [],
+      ratePoints: [],
+      outcomes: [{ band: "at_risk", graded: 4, churned: 1 }],
+    };
+    const html = renderToStaticMarkup(
+      createElement(MemoryRouter, null, createElement(Page, { loaderData: { view } })),
+    );
+    expect(html).toContain("25% churned within 30 days · 4 graded predictions");
+    expect(html.match(/churned within/g)).toHaveLength(1);
   });
 });
 

@@ -22,6 +22,7 @@ import {
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_HEALTH_SCORE_DAYS,
+  RETENTION_PREDICTIONS_DAYS,
   RETENTION_PAGE_404_DAILY_DAYS,
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
@@ -37,6 +38,7 @@ import {
   engagementEvents,
   failedPayments,
   healthScoreHistory,
+  predictions,
   page404Daily,
   recoverySteps,
   webhookEvents,
@@ -145,6 +147,7 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
       `${RETENTION_HEALTH_SCORE_DAYS} days raw, weekly rollups after`,
       healthScoreHistory,
     ],
+    ["Churn predictions", `${RETENTION_PREDICTIONS_DAYS} days`, predictions],
     ["Cron run log", `${RETENTION_CRON_LOG_DAYS} days, newest 1,500 per job`, cronRunLog],
     ["Page 404s (daily aggregate)", `${RETENTION_PAGE_404_DAILY_DAYS} days`, page404Daily],
     ["Admin API calls", `${RETENTION_ADMIN_API_CALLS_DAYS} days`, adminApiCalls],

@@ -6,7 +6,6 @@ import {
   customerContext,
   engagementEvents,
   failedPayments,
-  recommendationLog,
   recoverySteps,
   type Db,
 } from "~/db";
@@ -32,7 +31,6 @@ export const ENGAGEMENT_WINDOW_DAYS = 30;
 export const customerCurrency = sql<string>`coalesce(${customerContext.currency}, (select ${accounts.currency} from ${accounts} where ${accounts.id} = ${customerContext.accountId}), 'usd')`;
 
 /** Named so a later rule change is told apart in the log. */
-const RECOMMENDATION_SCORE_SOURCE = "recova_rules_v1";
 
 export interface RecommendationSubject {
   stripeCustomerId: string;
@@ -202,39 +200,6 @@ export async function personalOutreachCustomerIds(
       ),
     );
   return rows.map((r) => r.id);
-}
-
-/** The recommendation_log insert for one customer's run. Operational, not a money write; outcome is left null for a later grading pass. */
-export function buildRecommendationLogInsert(
-  db: Db,
-  input: {
-    accountId: string;
-    stripeCustomerId: string;
-    result: CustomerRecommendation;
-    currency: string;
-    now: Date;
-  },
-) {
-  const { result } = input;
-  return db.insert(recommendationLog).values({
-    accountId: input.accountId,
-    stripeCustomerId: input.stripeCustomerId,
-    recommendedAt: input.now,
-    action: result.recommendation.action,
-    confidence: result.recommendation.confidence,
-    rationale: result.recommendation.rationale,
-    engagementBand: result.engagement.band,
-    recoveryBand: result.history.band,
-    valueBand: result.value.band,
-    evidence: {
-      engagement: { confidence: result.engagement.confidence, ...result.engagement.evidence },
-      recoveryHistory: { confidence: result.history.confidence, ...result.history.evidence },
-      customerValue: { confidence: result.value.confidence, ...result.value.evidence },
-    },
-    annualizedMrrAtRiskCents: result.recommendation.annualizedMrrAtRiskCents,
-    currency: result.recommendation.annualizedMrrAtRiskCents === null ? null : input.currency,
-    scoreSource: RECOMMENDATION_SCORE_SOURCE,
-  });
 }
 
 export const RECOMMENDATIONS_PAGE_SIZE = 50;
