@@ -203,7 +203,6 @@ export function buildFailure(
       currency: "usd",
       recoveryMethod: attribution.kind === "foxhound_retry" ? "foxhound_retry" : "email_click",
       accountId,
-      recoveryStepType: steps[steps.length - 1]?.stepType ?? null,
       daysToRecover,
       attributionKind: attribution.kind,
       attributionRef: attribution.ref,

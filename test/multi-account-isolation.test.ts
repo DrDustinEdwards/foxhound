@@ -270,7 +270,7 @@ function seed(accountId: string, name: string, mag: number, rows: number): void 
     if (i === 1) {
       sqlite
         .prepare(
-          "INSERT INTO recovered_payments (id, account_id, failed_payment_id, recovered_at, amount_cents, currency, recovery_method, recovery_trigger, attribution_kind, recovered_by_step_id) VALUES (?, ?, ?, ?, ?, 'usd', 'retry', 'retry', 'foxhound_retry', ?)",
+          "INSERT INTO recovered_payments (id, account_id, failed_payment_id, recovered_at, amount_cents, currency, recovery_method, attribution_kind, recovered_by_step_id) VALUES (?, ?, ?, ?, ?, 'usd', 'retry', 'foxhound_retry', ?)",
         )
         .run(`rp_${px}_${i}`, accountId, fpId, NOW - 40 * DAY, 1_000 * mag * i, `${fpId}_s1`);
     }

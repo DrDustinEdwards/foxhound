@@ -257,8 +257,7 @@ describe("the dispatcher logs the whole error on a failed resend", () => {
   });
 });
 
-// failed_payments.customer_ltv_cents holds a different value and must never be
-// shown as the estimated LTV: it is computed fresh from recovered payments.
+// The estimated LTV is computed fresh from recovered payments.
 describe("estimateCustomerLtvCents", () => {
   it("averages and multiplies by twelve, and is null below two payments", () => {
     expect(estimateCustomerLtvCents([1000, 2000])).toBe(18000);
