@@ -8,7 +8,6 @@ import {
 } from "~/lib/decline-codes/codes";
 import { codePagePaths } from "~/routes/files/sitemap";
 
-// Google's URL structure guide: use hyphens, not underscores, to join words in a URL.
 describe("decline-code page addresses", () => {
   it("join words with hyphens", () => {
     expect(declineCodePath("insufficient_funds")).toBe(`${DECLINE_CODES_PATH}/insufficient-funds`);

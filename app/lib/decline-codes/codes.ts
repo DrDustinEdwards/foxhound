@@ -100,16 +100,14 @@ export function listDeclineCodeViews(): DeclineCodeView[] {
   return DECLINE_CODES.map(toView);
 }
 
-/** The library's address; each code's page sits under it. */
 export const DECLINE_CODES_PATH = "/decline-codes";
 
-/** A code as its page address's last segment: words joined with hyphens (Google's URL guide). The code keeps its underscores everywhere else. */
-export const declineCodeSlug = (code: string): string => code.replaceAll("_", "-");
+// A code's page address joins words with hyphens (Google's URL guide); the code keeps its underscores everywhere else.
+const declineCodeSlug = (code: string): string => code.replaceAll("_", "-");
 
 export const declineCodePath = (code: string): string =>
   `${DECLINE_CODES_PATH}/${declineCodeSlug(code)}`;
 
-/** The view for a page address's last segment: the hyphenated form only. */
 export function getDeclineCodeView(slug: string): DeclineCodeView | null {
   const meta = DECLINE_CODES.find((c) => declineCodeSlug(c.code) === slug);
   return meta ? toView(meta) : null;
