@@ -278,31 +278,17 @@ describe("refund: Stripe first, never a disputed charge, nothing billable", () =
   });
 });
 
-describe("an event in the other mode from the key is claimed and ignored", () => {
-  it("under a live key, a test-mode event writes nothing and mails no one", async () => {
+describe("a connected account's test-mode event is claimed and ignored", () => {
+  it("writes nothing and mails no one, because a live Connect endpoint gets test events too", async () => {
     const event = { ...(warningEvent("created", "evt_test") as object), livemode: false } as never;
     expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({
       status: "ignored",
-      reason: "other_mode",
+      reason: "test_mode",
     });
     expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({
       n: 0,
     });
     expect(harness.sent).toHaveLength(0);
     expect(await processConnectedWebhook(env, event, RECEIVED)).toEqual({ status: "duplicate" });
-  });
-
-  it("under a sandbox key, a test-mode event is acted on and a live one is ignored", async () => {
-    const sandbox = { ...env, STRIPE_SECRET_KEY: "sk_test_sandbox" } as Env;
-    const live = { ...(warningEvent("created", "evt_live") as object), livemode: true } as never;
-    expect(await processConnectedWebhook(sandbox, live, RECEIVED)).toEqual({
-      status: "ignored",
-      reason: "other_mode",
-    });
-    const test = { ...(warningEvent("created", "evt_test") as object), livemode: false } as never;
-    expect(await processConnectedWebhook(sandbox, test, RECEIVED)).toEqual({ status: "applied" });
-    expect(sqlite.prepare("SELECT count(*) AS n FROM early_fraud_warnings").get()).toEqual({
-      n: 1,
-    });
   });
 });
