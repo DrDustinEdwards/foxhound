@@ -13,6 +13,7 @@ import {
   signalUnknownCredential,
 } from "@dustinedwards/site-runtime/sign-in-client";
 import { securityHistoryWords } from "@dustinedwards/site-runtime/sign-in-words";
+import type { AccountFormState } from "@dustinedwards/site-runtime/sign-in-form";
 
 import { signInAgainIfStale } from "@dustinedwards/site-runtime/sign-in-client";
 import { betterAuthClient, reauthHref, signInAgain } from "~/lib/auth/client";
@@ -68,13 +69,9 @@ export function SignInMethodsPanel({
   const revalidator = useRevalidator();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const signOut = useFetcher<{ ok: boolean; error?: string }>();
+  const signOut = useFetcher<AccountFormState>();
   const signOutFailed =
-    signOut.state === "idle" && signOut.data?.ok === false
-      ? signOut.data.error === "stale"
-        ? "Sign in again, then sign that device out."
-        : "That device was not signed out."
-      : null;
+    signOut.state === "idle" && signOut.data?.ok === false ? signOut.data.error : null;
 
   // Each time the list loads, the passkey providers learn which of this
   // account's passkeys Foxhound still accepts, and its address, so a passkey
@@ -261,7 +258,7 @@ export function SignInMethodsPanel({
                   </span>
                   {d.current ? null : (
                     <signOut.Form method="post">
-                      <input type="hidden" name="_action" value="sign-out-device" />
+                      <input type="hidden" name="intent" value="sign-out-device" />
                       <input type="hidden" name="session" value={d.id} />
                       <Button
                         type="submit"

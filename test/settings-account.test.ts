@@ -39,13 +39,13 @@ vi.mock("~/lib/auth/auth.server", () => ({
     api: {
       getSession: async () => ({
         session: { createdAt: harness.signedInAt },
-        user: { id: "user_1" },
+        user: { id: "user_1", email: "owner@acme.test", emailVerified: true },
       }),
       // Better Auth's /delete-user, whose hooks are the deletion; it takes no
       // id, so the session's user is the one deleted.
       deleteUser: async () => {
         harness.deleteCalls += 1;
-        if (harness.deleteThrows) throw new Error("D1 batch failed");
+        if (harness.deleteThrows) return new Response("{}", { status: 500 });
         return new Response(JSON.stringify({ success: true }), {
           headers: { "set-cookie": "better-auth.session_token=; Max-Age=0; Path=/" },
         });
@@ -55,6 +55,7 @@ vi.mock("~/lib/auth/auth.server", () => ({
 }));
 
 const route = await import("~/routes/app/settings/account");
+const { ACCOUNT_WORDS } = await import("@dustinedwards/site-runtime/sign-in-words");
 const { MRR_ERROR } = await import("~/lib/settings/apply.server");
 
 const ACTIVE = "acct_1";
@@ -175,20 +176,20 @@ describe("account: the profile form", () => {
 
     it("writes all four from one post, MRR in cents, and touches no other account", async () => {
       const res = await post({
-        _action: "profile",
+        intent: "profile",
         name: "Acme Inc",
         merchantIndustry: "SaaS",
         primaryCustomerType: "B2B",
         merchantMrrSelfReported: "5000",
       });
-      expect(res.data).toEqual({ action: "profile", ok: true });
+      expect(res.data).toEqual({ intent: "profile", ok: true });
       expect(row()).toEqual({ name: "Acme Inc", industry: "SaaS", type: "B2B", mrr: 500_000 });
       expect(row("acct_other").name).toBe("Other Co");
     });
 
     it("refuses a bad MRR or an empty name beside its field and writes nothing at all", async () => {
       const badMrr = await post({
-        _action: "profile",
+        intent: "profile",
         name: "New Name",
         merchantIndustry: "SaaS",
         primaryCustomerType: "B2B",
@@ -196,19 +197,19 @@ describe("account: the profile form", () => {
       });
       expect(badMrr.init?.status).toBe(400);
       expect(badMrr.data).toEqual({
-        action: "profile",
+        intent: "profile",
         ok: false,
         error: MRR_ERROR,
         field: "merchantMrrSelfReported",
       });
       const noName = await post({
-        _action: "profile",
+        intent: "profile",
         name: "  ",
         merchantIndustry: "SaaS",
         merchantMrrSelfReported: "1",
       });
       expect(noName.init?.status).toBe(400);
-      expect(noName.data).toMatchObject({ action: "profile", ok: false, field: "name" });
+      expect(noName.data).toMatchObject({ intent: "profile", ok: false, field: "name" });
       expect(row()).toEqual(UNCHANGED);
     });
   });
@@ -284,8 +285,8 @@ describe("account: cancel and delete", () => {
     ).m;
 
   it("cancel stamps the account, disconnects every live connection and moves the session", async () => {
-    const res = await post({ _action: "cancel-account" });
-    expect(res.data).toMatchObject({ action: "cancel-account", ok: true });
+    const res = await post({ intent: "cancel-account" });
+    expect(res.data).toMatchObject({ intent: "cancel-account", ok: true });
     expect(state().cancelledAt).not.toBeNull();
     expect(state().disconnected).toEqual([true, true]);
     expect([...harness.deauthorizeCalls].sort()).toEqual(["acct_a", "acct_b"]);
@@ -294,10 +295,10 @@ describe("account: cancel and delete", () => {
   });
 
   it("only the owner can cancel: a member is refused with a 403 and nothing is written", async () => {
-    const res = await post({ _action: "cancel-account" }, "member");
+    const res = await post({ intent: "cancel-account" }, "member");
     expect(res.init?.status).toBe(403);
     expect(res.data).toEqual({
-      action: "cancel-account",
+      intent: "cancel-account",
       ok: false,
       error: "Only the account owner can cancel the account.",
     });
@@ -305,7 +306,7 @@ describe("account: cancel and delete", () => {
   });
 
   it("delete removes the signed-in user, signs them out and sends them home", async () => {
-    const res = await post({ _action: "delete-account" });
+    const res = await post({ intent: "delete-account", confirm: "on" });
     expect(harness.deleteCalls).toBe(1);
     expect(res.status).toBe(302);
     expect(res.headers.get("Location")).toBe("/");
@@ -314,21 +315,36 @@ describe("account: cancel and delete", () => {
 
   it("delete refuses a sign-in older than 10 minutes and deletes nothing", async () => {
     harness.signedInAt = new Date(Date.now() - 11 * 60_000);
-    const res = await post({ _action: "delete-account" });
+    const res = await post({ intent: "delete-account", confirm: "on" });
     expect(harness.deleteCalls).toBe(0);
     expect(res.init?.status).toBe(403);
-    expect(res.data).toEqual({ action: "delete-account", ok: false, error: "stale" });
+    expect(res.data).toEqual({
+      intent: "delete-account",
+      ok: false,
+      error: ACCOUNT_WORDS.stale["delete-account"],
+      stale: true,
+      sentTo: null,
+    });
   });
 
   it("a failed delete keeps the person signed in and says so", async () => {
     harness.deleteThrows = true;
-    const res = await post({ _action: "delete-account" });
+    const res = await post({ intent: "delete-account", confirm: "on" });
     expect(res.init?.status).toBe(500);
     expect(res.data).toEqual({
-      action: "delete-account",
+      intent: "delete-account",
       ok: false,
-      error: "Failed to delete account. Please contact support.",
+      error: ACCOUNT_WORDS.deleteFailed,
+      stale: false,
+      sentTo: null,
     });
+  });
+
+  it("delete without the confirmation deletes nothing", async () => {
+    const res = await post({ intent: "delete-account" });
+    expect(harness.deleteCalls).toBe(0);
+    expect(res.init?.status).toBe(400);
+    expect(res.data).toMatchObject({ ok: false, error: ACCOUNT_WORDS.noConfirm });
   });
 
   it("deletion is never an agent tool: no agent surface reaches it", () => {
