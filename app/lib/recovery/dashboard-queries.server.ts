@@ -35,6 +35,7 @@ import {
   winBackSequences,
 } from "~/db";
 import { BILLABLE_ATTRIBUTION_KINDS, type DeclineCategory } from "~/lib/constants";
+import { SUPPRESSION_REASON } from "~/lib/email/events";
 import { type FailedPaymentRow } from "./queries.server";
 
 // Dashboard window read model. Every query here is called with an optional cutoff (null = all
@@ -381,11 +382,6 @@ export async function listAttributedRecoveredSince(
     );
 }
 
-/** Suppression reasons the Email Service events consumer writes for a bounce
- *  and for a spam complaint (app/lib/email/events.ts, SUPPRESSING_TYPES). */
-const BOUNCE_REASONS = ["bounce", "hard_bounce"];
-const COMPLAINT_REASONS = ["complaint", "spam"];
-
 export interface DeliverabilityCounts {
   sent: number;
   bounced: number;
@@ -402,14 +398,14 @@ export async function getDeliverabilityCounts(
   cutoffMs: number | null,
 ): Promise<DeliverabilityCounts> {
   const since = cutoffMs === null ? null : new Date(cutoffMs);
-  const suppressed = (reasons: string[]) =>
+  const suppressed = (reason: string) =>
     db
       .select({ n: count() })
       .from(emailSuppressions)
       .where(
         and(
           eq(emailSuppressions.accountId, accountId),
-          inArray(emailSuppressions.reason, reasons),
+          eq(emailSuppressions.reason, reason),
           since ? gte(emailSuppressions.suppressedAt, since) : undefined,
         ),
       );
@@ -424,8 +420,8 @@ export async function getDeliverabilityCounts(
           since ? gte(emailSends.sentAt, since) : undefined,
         ),
       ),
-    suppressed(BOUNCE_REASONS),
-    suppressed(COMPLAINT_REASONS),
+    suppressed(SUPPRESSION_REASON.bounce),
+    suppressed(SUPPRESSION_REASON.complaint),
   ]);
   return { sent: sent?.n ?? 0, bounced: bounced?.n ?? 0, complaints: complaints?.n ?? 0 };
 }

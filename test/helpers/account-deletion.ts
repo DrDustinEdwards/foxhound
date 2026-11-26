@@ -136,7 +136,6 @@ async function seedMerchant(opts: {
     primaryCustomerType: "b2b",
     merchantMrrSelfReported: 500_000,
     mrrEstimateCents: 500_000,
-    lastVisitedPath: "/recovery/payments",
     disputeProductDescription: t("Ada widgets, hand made"),
     createdAt: OLDER,
     platformStripeCustomerId: `cus_platform_${p}`,

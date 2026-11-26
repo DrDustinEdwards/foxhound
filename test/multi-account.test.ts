@@ -50,10 +50,10 @@ function seedUser(id: string, email: string): void {
     .run(id, id, email);
 }
 
-function seedAccount(id: string, name: string, lastVisitedPath: string | null = null): void {
+function seedAccount(id: string, name: string): void {
   sqlite
-    .prepare("INSERT INTO accounts (id, name, last_visited_path, created_at) VALUES (?, ?, ?, ?)")
-    .run(id, name, lastVisitedPath, 1_000);
+    .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, ?, ?)")
+    .run(id, name, 1_000);
 }
 
 function seedMembership(opts: {
@@ -213,15 +213,16 @@ describe("safeReturnPath refuses an off-origin referer", () => {
 });
 
 describe("active-account resolution", () => {
-  it("with no marker, an account carrying last_visited_path beats the earliest", async () => {
+  it("with no marker, the earliest membership is the active one", async () => {
     seedAccount("acct_a", "Acme A");
-    seedAccount("acct_b", "Acme B", "/recovery/payments");
+    seedAccount("acct_b", "Acme B");
     seedMembership({ id: "m1", accountId: "acct_a", userId: USER, createdAt: 1_000 });
     seedMembership({ id: "m2", accountId: "acct_b", userId: USER, createdAt: 2_000 });
 
     const memberships = await listMemberships(db, USER);
-    const m = await resolveActiveMembershipFrom(db, memberships, null);
-    expect(m?.accountId).toBe("acct_b");
+    expect(resolveActiveMembershipFrom(memberships, null)?.accountId).toBe("acct_a");
+    expect(resolveActiveMembershipFrom(memberships, "acct_b")?.accountId).toBe("acct_b");
+    expect(resolveActiveMembershipFrom(memberships, "acct_other")?.accountId).toBe("acct_a");
   });
 });
 

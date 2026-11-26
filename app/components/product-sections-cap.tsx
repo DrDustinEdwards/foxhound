@@ -6,8 +6,10 @@ import { CtaBand } from "capsomer/react/cta-band";
 import { Hero } from "capsomer/react/hero";
 import { Link, ButtonLink } from "capsomer/react/link";
 import { appLinkRel } from "~/lib/marketing/app-links";
-import { FaqList } from "~/components/faq-list";
+import { Faq, type FaqItem } from "capsomer/react/faq";
 
+import "capsomer/disclosure.css";
+import "capsomer/faq.css";
 import "capsomer/feature.css";
 import "capsomer/cta-band.css";
 import "capsomer/hero.css";
@@ -161,12 +163,12 @@ export function ProductPricing({
 }
 
 /** The per-product FAQ: one question open at a time. Capsomer's disclosure is a native details element, so sections sharing a name open one at a time with no script, and every answer is in the HTML (conventions-web.md 6). */
-export function ProductFAQ({ name, faqs }: { name: string; faqs: { q: string; a: string }[] }) {
+export function ProductFAQ({ name, faqs }: { name: string; faqs: FaqItem[] }) {
   return (
     <section className="fh-product-band-2">
       <div className="fh-product-wrap-4">
         <SectionLabel className="fh-product-text">Questions</SectionLabel>
-        <FaqList name={name} faqs={faqs} />
+        <Faq variant="cards" name={name} items={faqs} />
       </div>
     </section>
   );

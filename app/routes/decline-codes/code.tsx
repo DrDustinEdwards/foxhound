@@ -4,7 +4,9 @@ import "capsomer/status.css";
 import { ButtonLink } from "capsomer/react/link";
 
 import { BADGE_PILL } from "~/lib/recovery/labels";
-import { FaqList } from "~/components/faq-list";
+import { Faq } from "capsomer/react/faq";
+import "capsomer/disclosure.css";
+import "capsomer/faq.css";
 import { CARD, CARD_MD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
@@ -91,10 +93,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
 
         <section className="fh-code-band">
           <h2 className="fh-code-title-2 fh-title fh-medium fh-text">Questions</h2>
-          <FaqList
-            name="decline-code-faq"
-            faqs={content.faqs.map((f) => ({ q: f.question, a: f.answer }))}
-          />
+          <Faq variant="cards" name="decline-code-faq" items={content.faqs} />
         </section>
 
         <div className={`${CARD} fh-center`}>

@@ -19,7 +19,7 @@ import {
   type NarrativeCustomer,
   type NarrativeResult,
 } from "./narrative";
-import { buildPredictionFields, buildPredictionInsert, gradeDuePredictions } from "./predictions";
+import { buildPredictionInsert, gradeDuePredictions } from "./predictions";
 import type { CustomerRecommendation } from "./recommend";
 import { recommendForAccount } from "./recommendations.server";
 import { computeHealthScore, type HealthFactor } from "./risk";
@@ -118,17 +118,13 @@ function buildCustomerScoringWrites(
   ];
   if (c.mrrContributionCents > 0) {
     writes.push(
-      buildPredictionInsert(
-        db,
-        buildPredictionFields({
-          accountId,
-          stripeCustomerId: c.stripeCustomerId,
-          score: c.score,
-          factors: c.factors,
-          horizonDays: PREDICTION_HORIZON_DAYS,
-          predictedAt: now,
-        }),
-      ),
+      buildPredictionInsert(db, {
+        accountId,
+        stripeCustomerId: c.stripeCustomerId,
+        score: c.score,
+        horizonDays: PREDICTION_HORIZON_DAYS,
+        predictedAt: now,
+      }),
     );
   }
   return writes;

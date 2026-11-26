@@ -42,8 +42,7 @@ export async function loader({ request, context }: Route.LoaderArgs) {
   const db = getDb(env);
   // Resolved with `resolveAccount`, as the app shell does, not `resolveMembership`, which always picks the EARLIEST membership: a merchant who switched accounts and then opened /pricing would see the header reporting the account they switched away from. This layout is NOT under appShellMiddleware, so there is no authContext to read; it resolves the same way the chokepoint does, off the same session marker.
   const memberships = await listMemberships(db, session.user.id);
-  const membership = await resolveActiveMembershipFrom(
-    db,
+  const membership = resolveActiveMembershipFrom(
     memberships,
     session.session.activeAccountId ?? null,
   );

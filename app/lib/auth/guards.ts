@@ -120,8 +120,7 @@ const resolveSessionOrDemo: MiddlewareFunction<Response> = async ({ request, con
     // is why the marker is passed HERE and nowhere else.
     const db = getDb(env);
     const memberships = await listMemberships(db, session.user.id);
-    const membership = await resolveActiveMembershipFrom(
-      db,
+    const membership = resolveActiveMembershipFrom(
       memberships,
       session.session.activeAccountId ?? null,
     );

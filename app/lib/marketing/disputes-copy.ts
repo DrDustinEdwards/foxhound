@@ -80,17 +80,19 @@ export const DISPUTES_PRICING = {
 
 export const DISPUTES_FAQS = [
   {
-    q: "Does Foxhound handle all dispute types?",
+    question: "Does Foxhound handle all dispute types?",
     // Foxhound takes in every reason Stripe sends and drafts the subscription record and the recovery email log.
-    a: "Foxhound drafts evidence for every dispute reason Stripe sends, fraudulent, subscription_canceled and unrecognized among them. Fraudulent disputes have the highest win rate when authentication signals exist. Subscription_canceled disputes depend on the subscription record and email history.",
+    answer:
+      "Foxhound drafts evidence for every dispute reason Stripe sends, fraudulent, subscription_canceled and unrecognized among them. Fraudulent disputes have the highest win rate when authentication signals exist. Subscription_canceled disputes depend on the subscription record and email history.",
   },
   {
-    q: "What if I want to submit evidence myself?",
-    a: "You can edit any pre-staged evidence before submitting. Add context in the uncategorized text field, attach files, or rewrite the structured evidence. Foxhound's evidence is a starting point, not a constraint.",
+    question: "What if I want to submit evidence myself?",
+    answer:
+      "You can edit any pre-staged evidence before submitting. Add context in the uncategorized text field, attach files, or rewrite the structured evidence. Foxhound's evidence is a starting point, not a constraint.",
   },
   {
-    q: "What does Foxhound charge if a dispute is accepted?",
-    a: `Nothing. Foxhound's ${pct} fee only applies to disputes that Foxhound wins. Accepted disputes and lost disputes have no Foxhound fee.`,
+    question: "What does Foxhound charge if a dispute is accepted?",
+    answer: `Nothing. Foxhound's ${pct} fee only applies to disputes that Foxhound wins. Accepted disputes and lost disputes have no Foxhound fee.`,
   },
 ];
 

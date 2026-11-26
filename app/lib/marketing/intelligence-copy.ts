@@ -111,20 +111,21 @@ export const INTELLIGENCE_PRICING = {
 
 export const INTELLIGENCE_FAQS = [
   {
-    q: "How is the health score calculated?",
+    question: "How is the health score calculated?",
     // Risk.ts's signals and baseline are the score; each factor that moved it is listed on the customer page with its points.
-    a: `${signalCount} signals move the 0-100 score up or down from a baseline of ${HEALTH_SCORE_BASELINE}: ${signalsExplained}. Each signal that moved the score is shown separately, with its points, on the customer detail page.`,
+    answer: `${signalCount} signals move the 0-100 score up or down from a baseline of ${HEALTH_SCORE_BASELINE}: ${signalsExplained}. Each signal that moved the score is shown separately, with its points, on the customer detail page.`,
   },
   {
-    q: "Does Intelligence affect my Recovery sequences?",
+    question: "Does Intelligence affect my Recovery sequences?",
     // Foxhound has no deprioritize delay and computes no dispute triage: failed-payment RECOVERY_SCHEDULES are keyed on decline
     // category alone. It does keep the win-back gate (process.ts resolveWinbackStep1Offset), which delays win-back step 1 for
     // every customer not flagged winback_priority, so the answer says so (winback-copy.ts).
-    a: `Not for failed payments. Retries and recovery emails follow the decline category alone, one schedule for each of the ${countWord(DECLINE_CATEGORY_COUNT).toLowerCase()} decline categories, the same for every customer, and Intelligence scores no dispute. One timing does change. ${INTELLIGENCE_WINBACK_SENTENCE}`,
+    answer: `Not for failed payments. Retries and recovery emails follow the decline category alone, one schedule for each of the ${countWord(DECLINE_CATEGORY_COUNT).toLowerCase()} decline categories, the same for every customer, and Intelligence scores no dispute. One timing does change. ${INTELLIGENCE_WINBACK_SENTENCE}`,
   },
   {
-    q: "What is the difference between Intelligence and the free Audit?",
-    a: "The Audit is a one-time diagnostic snapshot of your Stripe account. Intelligence is a continuous nightly scoring system that tracks customer health over time, surfaces actionable recommendations, and tracks MRR trends. The Audit is a starting point. Intelligence is an ongoing operational layer.",
+    question: "What is the difference between Intelligence and the free Audit?",
+    answer:
+      "The Audit is a one-time diagnostic snapshot of your Stripe account. Intelligence is a continuous nightly scoring system that tracks customer health over time, surfaces actionable recommendations, and tracks MRR trends. The Audit is a starting point. Intelligence is an ongoing operational layer.",
   },
 ];
 

@@ -105,19 +105,22 @@ export const RECOVERY_PRICING = {
 
 export const RECOVERY_FAQS = [
   {
-    q: "What counts as a recovered payment?",
-    a: "A payment is recovered when Foxhound's sequence results in the invoice being paid. Attribution is tracked per step. Payments that Stripe's Smart Retries recover independently are not counted as Foxhound recoveries.",
+    question: "What counts as a recovered payment?",
+    answer:
+      "A payment is recovered when Foxhound's sequence results in the invoice being paid. Attribution is tracked per step. Payments that Stripe's Smart Retries recover independently are not counted as Foxhound recoveries.",
   },
   {
-    q: "What happens if a customer replies to a recovery email?",
+    question: "What happens if a customer replies to a recovery email?",
     // The Reply-To is the connection's reply_to_email (Settings, Email; due-steps.ts and send.ts), not the notification email; with
     // none set a reply goes to the From address.
-    a: "Replies go to your reply-to email, the one set in Foxhound settings. Foxhound sends with your brand name, so replies come back to you. Until you set one, replies go to the address in the From line.",
+    answer:
+      "Replies go to your reply-to email, the one set in Foxhound settings. Foxhound sends with your brand name, so replies come back to you. Until you set one, replies go to the address in the From line.",
   },
   {
-    q: "Can I pause or cancel a sequence?",
+    question: "Can I pause or cancel a sequence?",
     // The payment detail page offers Stop recovery, Trigger next step now, Mark as recovered and Resend last email; no pause, resume or step override.
-    a: "You can stop one. From the payment detail page you can stop recovery on any active sequence, or trigger the next step at any time. Pausing and resuming a sequence is not built yet.",
+    answer:
+      "You can stop one. From the payment detail page you can stop recovery on any active sequence, or trigger the next step at any time. Pausing and resuming a sequence is not built yet.",
   },
 ];
 

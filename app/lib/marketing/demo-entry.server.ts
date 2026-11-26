@@ -3,7 +3,7 @@ import { redirect } from "react-router";
 import { ensureDemoSeeded } from "~/lib/demo/seed";
 import { setDemoCookieHeader } from "~/lib/demo/session";
 
-// The one allow-list every /demos/:product GET route resolves its redirect target from, so a target is never interpolated from a
+// The one allow-list the /demos/:product GET route resolves its redirect target from, so a target is never interpolated from a
 // request. ensureDemoSeeded and setDemoCookieHeader live in app/lib/demo/ (the seeded account's AI firewall); this file only calls them.
 const DEMO_ENTRY_TARGETS = {
   dashboard: "/console",
@@ -13,6 +13,10 @@ const DEMO_ENTRY_TARGETS = {
 } as const;
 
 export type DemoEntryProduct = keyof typeof DEMO_ENTRY_TARGETS;
+
+export function isDemoEntryProduct(name: string): name is DemoEntryProduct {
+  return Object.hasOwn(DEMO_ENTRY_TARGETS, name);
+}
 
 /** Seed the demo account (idempotent), set the read-only demo cookie, and redirect into the real product surface. */
 export async function enterDemo(env: Env, product: DemoEntryProduct) {
