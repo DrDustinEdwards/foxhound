@@ -107,8 +107,6 @@ export const predictions = sqliteTable(
     accountId: accountRef(),
     stripeCustomerId: text("stripe_customer_id").notNull(),
     score: integer("score").notNull(),
-    // hash of the evidence bands that produced the score
-    bandEvidenceHash: text("band_evidence_hash"),
     horizonDays: integer("horizon_days").notNull(),
     predictedAt: ts("predicted_at").notNull(),
     // "retained" or "churned", set by gradeDuePredictions once horizon_days have passed

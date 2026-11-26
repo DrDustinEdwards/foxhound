@@ -23,8 +23,6 @@ export const accounts = sqliteTable("accounts", {
   merchantMrrSelfReported: integer("merchant_mrr_self_reported"),
   slackNotificationsEnabled: bool("slack_notifications_enabled"),
   digestEmail: text("digest_email"),
-  lastVisitedPath: text("last_visited_path"),
-  lastVisitedProduct: text("last_visited_product"),
   billingExempt: bool("billing_exempt").notNull().default(false),
   /** THE LIVE-SEND FLAG: per-account, DEFAULTING OFF, checked in processEmailJob immediately before sendJobEmail. It is the explicit send kill switch: otherwise what stops mail leaving is an unset PHYSICAL_ADDRESS secret, which throws a CAN-SPAM compliance error inside buildEmailMessage, a compliance guard doing duty as a switch and a single populated env var away from every eligible account mailing at once. */
   liveSendsEnabled: bool("live_sends_enabled").notNull().default(false),

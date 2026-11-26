@@ -624,6 +624,13 @@
       "when": 1795717808784,
       "tag": "0092_drop_recommendation_log",
       "breakpoints": true
+    },
+    {
+      "idx": 89,
+      "version": "6",
+      "when": 1795723344262,
+      "tag": "0093_drop_last_visited_and_evidence_hash",
+      "breakpoints": true
     }
   ]
 }
