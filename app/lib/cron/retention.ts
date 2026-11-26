@@ -12,6 +12,7 @@ import {
   engagementEvents,
   getDb,
   healthScoreHistory,
+  predictions,
   webhookEvents,
 } from "~/db";
 import {
@@ -21,6 +22,7 @@ import {
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
   RETENTION_HEALTH_SCORE_DAYS,
+  RETENTION_PREDICTIONS_DAYS,
   RETENTION_SWEEP_LIMIT,
   RETENTION_WEBHOOK_EVENTS_DAYS,
 } from "~/lib/constants";
@@ -116,6 +118,12 @@ export const sweepHealthScoreHistory = sweepOlderThan(
   healthScoreHistory.id,
   healthScoreHistory.recordedAt,
   RETENTION_HEALTH_SCORE_DAYS,
+);
+export const sweepPredictions = sweepOlderThan(
+  predictions,
+  predictions.id,
+  predictions.predictedAt,
+  RETENTION_PREDICTIONS_DAYS,
 );
 
 export interface AiCallRow {

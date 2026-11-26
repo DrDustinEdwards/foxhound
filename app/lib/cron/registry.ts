@@ -64,6 +64,7 @@ import {
   sweepEmailSends,
   sweepEngagementEvents,
   sweepHealthScoreHistory,
+  sweepPredictions,
   sweepWebhookEvents,
 } from "./retention";
 
@@ -380,6 +381,7 @@ const retention = cronSteps([
   { name: "email-sends", handler: sweepEmailSends },
   { name: "webhook-events", handler: sweepWebhookEvents },
   { name: "health-score", handler: sweepHealthScoreHistory },
+  { name: "predictions", handler: sweepPredictions },
   { name: "page-404", handler: retentionPage404 },
   { name: "ai-calls", handler: sweepAiCalls },
   { name: "admin-api-calls", handler: sweepAdminApiCalls },

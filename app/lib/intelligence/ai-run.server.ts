@@ -19,16 +19,16 @@ import {
   type NarrativeCustomer,
   type NarrativeResult,
 } from "./narrative";
-import { buildPredictionFields, buildPredictionInsert } from "./predictions";
+import { buildPredictionFields, buildPredictionInsert, gradeDuePredictions } from "./predictions";
 import type { CustomerRecommendation } from "./recommend";
-import { buildRecommendationLogInsert, recommendForAccount } from "./recommendations.server";
+import { recommendForAccount } from "./recommendations.server";
 import { computeHealthScore, type HealthFactor } from "./risk";
 import { healthScoreInput, loadScoreExtras, scoreColumns } from "./score-inputs.server";
 import { accountProcessingEligible } from "./sync.server";
 import { chunked } from "@dustinedwards/site-runtime/d1";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
-// The Intelligence nightly orchestration: scoring -> predictions -> narrative, for one account, then every
+// The Intelligence nightly orchestration: grading -> scoring -> predictions -> narrative, for one account, then every
 // processing-eligible account. Consumes the deterministic signals customer_context/mrr_snapshots already carry
 // (signals, mrr, sync.server); never recomputes them. Nothing here calls a model: the narrative is a template.
 
@@ -88,16 +88,15 @@ async function scoreAccountCustomers(
   });
 }
 
-/** One customer's writes: score and recommended action, history append, prediction log, recommendation log. None is
- *  a money write, and nothing on a money path reads recommended_action. */
+/** One customer's writes: score and recommended action, history append, and a churn prediction if they pay (only a
+ *  payer can churn). None is a money write, and nothing on a money path reads recommended_action. */
 function buildCustomerScoringWrites(
   db: Db,
   accountId: string,
   c: ScoredCustomer,
   now: Date,
-  currency: string,
 ): BatchItem<"sqlite">[] {
-  return [
+  const writes: BatchItem<"sqlite">[] = [
     db
       .update(customerContext)
       .set({
@@ -116,28 +115,26 @@ function buildCustomerScoringWrites(
       healthFactors: c.factors,
       scoreSource: "deterministic_v1",
     }),
-    buildPredictionInsert(
-      db,
-      buildPredictionFields({
-        accountId,
-        stripeCustomerId: c.stripeCustomerId,
-        score: c.score,
-        factors: c.factors,
-        horizonDays: PREDICTION_HORIZON_DAYS,
-        predictedAt: now,
-      }),
-    ),
-    buildRecommendationLogInsert(db, {
-      accountId,
-      stripeCustomerId: c.stripeCustomerId,
-      result: c.recommendation,
-      currency,
-      now,
-    }),
   ];
+  if (c.mrrContributionCents > 0) {
+    writes.push(
+      buildPredictionInsert(
+        db,
+        buildPredictionFields({
+          accountId,
+          stripeCustomerId: c.stripeCustomerId,
+          score: c.score,
+          factors: c.factors,
+          horizonDays: PREDICTION_HORIZON_DAYS,
+          predictedAt: now,
+        }),
+      ),
+    );
+  }
+  return writes;
 }
 
-/** Customers whose scoring writes (four statements each) go into one D1 batch. */
+/** Customers whose scoring writes (up to three statements each) go into one D1 batch. */
 const SCORING_CUSTOMERS_PER_BATCH = 25;
 
 function buildScoringBatch(
@@ -145,9 +142,8 @@ function buildScoringBatch(
   accountId: string,
   scored: ScoredCustomer[],
   now: Date,
-  currency: string,
 ): BatchItem<"sqlite">[] {
-  return scored.flatMap((c) => buildCustomerScoringWrites(db, accountId, c, now, currency));
+  return scored.flatMap((c) => buildCustomerScoringWrites(db, accountId, c, now));
 }
 
 export interface AccountAiRunResult {
@@ -164,6 +160,8 @@ export async function runIntelligenceAiForAccount(
   const db = getDb(env);
   const now = new Date(nowMs);
 
+  await gradeDuePredictions(db, accountId, nowMs);
+
   const [account, scored] = await Promise.all([
     db
       .select({ currency: accounts.currency })
@@ -177,7 +175,7 @@ export async function runIntelligenceAiForAccount(
   if (scored.length > 0) {
     // A customer's writes stay in one batch; the account's go in slices, not one call of thousands.
     for (const slice of chunked(scored, SCORING_CUSTOMERS_PER_BATCH)) {
-      const batch = buildScoringBatch(db, accountId, slice, now, currency);
+      const batch = buildScoringBatch(db, accountId, slice, now);
       await db.batch([batch[0], ...batch.slice(1)]);
     }
   }

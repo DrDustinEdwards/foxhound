@@ -30,6 +30,7 @@ import {
   winBackSequences,
   winBackSteps,
 } from "~/db";
+import { healthScoreBand } from "~/lib/intelligence/health-band";
 import { recommendForAccount } from "~/lib/intelligence/recommendations.server";
 import { isBillableDisputeRow, isBillableRecoveryRow } from "~/lib/billing/billable-predicates";
 import { disputeFeeCents, recoveryFeeCents } from "~/lib/billing/fees";
@@ -243,6 +244,24 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
         realizedOutcome: null,
       }),
     );
+  // Graded predictions from 35 days ago, so the churn bands show outcome rates: half of high risk churned, a fifth of medium.
+  const churnEvery = { at_risk: 2, watch: 5, healthy: 0 } as const;
+  intelligence.customerContext.forEach((c, i) => {
+    const every = churnEvery[healthScoreBand(c.healthScore ?? 0)];
+    if (!c.mrrContributionCents) return;
+    predictionStmts.push(
+      db.insert(predictions).values({
+        id: `dpred_graded_${c.stripeCustomerId}`,
+        accountId,
+        stripeCustomerId: c.stripeCustomerId,
+        score: c.healthScore ?? 0,
+        horizonDays: 30,
+        predictedAt: new Date(now.getTime() - 35 * DAY_MS),
+        realizedOutcome: every > 0 && i % every === 0 ? "churned" : "retained",
+        gradedAt: new Date(now.getTime() - 5 * DAY_MS),
+      }),
+    );
+  });
   await runBatched(db, predictionStmts);
 
   // 3) Recovery: failed payments + steps + recovered payments + win-back +

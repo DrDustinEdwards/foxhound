@@ -10,6 +10,7 @@ import {
   emailSends,
   engagementEvents,
   healthScoreHistory,
+  predictions,
   webhookEvents,
 } from "~/db/schema";
 import type { AiCallRow } from "~/lib/cron/retention";
@@ -159,6 +160,31 @@ const SWEEPERS: Record<string, SweeperCase> = {
             healthScore: 50,
             healthFactors: {},
             scoreSource: "deterministic",
+          }),
+          when,
+        ),
+      );
+    },
+  },
+  sweepPredictions: {
+    fn: retention.sweepPredictions,
+    seed: async (db, n, when) => {
+      await db
+        .insert(accounts)
+        .values({ id: "acct_ret", name: "Acme", createdAt: when })
+        .onConflictDoNothing();
+      await insertMany(
+        db,
+        predictions,
+        rowsOf(
+          n,
+          (i) => ({
+            id: `pred_${when.getTime()}_${i}`,
+            accountId: "acct_ret",
+            stripeCustomerId: `cus_${i}`,
+            score: 50,
+            horizonDays: 30,
+            predictedAt: when,
           }),
           when,
         ),

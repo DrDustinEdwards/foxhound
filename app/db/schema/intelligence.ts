@@ -111,44 +111,14 @@ export const predictions = sqliteTable(
     bandEvidenceHash: text("band_evidence_hash"),
     horizonDays: integer("horizon_days").notNull(),
     predictedAt: ts("predicted_at").notNull(),
-    // realized-outcome slot for backtesting (nullable until graded)
+    // "retained" or "churned", set by gradeDuePredictions once horizon_days have passed
     realizedOutcome: text("realized_outcome"),
     gradedAt: ts("graded_at"),
   },
   (t) => [
     index("predictions_account_idx").on(t.accountId),
     index("predictions_customer_idx").on(t.stripeCustomerId),
-  ],
-);
-
-// One row per customer per nightly run: the bands, the evidence and the recommendation the rules gave, with an empty outcome slot so the lift of each action can be measured once outcomes are graded.
-export const recommendationLog = sqliteTable(
-  "recommendation_log",
-  {
-    id: id(),
-    accountId: accountRef(),
-    stripeCustomerId: text("stripe_customer_id").notNull(),
-    recommendedAt: ts("recommended_at").notNull(),
-    action: text("action").notNull(),
-    confidence: text("confidence").notNull(),
-    rationale: text("rationale").notNull(),
-    engagementBand: text("engagement_band").notNull(),
-    recoveryBand: text("recovery_band").notNull(),
-    valueBand: text("value_band").notNull(),
-    // the three bands' evidence and band confidence, as recommend.ts returns them
-    evidence: json("evidence").notNull(),
-    // MRR times 12, for the two actions that ask for attention; null otherwise
-    annualizedMrrAtRiskCents: integer("annualized_mrr_at_risk_cents"),
-    currency: text("currency"),
-    // which rules produced it, so a later rule change is told apart
-    scoreSource: text("score_source").notNull(),
-    // realized-outcome slot for measuring lift (nullable until graded)
-    outcome: text("outcome"),
-    outcomeAt: ts("outcome_at"),
-  },
-  (t) => [
-    index("recommendation_log_account_idx").on(t.accountId),
-    index("recommendation_log_customer_idx").on(t.stripeCustomerId),
+    index("predictions_predicted_idx").on(t.predictedAt),
   ],
 );
 
