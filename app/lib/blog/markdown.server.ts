@@ -120,9 +120,9 @@ export async function coverPicture(
 const DIAGRAM_FIGURE =
   /^:::figure\{src="\/diagrams\/([a-z0-9-]+)-light-(\d+)x(\d+)\.svg" dark="\/diagrams\/\1-dark-\2x\3\.svg" alt="[^"]*"\}\r?\n:::$/gm;
 
-// The net-revenue-retention post answers 410, and its drawing is not shipped.
-// An old body that still names the pair renders with the figure gone.
-const RETIRED_DIAGRAMS = new Set(["nrr-calculation"]);
+// Retired drawings (a 410 post; unsourced figures): an old body that still names
+// the pair renders with the figure gone.
+const RETIRED_DIAGRAMS = new Set(["nrr-calculation", "recovery-vs-smart-retries"]);
 
 function diagramToken(index: number): string {
   return `XBLOGDIAGRAM${index}X`;
