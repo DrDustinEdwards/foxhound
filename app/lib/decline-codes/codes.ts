@@ -100,8 +100,16 @@ export function listDeclineCodeViews(): DeclineCodeView[] {
   return DECLINE_CODES.map(toView);
 }
 
-export function getDeclineCodeView(code: string): DeclineCodeView | null {
-  const meta = DECLINE_CODES.find((c) => c.code === code);
+export const DECLINE_CODES_PATH = "/decline-codes";
+
+// A code's page address joins words with hyphens (Google's URL guide); the code keeps its underscores everywhere else.
+const declineCodeSlug = (code: string): string => code.replaceAll("_", "-");
+
+export const declineCodePath = (code: string): string =>
+  `${DECLINE_CODES_PATH}/${declineCodeSlug(code)}`;
+
+export function getDeclineCodeView(slug: string): DeclineCodeView | null {
+  const meta = DECLINE_CODES.find((c) => declineCodeSlug(c.code) === slug);
   return meta ? toView(meta) : null;
 }
 
