@@ -8,7 +8,7 @@ import { FaqList } from "~/components/faq-list";
 import { CARD, CARD_MD } from "~/components/marketing-card";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
-import { getDeclineCodeView } from "~/lib/decline-codes/codes";
+import { DECLINE_CODES_PATH, declineCodePath, getDeclineCodeView } from "~/lib/decline-codes/codes";
 import { DECLINE_CONTENT } from "~/lib/decline-codes/content";
 import {
   CATEGORY_STATUS_LABEL,
@@ -41,7 +41,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
     ...marketingMeta({
       title: `${view.displayName} (${view.code}) decline code`,
       description: `What the Stripe ${view.code} decline code means, why it happens, how to fix it, and how Foxhound recovers it.`,
-      path: `/decline-codes/${view.code}`,
+      path: declineCodePath(view.code),
       siteUrl: url,
     }),
   ];
@@ -55,7 +55,7 @@ export default function DeclineCodePage({ loaderData }: Route.ComponentProps) {
     // the pills, panels, FAQ, button and focus ring read the family.
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <MarketingPageHeader
-        trail={[{ label: "Decline codes", href: "/decline-codes" }, { label: view.displayName }]}
+        trail={[{ label: "Decline codes", href: DECLINE_CODES_PATH }, { label: view.displayName }]}
         title={view.displayName}
         subtext={content.meaning}
       />

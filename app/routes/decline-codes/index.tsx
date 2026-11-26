@@ -8,7 +8,13 @@ import { BADGE_PILL } from "~/lib/recovery/labels";
 import { CARD_SM } from "~/components/marketing-card";
 import { Arrow } from "~/components/home-parts";
 import { MarketingPageHeader } from "~/components/marketing-page-header";
-import { CATEGORY_LABEL, CATEGORY_ORDER, listDeclineCodeViews } from "~/lib/decline-codes/codes";
+import {
+  CATEGORY_LABEL,
+  CATEGORY_ORDER,
+  DECLINE_CODES_PATH,
+  declineCodePath,
+  listDeclineCodeViews,
+} from "~/lib/decline-codes/codes";
 import { CATEGORY_STATUS_LABEL, categoryBadgeTone } from "~/lib/decline-codes/presentation";
 import { siteUrlLoader } from "~/lib/seo/site-url-loader";
 import { marketingMeta } from "~/lib/seo/meta";
@@ -24,7 +30,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
       title: "Stripe Decline Code Library",
       description:
         "What every major Stripe decline code means, why it happens, and how it gets recovered. Grouped by soft, network, expired, and fraud classifications.",
-      path: "/decline-codes",
+      path: DECLINE_CODES_PATH,
       pageType: "CollectionPage",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
@@ -57,7 +63,7 @@ export default function DeclineCodesIndex() {
             </div>
             <div className="fh-mk-cards-3">
               {group.codes.map((code) => (
-                <Link key={code.code} to={`/decline-codes/${code.code}`} className={`${CARD_SM}`}>
+                <Link key={code.code} to={declineCodePath(code.code)} className={`${CARD_SM}`}>
                   <div className="cap-panel-body">
                     <div>
                       <div className="fh-codes-block fh-mono fh-small fh-medium fh-text">

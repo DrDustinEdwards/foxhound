@@ -8,7 +8,7 @@ import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { getAllPublishedPosts } from "~/lib/blog/queries.server";
 import { loadPageDates } from "~/lib/page-dates.server";
 import { COMPETITOR_ORDER } from "~/lib/compare/competitors";
-import { DECLINE_CODES } from "~/lib/decline-codes/codes";
+import { DECLINE_CODES, DECLINE_CODES_PATH, declineCodePath } from "~/lib/decline-codes/codes";
 import { DOC_GUIDES } from "~/lib/marketing/docs-content";
 import { siteUrl } from "~/lib/seo/jsonld";
 
@@ -42,7 +42,7 @@ export const STATIC_PAGES: SitemapEntry[] = [
   { path: "/blog", changefreq: "weekly", priority: 0.8 },
   { path: "/blog/archive", changefreq: "weekly", priority: 0.7 },
   // Decline-codes and compare hubs + their templated per-code/per-competitor pages are added below via DECLINE_CODES/COMPETITOR_ORDER rather than hand-listed here.
-  { path: "/decline-codes", changefreq: "monthly", priority: 0.8 },
+  { path: DECLINE_CODES_PATH, changefreq: "monthly", priority: 0.8 },
   { path: "/compare", changefreq: "monthly", priority: 0.7 },
 ];
 
@@ -54,7 +54,7 @@ const docEntries: SitemapEntry[] = DOC_GUIDES.map((g) => ({
   priority: 0.7,
 }));
 
-const declineCodeEntriesOf = () => DECLINE_CODES.map((c) => ({ path: `/decline-codes/${c.code}` }));
+const declineCodeEntriesOf = () => DECLINE_CODES.map((c) => ({ path: declineCodePath(c.code) }));
 const compareEntriesOf = () => COMPETITOR_ORDER.map((slug) => ({ path: `/compare/${slug}` }));
 
 /** The paths no database row dates: the pages written in code. The daily page-dates job dates them by what they say. */
