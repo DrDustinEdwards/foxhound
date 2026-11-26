@@ -5,6 +5,9 @@ import type { Db } from "~/db";
 import * as schema from "~/db/schema";
 import { BLOG_DIAGRAMS } from "~/lib/blog/diagrams";
 import { renderPostBody } from "~/lib/blog/markdown.server";
+import { DECLINE_CATEGORIES } from "~/lib/constants";
+import { classifyDecline } from "~/lib/recovery/decline";
+import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 // An empty-D1 stand-in: renderPostBody only reads the db for ::postlink.
 function emptyDb(): Db {
@@ -42,15 +45,66 @@ describe("renderPostBody", () => {
       expect(html, slug).not.toContain("<style");
       expect(html, slug).not.toMatch(/#[0-9a-fA-F]{3,8}\b/);
     }
-    const withdrawn = await renderPostBody(emptyDb(), diagram("nrr-calculation"));
-    expect(withdrawn.html).not.toContain("blog-diagram");
-    expect(withdrawn.html).not.toContain("<img");
+    for (const slug of ["nrr-calculation", "recovery-vs-smart-retries"]) {
+      const withdrawn = await renderPostBody(emptyDb(), diagram(slug));
+      expect(withdrawn.html, slug).not.toContain("blog-diagram");
+      expect(withdrawn.html, slug).not.toContain("<img");
+    }
     await expect(renderPostBody(emptyDb(), diagram("not-a-diagram"))).rejects.toThrow(
       /not a diagram this site draws/,
     );
     await expect(renderPostBody(emptyDb(), "![x](https://example.com/a.png)")).rejects.toThrow(
       /not an image this site serves/,
     );
+  });
+
+  function categoryGroups(svg: string): Map<string, string> {
+    const parts = svg.split('<g data-category="').slice(1);
+    return new Map(parts.map((part) => [part.slice(0, part.indexOf('"')), part]));
+  }
+
+  it("draws each category's recovery steps as the engine schedules them", () => {
+    const timeline = categoryGroups(BLOG_DIAGRAMS["dunning-sequence-timeline"]!);
+    const flowchart = categoryGroups(BLOG_DIAGRAMS["recovery-sequence"]!);
+    for (const groups of [timeline, flowchart]) {
+      expect([...groups.keys()].sort()).toEqual([...DECLINE_CATEGORIES].sort());
+    }
+    for (const category of DECLINE_CATEGORIES) {
+      const schedule = RECOVERY_SCHEDULES[category];
+      const marks = [
+        ...timeline
+          .get(category)!
+          .matchAll(/data-hours="(\d+)"><circle[^>]*\/><use href="#tl-(retry|email)"/g),
+      ];
+      const expected = schedule.map((s) => ({
+        retry: isRetryStep(s.stepType),
+        hours: s.offsetHours,
+      }));
+      expect(
+        marks.map((m) => ({ retry: m[2] === "retry", hours: Number(m[1]) })),
+        category,
+      ).toEqual(expected);
+      const read = [
+        ...flowchart.get(category)!.matchAll(/>(\d+h|D\d+)<tspan[^>]*>(retry|email)</g),
+      ];
+      expect(
+        read.map((m) => ({
+          retry: m[2] === "retry",
+          hours: m[1]!.startsWith("D") ? Number(m[1]!.slice(1)) * 24 : Number.parseInt(m[1]!, 10),
+        })),
+        category,
+      ).toEqual(expected);
+    }
+  });
+
+  it("sorts each example decline code where the classifier does", () => {
+    const groups = categoryGroups(BLOG_DIAGRAMS["decline-code-taxonomy"]!);
+    expect([...groups.keys()].sort()).toEqual([...DECLINE_CATEGORIES].sort());
+    for (const [category, part] of groups) {
+      const codes = [...part.matchAll(/data-code="([a-z_]+)"/g)].map((m) => m[1]!);
+      expect(codes.length, category).toBeGreaterThan(0);
+      for (const code of codes) expect(classifyDecline(code), code).toBe(category);
+    }
   });
 
   it("falls back to a visible <code> for an unresolved ::postlink, also at the start of a line and inside bold", async () => {
