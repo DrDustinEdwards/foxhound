@@ -15,7 +15,7 @@ import { markdownCopies } from "@drdustinedwards/site-helpers/markdown-copy";
 import { setPageRenderer } from "@drdustinedwards/site-helpers/lastmod";
 import { draftPostContext } from "~/lib/preview-context";
 import { siteFiles } from "~/lib/seo/files";
-import { SITE_ORIGIN } from "~/lib/seo/jsonld";
+import { SITE_ORIGIN, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { codePagePaths } from "~/routes/files/sitemap";
 import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/queue/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
@@ -102,6 +102,8 @@ const site = defineSite<Env>({
   serverBuild,
   mode: import.meta.env.MODE,
   withSecurityHeaders,
+  // Foxhound is not part of the Dustin Edwards network: security.txt lists its own contact, as the Security page does.
+  securityContact: SUPPORT_EMAIL,
   // One hop to the canonical address: https, the bare host, no trailing slash.
   canonical: { host: "foxhoundapp.com" },
   // robots.txt, ai.txt, site.webmanifest and the IndexNow key file (Prelum's standardFiles, app/lib/seo/files.ts).
