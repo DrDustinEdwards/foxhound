@@ -8,6 +8,7 @@ import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
+import { EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 import { eq } from "drizzle-orm";
 import { accountScope } from "~/lib/auth/context";
 import { REPLY_TO_EMAIL_MAX_LENGTH } from "~/lib/settings/reply-to";
@@ -261,7 +262,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
             />
             <SwitchRow
               name="expiringCardNotificationsEnabled"
-              label="Expiring card alerts"
+              label={`Email customers ${EXPIRING_CARD_DAYS_AHEAD} days before their card expires`}
               defaultChecked={loaderData.expiringCardNotificationsEnabled}
             />
           </div>
