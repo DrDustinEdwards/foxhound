@@ -21,6 +21,7 @@ import {
 } from "~/lib/card-update/service";
 import { verifyCardUpdateToken } from "~/lib/card-update/token";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
+import { retryOnUpdatedCard } from "~/lib/cron/recovery-tick";
 import { DEMO_ACCOUNT_ID_PREFIX } from "~/lib/constants";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { isWinbackResubscribable } from "~/lib/recovery/winback";
@@ -328,6 +329,11 @@ export async function loader({ request, params, context }: Route.LoaderArgs) {
             occurredAt: new Date(),
           });
         }
+        // The new card is charged now through the recovery tick's own guarded retry (the path the
+        // card updater takes), not on the next scheduled retry, which can be days away while the
+        // emails keep saying the payment failed. It never throws; a failed charge leaves the
+        // schedule as it was.
+        await retryOnUpdatedCard(env, payload.accountId, target.stripeCustomerId);
       }
     } catch {
       // Never log the error object: it can carry request/token context.
