@@ -14,8 +14,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: "About",
-      description:
-        "Foxhound is built and run by Dustin Edwards, a US company built on Stripe Connect.",
+      description: "Foxhound is built and run by Dustin Edwards in Texas, on Stripe Connect.",
       path: "/about",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
@@ -59,8 +58,8 @@ export default function AboutPage() {
             off on each dispute, or turn on auto-submit themselves, and it is off by default.
           </p>
           <p>
-            The company is US-based and operates under US jurisdiction. Foxhound is built on Stripe
-            Connect, runs on Cloudflare Workers, and does not store card numbers.
+            Foxhound is run from Texas under US law. It is built on Stripe Connect, runs on
+            Cloudflare Workers, and does not store card numbers.
           </p>
           <p>
             Questions, bug reports, or just curious how something works: reach out at{" "}

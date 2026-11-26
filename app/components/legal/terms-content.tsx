@@ -8,7 +8,7 @@ export const TERMS_CONTENT: LegalSection[] = [
     body: (
       <>
         <p>
-          The Services does not offer users to submit or post content. We may provide you with the
+          The Services do not let users submit or post content. We may provide you with the
           opportunity to create, submit, post, display, transmit, perform, publish, distribute, or
           broadcast content and materials to us or on the Services. Any Contributions you transmit
           may be treated in accordance with the Services&apos; Privacy Policy.

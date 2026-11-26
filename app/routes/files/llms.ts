@@ -115,9 +115,9 @@ export async function loader({ request, context }: Route.LoaderArgs) {
         heading: "Technical",
         body: [
           [
-            `- Built on Stripe Connect. The free audit and merchant onboarding both request read and write, because Stripe no longer offers read-only to platforms. The audit only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes. On a connected account the writes are invoice retries, default payment method updates, win-back resubscribe checkouts, approved dispute evidence, and disputes the merchant chooses to accept`,
+            `- Built on Stripe Connect. The free audit and merchant onboarding both request read and write, because Stripe no longer offers read-only to platforms. The audit only reads, and disconnects itself after ${AUDIT_GRANT_MINUTES} minutes. On a connected account the writes are invoice retries, default payment method updates, win-back resubscribe checkouts, approved dispute evidence, disputes the merchant chooses to accept, and refunds the owner chooses on an early fraud warning`,
             "- Hosted on Cloudflare Workers, database on Cloudflare D1",
-            "- No card data stored; all payment processing goes through Stripe",
+            "- No card numbers stored; all payment processing goes through Stripe",
             "- Disconnect any time from the Stripe dashboard",
           ].join("\n"),
         ],

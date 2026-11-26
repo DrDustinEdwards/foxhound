@@ -72,7 +72,7 @@ export const RECOVERY_BLOCKS = {
     title: `${DECLINE_CATEGORY_COUNT_WORD} categories. ${countWord(DISTINCT_SEQUENCE_COUNT)} different sequences.`,
     bodyBefore: "Stripe's",
     linkText: "Smart Retries",
-    linkHref: "https://stripe.com/docs/billing/revenue-recovery/smart-retries",
+    linkHref: "https://docs.stripe.com/billing/revenue-recovery/smart-retries",
     // Foxhound classifies into its engine's categories, two of which share one schedule, and a soft decline's retries are not timed to card network windows.
     bodyAfter: `treat all declines the same. Foxhound classifies every decline code, ${DECLINE_CATEGORY_PHRASE}, and runs the sequence set for its category. A fraud decline gets no retry steps. An expired card gets emails focused on updating payment info. A soft decline gets a silent retry first, then both emails and retries.`,
   },

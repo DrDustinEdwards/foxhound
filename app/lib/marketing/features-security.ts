@@ -61,9 +61,9 @@ export function securitySection(): FeatureSection {
         product: "Platform",
       },
       {
-        name: "WCAG 2.2 compliance",
+        name: "WCAG 2.2 AA, partly met",
         description:
-          "prefers-reduced-motion, prefers-contrast: more, and forced-colors all implemented.",
+          "prefers-reduced-motion, prefers-contrast: more, and forced-colors all implemented. The accessibility statement lists what is not yet met.",
         product: "Platform",
       },
       {

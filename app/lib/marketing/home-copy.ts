@@ -107,7 +107,7 @@ export const COMPARISON_ROWS: ComparisonRow[] = [
   },
 ];
 
-export const STATEMENT_BODY = `Stripe's Smart Retries recover ${STRIPE_RATE} on average. The other ${STRIPE_GAP} needs something Stripe doesn't do: personalized email sequences, decline classification, and ${SEQUENCE_DAYS} days of follow-through.`;
+export const STATEMENT_BODY = `Stripe's recovery tools recover ${STRIPE_RATE} on average. The other ${STRIPE_GAP} needs something Stripe doesn't do: personalized email sequences, decline classification, and ${SEQUENCE_DAYS} days of follow-through.`;
 
 export interface HomeProductCard {
   description: string;
@@ -193,8 +193,8 @@ export const BILLING_FAQ_PARTS: (string | { to: string; label: string })[] = [
 /** Security chips. Chip 5 does not say "US servers" because Foxhound runs on Cloudflare's global network. */
 export const SECURITY_CHIPS = [
   "Never touches your billing configuration",
-  "No card data stored",
+  "No card numbers stored",
   "AES-256 encryption",
   "CAN-SPAM compliant",
-  "US company, US jurisdiction",
+  "Based in Texas, US law",
 ];

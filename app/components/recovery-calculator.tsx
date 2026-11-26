@@ -132,7 +132,7 @@ export function RecoveryCalculator() {
             />
             <Row
               name="stripeRecovers"
-              label="Stripe Smart Retries recover"
+              label="Stripe's recovery tools recover"
               sub={`${STRIPE_RECOVERY_RATE_PERCENT}% average, stripe.com/billing, read ${STAT_AS_OF}`}
               value={fmt(stripeRecovers)}
               valueClassName="fh-soft"

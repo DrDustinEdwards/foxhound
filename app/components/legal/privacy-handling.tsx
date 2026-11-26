@@ -19,13 +19,14 @@ export const PRIVACY_HANDLING: LegalSection[] = [
           than your own.
         </p>
         <p>
-          Our database and its backups are stored with Cloudflare in North America. The Services run
-          on Cloudflare&apos;s global network, so a request may be handled at a Cloudflare location
-          near you, including outside the United States. Regardless of your location, please be
-          aware that your information may be transferred to, stored by, and processed by us in our
-          facilities and in the facilities of the third parties with whom we may share your personal
-          information (see &quot;WHEN AND WITH WHOM DO WE SHARE YOUR PERSONAL INFORMATION?&quot;
-          above), including facilities in the United States, and other countries.
+          Our database and its backups are stored with Cloudflare in North America, and a copy of
+          the backups is kept with Amazon Web Services. The Services run on Cloudflare&apos;s global
+          network, so a request may be handled at a Cloudflare location near you, including outside
+          the United States. Regardless of your location, please be aware that your information may
+          be transferred to, stored by, and processed by us in our facilities and in the facilities
+          of the third parties with whom we may share your personal information (see &quot;WHEN AND
+          WITH WHOM DO WE SHARE YOUR PERSONAL INFORMATION?&quot; above), including facilities in the
+          United States, and other countries.
         </p>
       </>
     ),

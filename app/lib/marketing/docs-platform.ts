@@ -270,7 +270,7 @@ export const PLATFORM_GUIDE: Omit<DocGuide, "datePublished"> = {
         { kind: "h3", text: "Removing a team member" },
         "Click Remove member next to a member and confirm. The owner can remove any member other than themselves, and nobody else can remove anyone. Access ends immediately, and the owner cannot be removed at all.",
         { kind: "h3", text: "Roles" },
-        "Each person on an account is its Owner or a Member. The owner invites and removes members and cannot be removed. Otherwise settings, billing and the Stripe connections are open to every member. Only the owner can cancel the account.",
+        "Each person on an account is its Owner or a Member. The owner invites and removes members and cannot be removed. Only the owner connects or disconnects Stripe, puts the card on file for billing, creates or revokes API keys, turns dispute auto-submit on or off, accepts a dispute, and cancels the account. Every other setting is open to every member.",
         { kind: "h3", text: "Billing and subscription" },
         `Each monthly run bills the prior month's matured recoveries, meaning recoveries held for ${RECOVERY_MATURITY_DAYS} or more days, at ${RECOVERY_FEE_PERCENT}%. Recoveries Stripe would have gotten on its own are never billed. Disputes are billed at ${DISPUTE_FEE_PERCENT}% of wins only, capped at ${formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute. Intelligence and the audit are always free.`,
         "A payment method goes on file once, under Billing. Invoices and the full evidence ledger are visible there at any time.",

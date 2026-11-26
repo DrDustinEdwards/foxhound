@@ -292,14 +292,10 @@ export const TERMS_USE: LegalSection[] = [
             the Services.
           </li>
           <li>
-            Copy or adapt the Services&apos; software, including but not limited to Flash, PHP,
-            HTML, JavaScript, or other code.
+            Copy or adapt the Services&apos; software, including its HTML, JavaScript, or other
+            code.
           </li>
-          <li>
-            Use the Services as part of any effort to compete with us or otherwise use the Services
-            for any revenue-generating endeavor or commercial enterprise without our express written
-            permission.
-          </li>
+          <li>Use the Services as part of any effort to compete with us.</li>
         </ul>
       </>
     ),
