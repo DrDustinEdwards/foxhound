@@ -5,11 +5,15 @@ import {
   AUDIT_LOOKBACK_DAYS,
   DISPUTE_FEE_CAP_CENTS,
   EXPIRING_CARD_DAYS_AHEAD,
+  EXPIRING_CARD_TOGGLE_LABEL,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
 import { AUDIT_ACCESS_ASK, AUDIT_ACCESS_PROMISE } from "~/lib/marketing/audit-access";
 import { INTELLIGENCE_WINBACK_SENTENCE } from "~/lib/marketing/winback-copy";
 import type { DocGuide } from "~/lib/marketing/docs-content";
+
+/** Stripe's own switch, in its Dashboard under Email notifications and customer management. */
+const STRIPE_EXPIRING_CARD_SETTING = "Send emails about expiring cards";
 
 export const PLATFORM_GUIDE: Omit<DocGuide, "datePublished"> = {
   slug: "platform",
@@ -96,7 +100,7 @@ export const PLATFORM_GUIDE: Omit<DocGuide, "datePublished"> = {
           body: "The link in the alert is a Foxhound page, not Stripe's billing portal. The customer updates the card there and Foxhound sets it as the default payment method on the subscription. Foxhound also picks up a card changed in Stripe directly, so a customer who fixes it without the email stops being alerted.",
         },
         "Nothing about this alert is billable. It prevents a failure rather than recovering one, so there is no recovered payment and no fee.",
-        "Expiring card alerts are on unless you turn them off in Settings and Email.",
+        `Stripe can send its own expiring-card email too, so a customer may get both. To turn off Foxhound's, switch off "${EXPIRING_CARD_TOGGLE_LABEL}" in Settings and Email. To turn off Stripe's, switch off "${STRIPE_EXPIRING_CARD_SETTING}" in your Stripe Dashboard. Foxhound's is on unless you turn it off.`,
         { kind: "h3", text: "Win-back sequences" },
         `When a subscription is canceled voluntarily, Foxhound starts a win-back sequence: three emails, the first an hour after the cancellation, then one at four days and a last one at fourteen. ${INTELLIGENCE_WINBACK_SENTENCE} Each is written in your brand voice for the step it is, warmer at the first and lighter at the last, and each links to a page where that customer can restart the same plan through Stripe.`,
         "It does not start for a subscription that ended because payments were failing, because that is a recovery and the recovery sequence already has it, and it does not start for a customer you chased in the last seven days. The sequence stops as soon as they come back.",
