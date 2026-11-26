@@ -210,4 +210,22 @@ describe("the cron stale alert", () => {
       "Age: last succeeded 3 days ago",
     ]);
   });
+  it("waits a new job's window after the deploy before saying it never ran", async () => {
+    freshDb();
+    const jobs = [{ name: "retention", schedule: constants.CRON_SCHEDULE_DAILY }];
+    const deployed = (at: Date) => ({
+      ...env(),
+      CF_VERSION_METADATA: { id: "v1", tag: "", timestamp: at.toISOString() },
+    });
+    const db = harness.db as ReturnType<typeof freshDb>;
+    await runCronHealthCheck(deployed(new Date(NOW.getTime() - 60 * 60 * 1000)), db, jobs, NOW);
+    expect(sent()).toHaveLength(0);
+    await runCronHealthCheck(
+      deployed(new Date(NOW.getTime() - 3 * 24 * 60 * 60 * 1000)),
+      db,
+      jobs,
+      NOW,
+    );
+    expect(sent()).toHaveLength(1);
+  });
 });

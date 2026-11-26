@@ -5,6 +5,7 @@ import {
   describeAge,
   type AlertOutcome,
 } from "@dustinedwards/site-runtime/cron-alert";
+import { deployedAt } from "@dustinedwards/site-runtime/deploy";
 import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
@@ -333,6 +334,7 @@ export async function runCronHealthCheck(
       everyMinutes: SCHEDULE_PERIOD_MS[j.schedule]! / 60_000,
     })),
     graceMinutes: (every) => every,
+    deployedAt: deployedAt(env),
     each: true,
     now,
     send: async ([item]) => {

@@ -46,10 +46,8 @@ describe("cron registry", () => {
     expect(monthly.map((j) => j.name)).toEqual(["billing-monthly"]);
 
     const daily = jobsForSchedule(CRON_SCHEDULE_DAILY);
-    // The sync writes today's snapshot before the AI run reads it.
     const names = daily.map((j) => j.name);
-    expect(names.indexOf("intelligence-sync")).toBeGreaterThan(-1);
-    expect(names.indexOf("intelligence-sync")).toBeLessThan(names.indexOf("intelligence-ai"));
+    expect(names).toContain("intelligence");
     expect(names).toContain("retention");
     expect(names).toContain("backup");
   });
