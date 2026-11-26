@@ -180,18 +180,6 @@ const SECTIONS: LegalSection[] = [
     ),
   },
   {
-    id: "dpa",
-    title: "DATA PROCESSING AGREEMENT",
-    body: (
-      <>
-        <p>
-          A data processing agreement is available on request. Email{" "}
-          <span className="fh-mono">{SUPPORT_EMAIL}</span>.
-        </p>
-      </>
-    ),
-  },
-  {
     id: "entity",
     title: "WHO OPERATES FOXHOUND",
     body: (
