@@ -1,9 +1,4 @@
-import {
-  emailConfirmURL,
-  SIGN_IN_EXPIRES_IN_WORDS,
-  type NoticeDetail,
-} from "@dustinedwards/site-runtime/sign-in";
-import { EMAIL_CHANGE_EXPIRES_IN_WORDS } from "@dustinedwards/site-runtime/sign-in-words";
+import { SIGN_IN_EXPIRES_IN_WORDS, type NoticeDetail } from "@dustinedwards/site-runtime/sign-in";
 import type { Rendered } from "capsomer/email";
 
 import { sendRenderedTransactionalEmail, type TransactionalSendOutcome } from "~/lib/email/send";
@@ -90,59 +85,52 @@ export async function mailSecurityNotice(
 }
 
 /**
- * Mail the CURRENT address to confirm a change to `newEmail`. Better Auth
- * calls this from /change-email; `url` is its own link, which acts on a GET, so
- * it is never sent or logged: the mail carries site-runtime's emailConfirmURL
- * of it (app/routes/auth/email-confirm.tsx), the same token on a page that acts
- * only on its button's POST.
+ * One mail of an email change (site-runtime accountOptions' sendEmailChange): step "current" asks the CURRENT
+ * address to approve the change, step "new" asks the new address to confirm itself, and that link makes the change.
+ * The link is already site-runtime's /email/confirm page, which acts only on its button's POST; the token is never
+ * sent or logged.
  */
-export async function sendEmailChangeConfirmation(
+export async function sendEmailChange(
   env: Env,
-  change: { to: string; newEmail: string; url: string; token: string },
+  mail: {
+    to: string;
+    link: string;
+    token: string;
+    step: "current" | "new";
+    newEmail?: string;
+    expiresIn: string;
+  },
 ): Promise<void> {
-  const link = emailConfirmURL(change.url);
+  const copy =
+    mail.step === "current"
+      ? {
+          subject: "Confirm the change to your Foxhound email address",
+          heading: "Change your email address?",
+          intro: `Someone signed in to Foxhound asked to change this account's address from ${mail.to} to ${mail.newEmail ?? ""}. Confirm it here, and we then send a link to the new address to finish.`,
+          button: "Confirm the change",
+          ignore:
+            "If this was not you, do not confirm it, and sign out your other devices from Foxhound's account settings. Your address stays as it is.",
+        }
+      : {
+          subject: "Confirm your new Foxhound email address",
+          heading: "Confirm your new email address",
+          intro: `Confirm ${mail.to} as the address you sign in to Foxhound with.`,
+          button: "Confirm email address",
+          ignore: "If you did not ask for this, ignore this message. Nothing changes.",
+        };
   const rendered = renderFoxhoundEmailChangeEmail({
-    to: change.to,
-    url: link,
-    step: "current",
-    newEmail: change.newEmail,
-    expiresIn: EMAIL_CHANGE_EXPIRES_IN_WORDS,
-    copy: {
-      subject: "Confirm the change to your Foxhound email address",
-      heading: "Change your email address?",
-      intro: `Someone signed in to Foxhound asked to change this account's address from ${change.to} to ${change.newEmail}. Confirm it here, and we then send a link to the new address to finish.`,
-      button: "Confirm the change",
-      ignore:
-        "If this was not you, do not confirm it, and sign out your other devices from Foxhound's account settings. Your address stays as it is.",
-    },
+    to: mail.to,
+    url: mail.link,
+    step: mail.step,
+    newEmail: mail.newEmail,
+    expiresIn: mail.expiresIn,
+    copy,
   });
-  await sendOrThrow(env, change.to, rendered, [change.url, change.token, link, change.newEmail]);
-}
-
-/**
- * Mail the NEW address the link that makes the change, once the current one has
- * confirmed it. Better Auth's sendVerificationEmail; /send-verification- email
- * is off (auth.server.ts), so an email change is the only caller.
- */
-export async function sendNewEmailVerification(
-  env: Env,
-  change: { to: string; url: string; token: string },
-): Promise<void> {
-  const link = emailConfirmURL(change.url);
-  const rendered = renderFoxhoundEmailChangeEmail({
-    to: change.to,
-    url: link,
-    step: "new",
-    expiresIn: EMAIL_CHANGE_EXPIRES_IN_WORDS,
-    copy: {
-      subject: "Confirm your new Foxhound email address",
-      heading: "Confirm your new email address",
-      intro: `Confirm ${change.to} as the address you sign in to Foxhound with.`,
-      button: "Confirm email address",
-      ignore: "If you did not ask for this, ignore this message. Nothing changes.",
-    },
-  });
-  await sendOrThrow(env, change.to, rendered, [change.url, change.token, link]);
+  await sendOrThrow(env, mail.to, rendered, [
+    mail.link,
+    mail.token,
+    ...(mail.newEmail ? [mail.newEmail] : []),
+  ]);
 }
 
 async function sendOrThrow(

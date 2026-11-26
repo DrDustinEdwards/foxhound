@@ -1,24 +1,17 @@
-import { signInOptions } from "@dustinedwards/site-runtime/sign-in";
+import { EMAIL_CONFIRM_PATH, signInOptions } from "@dustinedwards/site-runtime/sign-in";
+import { accountOptions } from "@dustinedwards/site-runtime/sign-in-form";
 // The minimal build: the database is the Drizzle adapter, so Kysely and the
 // schema-migration code the full build bundles never run here (Better Auth:
 // "For minimal mode (without Kysely), import from better-auth/minimal").
 import { betterAuth } from "better-auth/minimal";
-import { APIError } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
 import { getDb } from "~/db/client";
 import * as authSchema from "~/db/auth-schema";
 
 import { accountDeletionHooks } from "./delete-account.server";
-import { isDisposableEmail } from "@dustinedwards/site-runtime/sign-in-form";
 import { withSignIn } from "./options";
-import { EMAIL_CHANGE_EXPIRES_IN_SECONDS } from "@dustinedwards/site-runtime/sign-in-words";
-import {
-  sendEmailChangeConfirmation,
-  sendNewEmailVerification,
-  mailSecurityNotice,
-  sendSignInLinkEmail,
-} from "./send-auth-email";
+import { sendEmailChange, mailSecurityNotice, sendSignInLinkEmail } from "./send-auth-email";
 
 // Runtime Better Auth factory, with the family's one sign-in (site-runtime
 // ./sign-in): a passkey first, an emailed link and code before one exists
@@ -69,51 +62,19 @@ async function buildAuth(env: Env) {
 
   const google = signIn.socialProviders.google;
   const options = withSignIn(signIn);
+  const account = accountOptions({
+    confirmPath: EMAIL_CONFIRM_PATH,
+    sendEmailChange: (mail) => sendEmailChange(env, mail),
+    ...accountDeletionHooks(env),
+  });
   return betterAuth({
     ...options,
-    // Better Auth's own path for mailing a verification on request is off: the
-    // only verification mail Foxhound sends is the email change's below.
-    // Deleting the account is only the Delete account action on
-    // /settings/account (auth.api.deleteUser, after its fresh sign-in check),
-    // never Better Auth's /delete-user over HTTP, as on Foxing.
-    disabledPaths: [
-      ...options.disabledPaths,
-      "/send-verification-email",
-      "/delete-user",
-      "/delete-user/callback",
-    ],
-    // an email change is confirmed from the CURRENT address first, then
-    // from the new one (Better Auth's change-email-confirmation flow), and only
-    // from a sign-in in the last 10 minutes (site-runtime holds /change-email
-    // to that). Once the new address is confirmed, site-runtime tells both
-    // addresses and ends every other session (D7).
-    emailVerification: {
-      expiresIn: EMAIL_CHANGE_EXPIRES_IN_SECONDS,
-      sendVerificationEmail: async ({ user, url, token }) => {
-        await sendNewEmailVerification(env, { to: user.email, url, token });
-      },
-    },
-    user: {
-      changeEmail: {
-        enabled: true,
-        sendChangeEmailConfirmation: async ({ user, newEmail, url, token }) => {
-          // The same blocklist as sign-up (options.ts), so a change cannot do
-          // what a new account may not.
-          if (isDisposableEmail(newEmail)) {
-            throw new APIError("BAD_REQUEST", {
-              code: "disposable_email",
-              message: "Disposable email addresses are not allowed.",
-            });
-          }
-          await sendEmailChangeConfirmation(env, { to: user.email, newEmail, url, token });
-        },
-      },
-      // Better Auth's own delete, called from the app's route only, so
-      // site-runtime's log line, notice and history clean-up run, with
-      // Foxhound's deletion (the fee evidence kept, the rest scrubbed, then the
-      // Stripe grants revoked) in its hooks.
-      deleteUser: { enabled: true, ...accountDeletionHooks(env) },
-    },
+    // Changing the address (two links: the current address approves, then the new one confirms, each through
+    // /email/confirm) and deleting the account (only from /settings/account's action, with Foxhound's deletion in its
+    // hooks: the fee evidence kept, the rest scrubbed, then the Stripe grants revoked): site-runtime's accountOptions,
+    // the same on every site. Its disabledPaths add /send-verification-email and /delete-user to the sign-in's own.
+    ...account,
+    disabledPaths: [...options.disabledPaths, ...account.disabledPaths],
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
     database: drizzleAdapter(db, { provider: "sqlite", schema: authSchema }),
