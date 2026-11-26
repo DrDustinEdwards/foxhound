@@ -1,9 +1,13 @@
 import type Database from "better-sqlite3";
+import { createElement, type ReactElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createRoutesStub } from "react-router";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
+import { EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -22,7 +26,8 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { action, loader } = await import("~/routes/app/settings/email");
+const emailRoute = await import("~/routes/app/settings/email");
+const { action, loader } = emailRoute;
 const { buildEmailMessage } = await import("~/lib/email/send");
 const { toEmailContext } = await import("~/lib/cron/due-steps");
 const { buildRecoveryEmailJob } = await import("~/lib/engine/execute-step");
@@ -260,5 +265,30 @@ describe("send test email", () => {
     const out = await post({ _action: "test-email" });
     expect(out.body).toMatchObject({ ok: false, status: "suppressed" });
     expect(harness.sent).toHaveLength(0);
+  });
+});
+
+describe("the expiring-card toggle", () => {
+  it("names what it stops: Foxhound's own email, sent the lead days before expiry", async () => {
+    const Page = emailRoute.default as unknown as (props: {
+      loaderData: Awaited<ReturnType<typeof loader>>;
+      actionData: undefined;
+    }) => ReactElement;
+    const loaderData = await loader({
+      context: ctx,
+      request: new Request(`${BASE}/settings/email`),
+      params: {},
+    } as never);
+    const Stub = createRoutesStub([
+      {
+        path: "/settings/email",
+        Component: () => createElement(Page, { loaderData, actionData: undefined }),
+      },
+    ]);
+    const html = renderToStaticMarkup(createElement(Stub, { initialEntries: ["/settings/email"] }));
+    expect(html).toContain(
+      `Email customers ${EXPIRING_CARD_DAYS_AHEAD} days before their card expires`,
+    );
+    expect(html).not.toContain("Expiring card alerts");
   });
 });
