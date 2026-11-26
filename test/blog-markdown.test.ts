@@ -71,11 +71,19 @@ describe("renderPostBody", () => {
     }
     for (const category of DECLINE_CATEGORIES) {
       const schedule = RECOVERY_SCHEDULES[category];
-      const marks = [...timeline.get(category)!.matchAll(/data-step="(\w+)" data-hours="(\d+)"/g)];
+      const marks = [
+        ...timeline
+          .get(category)!
+          .matchAll(/data-hours="(\d+)"><circle[^>]*\/><use href="#tl-(retry|email)"/g),
+      ];
+      const expected = schedule.map((s) => ({
+        retry: isRetryStep(s.stepType),
+        hours: s.offsetHours,
+      }));
       expect(
-        marks.map((m) => ({ stepType: m[1], offsetHours: Number(m[2]) })),
+        marks.map((m) => ({ retry: m[2] === "retry", hours: Number(m[1]) })),
         category,
-      ).toEqual(schedule);
+      ).toEqual(expected);
       const read = [
         ...flowchart.get(category)!.matchAll(/>(\d+h|D\d+)<tspan[^>]*>(retry|email)</g),
       ];
@@ -85,7 +93,7 @@ describe("renderPostBody", () => {
           hours: m[1]!.startsWith("D") ? Number(m[1]!.slice(1)) * 24 : Number.parseInt(m[1]!, 10),
         })),
         category,
-      ).toEqual(schedule.map((s) => ({ retry: isRetryStep(s.stepType), hours: s.offsetHours })));
+      ).toEqual(expected);
     }
   });
 
