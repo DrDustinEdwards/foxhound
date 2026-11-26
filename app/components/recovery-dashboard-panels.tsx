@@ -266,10 +266,6 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
       {w.reactivatedCount === 0 ? (
         <div>
           <p className="fh-recpanel-title fh-small fh-faint">No reactivations yet</p>
-          {/* Recova's sentence named a 90-day window its engine kept; Foxhound
-              credits a reactivation to the win-back sequence named in the
-              checkout the email's link opens, with no window
-              (app/lib/recovery/winback-reactivation.server.ts). */}
         </div>
       ) : (
         <div>

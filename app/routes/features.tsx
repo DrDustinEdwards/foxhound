@@ -97,8 +97,6 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
       <MarketingPageHeader title="Features" />
 
       <div className="fh-features-wrap">
-        {/* Recova's FeatureFilterShell: the active value on the wrapper, which
-            FEATURE_FILTER_CSS reads; no card re-renders on a press. */}
         <div
           data-feature-filter={filter}
           // On a page that does not hydrate, the feature-filter island (islands/feature-filter.ts) moves it.
@@ -113,8 +111,6 @@ export default function FeaturesPage({ loaderData }: Route.ComponentProps) {
           />
 
           <div className="fh-features-grid">
-            {/* Recova's sticky section nav: Capsomer's vertical anchor bar,
-                listed on the server so it shows without a script. */}
             <aside className="fh-features-aside">
               <AnchorBar
                 always

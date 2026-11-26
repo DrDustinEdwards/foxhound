@@ -175,16 +175,6 @@ async function seedMerchant(opts: {
     replyToEmail: t("replies@acme.test"),
     brandVoice: t("Warm and friendly, Acme voice"),
   });
-  await db.insert(schema.accountSubscriptions).values({
-    id: `${p}-sub`,
-    accountId,
-    product: "intelligence",
-    status: "canceled",
-    createdAt: OLDER,
-    canceledAt: OLD,
-    cancellationReason: "too_expensive",
-    cancellationFeedback: t("Too expensive, said Ada"),
-  });
   await db.insert(schema.apiKeys).values({
     id: `${p}-key`,
     accountId,

@@ -116,8 +116,6 @@ export default function SettingsHub({ loaderData }: Route.ComponentProps) {
 
   return (
     <>
-      {/* Phone: the section list. The sub-nav aside is hidden below md, so
-          this is the only navigation on a phone, which is Recova's shape. */}
       <div className="fh-phone-only">
         <h1 className="fh-hub-title fh-title fh-semibold fh-text">Settings</h1>
         <nav aria-label="Settings sections">

@@ -137,9 +137,6 @@ export function RevenueChart({ w, nowMs }: { w: RecoveryDashboardWindow; nowMs: 
         </div>
       </ChartPanel>
 
-      {/* Recova's email side panel, labeled with the range as Recova's was.
-          Recova's query had no date filter (lib/dashboard-data.ts), so its
-          label was untrue; here the figures are the range's, so it is true. */}
       <Panel title="Email performance">
         <div className="cap-stack" data-gap="5">
           <div>

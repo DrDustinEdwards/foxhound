@@ -10,7 +10,6 @@ export function BlogPostCard({ post, level = 3 }: { post: BlogPostSummary; level
   return (
     <Link to={`/blog/${post.slug}`} className="fh-blog-post-card-link cap-panel">
       <div className="cap-panel-body">
-        {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div className="cap-stack" data-gap="4">
           {tag ? (
             <span className="fh-blog-post-card-label">

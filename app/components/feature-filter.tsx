@@ -15,7 +15,6 @@ export function FeatureFilter({
   return (
     // The mb-10 sits on a wrapper so the Capsomer group carries no Foxhound class.
     <div className="fh-feature-filter-block">
-      {/* Recova's filter: mono chips, the pressed one filled amber. */}
       <div
         className="fh-mk-chips cap-chips"
         data-variant="solid"

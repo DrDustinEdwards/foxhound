@@ -52,11 +52,6 @@ beforeEach(() => {
   sqlite
     .prepare("INSERT INTO accounts (id, name, created_at) VALUES (?, 'Acme', 1000)")
     .run(ACCOUNT);
-  sqlite
-    .prepare(
-      "INSERT INTO account_subscriptions (id, account_id, product, status, created_at) VALUES ('sub_i', ?, 'intelligence', 'active', 1000)",
-    )
-    .run(ACCOUNT);
   const customer = sqlite.prepare(
     "INSERT INTO customer_context (id, account_id, stripe_customer_id, customer_name, current_plan_name, mrr_contribution_cents, currency, recovery_signals, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, 'usd', ?, 1000, 1000)",
   );

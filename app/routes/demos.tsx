@@ -62,34 +62,12 @@ export default function DemosPage() {
         subtext="A seeded account of 200 customers. Nothing you do can change it."
       />
 
-      {/* Recova's 1200px column (px-4, md:px-8, pb-16), in Capsomer's amber
-          family with Foxhound's own neutrals (.fh-cap, as /pricing and the
-          /products hub). The buttons are the only focusable parts here; their
-          amber ring is Capsomer's own, handed back by app.css
-          (.fh-cap .cap-btn:focus-visible). */}
       <div className="fh-demos-wrap fh-cap" data-cap-site="foxhound" data-family="amber">
-        {/* Four cards against legacy's three: legacy filters to products with a
-            demoHref, Foxhound also entry-points the console demo. Ratified
-            (Dustin, 2026-07-31, "Four demo cards, in Recova's treatment") on
-            the five-nav-entries precedent, that a working page is never
-            orphaned to win an item-set parity point, so the grid stays 4-up
-            where legacy runs md:grid-cols-3.
-
-            Each card is Capsomer's panel, body only, in its comfortable
-            density: 24px sides as Recova's p-6, 16px top and bottom where
-            Recova has 24px, 10px corners where Recova has 12px. Those are
-            Capsomer's panel as it ships; a Foxhound variant waits for
-            Capsomer's per-site layer. The reveal
-            wrapper is a one-cell grid so the panel fills the row.
-            The panel's body does not fill the panel, so a button sits under
-            its own blurb rather than at the foot of a taller neighbor, as
-            on the blog's cards; that is the layer's too. */}
         <div className="fh-mk-cards-4" data-density="comfortable">
           {PRODUCT_ENTRIES.map((entry) => (
             <div key={entry.href} className="fh-demos-grid cap-reveal">
               <div className="cap-panel">
                 <div className="cap-panel-body">
-                  {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
                     <p className="fh-body fh-medium fh-text">{entry.name}</p>
                     <p className="fh-demos-text fh-small fh-soft">{entry.blurb}</p>

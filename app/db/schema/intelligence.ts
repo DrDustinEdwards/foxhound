@@ -243,20 +243,3 @@ export const alertHistory = sqliteTable(
     index("alert_history_alert_idx").on(t.alertId),
   ],
 );
-
-// global (not tenant-scoped): seeds the no-auth estimator
-export const benchmarkData = sqliteTable("benchmark_data", {
-  id: id(),
-  computedAt: ts("computed_at").notNull(),
-  cohortDimension: text("cohort_dimension").notNull(),
-  cohortValue: text("cohort_value").notNull(),
-  sampleSize: integer("sample_size").notNull(),
-  metricName: text("metric_name").notNull(),
-  p10: real("p10"),
-  p25: real("p25"),
-  p50: real("p50"),
-  p75: real("p75"),
-  p90: real("p90"),
-  mean: real("mean"),
-  currency: text("currency"),
-});

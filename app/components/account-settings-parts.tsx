@@ -101,7 +101,6 @@ export function ProfileForm({
         </div>
       </section>
 
-      {/* AccountProfileSection, 16px under the name card as Recova's mb-4. */}
       <div className="fh-account-confirm">
         <section className="cap-panel">
           <div className="cap-panel-body">
@@ -121,7 +120,6 @@ export function ProfileForm({
             <div className="fh-account-field">
               <fieldset className="cap-field">
                 <legend className="cap-field-label">Customer Type</legend>
-                {/* Recova's two radios side by side, 16px apart. */}
                 <div className="fh-account-pair">
                   {CUSTOMER_TYPES.map((option) => (
                     <label key={option} className="cap-check">
@@ -165,7 +163,6 @@ export function ProfileForm({
         </section>
       </div>
 
-      {/* Recova's SaveBar: right-aligned, the result beside the button. */}
       <SaveBar
         pending={saving}
         saved={result?.ok === true}

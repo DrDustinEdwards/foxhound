@@ -367,15 +367,6 @@ export default function AppLayout({ loaderData }: Route.ComponentProps) {
           signOutAction: "/logout",
         }}
       >
-        {/* The demo band and the admin's read-only "View as merchant" band
-            (Recova's "Impersonating: {email}" with "Stop impersonating"), at
-            the top of the page under the page bar, in Capsomer's mode banner
-            and its words: the header stays the first element on the page in
-            every state, so the wordmark never moves. Recova's demo header
-            carried Connect Stripe (to /signup) on every demo page; a visitor
-            without an account gets it, with Exit demo second. A signed-in
-            merchant already has an account, so they get Exit only. Stop is a
-            plain link: it leaves the app for /admin, behind Access. */}
         {isDemo ? (
           <ModeBanner
             mode="demo"

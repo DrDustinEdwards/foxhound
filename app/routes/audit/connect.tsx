@@ -141,8 +141,6 @@ export default function AuditConnect({ loaderData }: Route.ComponentProps) {
         </div>
       ) : null}
 
-      {/* Recova's two labeled lists inside the inner box: Capsomer's
-          permission lists, each a real list named by its heading. */}
       <div className="fh-auditconnect-grid">
         <PermissionList id="audit-connect-can" heading="What we can do" items={CAN_DO} allowed />
         <PermissionList

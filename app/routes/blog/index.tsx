@@ -138,9 +138,6 @@ function BlogHero({
                 <span aria-hidden="true" className="fh-blog-label">
                   &middot;
                 </span>
-                {/* Capsomer's outline pill as a link: its own focus ring, and a
-                    hit area grown to the 24px target. Recova's uppercase mono
-                    chip is the per-site layer's (see the PR). */}
                 <Link
                   to={`/blog/tag/${encodeURIComponent(post.tags[0])}`}
                   className="cap-pill"
@@ -153,7 +150,6 @@ function BlogHero({
           </div>
           {/* Wrapped so the spacing above is the page's, not a class on the button. */}
           <div className="fh-blog-block-4">
-            {/* "group" carries no style; it drives Recova's arrow nudge on hover. */}
             <ButtonLink to={`/blog/${post.slug}`} className="group" variant="primary" size="lg">
               Read the guide
               <Icon

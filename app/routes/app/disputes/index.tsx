@@ -197,9 +197,6 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
         <PageHead title="Dashboard" />
       </div>
 
-      {/* Recova's grid, five across from md, in Recova's order. Win rate takes
-          the place of Recova's "Saved vs Smart Disputes", which is not built
-          (Dustin, PR #75 questions 2 and 4; see stats.ts). */}
       <div className="fh-disputes-tiles">
         <StatTiles layout="grid" label="Dispute figures">
           <StaticStatTile size="lg" label="Open disputes" figure={String(stats.openCount)} />

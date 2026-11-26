@@ -5,7 +5,6 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Db } from "~/db";
 import {
   accountMembers,
-  accountSubscriptions,
   accounts,
   alertHistory,
   alerts,
@@ -134,7 +133,6 @@ async function wipeDemoAccount(db: Db, acct: string): Promise<void> {
     db.delete(intelligenceReports).where(eq(intelligenceReports.accountId, acct)),
     db.delete(alertHistory).where(eq(alertHistory.accountId, acct)),
     db.delete(alerts).where(eq(alerts.accountId, acct)),
-    db.delete(accountSubscriptions).where(eq(accountSubscriptions.accountId, acct)),
     db.delete(accountMembers).where(eq(accountMembers.accountId, acct)),
     db.delete(stripeConnections).where(eq(stripeConnections.accountId, acct)),
     // An admin can set or end the demo account's exemption from the Merchants

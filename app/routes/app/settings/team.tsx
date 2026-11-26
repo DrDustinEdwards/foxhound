@@ -246,8 +246,6 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
           {loaderData.isOwner ? (
             <DemoForm ref={inviteForm} method="post" className="fh-team-invite">
               <input type="hidden" name="_action" value="invite" />
-              {/* Recova's invite row: the input and its button on one line,
-                  with no "Required" marker, as Recova has it. */}
               <TextField
                 id="invite_email"
                 label="Invite a team member"
@@ -264,11 +262,6 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                   </Button>
                 }
               />
-              {/* A refused remove, where Recova's TeamSection shows it: its
-                    one error line under the invite row. An alert, and not
-                    the field's error, since the address is not what was
-                    wrong. Showing it at the row instead is a question for
-                    Dustin. */}
               {removeResult?.error ? (
                 <div className="fh-field-gap">
                   <Alert tone="crit">{removeResult.error}</Alert>

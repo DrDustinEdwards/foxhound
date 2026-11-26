@@ -129,7 +129,6 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
       <div className="fh-intel-stack">
         <HeaderCard customer={customer} lastSeenAt={activity.lastActivityAt} nowMs={nowMs} />
 
-        {/* Recova's IntegrityLayerBanner, customers/[id]/page.tsx 133. */}
         <RecommendationBanner
           prediction={prediction}
           surface="customer"

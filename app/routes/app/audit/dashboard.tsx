@@ -349,8 +349,6 @@ export default function AuditDashboard({ loaderData, actionData }: Route.Compone
   if (runs.length === 0) {
     return (
       <div className="fh-auditd-page cap-admin-page" data-width="page">
-        {/* Capsomer's empty state, as markup: its React part puts the title in
-            a <p>, and Recova's is the page's h1 (gap named in the J43 PR). */}
         <div className="fh-auditd-head">
           <div className="cap-empty" data-kind="nothing-yet">
             <div className="cap-empty-header">

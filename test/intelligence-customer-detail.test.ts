@@ -4,7 +4,6 @@ import { createRoutesStub } from "react-router";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  accountSubscriptions,
   accounts,
   customerContext,
   disputes,
@@ -337,13 +336,6 @@ describe("'Last seen' on rows shaped the way the sync writes them", () => {
   async function syncShaped() {
     const { db } = createInMemoryDb();
     await db.insert(accounts).values({ id: "acct_live", name: "Live Co" });
-    await db.insert(accountSubscriptions).values({
-      id: "sub_intel",
-      accountId: "acct_live",
-      product: "intelligence",
-      status: "active",
-      createdAt: new Date(NOW - 90 * DAY),
-    });
     for (const [id, mrr] of [
       ["cus_busy", 0],
       ["cus_quiet", 2_900],

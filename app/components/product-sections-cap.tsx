@@ -147,7 +147,6 @@ export function ProductPricing({
     <section className="fh-product-band-3">
       <div className="fh-mk-lede">
         <SectionLabel className="fh-product-text">Pricing</SectionLabel>
-        {/* Recova's price card: the page ground on the surface band, p-8 (products.css). */}
         <PriceGrid>
           <PriceCard
             price={price}

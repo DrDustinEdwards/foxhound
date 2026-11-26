@@ -31,8 +31,6 @@ function DisputesCta({ state }: { state: CtaState }) {
   }
   return (
     <div className="cap-stack" data-gap="4">
-      {/* Truthfulness fix: the fee is capped per dispute (PRICING.md), which
-          Recova's line left out; /billing says the same. */}
       <p className="fh-small fh-soft">
         Disputes is free until we win. You pay {DISPUTE_FEE_PERCENT}% of disputes we win, capped at{" "}
         {formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")} per dispute.
@@ -107,12 +105,6 @@ function DisputeFigures({
         secondary={winRatePct === null ? "No closed disputes yet" : `${winRatePct}% win rate`}
       />
 
-      {/* Recova's "Recova win rate", from Foxhound's own records: disputes
-          whose evidence Foxhound submitted, won over resolved. Recova's bands
-          are 70 and 50. The middle band takes the caution color, the same
-          rule as the recovery rate's middle band (recoveryRateClassName):
-          status colors are not accents, so the one-accent rule leaves them
-          alone. */}
       {foxhoundWinRate !== null ? (
         <div className="fh-auditsec-block-5 fh-small fh-soft">
           Foxhound win rate:{" "}
@@ -140,9 +132,6 @@ function DisputeFigures({
             value={formatTotals(accepted.totals, cur)}
             valueClassName="fh-red"
           />
-          {/* Truthfulness fix: Recova's line says it "submits structured
-              evidence automatically". Foxhound builds the evidence on its own
-              and the merchant approves it before it is sent. */}
           <p className="fh-tiny fh-faint">
             Disputes lost without evidence. You approve Foxhound's evidence before it is submitted.
           </p>

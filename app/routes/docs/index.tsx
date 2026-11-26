@@ -43,10 +43,6 @@ export default function DocsIndexPage() {
     <>
       <MarketingPageHeader title="Documentation" />
 
-      {/* div, not main: marketing.tsx already renders this page's one main landmark.
-          Recova's 720px column, in Capsomer's amber family with Foxhound's own
-          neutrals (.fh-cap, as the site header and the /products hub); the focus
-          ring reads the family's amber ring here, as in Capsomer's own parts. */}
       <div className="fh-mk-article fh-cap" data-cap-site="foxhound" data-family="amber">
         <div className="cap-stack" data-gap="5">
           {/* Platform: full width, the same card as the product guides below. */}
@@ -59,8 +55,6 @@ export default function DocsIndexPage() {
           </div>
         </div>
 
-        {/* Recova's cross-links. leading-6 makes each link a 24px target, as
-            the /pricing Learn more links. */}
         <div className="cap-cluster fh-docs-block fh-small" data-gap="6">
           <Link to="/features" className={CROSS_LINK}>
             See all features <Arrow />
@@ -96,7 +90,6 @@ function GuideCard({ guide }: { guide: DocGuide }) {
   return (
     <Link to={`/docs/${guide.slug}`} className="fh-docs-link cap-panel fh-hover-group">
       <div className="cap-panel-body">
-        {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
         <div>
           <div className="fh-docs-block-2 fh-item-title fh-medium fh-text">{guide.title}</div>
           <div className="fh-docs-block-3 fh-small fh-relaxed fh-soft">{guide.description}</div>

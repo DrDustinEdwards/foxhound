@@ -150,29 +150,6 @@ export const stripeConnections = sqliteTable(
   ],
 );
 
-export const accountSubscriptions = sqliteTable(
-  "account_subscriptions",
-  {
-    id: id(),
-    accountId: accountRef(),
-    product: text("product").notNull(),
-    stripeSubscriptionId: text("stripe_subscription_id"),
-    stripePriceId: text("stripe_price_id"),
-    status: text("status").notNull(),
-    billingInterval: text("billing_interval"),
-    currentPeriodEndsAt: ts("current_period_ends_at"),
-    trialEndsAt: ts("trial_ends_at"),
-    createdAt: ts("created_at").notNull(),
-    canceledAt: ts("canceled_at"),
-    stripeConnectionId: text("stripe_connection_id").references(() => stripeConnections.id),
-    cancellationReason: text("cancellation_reason"),
-    cancellationFeedback: text("cancellation_feedback"),
-    // admin_granted rows never touch Stripe APIs (PRICING.md / SCHEMA.md)
-    adminGranted: bool("admin_granted").notNull().default(false),
-  },
-  (t) => [index("account_subscriptions_account_idx").on(t.accountId)],
-);
-
 export const apiKeys = sqliteTable(
   "api_keys",
   {

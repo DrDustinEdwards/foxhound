@@ -67,22 +67,10 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
   return (
     <SettingsLayout renderLink={routerRenderLink} title="Audit">
       <DemoForm method="post">
-        {/* Recova's AuditSection card has no heading, so this is Capsomer's
-            panel markup with its body only, as /settings/alerts does. */}
         <div className="fh-field-block">
           <div className="cap-panel">
             <div className="cap-panel-body">
               <div className="fh-shrink">
-                {/* Recova shows the label, then the helper, then the four
-                    choices. The visible label is the same words as the
-                    fieldset's legend, which names the group for screen
-                    readers, so it is hidden from them here to be read once.
-                    The legend's words are visually hidden inside it, not with
-                    Capsomer's hideLegend: that sets .cap-sr-only, which lives
-                    in capsomer/base.css, and the merchant app does not load
-                    base.css (app/site-header.css). The legend keeps Capsomer's
-                    margin below it, so the helper's own margin is the rest of
-                    Recova's 12px. */}
                 <div className="fh-setting-label fh-small fh-text" aria-hidden="true">
                   Lookback period
                 </div>
@@ -119,8 +107,6 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
           </div>
         </div>
 
-        {/* Recova's SaveBar (blob f1d6eb23): a right-aligned row, the result
-            in words, then Save changes. */}
         <SaveBar
           pending={busy}
           saved={saved}

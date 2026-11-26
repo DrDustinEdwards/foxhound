@@ -150,10 +150,6 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
     <div className="fh-intel-page-tall cap-admin-page" data-width="page">
       <div className="fh-intel-head">
         <PageHead title={heading} />
-        {/* Recova's count line, only when there are customers. /intelligence/
-            churn has no equivalent, so it sits just below the head rather than
-            in PageHead's actions slot, which is for controls. "1 customer" is
-            singular; Recova's "1 customers" is not copied. */}
         {result.totalCount > 0 ? (
           <p className="fh-customers-count fh-mono fh-small fh-quiet">
             {plural(result.totalCount, "customer")} · {formatMoney(result.totalMrrCents, "usd")}/mo
@@ -201,24 +197,17 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                       return (
                         <tr key={c.stripeCustomerId}>
                           <th scope="row">
-                            {/* A plain link on the name, as Recova's is: not
-                                  Capsomer's stretched row link, which would lie
-                                  over the Signals tooltips and the Stripe id.
-                                  min-h-6 keeps a 24px target. */}
                             <Link
                               className="fh-customers-name fh-semibold fh-text"
                               to={`/intelligence/customers/${c.stripeCustomerId}`}
                             >
                               {c.customerName ?? "(unnamed)"}
                             </Link>
-                            {/* Recova's recommended-action chip after the name. */}
                             {c.chip ? (
                               <span className="fh-customers-email fh-mono fh-tiny fh-regular fh-quiet">
                                 {c.chip}
                               </span>
                             ) : null}
-                            {/* Recova's second line under the name: the Stripe
-                                  id, micro and mono. */}
                             <span className="fh-line fh-mono fh-tiny fh-faint">
                               {c.stripeCustomerId}
                             </span>
@@ -263,8 +252,6 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                             </span>
                           </td>
                           <td data-label="Signals">
-                            {/* Recova's two signals under Recova's names. An
-                                  empty cell is blank, as Recova's is. */}
                             <div className="fh-customers-flag">
                               {c.hasActiveRecovery ? (
                                 <span
@@ -299,8 +286,6 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         </>
       )}
 
-      {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form;
-          Recova's mt-4 sits on a wrapper so the nav carries no Foxhound class). */}
       {result.totalPages > 1 ? (
         <div className="fh-pager">
           <Pagination

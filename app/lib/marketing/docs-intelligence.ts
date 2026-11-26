@@ -71,9 +71,6 @@ export const INTELLIGENCE_GUIDE: Omit<DocGuide, "datePublished"> = {
     {
       heading: "Recommendations",
       body: [
-        // Each line is checked against recommend.ts's table: three of Recova's seven action types are produced by no rule, and the
-        // deprioritize delay never ran. The nightly scoring batch writes the action (ai-run.server.ts); the Recommendations page shows
-        // the two that ask for you.
         { kind: "h3", text: "Four action types" },
         "Intelligence produces one of four recommendations per customer:",
         {

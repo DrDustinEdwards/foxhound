@@ -1,11 +1,3 @@
-// Recommendation rules ported from Recova onto Foxhound's own inputs, as rules ("port now, measure, improve later").
-// Pure: no database, no clock; recommendations.server.ts reads the inputs and the nightly scoring batch
-// (ai-run.server.ts) stores the action in customer_context.recommended_action. Nothing on a money path reads
-// the action. Only the four actions below are produced; Recova's winback_priority, expansion_outreach and
-// accept_loss_dispute have no rule and are not ported (a winback_priority writer would move a customer's first
-// win-back email from 4 hours to 1, webhooks/lookups.ts). The rationale is Recova's word for word except five
-// lines that claimed more than the data can show, each marked below with Recova's text.
-
 export type EngagementBand = "green" | "yellow" | "red" | "unknown";
 export type RecoveryBand = "green" | "yellow" | "red" | "unknown";
 export type ValueBand = "high" | "medium" | "low";

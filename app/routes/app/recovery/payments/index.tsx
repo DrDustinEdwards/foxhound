@@ -263,7 +263,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         />
       </div>
 
-      {/* Recova's PaymentsStats: five cards, label over a mono figure. */}
       <div role="group" aria-label="Payment counts" className="fh-payments-tiles">
         {cards.map((card) => (
           <Panel key={card.label} size="sm" title={card.label}>
@@ -274,16 +273,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         ))}
       </div>
 
-      {/* Recova's bulk result sits here, between the cards and the filters.
-          Per payment, failures first (approved 2026-09-19). Capsomer's React
-          Banner puts its children inside a <p>, which cannot hold the list,
-          so the itemised result is Capsomer's banner markup with the title,
-          the list and the note as siblings in .cap-banner-body. */}
-      {/* Recova's bulk result sits here, between the cards and the filters.
-          Per payment, failures first (approved 2026-09-19). Capsomer's React
-          Banner puts its children inside a <p>, which cannot hold the list,
-          so the itemised result is Capsomer's banner markup with the title,
-          the list and the note as siblings in .cap-banner-body. */}
       {shownBulk ? (
         <BulkResultBanner shownBulk={shownBulk} rowLabel={rowLabel} dismissBulk={dismissBulk} />
       ) : null}
@@ -308,8 +297,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         />
       )}
 
-      {/* Recova's pager: the range on the left, Previous and Next on the
-          right, each present and disabled when it leads nowhere. */}
       {result.totalCount > 0 ? (
         <PaymentsPager
           page={result.page}
@@ -320,12 +307,6 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
         />
       ) : null}
 
-      {/* Recova's BulkActionBar on Capsomer's bulk bar, in the delivered page
-          only while something is selected and never in the demo. The form
-          carries `actionable`, so the set the button counts is the set that
-          is submitted (approved 2026-08-13). Up to 25 a button submits at
-          once; above 25 it asks first, naming every payment; above 100 it
-          does nothing and says why (approved 2026-09-19). */}
       {!isDemo && selectionCount > 0 ? (
         <BulkBar
           actionable={actionable}

@@ -62,8 +62,6 @@ export default function BlogArchivePage({ loaderData }: Route.ComponentProps) {
       <h1 className="fh-archive-title fh-bold fh-text">{activeLabel}</h1>
       <p className="fh-archive-text fh-mono fh-soft">{plural(posts.length, "article")}</p>
 
-      {/* Recova's tag filter: mono chips, the current one filled amber. Link
-          chips (Capsomer chips.md): the tag is in the address. */}
       <nav
         aria-label="Filter articles by tag"
         className="fh-archive-nav fh-cap"

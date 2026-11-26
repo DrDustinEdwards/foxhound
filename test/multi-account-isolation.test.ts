@@ -241,12 +241,6 @@ function seed(accountId: string, name: string, mag: number, rows: number): void 
       1_000,
     );
 
-  sqlite
-    .prepare(
-      "INSERT INTO account_subscriptions (id, account_id, product, status, created_at) VALUES (?, ?, 'intelligence', 'active', 1000)",
-    )
-    .run(`sub_${px}`, accountId);
-
   for (let i = 1; i <= rows; i++) {
     const fpId = `fp_${px}_${i}`;
     sqlite

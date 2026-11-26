@@ -70,11 +70,6 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
         <PageHead title="Churn Risk" />
       </div>
 
-      {/* Rendered whenever it has data, independently of whether any customer is
-          scored yet: the rate series comes from mrr_snapshots, a different table,
-          so gating it on the scored-customer count would withhold real history
-          for an unrelated reason. Recova's window and sentence: 90 days of the
-          daily snapshots, every 7th kept (getChurnView). */}
       {hasRateData ? (
         <div className="fh-intel-head">
           <Panel
@@ -137,16 +132,11 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                         >
                           {row.customerName ?? "(unnamed)"}
                         </Link>
-                        {/* Recova's second line under the name: the Stripe id,
-                              micro and mono. */}
                         <span className="fh-line fh-mono fh-tiny fh-faint">
                           {row.stripeCustomerId}
                         </span>
                       </th>
                       <td data-label="Plan">
-                        {/* Recova's rounded border pill. Recova labels it from
-                              current_plan_tier, which nothing in Foxhound writes
-                              (signals.ts), so the plan's own name is shown. */}
                         <Pill variant="outline">{row.currentPlanName ?? "-"}</Pill>
                       </td>
                       <td data-label="Health" data-num="">

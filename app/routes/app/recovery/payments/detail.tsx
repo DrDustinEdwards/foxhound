@@ -268,12 +268,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
 
   return (
     <div className="fh-payment">
-      {/* Recova's width and padding, PaymentDetailClient.tsx 227:
-          max-w-[1000px] mx-auto px-8 py-10, flat at every width. */}
-
-      {/* Recova's back link and bare header, PaymentDetailClient.tsx 230-271:
-          no box, the name with the open-dispute badge, the email line, and the
-          status pill top right. */}
       <header className="fh-payment-header">
         <Link to={backLink.href} className="fh-payment-back fh-small fh-faint">
           &larr; {backLink.label}
@@ -311,19 +305,14 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </div>
       </header>
 
-      {/* Recova's IntegrityLayerBanner, PaymentDetailClient.tsx 274. */}
       <RecommendationBanner prediction={prediction} surface="recovery" nowMs={nowMs} />
 
-      {/* Recova's action result banner, PaymentDetailClient.tsx 277-287. */}
       {actionResult ? (
         <div className="fh-payment-block">
           <Banner tone={actionResult.tone}>{actionResult.message}</Banner>
         </div>
       ) : null}
 
-      {/* Recova's action buttons, PaymentDetailClient.tsx 289-327: only while
-          the payment is active; in the demo the same buttons,
-          disabled and titled as Recova's are. */}
       <PaymentActionBar
         isDemo={isDemo}
         actionsVisible={actionsVisible}
@@ -334,16 +323,12 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         failedPayment={failedPayment}
       />
 
-      {/* Recova's four info cards, PaymentDetailClient.tsx 362-368. Capsomer has
-          no plain stat card (its tile is always a link), so each is a small
-          Panel, as on the payments list. */}
       <PaymentTiles
         failedPayment={failedPayment}
         estimatedLtvCents={estimatedLtvCents}
         nowMs={nowMs}
       />
 
-      {/* Recova's Decline details and Email engagement cards, 371-421. */}
       <PaymentFactPanels
         failedPayment={failedPayment}
         steps={steps}
@@ -352,16 +337,10 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         nowMs={nowMs}
       />
 
-      {/* The Outcome card has no Recova counterpart and stays beside Recova's
-          success banner, distinct from every other card (approved 2026-08-10).
-          It is the receipt for the attribution fee. */}
       <OutcomePanel recovery={recovery} steps={steps} />
 
-      {/* Recova's recovery timeline, PaymentDetailClient.tsx 423-571. */}
       <RecoveryTimeline steps={steps} nowMs={nowMs} />
 
-      {/* Recova's internal notes, 573-597, hidden in the demo as Recova hides
-          it. Saved in place through a fetcher, so the page does not move. */}
       {!isDemo ? (
         <div className="fh-payment-block">
           <Panel title="Internal notes">
@@ -402,8 +381,6 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </div>
       ) : null}
 
-      {/* Recova's recovery success banner, 599-612, last on the page: only when
-          the status is recovered AND a recovery row exists. */}
       {failedPayment.status === "recovered" && recovery ? (
         <Banner
           tone="ok"

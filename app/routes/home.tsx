@@ -138,7 +138,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <ButtonLink to="/audit" className="fh-semibold" variant="primary" size="lg">
                   Run your free audit
                 </ButtonLink>
-                {/* Recova's outlined button: no fill at rest, amber sweeping in under the pointer. */}
                 <ButtonLink
                   to="/demos/recovery"
                   rel="nofollow"
@@ -219,7 +218,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               <h2 className={H2}>How it works</h2>
             </div>
           </div>
-          {/* Recova's one bordered strip of three. Capsomer's panel, flush, holds it. */}
           <div className="cap-panel">
             <div className="cap-panel-body" data-flush>
               <div className="fh-home-grid-5">
@@ -256,7 +254,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </section>
 
-      {/* Products. The id and Recova's 60px scroll margin sit on the section. */}
       <section id="products" className="fh-home-band-4">
         <div className="fh-mk-wrap">
           <div className="cap-reveal">
@@ -309,8 +306,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
         </div>
       </section>
 
-      {/* FAQ: Capsomer's disclosure, one open at a time as Recova's accordion
-          is, each revealed in Recova's 60ms stagger (M3 divergence 15). */}
       <section className="fh-mk-band-short speakable-faq">
         <div className="fh-mk-wrap-text">
           <div className="cap-reveal">
@@ -383,7 +378,6 @@ export default function Home({ loaderData }: Route.ComponentProps) {
           title and the reading time, no excerpt. Each is a Capsomer panel. */}
       <HomeBlogStrip blogPosts={blogPosts} />
 
-      {/* Closing CTA, with Recova's two demo links (M3 divergence 39). */}
       <CtaBand
         quiet
         className="fh-closing-band fh-closing-home"

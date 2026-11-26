@@ -197,10 +197,6 @@ export function RecoveryCalculator() {
               Get your actual numbers free
             </ButtonLink>
           </div>
-          {/* Recova's line, with its third chip made true: Recova said "Read-only
-          Stripe access", but Stripe gives read_only only to Extensions
-          (2026-10-29), so the audit asks for read_write, only reads, and
-          disconnects itself when its window ends (audit-access.ts). */}
           <p className="fh-calc-text-2 fh-center fh-mono fh-tiny fh-faint">
             Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
           </p>

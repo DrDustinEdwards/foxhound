@@ -100,11 +100,6 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
 
   return (
     <SettingsLayout renderLink={routerRenderLink} title="Disputes">
-      {/* The switch's own form, as Recova's DisputesToggle posted on its own:
-          it carries the new value, and the switch below sends it at once
-          (SwitchRow submitOnChange; without script its Save button does).
-          The switch follows the stored value, so a refused change (the demo,
-          a failed write) springs back. */}
       <DemoForm method="post" id={`${id}-toggle`}>
         <input type="hidden" name="_action" value="toggle_disputes" />
         <input type="hidden" name="enabled" value={enabled ? "false" : "true"} />
@@ -113,8 +108,6 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
       <DemoForm method="post">
         <section className="cap-panel">
           <div className="cap-panel-body">
-            {/* Recova's top row: the product's name, its active pill while on,
-                its line and the switch, which sends its own form at once. */}
             <SwitchRow
               form={`${id}-toggle`}
               submitOnChange
@@ -178,9 +171,6 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
           </div>
         </section>
 
-        {/* Recova's SaveBar: right-aligned, the result beside the button. While
-            Disputes is off the settings are hidden and a save would post them
-            empty, so Save stays, unusable, and says why. */}
         <SaveBar
           pending={saving}
           saved={result?.ok === true && !result.toggled}

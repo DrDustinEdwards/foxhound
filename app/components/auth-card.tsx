@@ -28,7 +28,6 @@ export function AuthCard({ children }: { children: ReactNode }) {
         data-family="amber"
         data-auth-card=""
       >
-        {/* Recova's card: p-12, its fields 42px tall (py-2.5 at 14px). */}
         <Panel className="fh-auth-panel">
           <div className="fh-auth-inset">{children}</div>
         </Panel>
