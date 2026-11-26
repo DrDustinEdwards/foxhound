@@ -61,9 +61,9 @@ export function securitySection(): FeatureSection {
         product: "Platform",
       },
       {
-        name: "WCAG 2.2 AA, partly met",
+        name: "Accessibility",
         description:
-          "prefers-reduced-motion, prefers-contrast: more, and forced-colors all implemented. The accessibility statement lists what is not yet met.",
+          "Foxhound is built to be accessible and is tested with screen-reader and keyboard tools. If something doesn't work for you, tell us and we'll fix it. prefers-reduced-motion, prefers-contrast: more, and forced-colors are all supported.",
         product: "Platform",
       },
       {
