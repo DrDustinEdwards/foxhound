@@ -148,7 +148,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
   // max-w-[1280px] mx-auto px-4 md:px-8 py-8 md:py-10. The shell owns the page's one <main>, so this is a plain wrapper.
   return (
     <div className="fh-intel-page-tall cap-admin-page" data-width="page">
-      <div className="fh-intel-head">
+      <div className="fh-mb-6">
         <PageHead title={heading} />
         {result.totalCount > 0 ? (
           <p className="fh-customers-count fh-mono fh-small fh-quiet">
@@ -167,7 +167,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
         </div>
       ) : (
         <>
-          <div className="fh-intel-head">
+          <div className="fh-mb-6">
             <CustomerFilters filters={filters} tiers={tiers} />
           </div>
 
@@ -204,7 +204,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                               {c.customerName ?? "(unnamed)"}
                             </Link>
                             {c.chip ? (
-                              <span className="fh-customers-email fh-mono fh-tiny fh-regular fh-quiet">
+                              <span className="fh-ml-3 fh-mono fh-tiny fh-regular fh-quiet">
                                 {c.chip}
                               </span>
                             ) : null}
@@ -287,7 +287,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       )}
 
       {result.totalPages > 1 ? (
-        <div className="fh-pager">
+        <div className="fh-mt-5">
           <Pagination
             form="steps"
             page={result.page}

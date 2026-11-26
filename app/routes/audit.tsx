@@ -70,14 +70,12 @@ export default function AuditPage() {
               <h2 className="fh-audit-title-2 fh-caption fh-medium fh-quiet">
                 What the audit covers
               </h2>
-              <ul className="fh-audit-list">
+              <ul className="fh-mb-7">
                 {COVERS.map(([title, desc]) => (
                   <li key={title} className="fh-audit-item fh-left">
                     <span className="fh-audit-label-2" aria-hidden="true" />
                     <span>
-                      <span className="fh-audit-label-3 fh-line fh-copy fh-medium fh-text">
-                        {title}
-                      </span>
+                      <span className="fh-mb-1 fh-line fh-copy fh-medium fh-text">{title}</span>
                       <span className="fh-line fh-small fh-quiet">{desc}</span>
                     </span>
                   </li>
@@ -93,7 +91,7 @@ export default function AuditPage() {
               >
                 See my numbers
               </ButtonLink>
-              <p className="fh-audit-text-2 fh-small fh-quiet">
+              <p className="fh-mt-3 fh-small fh-quiet">
                 {AUDIT_ACCESS_CHIP}. 30 seconds. No account required.
               </p>
             </div>
@@ -105,7 +103,7 @@ export default function AuditPage() {
         <div className="cap-panel">
           <div className="cap-panel-body">
             <div>
-              <p className="fh-audit-text-3 fh-mono fh-display fh-bold fh-green">
+              <p className="fh-mb-2 fh-mono fh-display fh-bold fh-green">
                 {AUDIT_LOOKBACK_DAYS} days
               </p>
               <p className="fh-caption fh-quiet">of failed invoices the audit reads</p>
@@ -135,7 +133,7 @@ export default function AuditPage() {
                 what the RESULTS page offers afterwards, which is where Recova
                 puts it too. */}
             <div>
-              <p className="fh-audit-text-7 fh-small fh-relaxed fh-soft">
+              <p className="fh-mb-5-5 fh-small fh-relaxed fh-soft">
                 Connect Stripe and Foxhound runs the full audit on the spot: what failed and why,
                 what is expiring, where your disputes stand, and your recurring revenue. No account
                 needed. Foxhound only reads, writes nothing back to Stripe, and disconnects itself
@@ -144,7 +142,7 @@ export default function AuditPage() {
               <ButtonLink to="/audit/connect" variant="primary">
                 Run the free audit
               </ButtonLink>
-              <p className="fh-audit-text-8 fh-mono fh-tiny fh-quiet">
+              <p className="fh-mt-5 fh-mono fh-tiny fh-quiet">
                 No account required &middot; The audit only reads &middot; Nothing is stored
               </p>
             </div>

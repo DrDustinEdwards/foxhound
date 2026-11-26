@@ -66,7 +66,7 @@ export default function DocsIndexPage() {
 
         {/* The support address, so a reader who did not find the answer here
             has the next step on the same page (parity audit, 2026-11-10). */}
-        <p className="fh-docs-text fh-small fh-soft">
+        <p className="fh-mt-6 fh-small fh-soft">
           Not covered here? Email{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`} className={CROSS_LINK}>
             {SUPPORT_EMAIL}
@@ -91,8 +91,8 @@ function GuideCard({ guide }: { guide: DocGuide }) {
     <Link to={`/docs/${guide.slug}`} className="fh-docs-link cap-panel fh-hover-group">
       <div className="cap-panel-body">
         <div>
-          <div className="fh-docs-block-2 fh-item-title fh-medium fh-text">{guide.title}</div>
-          <div className="fh-docs-block-3 fh-small fh-relaxed fh-soft">{guide.description}</div>
+          <div className="fh-mb-3 fh-item-title fh-medium fh-text">{guide.title}</div>
+          <div className="fh-mb-5 fh-small fh-relaxed fh-soft">{guide.description}</div>
           <div className="fh-small fh-brand">
             Read guide <Arrow />
           </div>

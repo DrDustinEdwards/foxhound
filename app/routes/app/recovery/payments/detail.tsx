@@ -274,7 +274,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
         </Link>
         <div className="fh-payment-top">
           <div className="cap-shrink">
-            <div className="cap-cluster fh-payment-badges" data-gap="3">
+            <div className="cap-cluster fh-mb-2" data-gap="3">
               <h1 className="fh-title fh-medium fh-text">
                 {failedPayment.customerName ?? failedPayment.customerEmail}
               </h1>
@@ -308,7 +308,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       <RecommendationBanner prediction={prediction} surface="recovery" nowMs={nowMs} />
 
       {actionResult ? (
-        <div className="fh-payment-block">
+        <div className="fh-mb-5-5">
           <Banner tone={actionResult.tone}>{actionResult.message}</Banner>
         </div>
       ) : null}
@@ -342,7 +342,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
       <RecoveryTimeline steps={steps} nowMs={nowMs} />
 
       {!isDemo ? (
-        <div className="fh-payment-block">
+        <div className="fh-mb-5-5">
           <Panel title="Internal notes">
             <noteFetcher.Form method="post">
               <input type="hidden" name="intent" value="note" />
@@ -354,7 +354,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 placeholder="Add a note"
                 rows={3}
               />
-              <div className="cap-cluster fh-payment-pull-gap" data-gap="4">
+              <div className="cap-cluster fh-mt-4" data-gap="4">
                 <button
                   type="submit"
                   className="cap-btn"
@@ -397,7 +397,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
           {/* Only once Stripe's balance transaction has been read. Billing stays
               on the gross amount above. */}
           {recovery.netAmountCents != null && recovery.netCurrency ? (
-            <span className="fh-payment-tile-note fh-line fh-small fh-soft">
+            <span className="fh-mt-2 fh-line fh-small fh-soft">
               Net after Stripe fees {formatMoney(recovery.netAmountCents, recovery.netCurrency)}
             </span>
           ) : null}

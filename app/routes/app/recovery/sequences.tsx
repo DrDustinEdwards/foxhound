@@ -222,10 +222,10 @@ function CategorySectionView({ section }: { section: CategorySection }) {
   const headingId = useId();
   return (
     <section aria-labelledby={headingId}>
-      <h2 id={headingId} className="fh-sequence-title">
+      <h2 id={headingId} className="fh-mb-2-5">
         <Pill variant="outline">{SEQUENCE_CATEGORY_NAMES[section.category]}</Pill>
       </h2>
-      <p className="fh-sequence-desc fh-small fh-quiet">
+      <p className="fh-mb-4 fh-small fh-quiet">
         {SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}
       </p>
       <div className="cap-stack" data-gap="4">
@@ -243,7 +243,7 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
   return (
     // max-w-[1280px] mx-auto px-4 md:px-8 py-10.
     <div className="fh-sequence cap-admin-page" data-width="page">
-      <div className="fh-sequence-head">
+      <div className="fh-mb-6">
         <PageHead title="Recovery sequence" />
       </div>
 
@@ -253,11 +253,11 @@ export default function RecoverySequences({ loaderData }: Route.ComponentProps) 
         <StatRow performance={performance} />
       )}
 
-      <div className="fh-sequence-banner">
+      <div className="fh-mt-6">
         <StepPerformanceChart chart={performance.chart} />
       </div>
 
-      <div className="cap-stack fh-sequence-list" data-gap="7">
+      <div className="cap-stack fh-mt-7-5" data-gap="7">
         {sections.map((section) => (
           <CategorySectionView key={section.category} section={section} />
         ))}

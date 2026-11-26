@@ -150,14 +150,8 @@
   .fh-blog-text {
     margin-top: var(--space-4);
   }
-  .fh-blog-block-3 {
-    margin-top: var(--space-5);
-  }
   .fh-blog-label {
     opacity: var(--opacity-faint);
-  }
-  .fh-blog-block-4 {
-    margin-top: var(--space-6);
   }
   .fh-blog-link-4,
   .fh-blog-block-5 {
@@ -219,9 +213,6 @@
   .fh-tag-title {
     margin-bottom: var(--space-3);
     letter-spacing: var(--tracking-tight);
-  }
-  .fh-tag-text {
-    margin-bottom: var(--space-7-5);
   }
   .fh-tag-grid {
     display: grid;

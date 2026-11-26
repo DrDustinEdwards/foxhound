@@ -39,7 +39,7 @@ function HeroCard({
       <p className={`fh-mono fh-display fh-medium cap-num ${valueClassName ?? "fh-text"}`}>
         {value}
       </p>
-      <p className="fh-console-sub fh-small fh-quiet">{sub}</p>
+      <p className="fh-mt-2 fh-small fh-quiet">{sub}</p>
     </Panel>
   );
 }

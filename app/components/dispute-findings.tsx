@@ -28,11 +28,11 @@ export function DisputeFindings({
   const subscription = readSubscription(dispute.subscriptionJson);
   const radar = radarWords(dispute.radarRiskScore, dispute.radarRiskLevel);
   return (
-    <div className="fh-dispute-section">
+    <div className="fh-mb-6">
       <Panel title="What Foxhound found">
         <div className="fh-small">
           {findings.fraudDecline ? (
-            <p className="fh-dispute-lede">
+            <p className="fh-mb-4">
               <Status tone="warn">
                 Fraud decline on record ({findings.fraudDecline.code ?? "fraud category"})
               </Status>
@@ -40,7 +40,7 @@ export function DisputeFindings({
           ) : null}
 
           <div className="fh-dispute-group">
-            <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">Customer context</h3>
+            <h3 className="fh-mb-3 fh-tiny fh-medium fh-soft">Customer context</h3>
             <dl className="fh-dispute-facts">
               {dispute.customerName ? <FieldRow label="Name" value={dispute.customerName} /> : null}
               {dispute.customerEmail ? (
@@ -76,10 +76,8 @@ export function DisputeFindings({
 
           {dispute.priorChargesCount !== null && dispute.priorChargesCount > 0 ? (
             <div className="fh-dispute-group">
-              <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">
-                Prior charge history
-              </h3>
-              <p className="fh-dispute-group-title fh-text">
+              <h3 className="fh-mb-3 fh-tiny fh-medium fh-soft">Prior charge history</h3>
+              <p className="fh-mb-3 fh-text">
                 {plural(dispute.priorChargesCount, "prior successful charge")} totaling{" "}
                 {formatMoney(dispute.priorChargesTotal ?? 0, dispute.currency)}
               </p>
@@ -110,9 +108,7 @@ export function DisputeFindings({
 
           {findings.recovery && findings.recovery.emails.length > 0 ? (
             <div className="fh-dispute-group">
-              <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">
-                Recovery email history
-              </h3>
+              <h3 className="fh-mb-3 fh-tiny fh-medium fh-soft">Recovery email history</h3>
               <ul className="fh-dispute-facts">
                 {findings.recovery.emails.map((e) => (
                   <li key={e.id} className="fh-text">
@@ -131,9 +127,7 @@ export function DisputeFindings({
 
           {findings.recovery ? (
             <div className="fh-dispute-context">
-              <h3 className="fh-dispute-group-title fh-tiny fh-quiet fh-caps-wide">
-                Recovery context
-              </h3>
+              <h3 className="fh-mb-3 fh-tiny fh-quiet fh-caps-wide">Recovery context</h3>
               <div className="fh-dispute-facts fh-soft">
                 <div>
                   Decline category:{" "}
@@ -155,8 +149,8 @@ export function DisputeFindings({
           ) : null}
 
           {subscription ? (
-            <div className="fh-dispute-more">
-              <h3 className="fh-dispute-group-title fh-tiny fh-medium fh-soft">Subscription</h3>
+            <div className="fh-mt-5">
+              <h3 className="fh-mb-3 fh-tiny fh-medium fh-soft">Subscription</h3>
               <dl className="fh-dispute-facts">
                 <FieldRow label="Status" value={subscription.status} />
                 {subscription.start_date ? (

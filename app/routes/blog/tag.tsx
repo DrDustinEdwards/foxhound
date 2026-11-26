@@ -58,7 +58,7 @@ export default function BlogTagPage({ loaderData }: Route.ComponentProps) {
       <div className="fh-mk-band-wrap">
         <SectionTrail items={[{ label: "Blog", href: "/blog" }, { label }]} />
         <h1 className="fh-tag-title fh-section fh-medium fh-text">{label}</h1>
-        <p className="fh-tag-text fh-mono fh-small fh-quiet">{plural(posts.length, "article")}</p>
+        <p className="fh-mb-7-5 fh-mono fh-small fh-quiet">{plural(posts.length, "article")}</p>
         {posts.length === 0 ? (
           <p className="fh-body fh-soft">No articles tagged {label} yet.</p>
         ) : (

@@ -9,7 +9,7 @@ import {
 /** Scope card: four bordered cards, two columns from the small breakpoint, each a glyph beside a title and its line. */
 export function AuditScopeCard() {
   return (
-    <div className="fh-auditprev-block">
+    <div className="fh-p-5-5">
       <ul className="fh-mk-doc-cards">
         {AUDIT_SCOPES.map((s) => (
           <li key={s.title} className="cap-panel">
@@ -17,12 +17,12 @@ export function AuditScopeCard() {
               <div className="fh-mk-point-wide">
                 <span
                   aria-hidden="true"
-                  className="fh-auditprev-label fh-mono fh-card-title fh-tight fh-brand"
+                  className="fh-mt-1 fh-mono fh-card-title fh-tight fh-brand"
                 >
                   {s.icon}
                 </span>
                 <div>
-                  <div className="fh-auditprev-block-2 fh-copy fh-medium fh-text">{s.title}</div>
+                  <div className="fh-mb-2 fh-copy fh-medium fh-text">{s.title}</div>
                   <div className="fh-small fh-relaxed fh-soft">{s.desc}</div>
                 </div>
               </div>
@@ -37,8 +37,8 @@ export function AuditScopeCard() {
 /** AI summary preview: a micro label over the summary, figures in mono. */
 export function AISummaryPreview() {
   return (
-    <div className="fh-auditprev-block">
-      <div className="fh-auditprev-block-3 fh-tiny fh-medium fh-quiet fh-caps-wide">AI Summary</div>
+    <div className="fh-p-5-5">
+      <div className="fh-mb-4 fh-tiny fh-medium fh-quiet fh-caps-wide">AI Summary</div>
       <p className="fh-copy fh-relaxed fh-soft">
         {AUDIT_SUMMARY_EXAMPLE.map((part, i) =>
           typeof part === "string" ? (

@@ -53,9 +53,6 @@
       font-size: var(--title-2-5);
     }
   }
-  .fh-pricing-title-3 {
-    margin-bottom: var(--space-3);
-  }
   .fh-pricing-text-3 {
     line-height: var(--leading-relaxed);
   }

@@ -33,9 +33,6 @@
     margin-top: var(--space-5);
     text-align: center;
   }
-  .fh-connect-block {
-    margin-bottom: var(--space-6);
-  }
   .fh-connect-fine {
     margin-top: var(--space-3);
     text-align: center;
@@ -43,9 +40,6 @@
   .fh-auth-form {
     display: grid;
     gap: var(--space-4);
-  }
-  .fh-auth-title-tight {
-    margin-bottom: var(--space-3);
   }
   .fh-invite-actions {
     display: grid;
@@ -152,12 +146,6 @@
     height: 1px;
     flex: 1;
     background-color: var(--line);
-  }
-  .fh-auth-gap {
-    margin-bottom: var(--space-5);
-  }
-  .fh-auth-code {
-    margin-top: var(--space-6);
   }
   .fh-code-input {
     letter-spacing: var(--tracking-sign);

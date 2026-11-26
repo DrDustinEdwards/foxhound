@@ -14,7 +14,7 @@ export function FeatureFilter({
 }) {
   return (
     // The mb-10 sits on a wrapper so the Capsomer group carries no Foxhound class.
-    <div className="fh-feature-filter-block">
+    <div className="fh-mb-7-5">
       <div
         className="fh-mk-chips cap-chips"
         data-variant="solid"

@@ -69,7 +69,7 @@ export default function DeclineCodesIndex() {
                       <div className="fh-codes-block fh-mono fh-small fh-medium fh-text">
                         {code.displayName}
                       </div>
-                      <div className="fh-codes-block-2 fh-mono fh-tiny fh-quiet">{code.code}</div>
+                      <div className="fh-mb-4 fh-mono fh-tiny fh-quiet">{code.code}</div>
                       <div className="fh-small fh-brand">
                         Read more <Arrow />
                       </div>

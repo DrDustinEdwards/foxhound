@@ -193,7 +193,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
 
   return (
     <div className="fh-disputes cap-admin-page" data-width="page">
-      <div className="fh-disputes-head">
+      <div className="fh-mb-7">
         <PageHead title="Dashboard" />
       </div>
 
@@ -292,7 +292,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
       )}
 
       {pagination.pageCount > 1 ? (
-        <div className="fh-pager">
+        <div className="fh-mt-5">
           <Pagination
             page={pagination.page}
             pageCount={pagination.pageCount}

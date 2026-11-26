@@ -236,7 +236,7 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
       ) : (
         <div className="fh-recpanel-pair">
           <div>
-            <h3 className="fh-recpanel-title fh-tiny fh-medium fh-quiet fh-caps">This month</h3>
+            <h3 className="fh-mb-4 fh-tiny fh-medium fh-quiet fh-caps">This month</h3>
             <dl className="cap-stack" data-gap="3">
               <RoiLine label="Recovered" value={formatAmounts(roi.thisMonth.recovered)} />
               <RoiLine
@@ -247,7 +247,7 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
             </dl>
           </div>
           <div>
-            <h3 className="fh-recpanel-title fh-tiny fh-medium fh-quiet fh-caps">All time</h3>
+            <h3 className="fh-mb-4 fh-tiny fh-medium fh-quiet fh-caps">All time</h3>
             <dl className="cap-stack" data-gap="3">
               <RoiLine label="Total recovered" value={formatAmounts(roi.allTime.recovered)} />
               <RoiLine label="Total fees" value={formatAmounts(roi.allTime.fee)} />
@@ -265,7 +265,7 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
     <Panel title={`Win-back attribution · ${w.rangeLabel}`}>
       {w.reactivatedCount === 0 ? (
         <div>
-          <p className="fh-recpanel-title fh-small fh-quiet">No reactivations yet</p>
+          <p className="fh-mb-4 fh-small fh-quiet">No reactivations yet</p>
         </div>
       ) : (
         <div>
@@ -354,7 +354,7 @@ export function DeliverabilityPanel({
   const f = deliverabilityFigures(counts);
   const rate = (pct: number | null) => (pct === null ? "-" : `${pct}%`);
   return (
-    <div className="fh-recpanel-figures">
+    <div className="fh-mb-5-5">
       <Panel title={`Email deliverability · ${rangeLabel}`}>
         {f === null ? (
           <p className="fh-small fh-quiet">No bounces or spam reports in this range.</p>

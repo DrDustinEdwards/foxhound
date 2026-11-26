@@ -58,13 +58,13 @@ export function AlertsSection({
 
   return (
     <section aria-labelledby="alerts-heading" className="fh-alerts">
-      <div className="fh-alerts-head">
+      <div className="fh-mb-6">
         <h2 id="alerts-heading" className="fh-semibold fh-text">
           Alerts
         </h2>
       </div>
 
-      <div className="fh-alerts-head">
+      <div className="fh-mb-6">
         <div className="cap-panel">
           <div className="cap-panel-body">
             {rowError ? (
@@ -182,7 +182,7 @@ export function AlertsSection({
         </div>
       </div>
 
-      <div className="fh-alerts-head">
+      <div className="fh-mb-6">
         <Panel title="Recent triggers">
           {history.length === 0 ? (
             <p className="fh-small fh-quiet">No alerts have fired yet.</p>
@@ -343,7 +343,7 @@ function CreateAlertForm({
                 ]}
               />
               {!hasSlack ? (
-                <p className="fh-alerts-sub fh-tiny fh-quiet">
+                <p className="fh-mt-2 fh-tiny fh-quiet">
                   Add a Slack webhook above and save it first.
                 </p>
               ) : null}
@@ -351,7 +351,7 @@ function CreateAlertForm({
           </div>
 
           {error ? (
-            <div className="fh-alerts-field">
+            <div className="fh-mt-5">
               <Alert tone="crit">{error}</Alert>
             </div>
           ) : null}

@@ -45,10 +45,8 @@ export default function CompareIndex() {
                 <div className="cap-panel-body">
                   <div>
                     <p className="fh-compare-text fh-mono fh-tiny fh-quiet fh-caps">{c.category}</p>
-                    <p className="fh-compare-text-2 fh-body fh-medium fh-text">
-                      Foxhound vs {c.name}
-                    </p>
-                    <p className="fh-compare-text-3 fh-small fh-relaxed fh-soft">{c.oneLiner}</p>
+                    <p className="fh-mb-3 fh-body fh-medium fh-text">Foxhound vs {c.name}</p>
+                    <p className="fh-mb-5 fh-small fh-relaxed fh-soft">{c.oneLiner}</p>
                     <div className="fh-small fh-brand">
                       See the comparison <Arrow />
                     </div>

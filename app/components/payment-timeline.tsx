@@ -16,7 +16,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
   const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
   const executedSteps = steps.filter((s) => s.executedAt !== null);
   return (
-    <div className="fh-payment-block">
+    <div className="fh-mb-5-5">
       <Panel
         title="Recovery timeline"
         src={`${executedSteps.length} of ${steps.length} steps executed`}
@@ -27,7 +27,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
             <p className="fh-small fh-quiet">No recovery steps scheduled</p>
           </div>
         ) : (
-          <ol className="fh-payment-steps">
+          <ol className="fh-py-3">
             {steps.map((step) => {
               const executed = step.executedAt !== null;
               const pending = !executed && step.result === null;
@@ -59,9 +59,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
                       </span>
                     </div>
                     {email && step.aiSubject ? (
-                      <p className="fh-payment-step-subject fh-tiny fh-quiet">
-                        &quot;{step.aiSubject}&quot;
-                      </p>
+                      <p className="fh-mb-2 fh-tiny fh-quiet">&quot;{step.aiSubject}&quot;</p>
                     ) : null}
                     <p className="fh-tiny fh-quiet">
                       {executed
@@ -70,7 +68,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
                     </p>
 
                     {showEngagement || showExpander ? (
-                      <div className="cap-cluster fh-payment-note" data-gap="5">
+                      <div className="cap-cluster fh-mt-3" data-gap="5">
                         {showEngagement ? (
                           <>
                             <span

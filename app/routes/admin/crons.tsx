@@ -194,7 +194,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
         <span className="fh-line fh-mono fh-text">{c.name}</span>
         <span className="fh-line fh-soft">
           {words ?? c.schedule}
-          {words ? <span className="fh-cron-schedule fh-mono fh-quiet">{c.schedule}</span> : null}
+          {words ? <span className="fh-ml-3 fh-mono fh-quiet">{c.schedule}</span> : null}
         </span>
       </th>
       <td data-label="State">
@@ -213,7 +213,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
           <Status tone="nodata">No runs yet</Status>
         )}
         {c.recentFailures.length > 0 ? (
-          <div className="fh-cron-failures">
+          <div className="fh-mt-3">
             <p className="fh-error">{failedRunsWords(c.recentFailures.length)}</p>
             <ul className="cap-stack" data-gap="2">
               {c.recentFailures.map((run) => (

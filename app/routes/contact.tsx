@@ -38,7 +38,7 @@ export default function ContactPage() {
             on business days.
           </p>
           <div>
-            <h2 className="fh-contact-title fh-subhead fh-medium fh-text">What to include</h2>
+            <h2 className="fh-mb-3 fh-subhead fh-medium fh-text">What to include</h2>
             <ul className="fh-contact-list">
               <li>Write from the address you sign in to Foxhound with.</li>
               <li>

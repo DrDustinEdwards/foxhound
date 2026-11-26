@@ -58,7 +58,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
 
   return (
     <div className="fh-console cap-admin-page" data-width="page">
-      <div className="fh-console-head">
+      <div className="fh-mb-6">
         <PageHead title="Console" />
       </div>
 
@@ -66,7 +66,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
       <ConsoleTileRow tiles={consoleView.tiles} nowMs={nowMs} />
       <ConsoleAttentionFeed rows={consoleView.attention} />
 
-      <div className="fh-console-section">
+      <div className="fh-mt-7-5">
         <StatTiles layout="grid" label="Recovery figures">
           <StaticStatTile
             label="Revenue recovered"
@@ -103,7 +103,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
         </StatTiles>
       </div>
 
-      <section className="fh-console-section" aria-labelledby="mrr-analytics">
+      <section className="fh-mt-7-5" aria-labelledby="mrr-analytics">
         <h2 id="mrr-analytics" className="fh-title fh-medium fh-text">
           MRR analytics
         </h2>
@@ -149,7 +149,7 @@ export default function Console({ loaderData }: Route.ComponentProps) {
             ) : null}
           </div>
         ) : (
-          <div className="fh-console-more">
+          <div className="fh-mt-5">
             {/* Foxhound's intelligence-sync writes the first MRR snapshot on its
                 daily run, but only for an account with Stripe connected that
                 is neither paused nor canceled. Only that account is promised

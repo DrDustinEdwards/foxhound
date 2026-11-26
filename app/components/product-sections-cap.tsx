@@ -89,7 +89,7 @@ export function HowItWorks({ steps }: { steps: { title: string; body: React.Reac
   return (
     <section className="fh-product-band-2">
       <div className="fh-mk-wrap-text">
-        <SectionLabel className="fh-product-title-2">How it works</SectionLabel>
+        <SectionLabel className="fh-mb-7-5">How it works</SectionLabel>
         <ProcessSteps steps={steps.map((step) => ({ title: step.title, text: step.body }))} />
       </div>
     </section>
@@ -148,7 +148,7 @@ export function ProductPricing({
   return (
     <section className="fh-product-band-3">
       <div className="fh-mk-lede">
-        <SectionLabel className="fh-product-text">Pricing</SectionLabel>
+        <SectionLabel className="fh-mb-7">Pricing</SectionLabel>
         <PriceGrid>
           <PriceCard
             price={price}
@@ -167,7 +167,7 @@ export function ProductFAQ({ name, faqs }: { name: string; faqs: FaqItem[] }) {
   return (
     <section className="fh-product-band-2">
       <div className="fh-product-wrap-4">
-        <SectionLabel className="fh-product-text">Questions</SectionLabel>
+        <SectionLabel className="fh-mb-7">Questions</SectionLabel>
         <Faq variant="cards" name={name} items={faqs} />
       </div>
     </section>

@@ -81,7 +81,7 @@ export function EarlyFraudWarnings({
   return (
     <section id={EARLY_FRAUD_WARNINGS_ANCHOR} className="fh-warnings" aria-labelledby="efw-heading">
       {result && result !== dismissedResult ? (
-        <div className="fh-warnings-head">
+        <div className="fh-mb-5">
           <Banner tone={result.ok ? "ok" : "crit"} onDismiss={() => setDismissedResult(result)}>
             {result.message}
           </Banner>
@@ -89,7 +89,7 @@ export function EarlyFraudWarnings({
       ) : null}
 
       {pageConfirm ? (
-        <div className="fh-warnings-head">
+        <div className="fh-mb-5">
           <ConfirmPage
             hidden={{ intent: "refund_warning", warning_id: pageConfirm.id }}
             title={`Refund ${formatMoney(pageConfirm.amountCents, pageConfirm.currency)} to ${warningCustomerLabel(pageConfirm)}?`}

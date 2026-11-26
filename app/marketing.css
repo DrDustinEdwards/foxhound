@@ -53,9 +53,6 @@
       padding-inline: var(--space-7);
     }
   }
-  .fh-mkhead-block {
-    margin-bottom: var(--space-6);
-  }
   .fh-mk-big-button {
     padding-inline: var(--space-6);
     --cap-btn-h: 3rem;
@@ -136,9 +133,6 @@
     align-items: flex-start;
     gap: var(--space-3);
   }
-  .fh-contact-title {
-    margin-bottom: var(--space-3);
-  }
   .fh-contact-list {
     list-style-type: disc;
     padding-left: var(--space-5-5);
@@ -200,9 +194,6 @@
   .fh-privacy-title {
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
-  }
-  .fh-trail-gap {
-    margin-bottom: var(--space-7);
   }
   .fh-card-lg {
     --gap: var(--space-6);

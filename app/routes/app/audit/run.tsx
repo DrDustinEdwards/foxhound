@@ -90,7 +90,7 @@ export default function AuditRunPage({ loaderData }: Route.ComponentProps) {
   // max-w-[1280px] mx-auto px-4 md:px-8 py-10. The shell owns the page's one <main>.
   return (
     <div className="fh-auditd-page cap-admin-page" data-width="page">
-      <div className="fh-auditd-block">
+      <div className="fh-mb-5-5">
         <PageHead
           title={`This audit was run on ${formatDate(run.runAt, { style: "medium" }) ?? ""}.`}
           actions={

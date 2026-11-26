@@ -263,7 +263,7 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
         subtitle="Foxhound needs read/write access to retry failed invoices on your behalf. You can disconnect at any time."
       />
       {oauthError || actionData?.error ? (
-        <div className="fh-connect-block">
+        <div className="fh-mb-6">
           <Alert tone="crit">{oauthError ?? actionData?.error}</Alert>
         </div>
       ) : null}

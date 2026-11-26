@@ -252,7 +252,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
 
   return (
     <div className="fh-payments cap-admin-page" data-width="page">
-      <div className="fh-payments-head">
+      <div className="fh-mb-6">
         <PageHead
           title="Payments"
           actions={

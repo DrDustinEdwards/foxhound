@@ -44,7 +44,7 @@ export function BulkResultBanner({
   dismissBulk: () => void;
 }) {
   return (
-    <div className="fh-payments-bulk">
+    <div className="fh-mb-5">
       {isBulkRefusal(shownBulk) ? (
         <Banner tone="crit" onDismiss={dismissBulk}>
           {shownBulk.refused === "empty"
@@ -74,12 +74,12 @@ export function BulkResultBanner({
                         ? (bulkCopy(shownBulk.intent)?.didLabel ?? "Applied")
                         : (bulkCopy(shownBulk.intent)?.didNotLabel ?? "Not applied")}
                     </span>
-                    <span className="fh-payments-gap">{rowLabel(r.id)}</span>
+                    <span className="fh-ml-3">{rowLabel(r.id)}</span>
                     {r.reason ? (
-                      <span className="fh-payments-gap">{BULK_REASON_LABELS[r.reason]}</span>
+                      <span className="fh-ml-3">{BULK_REASON_LABELS[r.reason]}</span>
                     ) : null}
                     {/* The dispatcher's own detail, carried rather than folded. */}
-                    {r.detail ? <span className="fh-payments-gap fh-mono">{r.detail}</span> : null}
+                    {r.detail ? <span className="fh-ml-3 fh-mono">{r.detail}</span> : null}
                   </li>
                 ))}
               </ul>
@@ -192,12 +192,12 @@ export function PaymentsTable({
                       {p.hasNote ? <Pill>note</Pill> : null}
                     </span>
                     {p.customerName ? (
-                      <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-break fh-quiet">
+                      <span className="fh-mt-1 fh-line fh-tiny fh-regular fh-break fh-quiet">
                         {p.customerEmail}
                       </span>
                     ) : null}
                     {p.planName ? (
-                      <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-quiet">
+                      <span className="fh-mt-1 fh-line fh-tiny fh-regular fh-quiet">
                         {p.planName}
                       </span>
                     ) : null}
@@ -210,7 +210,7 @@ export function PaymentsTable({
                   <td data-label="Decline">
                     <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
                     {p.declineCode ? (
-                      <span className="fh-payments-sub fh-line fh-mono fh-tiny fh-break fh-quiet">
+                      <span className="fh-mt-1 fh-line fh-mono fh-tiny fh-break fh-quiet">
                         {p.declineCode}
                       </span>
                     ) : null}
@@ -222,9 +222,7 @@ export function PaymentsTable({
                       {p.steps.completed}/{p.steps.total}
                     </span>
                     {p.steps.next ? (
-                      <span className="fh-payments-sub fh-line fh-tiny fh-brand">
-                        Next: {p.steps.next}
-                      </span>
+                      <span className="fh-mt-1 fh-line fh-tiny fh-brand">Next: {p.steps.next}</span>
                     ) : null}
                   </td>
                   <td data-label="Status">
@@ -238,7 +236,7 @@ export function PaymentsTable({
                         <span className="fh-line fh-nowrap">
                           {relative(toMs(p.detectedAt), nowMs, "UTC")}
                         </span>
-                        <span className="fh-payments-sub fh-line fh-nowrap">
+                        <span className="fh-mt-1 fh-line fh-nowrap">
                           {formatDetectedDate(p.detectedAt)}
                         </span>
                       </span>
@@ -280,7 +278,7 @@ export function PaymentsPager({
   bounds: AmountBounds;
 }) {
   return (
-    <div className="fh-payments-pager">
+    <div className="fh-mt-5">
       <nav className="cap-pagination" aria-label="Payment pages">
         <p className="cap-pagination-status">{showing}</p>
         <ul className="cap-pagination-list">

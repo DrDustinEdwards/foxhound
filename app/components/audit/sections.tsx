@@ -39,7 +39,7 @@ import { plural } from "@drdustinedwards/site-helpers/text";
 export function AuditSummary({ summary }: { summary: string | null }) {
   if (!summary) return null;
   return (
-    <div className="fh-auditsec-text-2">
+    <div className="fh-mb-5-5">
       <Panel title="AI Summary">
         <p className="fh-body fh-relaxed fh-text">{summary}</p>
       </Panel>
@@ -68,7 +68,7 @@ function CardUpdaterRow({ cardUpdater }: { cardUpdater: AuditRunView["cardUpdate
     <div className="fh-auditsec-block-4">
       <div className="fh-tiny fh-soft">{summary}</div>
       {cardUpdater?.advisory ? (
-        <div className="fh-auditsec-block-5">
+        <div className="fh-mt-3">
           <Banner tone="info">{cardUpdater.advisory}</Banner>
         </div>
       ) : null}
@@ -127,7 +127,7 @@ export function AuditRecoverySection({
     (failed?.count ?? 0) > 0 || (expiring?.count ?? 0) > 0 || (pastDue?.count ?? 0) > 0;
 
   return (
-    <div className="fh-auditsec-text-2">
+    <div className="fh-mb-5-5">
       <Panel title="Revenue leaking now" footer={<RecoveryCta state={ctaState} />}>
         {!anyData && !anyUnread ? (
           <NoneDetected />
@@ -217,7 +217,7 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
   return (
     <>
       <div className="fh-auditsec-block-9" />
-      <div className="fh-auditsec-block-2">
+      <div className="fh-mb-3">
         <div className="fh-mk-kicker fh-tiny fh-quiet">Recoverable estimate</div>
         <div className="fh-mono fh-title fh-bold fh-success">
           <Lines lines={formatTotals(shown, currency)} />
@@ -259,7 +259,7 @@ export function AuditHealthSection({
       health.involuntaryChurnRateBps > 0);
 
   return (
-    <div className="fh-auditsec-text-2">
+    <div className="fh-mb-5-5">
       <Panel title="Business snapshot">
         {health === null ? (
           <Unread label="Subscriptions" />

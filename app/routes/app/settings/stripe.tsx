@@ -197,7 +197,7 @@ function StripeSection({
     <section className="cap-panel">
       <div className="cap-panel-body">
         {feedback?.kind === "warning" ? (
-          <div className="fh-stripe-head">
+          <div className="fh-mb-4">
             <Alert tone="warn">{feedback.message}</Alert>
           </div>
         ) : null}
@@ -225,7 +225,7 @@ function StripeSection({
                   <div className="cap-panel-body">
                     <div className="fh-setting-row">
                       <div>
-                        <div className="fh-setting-label fh-small fh-text">{label}</div>
+                        <div className="fh-mb-1 fh-small fh-text">{label}</div>
                         {connected ? <div className="fh-tiny fh-quiet">{connected}</div> : null}
                       </div>
                       {isOwner ? (
@@ -267,7 +267,7 @@ function StripeSection({
                       )}
                     </div>
                     {conn.healthWarning?.length ? (
-                      <div className="fh-stripe-more">
+                      <div className="fh-mt-4">
                         <Alert
                           tone="warn"
                           title="Your Stripe account needs attention."

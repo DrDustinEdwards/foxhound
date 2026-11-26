@@ -1,17 +1,5 @@
 /* The parts only the product pages, their hub and the demos page use. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
-  .fh-auditprev-block {
-    padding: var(--space-5-5);
-  }
-  .fh-auditprev-label {
-    margin-top: var(--space-1);
-  }
-  .fh-auditprev-block-2 {
-    margin-bottom: var(--space-2);
-  }
-  .fh-auditprev-block-3 {
-    margin-bottom: var(--space-4);
-  }
   .fh-auditprev-block-4 {
     overflow: hidden;
   }
@@ -33,12 +21,6 @@
   .fh-dispprev-block {
     --tiles-columns: repeat(2, minmax(0, 1fr));
   }
-  .fh-dispprev-block-2 {
-    padding: var(--space-5-5);
-  }
-  .fh-dispprev-block-3 {
-    margin-bottom: var(--space-7);
-  }
   .fh-intelprev-col {
     display: flex;
     flex-direction: column;
@@ -53,9 +35,6 @@
       --tiles-columns: repeat(4, minmax(0, 1fr));
     }
   }
-  .fh-intelprev-block-2 {
-    padding: var(--space-5-5);
-  }
   .fh-intelprev-grid {
     display: grid;
     grid-template-columns: repeat(1, minmax(0, 1fr));
@@ -69,9 +48,6 @@
   .fh-intelprev-text {
     margin-bottom: var(--space-2);
   }
-  .fh-intelprev-text-2 {
-    margin-top: var(--space-1);
-  }
   .fh-product-band {
     border-bottom: var(--line-w) solid var(--line);
     padding: var(--space-9-5) var(--space-5-5);
@@ -82,9 +58,6 @@
     .fh-product-band {
       padding-inline: var(--space-7);
     }
-  }
-  .fh-product-text {
-    margin-bottom: var(--space-7);
   }
   .fh-product-band-2 {
     border-bottom: var(--line-w) solid var(--line);
@@ -99,9 +72,6 @@
     .fh-product-band-2 {
       padding-inline: var(--space-7);
     }
-  }
-  .fh-product-title-2 {
-    margin-bottom: var(--space-7-5);
   }
   .fh-product-block-3 {
     margin-bottom: var(--space-9);
@@ -167,12 +137,6 @@
   }
   .fh-products-block {
     margin-bottom: var(--space-3);
-  }
-  .fh-products-block-2 {
-    margin-bottom: var(--space-4);
-  }
-  .fh-products-block-3 {
-    margin-bottom: var(--space-5);
   }
   @media (width >= 48rem) {
     .fh-dispprev-tiles-5 {

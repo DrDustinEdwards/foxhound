@@ -196,7 +196,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
-            <div className="fh-email-block">
+            <div className="fh-mb-5-5">
               <TextField
                 announce
                 name="senderName"
@@ -209,7 +209,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
               />
             </div>
 
-            <div className="fh-email-group">
+            <div className="fh-mb-6">
               {/* Recova puts help under the control. */}
               <TextField
                 announce
@@ -252,7 +252,7 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
       {/* The recovery emails card, once /settings/features. */}
       <DemoForm method="post" className="fh-email-sequence">
         <input type="hidden" name="_action" value="features" />
-        <h2 className="fh-email-sequence-title fh-semibold fh-text">Recovery emails</h2>
+        <h2 className="fh-mb-4 fh-semibold fh-text">Recovery emails</h2>
         <section className="cap-panel">
           <div className="cap-panel-body">
             <SwitchRow

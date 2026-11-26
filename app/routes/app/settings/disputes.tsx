@@ -140,13 +140,10 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                 />
 
                 <div className="fh-dispute-setting">
-                  <label
-                    htmlFor={`${id}-description`}
-                    className="fh-setting-label fh-line fh-small fh-text"
-                  >
+                  <label htmlFor={`${id}-description`} className="fh-mb-1 fh-line fh-small fh-text">
                     Product description
                   </label>
-                  <p id={descriptionHelpId} className="fh-dispute-help fh-tiny fh-quiet">
+                  <p id={descriptionHelpId} className="fh-mb-3 fh-tiny fh-quiet">
                     Used in all dispute responses.
                   </p>
                   <textarea

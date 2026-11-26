@@ -10,9 +10,6 @@
       padding-inline: var(--space-7);
     }
   }
-  .fh-intel-head {
-    margin-bottom: var(--space-6);
-  }
   .fh-churn-bands {
     margin-bottom: var(--space-6);
   }
@@ -31,12 +28,6 @@
     .fh-customer {
       padding-inline: var(--space-7);
     }
-  }
-  .fh-customer-back {
-    margin-bottom: var(--space-5);
-  }
-  .fh-customer-links {
-    margin-bottom: var(--space-5-5);
   }
   .fh-customer-id-link {
     display: inline-flex;
@@ -86,9 +77,6 @@
       grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
-  .fh-customer-note {
-    margin-top: var(--space-4);
-  }
   .fh-customer-scope {
     margin-top: var(--space-5-5);
     margin-bottom: var(--space-3);
@@ -107,9 +95,6 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: var(--space-4);
-  }
-  .fh-customer-sub {
-    margin-top: var(--space-2);
   }
   .fh-customer-score-row {
     display: flex;
@@ -142,12 +127,6 @@
   }
   .fh-customer-section {
     margin-top: var(--space-7);
-  }
-  .fh-customer-section-lede {
-    margin-top: var(--space-3);
-  }
-  .fh-customer-list {
-    margin-top: var(--space-4);
   }
   .fh-customer-factor {
     display: flex;
@@ -186,9 +165,6 @@
       color: var(--accent-hover);
     }
   }
-  .fh-customers-email {
-    margin-left: var(--space-3);
-  }
   .fh-customers-flag {
     display: flex;
     align-items: center;
@@ -201,16 +177,9 @@
     border-radius: calc(infinity * var(--radius-hair));
     background-color: var(--red);
   }
-  /* The page links under a paged list. */
-  .fh-pager {
-    margin-top: var(--space-5);
-  }
   .fh-customers-foot {
     margin-top: var(--space-7);
     margin-bottom: 0px;
-  }
-  .fh-intel-section {
-    margin-top: var(--space-7);
   }
   .fh-intel-table-wrap {
     margin-top: var(--space-4);
@@ -263,12 +232,6 @@
     border-style: dashed;
     border-color: var(--line);
     padding: var(--space-6);
-  }
-  .fh-reports-list {
-    margin-top: var(--space-6);
-  }
-  .fh-reports-line {
-    margin-top: var(--space-3);
   }
   .fh-list-page {
     margin-inline: auto;

@@ -168,7 +168,7 @@ export function PaymentTiles({
         <p className="fh-title fh-bold fh-text">
           {relative(toMs(failedPayment.detectedAt), nowMs, "UTC")}
         </p>
-        <p className="fh-payment-tile-note fh-tiny fh-quiet">
+        <p className="fh-mt-2 fh-tiny fh-quiet">
           {formatDate(failedPayment.detectedAt, { style: "monthDay" }) ?? ""}
         </p>
       </Panel>
@@ -178,7 +178,7 @@ export function PaymentTiles({
         </p>
         {/* Recova shows no subtext below two recovered payments. */}
         {estimatedLtvCents != null ? (
-          <p className="fh-payment-tile-note fh-tiny fh-quiet">
+          <p className="fh-mt-2 fh-tiny fh-quiet">
             ~{formatMoney(Math.round(estimatedLtvCents), failedPayment.currency)} est. LTV
           </p>
         ) : null}
@@ -302,7 +302,7 @@ export function OutcomePanel({ recovery, steps }: { recovery: Recovery; steps: S
     <div className="fh-payment-outcome">
       <h2 className="fh-mono fh-tiny fh-brand fh-caps">Outcome</h2>
       {recovery ? (
-        <div className="cap-stack fh-payment-note" data-gap="3">
+        <div className="cap-stack fh-mt-3" data-gap="3">
           <div className="cap-cluster" data-gap="3">
             <Pill tone={PILL_TONE[recoveryLifecycleTone(recovery)]}>
               {RECOVERY_LIFECYCLE_LABELS[recoveryLifecycleStatus(recovery)]}

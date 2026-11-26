@@ -34,9 +34,7 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
               {formatDate(invoice.periodStart, { style: "medium" }) ?? ""} -{" "}
               {formatDate(invoice.periodEnd, { style: "medium" }) ?? ""}
             </h1>
-            <p className="fh-invoice-currency fh-small fh-quiet">
-              {invoice.currency.toUpperCase()}
-            </p>
+            <p className="fh-mt-2 fh-small fh-quiet">{invoice.currency.toUpperCase()}</p>
           </div>
           <p className="fh-mono fh-title fh-text">
             {formatMoney(invoice.totalCents, invoice.currency)}
@@ -54,10 +52,10 @@ export default function BillingInvoice({ loaderData }: Route.ComponentProps) {
         </div>
       </div>
 
-      <div className="fh-box fh-invoice-lines">
+      <div className="fh-box fh-mt-6">
         <p className="fh-mono fh-tiny fh-quiet fh-caps">Line items</p>
         {lineItems.length === 0 ? (
-          <p className="fh-invoice-empty fh-small fh-quiet">No line items on this invoice.</p>
+          <p className="fh-mt-3 fh-small fh-quiet">No line items on this invoice.</p>
         ) : (
           <ol className="fh-invoice-list">
             {lineItems.map((entry) => (

@@ -50,7 +50,7 @@ function AuditScopes() {
     [iconActivity, "Business health", "MRR, ARR, active subscriptions, and churn rate"],
   ];
   return (
-    <div className="fh-doc-widgets-block-3">
+    <div className="fh-my-6">
       <FeatureGrid
         items={scopes.map(([icon, title, text]) => ({
           icon: <Icon d={icon} className="fh-icon-175" />,
@@ -76,7 +76,7 @@ const STATUS_PILL: Record<
 
 function PaymentStatuses() {
   return (
-    <div className="fh-doc-widgets-block-2 cap-panel">
+    <div className="fh-my-5 cap-panel">
       <div className="cap-panel-body">
         <ul className="fh-doc-widgets-list">
           {Object.entries(FAILED_PAYMENT_STATUS_LABELS).map(([key, label]) => {
@@ -145,7 +145,7 @@ function DeclineCategories() {
 /** One SequenceTimeline per category, from RECOVERY_SCHEDULES through the same part /product/recovery draws, so the guide and the product page cannot disagree. Silent retry first where the category allows a retry at all. */
 function SequenceTimelines() {
   return (
-    <div className="cap-stack fh-doc-widgets-block-3" data-gap="4">
+    <div className="cap-stack fh-my-6" data-gap="4">
       {(Object.keys(RECOVERY_SCHEDULES) as DeclineCategory[]).map((category) => (
         <SequenceSteps key={category} category={category} />
       ))}
@@ -157,7 +157,7 @@ function SequenceTimelines() {
 function PaymentTimeline() {
   const steps = RECOVERY_SCHEDULES.soft;
   return (
-    <div className="fh-doc-widgets-block-3 cap-panel">
+    <div className="fh-my-6 cap-panel">
       <div className="cap-panel-body" data-flush>
         <div className="fh-doc-widgets-row">
           <span className="fh-small fh-medium fh-text">Example: a soft decline</span>
@@ -193,7 +193,7 @@ function PaymentTimeline() {
 function HealthBands() {
   const last = WATCH_CEILING - 1;
   return (
-    <div className="fh-doc-widgets-block-3">
+    <div className="fh-my-6">
       <StatTiles label="Health bands">
         <StatTile
           label="Health score"
@@ -242,7 +242,7 @@ function CustomerColumns() {
     ["Signals", "Marks for an active recovery and a dispute history."],
   ];
   return (
-    <Table caption="Customers page columns" captionHidden reflow className="fh-doc-widgets-block-3">
+    <Table caption="Customers page columns" captionHidden reflow className="fh-my-6">
       <thead>
         <tr>
           <th scope="col">Column</th>
@@ -274,7 +274,7 @@ function DisputeStates() {
       "An inquiry Stripe closed with no chargeback. Nothing was won or lost, and nothing is billed.",
   };
   return (
-    <div className="fh-doc-widgets-block-3">
+    <div className="fh-my-6">
       <ProcessSteps
         layout="rows"
         headingLevel="p"

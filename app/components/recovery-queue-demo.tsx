@@ -55,7 +55,7 @@ function Stat({
 }) {
   return (
     <div className="fh-queue-block">
-      <div className="fh-label fh-queue-block-2 fh-queue-label-text">{label}</div>
+      <div className="fh-label fh-mb-2 fh-queue-label-text">{label}</div>
       <div className={statValueClass(tone)} data-queue-stat={name}>
         {value}
       </div>
@@ -136,10 +136,7 @@ export function RecoveryQueueDemo() {
         </ol>
 
         <div className="fh-queue-block-7">
-          <div
-            className="fh-queue-block-8 fh-mono fh-tiny fh-quiet fh-caps-wide"
-            data-queue-sequence=""
-          >
+          <div className="fh-mb-3 fh-mono fh-tiny fh-quiet fh-caps-wide" data-queue-sequence="">
             {`${activePayment.name} sequence`}
           </div>
           <div className="fh-mk-inline">

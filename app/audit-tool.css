@@ -42,9 +42,6 @@
     letter-spacing: var(--tracking-widest);
     text-transform: uppercase;
   }
-  .fh-audit-list {
-    margin-bottom: var(--space-7);
-  }
   .fh-audit-item {
     margin-bottom: var(--space-4);
     display: flex;
@@ -59,16 +56,10 @@
     border-radius: calc(infinity * var(--radius-hair));
     background-color: var(--accent);
   }
-  .fh-audit-label-3 {
-    margin-bottom: var(--space-1);
-  }
   .fh-audit-link {
     border-radius: 10px;
     --cap-btn-fs: var(--title-6);
     --cap-btn-h: 3.5rem;
-  }
-  .fh-audit-text-2 {
-    margin-top: var(--space-3);
   }
   .fh-audit-grid-4 {
     margin-block: var(--space-7-5);
@@ -77,9 +68,6 @@
     .fh-audit-grid-4 {
       grid-template-columns: repeat(2, minmax(0, 1fr));
     }
-  }
-  .fh-audit-text-3 {
-    margin-bottom: var(--space-2);
   }
   .fh-audit-text-4 {
     margin-bottom: var(--space-2);
@@ -100,12 +88,6 @@
     margin-top: var(--space-7-5);
     display: grid;
   }
-  .fh-audit-text-7 {
-    margin-bottom: var(--space-5-5);
-  }
-  .fh-audit-text-8 {
-    margin-top: var(--space-5);
-  }
   .fh-auditconnect-row {
     display: flex;
     align-items: center;
@@ -119,14 +101,8 @@
   .fh-auditconnect-block-2 {
     padding: var(--space-7) var(--space-7);
   }
-  .fh-auditconnect-title {
-    margin-bottom: var(--space-3);
-  }
   .fh-auditconnect-text {
     margin-bottom: var(--space-7);
-  }
-  .fh-auditconnect-block-3 {
-    margin-bottom: var(--space-6);
   }
   .fh-auditconnect-grid {
     margin-bottom: var(--space-6);
@@ -137,23 +113,8 @@
     background-color: var(--ground);
     padding: var(--space-5);
   }
-  .fh-auditconnect-text-2 {
-    margin-top: var(--space-5);
-  }
-  .fh-results-text-2 {
-    margin-top: var(--space-3);
-  }
-  .fh-results-text-3 {
-    margin-top: var(--space-2);
-  }
   .fh-results-block {
     min-width: 0px;
     padding-block: var(--space-7-5);
-  }
-  .fh-results-block-2 {
-    margin-bottom: var(--space-6);
-  }
-  .fh-results-block-3 {
-    margin-bottom: var(--space-3);
   }
 }

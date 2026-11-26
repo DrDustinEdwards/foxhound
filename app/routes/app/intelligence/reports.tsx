@@ -27,12 +27,12 @@ export default function IntelligenceReportsPage({ loaderData }: Route.ComponentP
       {reports.length === 0 ? (
         <p className="fh-empty-box fh-body fh-quiet">No reports yet.</p>
       ) : (
-        <ol className="cap-stack fh-reports-list" data-gap="5">
+        <ol className="cap-stack fh-mt-6" data-gap="5">
           {reports.map((r) => (
             <li key={r.id} className="fh-box">
               <p className="fh-mono fh-tiny fh-quiet fh-caps">{monthLabel(r.reportMonth)}</p>
-              <p className="fh-reports-line fh-body fh-text">{r.narrative}</p>
-              <p className="fh-reports-line fh-tiny fh-quiet">
+              <p className="fh-mt-3 fh-body fh-text">{r.narrative}</p>
+              <p className="fh-mt-3 fh-tiny fh-quiet">
                 Generated {formatDate(r.generatedAt, { style: "medium" }) ?? ""}
               </p>
             </li>

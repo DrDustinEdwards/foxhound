@@ -1,11 +1,5 @@
 /* The parts only the features page uses. In the site layer (app.css), after the public pages' shared parts (marketing.css). */
 @layer site {
-  .fh-feature-filter-block {
-    margin-bottom: var(--space-7-5);
-  }
-  .fh-features-block-2 {
-    margin-block: var(--space-5);
-  }
   .fh-features-row {
     margin-block: var(--space-6);
     display: flex;
@@ -44,12 +38,6 @@
     /* Feature cards: p-4, two to a row. */
     --pad-card: var(--space-5);
     --cap-feature-card-min: 22rem;
-  }
-  .fh-features-block-5 {
-    margin-bottom: var(--space-6);
-  }
-  .fh-features-title {
-    margin-bottom: var(--space-2);
   }
   .fh-features-block-6 {
     margin-top: var(--space-10);

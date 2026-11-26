@@ -263,19 +263,19 @@ export default function Team({ loaderData, actionData }: Route.ComponentProps) {
                 }
               />
               {removeResult?.error ? (
-                <div className="fh-field-gap">
+                <div className="fh-mt-3">
                   <Alert tone="crit">{removeResult.error}</Alert>
                 </div>
               ) : null}
               {inviteResult?.inviteUrl ? (
-                <div className="fh-field-gap">
+                <div className="fh-mt-3">
                   <Banner tone="ok">
                     Invited {inviteResult.invited}. Share this link: {inviteResult.inviteUrl}
                   </Banner>
                 </div>
               ) : null}
               {inviteResult && "emailError" in inviteResult && inviteResult.emailError ? (
-                <div className="fh-field-gap">
+                <div className="fh-mt-3">
                   <Alert tone="crit">{inviteResult.emailError}</Alert>
                 </div>
               ) : null}

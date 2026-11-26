@@ -13,7 +13,7 @@ export function MarketingPageHeader({
 }) {
   return (
     <div className="fh-mkhead-wrap">
-      {trail ? <SectionTrail items={trail} className="fh-mkhead-block" /> : null}
+      {trail ? <SectionTrail items={trail} className="fh-mb-6" /> : null}
       <div className="cap-reveal-stack">
         <h1 className="fh-mk-heading fh-page-title fh-medium fh-text">{title}</h1>
         {subtext ? <p className="fh-mk-measure fh-subhead fh-relaxed fh-soft">{subtext}</p> : null}

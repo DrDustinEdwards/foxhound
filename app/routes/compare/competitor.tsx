@@ -86,12 +86,10 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
           </tbody>
         </Table>
 
-        <section className={`fh-rival-band ${CARD_MD}`}>
+        <section className={`fh-mb-7-5 ${CARD_MD}`}>
           <div className="cap-panel-body">
             <div>
-              <h2 className="fh-rival-title fh-title fh-medium fh-text">
-                Where Foxhound is behind
-              </h2>
+              <h2 className="fh-mb-4 fh-title fh-medium fh-text">Where Foxhound is behind</h2>
               <ul className="fh-rival-list fh-small fh-relaxed fh-soft">
                 {competitor.foxhoundCons.map((con) => (
                   <li key={con} className="fh-mk-point">
@@ -115,16 +113,14 @@ export default function ComparePage({ loaderData }: Route.ComponentProps) {
         ) : null}
 
         {competitor.omittedNote ? (
-          <p className="fh-rival-band fh-small fh-quiet">{competitor.omittedNote}</p>
+          <p className="fh-mb-7-5 fh-small fh-quiet">{competitor.omittedNote}</p>
         ) : null}
 
         <div className={`${CARD} fh-center`}>
           <div className="cap-panel-body">
             <div>
-              <p className="fh-rival-text-2 fh-body fh-medium fh-text">
-                See Foxhound's pricing in full
-              </p>
-              <p className="fh-rival-text-3 fh-small fh-soft">
+              <p className="fh-mb-3 fh-body fh-medium fh-text">See Foxhound's pricing in full</p>
+              <p className="fh-mb-5-5 fh-small fh-soft">
                 {RECOVERY_FEE_PERCENT}% of Foxhound-attributed recoveries, {DISPUTE_FEE_PERCENT}% of
                 won disputes with a cap, and Intelligence free. No fee until a recovery has matured{" "}
                 {RECOVERY_MATURITY_DAYS} days.

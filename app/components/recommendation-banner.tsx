@@ -18,7 +18,7 @@ export function RecommendationBanner({
   prediction,
   surface,
   nowMs,
-  className = "fh-rec-gap",
+  className = "fh-mb-6",
 }: {
   prediction: { result: CustomerRecommendation; currency: string } | null;
   surface: BannerSurface;
@@ -43,15 +43,13 @@ export function RecommendationBanner({
         // body, not children: children sit inside Capsomer's p.cap-banner-text, and these three paragraphs inside a p are invalid HTML the browser splits apart, so hydration found a different tree (React error 418).
         body={
           <>
-            <p className="fh-rec-why fh-small fh-text">{p.recommendation.rationale}</p>
+            <p className="fh-mb-3 fh-small fh-text">{p.recommendation.rationale}</p>
             <p className="fh-rec-facts fh-tiny fh-soft">
               <span>{engagementEvidence(p.engagement, nowMs)}</span>
               <span>{historyEvidence(p.history)}</span>
               <span>{valueEvidence(p.value, prediction.currency)}</span>
             </p>
-            <p className="fh-rec-note fh-tiny fh-quiet">
-              Confidence: {p.recommendation.confidence}
-            </p>
+            <p className="fh-mt-3 fh-tiny fh-quiet">Confidence: {p.recommendation.confidence}</p>
           </>
         }
       />

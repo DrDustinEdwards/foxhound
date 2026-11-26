@@ -104,18 +104,18 @@ export default function Help({ loaderData }: Route.ComponentProps) {
   // A div, not a main: AdminShell owns the page's one main landmark. The 720px column and its padding are the page layout.
   return (
     <div className="fh-help">
-      <div className="fh-help-head">
+      <div className="fh-mb-7">
         <PageHead title="Help" />
       </div>
 
       {/* Section 1: Quick answers. Prose, so no shared component: a heading and
           its answer on the five text sizes. */}
-      <section className="fh-help-section">
+      <section className="fh-mb-8">
         <h2 className={SECTION_LABEL}>Common questions</h2>
         <div className="fh-help-faq">
           {QUICK_ANSWERS.map((item) => (
             <div key={item.q}>
-              <h3 className="fh-help-question fh-body fh-medium fh-text">{item.q}</h3>
+              <h3 className="fh-mb-2 fh-body fh-medium fh-text">{item.q}</h3>
               <p className="fh-body fh-relaxed fh-soft">{item.a}</p>
             </div>
           ))}
@@ -123,7 +123,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
       </section>
 
       {/* Section 2: Docs by product, one row per guide. */}
-      <section className="fh-help-section">
+      <section className="fh-mb-8">
         <h2 className={SECTION_LABEL}>Guides</h2>
         <RowList label="Guides" gap="xs">
           {[PLATFORM_GUIDE, ...PRODUCT_GUIDES].map((guide) => (
@@ -143,10 +143,10 @@ export default function Help({ loaderData }: Route.ComponentProps) {
           Capsomer table in its named scroll region, flush to the panel's
           edges. Each cron's name is its row header, so a screen reader hears
           the job with its time and its status. */}
-      <section className="fh-help-section">
+      <section className="fh-mb-8">
         <h2 className={SECTION_LABEL}>Platform status</h2>
 
-        <div className="fh-help-contact">
+        <div className="fh-mb-5">
           <StatusTable
             title="Background jobs"
             headingId="help-background-jobs"
@@ -205,7 +205,7 @@ export default function Help({ loaderData }: Route.ComponentProps) {
 }
 
 /** The micro uppercase section label, on the five text sizes. A page heading style, not a shared component. */
-const SECTION_LABEL = "fh-help-label fh-tiny fh-medium fh-caps-wide fh-quiet";
+const SECTION_LABEL = "fh-mb-6 fh-tiny fh-medium fh-caps-wide fh-quiet";
 
 /** The four cron states on Capsomer's status tones. Capsomer's Status says it as a glyph, a word and a color together: the word is the accessible text and color is never the only cue. Pending is Capsomer's neutral no-data tone, for a cron that has never run (a sentinel, not a level). */
 const CRON_TONE: Record<CronDisplayStatus, { tone: StatusTone; word: string }> = {

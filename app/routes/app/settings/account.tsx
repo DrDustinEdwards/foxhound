@@ -333,17 +333,17 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
 
   return (
     <SettingsLayout renderLink={routerRenderLink} title="My account">
-      <div className="fh-account-top">
+      <div className="fh-mb-7-5">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
       </div>
 
       <Appearance initial={theme ?? DEFAULT_THEME} isDemo={Boolean(isDemo)} />
 
-      <div className="fh-account-part">
+      <div className="fh-mt-7-5">
         <SignInMethodsPanel initial={loaderData.signIn} isDemo={Boolean(isDemo)} />
       </div>
 
-      <div className="fh-account-part">
+      <div className="fh-mt-7-5">
         <section className="cap-panel">
           <div className="cap-panel-body">
             <SignedIn userEmail={userEmail} />

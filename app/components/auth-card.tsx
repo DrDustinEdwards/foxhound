@@ -290,7 +290,7 @@ export function SignInLinkForm({
   return (
     <Form method="post">
       {next ? <input type="hidden" name="next" value={next} /> : null}
-      <div className="fh-auth-gap">
+      <div className="fh-mb-5">
         <AuthField
           id={`${idPrefix}-email`}
           errorId={errorId}
@@ -300,9 +300,9 @@ export function SignInLinkForm({
           autoComplete="username webauthn"
         />
       </div>
-      {turnstileSiteKey ? <div ref={widget} className="fh-auth-gap" /> : null}
+      {turnstileSiteKey ? <div ref={widget} className="fh-mb-5" /> : null}
       {error ? (
-        <div id={errorId} className="fh-auth-gap">
+        <div id={errorId} className="fh-mb-5">
           <Alert tone="crit">{error}</Alert>
         </div>
       ) : null}
@@ -345,12 +345,12 @@ export function SignInLinkSent({
         We sent a sign-in link and a code to {email}. They work once and expire in{" "}
         {SIGN_IN_EXPIRES_IN_WORDS}.
       </Banner>
-      <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="fh-auth-code">
+      <Form method="post" action={`?${SIGN_IN_CODE_QUERY}`} className="fh-mt-6">
         {/* site-runtime ./sign-in-form SIGN_IN_INTENT: signInFormAction reads a typed code by it. */}
         <input type="hidden" name="intent" value="code" />
         <input type="hidden" name="email" value={email} />
         {next ? <input type="hidden" name="next" value={next} /> : null}
-        <div className="fh-auth-gap cap-field">
+        <div className="fh-mb-5 cap-field">
           <label className="cap-field-label fh-regular fh-quiet" htmlFor={`${idPrefix}-code`}>
             <span className="fh-small">Or enter the code from the email</span>
           </label>
@@ -369,7 +369,7 @@ export function SignInLinkSent({
           />
         </div>
         {error ? (
-          <div id={errorId} className="fh-auth-gap">
+          <div id={errorId} className="fh-mb-5">
             <Alert tone="crit">{error}</Alert>
           </div>
         ) : null}

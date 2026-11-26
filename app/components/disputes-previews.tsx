@@ -57,7 +57,7 @@ function DisputeStatCards({ preview, columns }: { preview: DisputesPreview; colu
 /** Block 2: the stat cards on their own. */
 export function NumbersPreview({ preview }: { preview: DisputesPreview }) {
   return (
-    <div className="fh-dispprev-block-2">
+    <div className="fh-p-5-5">
       <DisputeStatCards preview={preview} columns={3} />
     </div>
   );
@@ -77,8 +77,8 @@ function DeadlineDays({ row }: { row: PreviewDisputeRow }) {
 /** Block 1: the disputes dashboard, the five cards over the table. */
 export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
   return (
-    <div className="fh-dispprev-block-2">
-      <div className="fh-dispprev-block-3">
+    <div className="fh-p-5-5">
+      <div className="fh-mb-7">
         <DisputeStatCards preview={preview} columns={5} />
       </div>
       <div className="cap-panel">
@@ -129,7 +129,7 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
 /** Block 3: the dispute table, with the deadline as a date. */
 export function DisputeTablePreview({ preview }: { preview: DisputesPreview }) {
   return (
-    <div className="fh-dispprev-block-2">
+    <div className="fh-p-5-5">
       <Table caption="Disputes and their evidence deadlines" captionHidden reflow>
         <thead>
           <tr>

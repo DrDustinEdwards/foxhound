@@ -173,7 +173,7 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
           </div>
         </section>
 
-        <div className="fh-voice-preview">
+        <div className="fh-mt-6">
           <Panel
             title="Sample emails"
             meta="Two to five you wrote yourself. Leave out card numbers and anything private: the AI reads them."

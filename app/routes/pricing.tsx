@@ -111,9 +111,7 @@ export default function PricingPage() {
               <li key={faq.question} className={CARD}>
                 <div className="cap-panel-body">
                   <div>
-                    <h3 className="fh-pricing-title-3 fh-item-title fh-medium fh-text">
-                      {faq.question}
-                    </h3>
+                    <h3 className="fh-mb-3 fh-item-title fh-medium fh-text">{faq.question}</h3>
                     <p className="fh-pricing-text-3 fh-copy fh-soft">{faq.answer}</p>
                   </div>
                 </div>

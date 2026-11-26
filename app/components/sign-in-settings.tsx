@@ -122,7 +122,7 @@ export function SignInMethodsPanel({
   return (
     <section className="cap-panel">
       <div className="cap-panel-body">
-        <h2 className="fh-signin-title fh-small fh-semibold fh-text">Sign-in</h2>
+        <h2 className="fh-mb-4 fh-small fh-semibold fh-text">Sign-in</h2>
 
         {initial.passkeys.length > 0 ? (
           <ul className="fh-signin-list">
@@ -162,7 +162,7 @@ export function SignInMethodsPanel({
           </ul>
         ) : null}
         {needsSecondPasskey(initial.passkeys) ? (
-          <div className="fh-field-block">
+          <div className="fh-mb-5">
             {/* A9: one passkey is one device; losing it leaves only the email link. */}
             <Alert tone="info" title="Add a second passkey">
               Your only passkey is on one device. Add one on another device too, such as your phone
@@ -236,8 +236,8 @@ export function SignInMethodsPanel({
 
         {initial.devices === "stale" ? (
           <div className="fh-settings-group">
-            <h3 className="fh-signin-title fh-small fh-semibold fh-text">Signed-in devices</h3>
-            <p className="fh-signin-note fh-small fh-quiet">
+            <h3 className="fh-mb-4 fh-small fh-semibold fh-text">Signed-in devices</h3>
+            <p className="fh-mb-4 fh-small fh-quiet">
               Sign in again to see where you are signed in.
             </p>
             <Button size="sm" onClick={signInAgain}>
@@ -246,7 +246,7 @@ export function SignInMethodsPanel({
           </div>
         ) : initial.devices ? (
           <div className="fh-settings-group">
-            <h3 className="fh-signin-subtitle fh-small fh-semibold fh-text">Signed-in devices</h3>
+            <h3 className="fh-mb-4 fh-small fh-semibold fh-text">Signed-in devices</h3>
             <ul className="fh-signin-devices">
               {initial.devices.map((d) => (
                 <li key={d.id} className="fh-split-center">
@@ -294,9 +294,7 @@ export function SignInMethodsPanel({
 
         {initial.history ? (
           <div className="fh-settings-group">
-            <h3 className="fh-signin-subtitle fh-small fh-semibold fh-text">
-              Recent security activity
-            </h3>
+            <h3 className="fh-mb-4 fh-small fh-semibold fh-text">Recent security activity</h3>
             {initial.history.length === 0 ? (
               <p className="fh-small fh-quiet">Nothing yet.</p>
             ) : (
@@ -317,7 +315,7 @@ export function SignInMethodsPanel({
         ) : null}
 
         {error || signOutFailed ? (
-          <div className="fh-signin-more">
+          <div className="fh-mt-5">
             <Alert tone="crit">{error ?? signOutFailed}</Alert>
           </div>
         ) : null}
