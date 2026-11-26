@@ -21,18 +21,20 @@ import { REAUTH_PARAM } from "~/lib/auth/next-path";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 import { chooseTheme } from "~/lib/settings/theme-choice";
 import { THEMES, type Theme } from "~/lib/theme";
+import type { AccountFormState } from "@dustinedwards/site-runtime/sign-in-form";
+import { ACCOUNT_WORDS } from "@dustinedwards/site-runtime/sign-in-words";
 
 export type ProfileField = "name" | "merchantMrrSelfReported";
 
-export interface ActionResult {
-  action: string;
+/** What the account page shows after one of its posts: site-runtime's AccountFormState for the shared posts
+ *  (change-email, sign-out-device, delete-account), plus the profile's field and Cancel account's warning. */
+export interface ActionResult extends Partial<AccountFormState> {
+  intent: string;
   ok: boolean;
   /** A refusal's words, shown beside `field` when there is one. */
-  error?: string;
+  error?: string | null;
   field?: ProfileField;
   warning?: string;
-  /** change-email: the current address the first link went to. */
-  sentTo?: string;
 }
 
 const INDUSTRIES = [
@@ -78,13 +80,13 @@ export function ProfileForm({
 }) {
   const navigation = useNavigation();
   const saving =
-    navigation.state === "submitting" && navigation.formData?.get("_action") === "profile";
+    navigation.state === "submitting" && navigation.formData?.get("intent") === "profile";
   const fieldError = (field: ProfileField) => (result?.field === field ? result.error : undefined);
   const barFailed = result && !result.ok && !result.field;
 
   return (
     <DemoForm method="post">
-      <input type="hidden" name="_action" value="profile" />
+      <input type="hidden" name="intent" value="profile" />
 
       {/* AccountNameSection */}
       <section className="cap-panel">
@@ -245,21 +247,16 @@ export function SignedIn({ userEmail }: { userEmail: string }) {
 export function ChangeEmail({ result }: { result?: ActionResult }) {
   const navigation = useNavigation();
   const sending =
-    navigation.state !== "idle" && navigation.formData?.get("_action") === "change-email";
+    navigation.state !== "idle" && navigation.formData?.get("intent") === "change-email";
   const [open, setOpen] = useState(false);
-  const mine = result?.action === "change-email" ? result : undefined;
-  const stale = mine?.error === "stale";
-  const refused = mine && !mine.ok && !stale ? mine.error : undefined;
+  const mine = result?.intent === "change-email" ? result : undefined;
+  const stale = mine?.stale ? mine.error : undefined;
+  const refused = mine && !mine.ok && !mine.stale ? (mine.error ?? undefined) : undefined;
   const showForm = (open || Boolean(refused)) && !mine?.ok;
 
   return (
     <div className="fh-account-list">
-      {mine?.ok ? (
-        <Alert tone="ok">
-          We sent a link to {mine.sentTo}. Open it to confirm the change; we then send one to the
-          new address.
-        </Alert>
-      ) : null}
+      {mine?.ok ? <Alert tone="ok">{ACCOUNT_WORDS.emailSent(mine.sentTo ?? "")}</Alert> : null}
       {stale ? (
         <Alert
           tone="warn"
@@ -269,13 +266,12 @@ export function ChangeEmail({ result }: { result?: ActionResult }) {
             </ButtonLink>
           }
         >
-          Changing your email needs a sign-in from the last 10 minutes. Sign in again, then change
-          it.
+          {stale}
         </Alert>
       ) : null}
       {showForm ? (
         <DemoForm method="post">
-          <input type="hidden" name="_action" value="change-email" />
+          <input type="hidden" name="intent" value="change-email" />
           <TextField
             label="New email address"
             name="newEmail"
@@ -323,15 +319,16 @@ export function DangerZone({
   const confirmForm = useDemoConfirmForm();
   const navigation = useNavigation();
   const running =
-    navigation.state !== "idle" ? String(navigation.formData?.get("_action") ?? "") : "";
+    navigation.state !== "idle" ? String(navigation.formData?.get("intent") ?? "") : "";
   const confirming = useSearchParams()[0].get("confirm");
 
-  const deleteStale = result?.action === "delete-account" && result.error === "stale";
+  const deleteResult = result?.intent === "delete-account" ? result : undefined;
+  const deleteStale = deleteResult?.stale ? deleteResult.error : undefined;
   const deleteFailed =
-    result?.action === "delete-account" && !result.ok && !deleteStale ? result.error : undefined;
-  const cancelWarning = result?.action === "cancel-account" ? result.warning : undefined;
+    deleteResult && !deleteResult.ok && !deleteResult.stale ? deleteResult.error : undefined;
+  const cancelWarning = result?.intent === "cancel-account" ? result.warning : undefined;
   const cancelRefused =
-    result?.action === "cancel-account" && !result.ok ? result.error : undefined;
+    result?.intent === "cancel-account" && !result.ok ? result.error : undefined;
 
   const step = (action: "cancel-account" | "delete-account") => ({
     form: confirmForm,
@@ -365,8 +362,7 @@ export function DangerZone({
               </ButtonLink>
             }
           >
-            Deleting your account needs a sign-in from the last 10 minutes. Sign in again, then
-            delete it.
+            {deleteStale}
           </Alert>
         ) : null}
         {cancelRefused ? <Alert tone="crit">{cancelRefused}</Alert> : null}
@@ -386,7 +382,7 @@ export function DangerZone({
               confirmLabel="Cancel my account"
               pendingLabel="Canceling..."
             >
-              <input type="hidden" name="_action" value="cancel-account" />
+              <input type="hidden" name="intent" value="cancel-account" />
             </InlineConfirm>
           )}
           <InlineConfirm
@@ -400,7 +396,9 @@ export function DangerZone({
             confirmLabel="Delete my account"
             pendingLabel="Deleting..."
           >
-            <input type="hidden" name="_action" value="delete-account" />
+            <input type="hidden" name="intent" value="delete-account" />
+            {/* The confirmation step is the tick accountFormAction asks for. */}
+            <input type="hidden" name="confirm" value="on" />
           </InlineConfirm>
         </div>
       </div>
