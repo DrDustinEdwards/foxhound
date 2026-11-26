@@ -32,7 +32,7 @@ export default function IntelligenceReportsPage({ loaderData }: Route.ComponentP
             <li key={r.id} className="fh-box">
               <p className="fh-mono fh-tiny fh-quiet fh-caps">{monthLabel(r.reportMonth)}</p>
               <p className="fh-reports-line fh-body fh-text">{r.narrative}</p>
-              <p className="fh-reports-line fh-tiny fh-faint">
+              <p className="fh-reports-line fh-tiny fh-quiet">
                 Generated {formatDate(r.generatedAt, { style: "medium" }) ?? ""}
               </p>
             </li>

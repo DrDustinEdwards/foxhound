@@ -345,7 +345,7 @@ export function DangerZone({
 
   return (
     <div className="fh-settings-group">
-      <h2 className="fh-danger-title fh-small fh-regular fh-faint">Danger zone</h2>
+      <h2 className="fh-danger-title fh-small fh-regular fh-quiet">Danger zone</h2>
 
       <div className="cap-stack" data-gap="4">
         {cancelledAt ? (

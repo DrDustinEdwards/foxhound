@@ -208,7 +208,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
                                 {c.chip}
                               </span>
                             ) : null}
-                            <span className="fh-line fh-mono fh-tiny fh-faint">
+                            <span className="fh-line fh-mono fh-tiny fh-quiet">
                               {c.stripeCustomerId}
                             </span>
                             {/* A planned change or cancellation from the
@@ -300,7 +300,7 @@ export default function IntelligenceCustomersPage({ loaderData }: Route.Componen
       ) : null}
 
       {otherDemoName ? (
-        <p className="fh-customers-foot fh-center fh-caption fh-faint">
+        <p className="fh-customers-foot fh-center fh-caption fh-quiet">
           Switch accounts in the top nav to see {otherDemoName} customers.
         </p>
       ) : null}

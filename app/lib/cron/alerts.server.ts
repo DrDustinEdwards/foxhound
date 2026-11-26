@@ -10,7 +10,7 @@ import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { Db } from "~/db/client";
 import { cronRunLog, cronRuns } from "~/db/schema";
-import { cronRunId } from "~/lib/admin/crons";
+import { cronRunId, describeCronSchedule } from "~/lib/admin/crons";
 import {
   CRON_SCHEDULE_BLOG,
   CRON_SCHEDULE_DAILY,
@@ -62,17 +62,6 @@ export const SCHEDULE_PERIOD_MS: Record<string, number> = {
   // a tick skipped on the lock is normal, so a one-minute period would alert on
   // a healthy job.
   [CRON_SCHEDULE_BLOG]: 5 * 60 * 1000,
-};
-
-/** Each schedule's cadence in words, for the stale alert's subject and body. */
-const CADENCE_LABEL: Record<string, string> = {
-  [CRON_SCHEDULE_RECOVERY_TICK]: "every 5 min",
-  [CRON_SCHEDULE_DAILY]: "daily 03:00 UTC",
-  [CRON_SCHEDULE_WEEKLY]: "weekly (Mon 08:00 UTC)",
-  [CRON_SCHEDULE_MONTHLY]: "monthly (1st 04:00 UTC)",
-  [CRON_SCHEDULE_MONTHLY_AUDIT]: "monthly (1st 09:00 UTC)",
-  [CRON_SCHEDULE_EXPIRING_CARDS]: "daily 09:00 UTC",
-  [CRON_SCHEDULE_BLOG]: "every minute",
 };
 
 export interface JobSchedule {
@@ -146,8 +135,8 @@ export function buildStaleAlertEmail(
   const agePhrase = finding.lastRunAt
     ? `last succeeded ${describeAge(now.getTime() - finding.lastRunAt.getTime())}`
     : "never succeeded";
-  const cadence = CADENCE_LABEL[finding.schedule];
-  const cadenceSuffix = cadence ? `, expected ${cadence}` : "";
+  const cadence = describeCronSchedule(finding.schedule);
+  const cadenceSuffix = cadence ? `, schedule: ${cadence}` : "";
   const subject = `${OPS_TAG} Cron stale: ${finding.cronName} (${agePhrase}${cadenceSuffix})`;
   return {
     subject,

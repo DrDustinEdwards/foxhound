@@ -78,7 +78,7 @@ export default function DocsIndexPage() {
   );
 }
 
-const CROSS_LINK = "fh-hover-group fh-docs-cross fh-accent";
+const CROSS_LINK = "fh-hover-group fh-docs-cross fh-brand";
 
 /** The 13px arrow, nudged on the link's hover. Decorative. */
 function Arrow() {
@@ -93,7 +93,7 @@ function GuideCard({ guide }: { guide: DocGuide }) {
         <div>
           <div className="fh-docs-block-2 fh-item-title fh-medium fh-text">{guide.title}</div>
           <div className="fh-docs-block-3 fh-small fh-relaxed fh-soft">{guide.description}</div>
-          <div className="fh-small fh-accent">
+          <div className="fh-small fh-brand">
             Read guide <Arrow />
           </div>
         </div>

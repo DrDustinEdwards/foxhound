@@ -88,7 +88,7 @@ export default function AuditSettings({ loaderData, actionData }: Route.Componen
                   <div className="fh-setting-label fh-small fh-text" aria-hidden="true">
                     Monthly audit digest
                   </div>
-                  <p id={digestHelp} className="fh-tiny fh-faint">
+                  <p id={digestHelp} className="fh-tiny fh-quiet">
                     Monthly, on the 1st. No extra charge.
                   </p>
                 </div>

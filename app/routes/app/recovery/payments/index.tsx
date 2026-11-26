@@ -242,7 +242,7 @@ export default function RecoveryPayments({ loaderData, actionData }: Route.Compo
     { label: "Showing", value: String(showingCountFor(globalCounts, filters.status)) },
     { label: "Active", value: String(globalCounts.active), className: "fh-brand" },
     { label: "Recovered", value: String(globalCounts.recovered), className: "fh-green" },
-    { label: "Canceled", value: String(globalCounts.cancelled), className: "fh-faint" },
+    { label: "Canceled", value: String(globalCounts.cancelled), className: "fh-quiet" },
     {
       label: "Recovery rate",
       value: globalRecoveryRatePct === null ? "-" : `${globalRecoveryRatePct}%`,

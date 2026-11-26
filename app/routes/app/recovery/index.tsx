@@ -176,7 +176,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
           actions={
             data.connection ? (
               <div className="fh-recovery-head-end">
-                <p className="fh-tiny fh-faint">
+                <p className="fh-tiny fh-quiet">
                   Connected &middot; {data.connection.name ?? data.connection.stripeUserId}
                 </p>
                 <RangeSelector range={range} />
@@ -186,7 +186,7 @@ export default function RecoveryDashboard({ loaderData }: Route.ComponentProps) 
                   </Status>
                 ) : null}
                 {data.lastRecoveryAgo ? (
-                  <p className="fh-tiny fh-faint">
+                  <p className="fh-tiny fh-quiet">
                     Last recovery <span className="fh-success">{data.lastRecoveryAgo}</span>
                   </p>
                 ) : null}

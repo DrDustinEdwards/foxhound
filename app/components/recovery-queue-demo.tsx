@@ -137,7 +137,7 @@ export function RecoveryQueueDemo() {
 
         <div className="fh-queue-block-7">
           <div
-            className="fh-queue-block-8 fh-mono fh-tiny fh-faint fh-caps-wide"
+            className="fh-queue-block-8 fh-mono fh-tiny fh-quiet fh-caps-wide"
             data-queue-sequence=""
           >
             {`${activePayment.name} sequence`}

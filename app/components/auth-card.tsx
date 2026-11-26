@@ -44,7 +44,7 @@ export function AuthHeading({ title, subtitle }: { title: string; subtitle?: Rea
       >
         {title}
       </h1>
-      {subtitle ? <p className="fh-auth-lede fh-copy fh-faint">{subtitle}</p> : null}
+      {subtitle ? <p className="fh-auth-lede fh-copy fh-quiet">{subtitle}</p> : null}
     </>
   );
 }
@@ -76,7 +76,7 @@ function AuthField({
     <label className="cap-field-label fh-regular fh-quiet" htmlFor={id}>
       <span className="fh-small">
         {label}
-        {hint ? <span className="fh-faint"> {hint}</span> : null}
+        {hint ? <span className="fh-quiet"> {hint}</span> : null}
       </span>
     </label>
   );
@@ -106,7 +106,7 @@ function AuthField({
 }
 
 export function AuthFootnote({ children }: { children: ReactNode }) {
-  return <p className="fh-auth-foot fh-small fh-faint">{children}</p>;
+  return <p className="fh-auth-foot fh-small fh-quiet">{children}</p>;
 }
 
 /** Which ways in a page offers: the loader's signInMethods(env, { social: true }). */
@@ -245,7 +245,7 @@ export function SocialContinue({
       {providers.length === 0 && !afterPasskey ? null : (
         <div className="fh-auth-or">
           <span className="fh-auth-or-line" />
-          <span className="fh-mono fh-caption fh-faint">or</span>
+          <span className="fh-mono fh-caption fh-quiet">or</span>
           <span className="fh-auth-or-line" />
         </div>
       )}

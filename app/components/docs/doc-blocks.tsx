@@ -92,7 +92,7 @@ function Block({ block }: { block: DocBlock }) {
               <li key={i} className="cap-step fh-subhead fh-relaxed fh-soft">
                 {/* Recova hand-writes "01", "02"; derived here so a step cannot
                     be inserted without its number following. */}
-                <span className="cap-step-number fh-accent" aria-hidden="true">
+                <span className="cap-step-number fh-brand" aria-hidden="true">
                   {String(i + 1).padStart(2, "0")}
                 </span>
                 <span className="cap-step-name">

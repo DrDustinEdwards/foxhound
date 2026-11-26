@@ -269,7 +269,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
   return (
     <div className="fh-payment">
       <header className="fh-payment-header">
-        <Link to={backLink.href} className="fh-payment-back fh-small fh-faint">
+        <Link to={backLink.href} className="fh-payment-back fh-small fh-quiet">
           &larr; {backLink.label}
         </Link>
         <div className="fh-payment-top">
@@ -290,7 +290,7 @@ export default function PaymentDetail({ loaderData, actionData }: Route.Componen
                 </Pill>
               ) : null}
             </div>
-            <div className="cap-cluster fh-small fh-faint" data-gap="4">
+            <div className="cap-cluster fh-small fh-quiet" data-gap="4">
               {/* The email shows here only when a name took the heading. */}
               {failedPayment.customerName ? <span>{failedPayment.customerEmail}</span> : null}
               <CopyButton text={failedPayment.customerEmail} size="xs">

@@ -132,7 +132,7 @@ function DisputeFigures({
             value={formatTotals(accepted.totals, cur)}
             valueClassName="fh-red"
           />
-          <p className="fh-tiny fh-faint">
+          <p className="fh-tiny fh-quiet">
             Disputes lost without evidence. You approve Foxhound's evidence before it is submitted.
           </p>
         </div>

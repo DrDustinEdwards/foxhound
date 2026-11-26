@@ -34,7 +34,7 @@ function Header({
     <div className="fh-split">
       <div className="fh-inline-row">
         <Pill {...BADGE_PILL.neutral}>{typeLabel}</Pill>
-        <span className="fh-tiny fh-faint">{formatDate(date, { style: "medium" }) ?? ""}</span>
+        <span className="fh-tiny fh-quiet">{formatDate(date, { style: "medium" }) ?? ""}</span>
       </div>
       <p className="fh-mono fh-body fh-medium fh-text">{formatMoney(amountCents, currency)}</p>
     </div>
@@ -110,7 +110,7 @@ export function LedgerFreeRow({ entry }: { entry: FreeLedgerEntry }) {
       <div className="fh-split">
         <div className="fh-inline-row">
           <Pill {...BADGE_PILL.neutral}>Stripe baseline - FREE</Pill>
-          <span className="fh-tiny fh-faint">
+          <span className="fh-tiny fh-quiet">
             {formatDate(recoveredPayment.recoveredAt, { style: "medium" }) ?? ""}
           </span>
         </div>

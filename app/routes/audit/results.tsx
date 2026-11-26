@@ -148,7 +148,7 @@ function WhatsNext({ signedIn, notSaved }: { signedIn: boolean; notSaved: NotSav
           Connect Stripe permanently. Foxhound runs automatically. You pay {RECOVERY_FEE_PERCENT}%
           of what we recover. Nothing until then.
         </p>
-        <p className="fh-results-text-3 fh-tiny fh-faint">
+        <p className="fh-results-text-3 fh-tiny fh-quiet">
           These results are from a {AUDIT_GRANT_MINUTES}-minute session. Create an account to save
           them.
         </p>
@@ -165,7 +165,7 @@ export default function AuditResults({ loaderData }: Route.ComponentProps) {
   return (
     <div className="fh-results-block fh-cap cap-page" data-cap-site="foxhound" data-family="amber">
       <div className="fh-results-block-2">
-        <div className="fh-results-block-3 fh-mono fh-tiny fh-faint fh-caps-wide">
+        <div className="fh-results-block-3 fh-mono fh-tiny fh-quiet fh-caps-wide">
           Stripe Account Diagnostic &middot; <Time at={run.runAt} tip />
         </div>
         <PageHead title={`Analyzed last ${run.lookbackDays} days of payment history`} />

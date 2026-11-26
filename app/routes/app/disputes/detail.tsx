@@ -217,7 +217,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           <h1 className="fh-dispute-title fh-title fh-medium fh-text">
             {dispute.customerName || "Unknown customer"}
           </h1>
-          <div className="fh-dispute-reason fh-small fh-faint">
+          <div className="fh-dispute-reason fh-small fh-quiet">
             {humanizeDisputeReason(dispute.reason)}
           </div>
         </div>
@@ -278,7 +278,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           <ol className="fh-dispute-timeline">
             {timeline.map((item, i) => (
               <li key={i} className="fh-dispute-event">
-                <span className="fh-dispute-fact-label fh-mono fh-tiny fh-faint">
+                <span className="fh-dispute-fact-label fh-mono fh-tiny fh-quiet">
                   {item.at ? (formatDate(item.at, { style: "medium", time: true }) ?? "") : ""}
                 </span>
                 <span className="fh-small fh-text">{item.label}</span>
@@ -305,7 +305,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
             <div className="fh-small">
               {drafted.length === 0 ? (
                 // Foxhound drafts at intake and drafts nothing when no record grounds it (draftDisputeEvidence), so no evidence is "being prepared".
-                <p className="fh-faint">
+                <p className="fh-quiet">
                   Foxhound found no records for this charge to draft evidence from.
                 </p>
               ) : (
@@ -373,7 +373,7 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                     aria-describedby="dispute_customer_ip_help"
                   />
                 </div>
-                <p id="dispute_customer_ip_help" className="fh-dispute-input fh-tiny fh-faint">
+                <p id="dispute_customer_ip_help" className="fh-dispute-input fh-tiny fh-quiet">
                   From your own logs only.
                 </p>
                 {shippingEditable ? (

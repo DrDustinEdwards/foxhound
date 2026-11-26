@@ -114,12 +114,12 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
         {/* Recova computes `account.name ?? 'Customers'`, so an account with no
             name read "All Customers customers"; with no name this reads "All
             customers". */}
-        <Link to="/intelligence/customers" className="fh-customer-id-link fh-mono fh-accent">
+        <Link to="/intelligence/customers" className="fh-customer-id-link fh-mono fh-brand">
           <span aria-hidden="true">←&nbsp;</span>
           {accountName ? `All ${accountName} customers` : "All customers"}
         </Link>
         {recoveryCount > 0 ? (
-          <Link to="/recovery/payments" className="fh-customer-stripe-link fh-accent">
+          <Link to="/recovery/payments" className="fh-customer-stripe-link fh-brand">
             {plural(recoveryCount, "recovery payment")}
             <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-customer-arrow" />
           </Link>
@@ -164,7 +164,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
           <Panel title="Why this customer needs attention">
             <p className="fh-body fh-relaxed fh-text">{customer.aiAssessment}</p>
             {customer.aiAssessmentGeneratedAt ? (
-              <p className="fh-customer-note fh-mono fh-tiny fh-faint">
+              <p className="fh-customer-note fh-mono fh-tiny fh-quiet">
                 Updated {formatDate(customer.aiAssessmentGeneratedAt, { style: "medium" }) ?? ""}
               </p>
             ) : null}
@@ -173,13 +173,13 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
       </div>
 
       {recoveryCount > 0 || hasDisputeHistory ? (
-        <p className="fh-customer-scope fh-center fh-tiny fh-faint">
+        <p className="fh-customer-scope fh-center fh-tiny fh-quiet">
           This customer&apos;s data is shared across Recovery, Disputes, and Intelligence.
           {recoveryCount > 0 ? (
             <>
               {" "}
               View their recovery history in{" "}
-              <Link to="/recovery/payments" className="fh-customer-link fh-accent">
+              <Link to="/recovery/payments" className="fh-customer-link fh-brand">
                 Recovery
               </Link>
               .
@@ -189,7 +189,7 @@ export default function CustomerHealthPage({ loaderData }: Route.ComponentProps)
             <>
               {" "}
               View their disputes in{" "}
-              <Link to="/disputes/dashboard" className="fh-customer-link fh-accent">
+              <Link to="/disputes/dashboard" className="fh-customer-link fh-brand">
                 Disputes
               </Link>
               .
@@ -245,7 +245,7 @@ function HeaderCard({
         <div className="fh-customer-top">
           <div className="cap-shrink">
             <h1 className="fh-title fh-semibold fh-text">{customer.customerName ?? "(no name)"}</h1>
-            <p className="fh-customer-sub fh-break fh-mono fh-small fh-faint">
+            <p className="fh-customer-sub fh-break fh-mono fh-small fh-quiet">
               {customer.customerEmail ?? "-"} ·{" "}
               <span className="fh-quiet">{customer.stripeCustomerId}</span>
             </p>
@@ -298,7 +298,7 @@ function SignalCard({
   return (
     <Panel title={title} size="sm">
       {fields === null ? (
-        <p className="fh-small fh-italic fh-faint">{empty}</p>
+        <p className="fh-small fh-italic fh-quiet">{empty}</p>
       ) : (
         <dl className="cap-stack fh-small" data-gap="3">
           {fields.map((f) => (
@@ -330,7 +330,7 @@ function HealthScoreCard({ score, history }: { score: number | null; history: He
         >
           {score ?? "-"}
         </span>
-        <span className="fh-small fh-faint">/ 100</span>
+        <span className="fh-small fh-quiet">/ 100</span>
       </p>
       {readings.length >= 2 ? <ChartFrame draw={draw} /> : null}
     </Panel>

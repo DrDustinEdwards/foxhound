@@ -76,7 +76,7 @@ function StatCard({
       <p className={`fh-mono fh-title fh-semibold cap-num ${valueClassName ?? "fh-text"}`}>
         {value}
       </p>
-      {sub ? <p className="fh-tiny fh-faint">{sub}</p> : null}
+      {sub ? <p className="fh-tiny fh-quiet">{sub}</p> : null}
     </Panel>
   );
 }
@@ -143,7 +143,7 @@ function Figure({
 function StepFigures({ card }: { card: StepCard }) {
   if (card.kind === "retry") {
     if (card.attempted === 0 || card.successRatePct === null) {
-      return <span className="fh-tiny fh-faint">No data yet</span>;
+      return <span className="fh-tiny fh-quiet">No data yet</span>;
     }
     return (
       <div className="fh-right">
@@ -152,14 +152,14 @@ function StepFigures({ card }: { card: StepCard }) {
         >
           {card.successRatePct}%
         </p>
-        <p className="fh-tiny fh-faint">
+        <p className="fh-tiny fh-quiet">
           {card.recovered} of {card.attempted} recovered
         </p>
       </div>
     );
   }
   if (card.sent === 0 || card.openRatePct === null || card.clickRatePct === null) {
-    return <span className="fh-tiny fh-faint">No data yet</span>;
+    return <span className="fh-tiny fh-quiet">No data yet</span>;
   }
   return (
     <div className="fh-sequence-steps">
@@ -199,7 +199,7 @@ function StepCardView({ card }: { card: StepCard }) {
       }
     >
       <div className="fh-sequence-step-top">
-        <p className="cap-grow fh-truncate fh-tiny fh-faint">{line}</p>
+        <p className="cap-grow fh-truncate fh-tiny fh-quiet">{line}</p>
         <div className="cap-keep">
           <StepFigures card={card} />
         </div>
@@ -209,7 +209,7 @@ function StepCardView({ card }: { card: StepCard }) {
           {/* latestBodyHtml is sanitized server-side in the loader before it
               ever reaches this component (email-preview.server.ts). */}
           <div
-            className="fh-sequence-body fh-small fh-relaxed fh-faint"
+            className="fh-sequence-body fh-small fh-relaxed fh-quiet"
             dangerouslySetInnerHTML={markup(preview)}
           />
         </Disclosure>
@@ -225,7 +225,7 @@ function CategorySectionView({ section }: { section: CategorySection }) {
       <h2 id={headingId} className="fh-sequence-title">
         <Pill variant="outline">{SEQUENCE_CATEGORY_NAMES[section.category]}</Pill>
       </h2>
-      <p className="fh-sequence-desc fh-small fh-faint">
+      <p className="fh-sequence-desc fh-small fh-quiet">
         {SEQUENCE_CATEGORY_DESCRIPTIONS[section.category]}
       </p>
       <div className="cap-stack" data-gap="4">

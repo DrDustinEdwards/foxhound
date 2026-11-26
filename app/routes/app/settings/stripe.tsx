@@ -226,7 +226,7 @@ function StripeSection({
                     <div className="fh-setting-row">
                       <div>
                         <div className="fh-setting-label fh-small fh-text">{label}</div>
-                        {connected ? <div className="fh-tiny fh-faint">{connected}</div> : null}
+                        {connected ? <div className="fh-tiny fh-quiet">{connected}</div> : null}
                       </div>
                       {isOwner ? (
                         <div className="cap-cluster" data-gap="3">
@@ -261,7 +261,7 @@ function StripeSection({
                           ) : null}
                         </div>
                       ) : (
-                        <p className="fh-tiny fh-faint">
+                        <p className="fh-tiny fh-quiet">
                           Only the account owner can disconnect Stripe.
                         </p>
                       )}

@@ -48,7 +48,7 @@ export default function ProductsIndexPage() {
                 <div className="cap-panel-body">
                   <div>
                     <div className="fh-mk-tile-icon">
-                      <Icon d={icon} className="fh-icon-18 fh-icon-180 fh-accent" />
+                      <Icon d={icon} className="fh-icon-18 fh-icon-180 fh-brand" />
                     </div>
                     <div className="fh-products-block fh-item-title fh-medium fh-text">
                       {p.name}
@@ -56,10 +56,10 @@ export default function ProductsIndexPage() {
                     <div className="fh-products-block-2 fh-small fh-relaxed fh-soft">
                       {copy.description}
                     </div>
-                    <div className="fh-products-block-3 fh-mono fh-small fh-accent">
+                    <div className="fh-products-block-3 fh-mono fh-small fh-brand">
                       {copy.price}
                     </div>
-                    <div className="fh-small fh-accent">
+                    <div className="fh-small fh-brand">
                       Learn more{" "}
                       <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />
                     </div>

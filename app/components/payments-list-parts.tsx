@@ -182,7 +182,7 @@ export function PaymentsTable({
                       {p.outreach ? (
                         <Icon
                           d={iconTrendingUp}
-                          className="fh-icon-12 fh-icon-fine fh-accent"
+                          className="fh-icon-12 fh-icon-fine fh-brand"
                           label="Intelligence: personal outreach recommended"
                         />
                       ) : null}
@@ -192,12 +192,12 @@ export function PaymentsTable({
                       {p.hasNote ? <Pill>note</Pill> : null}
                     </span>
                     {p.customerName ? (
-                      <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-break fh-faint">
+                      <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-break fh-quiet">
                         {p.customerEmail}
                       </span>
                     ) : null}
                     {p.planName ? (
-                      <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-faint">
+                      <span className="fh-payments-sub fh-line fh-tiny fh-regular fh-quiet">
                         {p.planName}
                       </span>
                     ) : null}
@@ -210,14 +210,14 @@ export function PaymentsTable({
                   <td data-label="Decline">
                     <Pill variant="outline">{declineWord(p.declineCategory)}</Pill>
                     {p.declineCode ? (
-                      <span className="fh-payments-sub fh-line fh-mono fh-tiny fh-break fh-faint">
+                      <span className="fh-payments-sub fh-line fh-mono fh-tiny fh-break fh-quiet">
                         {p.declineCode}
                       </span>
                     ) : null}
                   </td>
                   <td data-label="Steps">
                     <span
-                      className={`fh-mono fh-tiny ${p.steps.completed > 0 ? "fh-text" : "fh-faint"}`}
+                      className={`fh-mono fh-tiny ${p.steps.completed > 0 ? "fh-text" : "fh-quiet"}`}
                     >
                       {p.steps.completed}/{p.steps.total}
                     </span>
@@ -234,7 +234,7 @@ export function PaymentsTable({
                   </td>
                   <td data-label="Detected">
                     <span className="fh-payments-amount">
-                      <span className="fh-tiny fh-faint">
+                      <span className="fh-tiny fh-quiet">
                         <span className="fh-line fh-nowrap">
                           {relative(toMs(p.detectedAt), nowMs, "UTC")}
                         </span>
@@ -386,7 +386,7 @@ export function BulkBar({
             : null}
         </div>
         {overCeiling ? (
-          <p id="bulk-ceiling" className="fh-small fh-faint">
+          <p id="bulk-ceiling" className="fh-small fh-quiet">
             {actionable.length} payments selected. Bulk actions take at most{" "}
             {BULK_ACTION_MAX_PER_SUBMISSION} at a time, and nothing is trimmed to fit. Narrow the
             selection to {BULK_ACTION_MAX_PER_SUBMISSION} or fewer.

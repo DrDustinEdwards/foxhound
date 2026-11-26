@@ -57,7 +57,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
               <tr key={seq.id}>
                 <td>
                   <p className="fh-text">{seq.customerName ?? seq.customerEmail}</p>
-                  <p className="fh-tiny fh-faint">{seq.customerEmail}</p>
+                  <p className="fh-tiny fh-quiet">{seq.customerEmail}</p>
                 </td>
                 <td data-label="Plan" className="fh-quiet">
                   {seq.planName ?? "-"}
@@ -76,7 +76,7 @@ export default function Winback({ loaderData }: Route.ComponentProps) {
                       {STATUS_LABEL[seq.status] ?? seq.status}
                     </Pill>
                     {seq.status === WINBACK_STATUS.REACTIVATED && seq.reactivatedAt ? (
-                      <span className="fh-tiny fh-faint">
+                      <span className="fh-tiny fh-quiet">
                         Won back {formatDate(seq.reactivatedAt, { style: "medium" }) ?? ""}
                       </span>
                     ) : null}

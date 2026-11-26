@@ -17,7 +17,7 @@ export function AuditScopeCard() {
               <div className="fh-mk-point-wide">
                 <span
                   aria-hidden="true"
-                  className="fh-auditprev-label fh-mono fh-card-title fh-tight fh-accent"
+                  className="fh-auditprev-label fh-mono fh-card-title fh-tight fh-brand"
                 >
                   {s.icon}
                 </span>
@@ -60,7 +60,7 @@ export function AuditHistoryPreview() {
     <div className="fh-auditprev-block-4">
       <div className="fh-auditprev-row">
         <span className="fh-tiny fh-medium fh-quiet fh-caps-wide">Audit history</span>
-        <span className="fh-mono fh-tiny fh-accent">Monthly auto-run on</span>
+        <span className="fh-mono fh-tiny fh-brand">Monthly auto-run on</span>
       </div>
       <ul className="fh-mk-rules">
         {AUDIT_HISTORY_EXAMPLE.map((run) => (

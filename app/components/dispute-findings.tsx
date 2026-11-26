@@ -121,7 +121,7 @@ export function DisputeFindings({
                     </span>{" "}
                     {e.label}
                     {e.openedCount !== null && e.openedCount > 0 ? (
-                      <span className="fh-faint"> · opened {e.openedCount}x</span>
+                      <span className="fh-quiet"> · opened {e.openedCount}x</span>
                     ) : null}
                   </li>
                 ))}

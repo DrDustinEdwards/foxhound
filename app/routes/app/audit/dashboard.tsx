@@ -188,7 +188,7 @@ function TrendRow({
           <span className="fh-text">
             <Amount totals={current.totals} currency={current.currency} />
           </span>
-          <span className="fh-faint">
+          <span className="fh-quiet">
             vs <Amount totals={previous.totals} currency={previous.currency} />
           </span>
         </div>
@@ -197,7 +197,7 @@ function TrendRow({
           {lines.map((line) => (
             <div key={line.currency} className="fh-auditd-figures fh-mono fh-small">
               <span className="fh-text">{formatMoneyShort(line.currentCents, line.currency)}</span>
-              <span className="fh-faint">
+              <span className="fh-quiet">
                 vs {formatMoneyShort(line.previousCents, line.currency)}
               </span>
               <Delta delta={line.comparison} />
@@ -276,7 +276,7 @@ export function AuditSettingsForm({
             <div id={digestLabel} className="fh-auditd-digest-label fh-small fh-text">
               Monthly audit digest
             </div>
-            <p id={digestHelp} className="fh-tiny fh-faint">
+            <p id={digestHelp} className="fh-tiny fh-quiet">
               Monthly, on the 1st. No extra charge.
             </p>
           </div>

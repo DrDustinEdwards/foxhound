@@ -148,7 +148,7 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                 >
                   {c.customerName ?? "(unnamed)"}
                 </Link>
-                <span className="fh-line fh-mono fh-tiny fh-faint">{c.stripeCustomerId}</span>
+                <span className="fh-line fh-mono fh-tiny fh-quiet">{c.stripeCustomerId}</span>
               </th>
               <td data-label="Plan">
                 <Pill variant="outline">{c.planName ?? "-"}</Pill>
@@ -170,7 +170,7 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                 )}
               </td>
               <td data-label="Recommendation">
-                <span className="fh-tiny fh-faint">
+                <span className="fh-tiny fh-quiet">
                   {ACTION_LABEL[c.recommendedAction] ?? c.recommendedAction}
                 </span>
               </td>

@@ -101,7 +101,7 @@ export function DashboardPreview({ preview }: { preview: DisputesPreview }) {
                   <th scope="row">
                     <div className="fh-small fh-regular fh-text">{row.customer}</div>
                     {row.email ? (
-                      <div className="fh-tiny fh-regular fh-faint">{row.email}</div>
+                      <div className="fh-tiny fh-regular fh-quiet">{row.email}</div>
                     ) : null}
                   </th>
                   <td data-label="Amount" className="fh-nowrap fh-right">
