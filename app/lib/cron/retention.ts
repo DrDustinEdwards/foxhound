@@ -27,7 +27,7 @@ import { monthKey } from "@dustinedwards/site-runtime/time";
 
 import type { CronJobResult } from "./run";
 
-// Retention sweepers (ARCHITECTURE.md retention table + non-negotiable #4: these run before the tables they govern take production writes). Each is its own gated cron job.
+// Retention sweepers (ARCHITECTURE.md retention table + non-negotiable #4: these run before the tables they govern take production writes). Each is a step of the nightly retention job (registry.ts).
 
 export function cutoffFor(days: number, nowMs: number): Date {
   return new Date(nowMs - days * DAY_MS);

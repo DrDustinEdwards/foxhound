@@ -55,7 +55,7 @@ describe("listCronRows reads each cron's own runs", () => {
     insertRun(sqlite, "weekly-digest", "ok", NOW - 8 * DAY);
     insertRun(sqlite, "weekly-digest", "ok", NOW - 7 * DAY);
     insertRun(sqlite, "weekly-digest", "failed", NOW - 2 * HOUR, "Email binding unavailable");
-    insertRun(sqlite, "d1-backup", "failed", NOW - 3 * HOUR, "R2 down");
+    insertRun(sqlite, "backup", "failed", NOW - 3 * HOUR, "R2 down");
 
     const rows = await listCronRows(db, NOW);
     const digest = rows.find((r) => r.name === "weekly-digest");
@@ -64,7 +64,7 @@ describe("listCronRows reads each cron's own runs", () => {
       message: "Email binding unavailable",
     });
     expect(digest?.lastSucceededAt).toEqual(new Date(NOW - 7 * DAY));
-    expect(rows.find((r) => r.name === "d1-backup")?.lastSucceededAt).toBeNull();
+    expect(rows.find((r) => r.name === "backup")?.lastSucceededAt).toBeNull();
     expect(rows.find((r) => r.name === "expiring-cards")?.lastSucceededAt).toBeNull();
   });
 });

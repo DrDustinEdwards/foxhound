@@ -198,7 +198,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // report is dropped, still 204.
     ["CSP_REPORT_RATE_LIMIT", "binding"],
     ["TOOL_CALL_LOG", "binding"],
-    // The nightly D1 dump bucket. Unset means the d1-backup cron throws on every run and
+    // The nightly D1 dump bucket. Unset means the backup cron throws on every run and
     // /health reports no backup.
     ["BACKUPS", "binding"],
     // The monthly audit queue producer. Unset means the monthly-audit cron
@@ -211,7 +211,7 @@ export function getEnvSanity(env: Env): EnvSanityRow[] {
     // media call and every /media file fails.
     ["MEDIA", "binding"],
     // The merchant MCP's tool-call log copies. Unset means the daily
-    // tool-call-log-export run fails and /health warns after two days.
+    // retention run fails and /health warns after two days.
     ["AUDIT_BUCKET", "binding"],
     // Cloudflare Images: the blog pictures' sizes and Carrel's turns and
     // shrinks. Unset means /media serves originals only.

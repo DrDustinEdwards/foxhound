@@ -50,7 +50,8 @@ describe("cron registry", () => {
     const names = daily.map((j) => j.name);
     expect(names.indexOf("intelligence-sync")).toBeGreaterThan(-1);
     expect(names.indexOf("intelligence-sync")).toBeLessThan(names.indexOf("intelligence-ai"));
-    expect(daily.filter((j) => j.name.startsWith("retention-")).length).toBeGreaterThanOrEqual(7);
+    expect(names).toContain("retention");
+    expect(names).toContain("backup");
   });
 
   it("the monthly audit has its schedule to itself", () => {
