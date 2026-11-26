@@ -78,7 +78,7 @@ export default function PricingPage() {
                   // The destination is products.ts's. The hidden words give each of the four links its own name; the visible "Learn more" leads it, so label-in-name holds.
                   <Link
                     to={PRODUCTS[card.id].href}
-                    className="fh-pricing-link fh-hover-group fh-small fh-accent"
+                    className="fh-pricing-link fh-hover-group fh-small fh-brand"
                   >
                     Learn more<span className="cap-sr-only"> about {card.name}</span>{" "}
                     <Icon d={iconArrowRight} className="fh-icon-13 fh-icon-fine fh-mk-arrow" />

@@ -105,7 +105,7 @@ export function HomeStats() {
               <div className={CARD}>
                 <div className="cap-panel-body">
                   <div className="fh-home-col">
-                    <div className="fh-home-block-5 fh-mono fh-hero fh-semibold fh-tight fh-accent">
+                    <div className="fh-home-block-5 fh-mono fh-hero fh-semibold fh-tight fh-brand">
                       {item.stat}
                     </div>
                     <p className="fh-home-text-2 fh-copy fh-soft">{item.body}</p>
@@ -148,14 +148,14 @@ export function HomeComparison() {
               <Link to={row.foxhoundHref} className={`${CARD} fh-hover-group`}>
                 <div className="cap-panel-body">
                   <div>
-                    <div className="fh-home-block-7 fh-caption fh-medium fh-accent">
+                    <div className="fh-home-block-7 fh-caption fh-medium fh-brand">
                       Foxhound adds this
                     </div>
                     <div className="fh-home-block-8 fh-body fh-semibold fh-text">
                       {row.foxhoundTitle}
                     </div>
                     <p className="fh-home-text-3 fh-copy fh-soft">{row.foxhoundBody}</p>
-                    <div className="fh-home-block-9 fh-mono fh-caption fh-accent">
+                    <div className="fh-home-block-9 fh-mono fh-caption fh-brand">
                       Learn more <Arrow />
                     </div>
                   </div>

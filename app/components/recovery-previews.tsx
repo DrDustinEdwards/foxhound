@@ -159,7 +159,7 @@ export function DashboardPreview({ preview }: { preview: RecoveryPreview }) {
           icon={iconPercent}
           label="Recovery rate"
           value={dashboard.ratePct === null ? "-" : `${dashboard.ratePct}%`}
-          className={rate?.className ?? "fh-faint"}
+          className={rate?.className ?? "fh-quiet"}
           sub={<Status tone={rate?.tone ?? "nodata"}>{dashboard.rateBand}</Status>}
         />
       </ul>
@@ -234,10 +234,10 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                   <div className="cap-grow">
                     <div className="fh-truncate fh-small fh-medium fh-text">{row.customer}</div>
                     {row.email ? (
-                      <div className="fh-truncate fh-tiny fh-faint">{row.email}</div>
+                      <div className="fh-truncate fh-tiny fh-quiet">{row.email}</div>
                     ) : null}
                   </div>
-                  <span className="fh-nowrap fh-mono fh-small fh-accent">{row.amount}</span>
+                  <span className="fh-nowrap fh-mono fh-small fh-brand">{row.amount}</span>
                 </div>
                 <div className="cap-cluster" data-gap="3">
                   <CategoryPill category={row.category} />
@@ -267,35 +267,35 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                         <FailureCount row={row} />
                       </div>
                       {row.email ? (
-                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
+                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-quiet">
                           {row.email}
                         </div>
                       ) : null}
                       {row.plan ? (
-                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-faint">
+                        <div className="fh-recprev-block-8 fh-tiny fh-regular fh-quiet">
                           {row.plan}
                         </div>
                       ) : null}
                     </th>
                     <td data-label="Amount" className="fh-nowrap">
-                      <span className="fh-mono fh-small fh-accent">{row.amount}</span>
+                      <span className="fh-mono fh-small fh-brand">{row.amount}</span>
                     </td>
                     <td data-label="Decline">
                       <CategoryPill category={row.category} />
                       {row.declineCode ? (
-                        <div className="fh-recprev-block-4 fh-mono fh-tiny fh-faint">
+                        <div className="fh-recprev-block-4 fh-mono fh-tiny fh-quiet">
                           {row.declineCode}
                         </div>
                       ) : null}
                     </td>
                     <td data-label="Steps">
                       <span
-                        className={`fh-mono fh-tiny ${row.stepsDone > 0 ? "fh-text" : "fh-faint"}`}
+                        className={`fh-mono fh-tiny ${row.stepsDone > 0 ? "fh-text" : "fh-quiet"}`}
                       >
                         {row.stepsDone}/{row.stepsTotal}
                       </span>
                       {row.nextStep ? (
-                        <div className="fh-recprev-block-8 fh-tiny fh-accent">
+                        <div className="fh-recprev-block-8 fh-tiny fh-brand">
                           Next: {row.nextStep}
                         </div>
                       ) : null}
@@ -304,8 +304,8 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
                       <StatusPill row={row} />
                     </td>
                     <td data-label="Detected" className="fh-nowrap">
-                      <div className="fh-tiny fh-faint">{row.detectedAgo}</div>
-                      <div className="fh-recprev-block-8 fh-tiny fh-faint">{row.detectedDate}</div>
+                      <div className="fh-tiny fh-quiet">{row.detectedAgo}</div>
+                      <div className="fh-recprev-block-8 fh-tiny fh-quiet">{row.detectedDate}</div>
                     </td>
                   </tr>
                 ))}

@@ -146,7 +146,7 @@ export default function DisputeSettings({ loaderData, actionData }: Route.Compon
                   >
                     Product description
                   </label>
-                  <p id={descriptionHelpId} className="fh-dispute-help fh-tiny fh-faint">
+                  <p id={descriptionHelpId} className="fh-dispute-help fh-tiny fh-quiet">
                     Used in all dispute responses.
                   </p>
                   <textarea

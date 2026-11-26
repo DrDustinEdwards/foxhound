@@ -56,7 +56,7 @@ export default function ExpiringCards({ loaderData }: Route.ComponentProps) {
                 <tr key={alert.id}>
                   <td>
                     <p className="fh-text">{alert.customerName ?? alert.customerEmail}</p>
-                    <p className="fh-tiny fh-faint">{alert.customerEmail}</p>
+                    <p className="fh-tiny fh-quiet">{alert.customerEmail}</p>
                   </td>
                   <td data-label="Card" className="fh-quiet">
                     {noPaymentMethod

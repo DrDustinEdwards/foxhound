@@ -132,7 +132,7 @@ export default function IntelligenceChurn({ loaderData }: Route.ComponentProps) 
                         >
                           {row.customerName ?? "(unnamed)"}
                         </Link>
-                        <span className="fh-line fh-mono fh-tiny fh-faint">
+                        <span className="fh-line fh-mono fh-tiny fh-quiet">
                           {row.stripeCustomerId}
                         </span>
                       </th>

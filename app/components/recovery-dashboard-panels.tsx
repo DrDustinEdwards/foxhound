@@ -138,7 +138,7 @@ function StatCard({
       >
         {value}
       </p>
-      {sub ? <p className="fh-tiny fh-faint">{sub}</p> : null}
+      {sub ? <p className="fh-tiny fh-quiet">{sub}</p> : null}
     </Panel>
   );
 }
@@ -232,7 +232,7 @@ export function RoiWidget({ roi }: { roi: { thisMonth: RoiColumn; allTime: RoiCo
       }
     >
       {empty ? (
-        <p className="fh-small fh-faint">No attributed recoveries yet.</p>
+        <p className="fh-small fh-quiet">No attributed recoveries yet.</p>
       ) : (
         <div className="fh-recpanel-pair">
           <div>
@@ -265,7 +265,7 @@ export function WinBackCard({ w }: { w: RecoveryDashboardWindow }) {
     <Panel title={`Win-back attribution · ${w.rangeLabel}`}>
       {w.reactivatedCount === 0 ? (
         <div>
-          <p className="fh-recpanel-title fh-small fh-faint">No reactivations yet</p>
+          <p className="fh-recpanel-title fh-small fh-quiet">No reactivations yet</p>
         </div>
       ) : (
         <div>
@@ -297,7 +297,7 @@ export function RecoveryQueue({
   hours: number;
 }) {
   if (w.upcomingSteps.length === 0) {
-    return <p className="fh-recpanel-empty fh-small fh-faint">Nothing in the queue.</p>;
+    return <p className="fh-recpanel-empty fh-small fh-quiet">Nothing in the queue.</p>;
   }
   return (
     <Panel title={`Recovery queue · next ${hours}h`}>
@@ -332,7 +332,7 @@ function DeliverabilityFigure({
       <span
         className={
           small
-            ? "fh-mono fh-small cap-num fh-faint"
+            ? "fh-mono fh-small cap-num fh-quiet"
             : "fh-mono fh-title fh-semibold cap-num fh-text"
         }
       >
@@ -357,7 +357,7 @@ export function DeliverabilityPanel({
     <div className="fh-recpanel-figures">
       <Panel title={`Email deliverability · ${rangeLabel}`}>
         {f === null ? (
-          <p className="fh-small fh-faint">No bounces or spam reports in this range.</p>
+          <p className="fh-small fh-quiet">No bounces or spam reports in this range.</p>
         ) : (
           <div className="fh-recpanel-figure-row">
             <DeliverabilityFigure value={rate(f.bounceRatePct)} label="bounced" />

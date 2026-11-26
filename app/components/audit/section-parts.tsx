@@ -15,7 +15,7 @@ export function Unread({ label }: { label: string }) {
 }
 
 export function NoneDetected() {
-  return <p className="fh-auditsec-text-2 fh-small fh-faint">None detected in this period.</p>;
+  return <p className="fh-auditsec-text-2 fh-small fh-quiet">None detected in this period.</p>;
 }
 
 /** One line per currency, stacked, each an element of its own. */
@@ -45,7 +45,7 @@ export function StatRow({
     <div className="fh-auditsec-row">
       <div>
         <div className="fh-small fh-text">{label}</div>
-        {secondary ? <div className="fh-auditsec-text fh-tiny fh-faint">{secondary}</div> : null}
+        {secondary ? <div className="fh-auditsec-text fh-tiny fh-quiet">{secondary}</div> : null}
       </div>
       <div className={`fh-nowrap fh-mono fh-body fh-semibold ${primaryClassName}`}>
         {typeof primary === "string" ? primary : <Lines lines={primary} />}

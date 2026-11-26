@@ -24,7 +24,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
       >
         {steps.length === 0 ? (
           <div className="fh-payment-empty fh-center">
-            <p className="fh-small fh-faint">No recovery steps scheduled</p>
+            <p className="fh-small fh-quiet">No recovery steps scheduled</p>
           </div>
         ) : (
           <ol className="fh-payment-steps">
@@ -50,7 +50,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
                           {stepResultWords(step.result, executed)}
                         </Pill>
                       </div>
-                      <span className="fh-nowrap fh-mono fh-tiny fh-faint">
+                      <span className="fh-nowrap fh-mono fh-tiny fh-quiet">
                         {executed
                           ? relative(toMs(step.executedAt), nowMs, "UTC")
                           : pending
@@ -59,11 +59,11 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
                       </span>
                     </div>
                     {email && step.aiSubject ? (
-                      <p className="fh-payment-step-subject fh-tiny fh-faint">
+                      <p className="fh-payment-step-subject fh-tiny fh-quiet">
                         &quot;{step.aiSubject}&quot;
                       </p>
                     ) : null}
-                    <p className="fh-tiny fh-faint">
+                    <p className="fh-tiny fh-quiet">
                       {executed
                         ? `Executed ${formatDate(step.executedAt, { style: "medium" }) ?? ""}`
                         : `Scheduled ${formatDate(step.scheduledAt, { style: "medium" }) ?? ""}`}
@@ -76,7 +76,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
                             <span
                               data-gap="2"
                               className={`cap-cluster fh-tiny ${
-                                step.openedAt ? "fh-green" : "fh-faint"
+                                step.openedAt ? "fh-green" : "fh-quiet"
                               }`}
                             >
                               {step.openedAt ? (
@@ -93,7 +93,7 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
                             <span
                               data-gap="2"
                               className={`cap-cluster fh-tiny ${
-                                step.clickedAt && !step.clickSuspectReason ? "fh-green" : "fh-faint"
+                                step.clickedAt && !step.clickSuspectReason ? "fh-green" : "fh-quiet"
                               }`}
                             >
                               {step.clickedAt && !step.clickSuspectReason ? (

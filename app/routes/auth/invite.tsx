@@ -103,7 +103,7 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
             <h1 className="fh-auth-title-tight fh-subsection fh-semibold fh-text">
               Invite invalid
             </h1>
-            <p className="fh-copy fh-faint">{error}</p>
+            <p className="fh-copy fh-quiet">{error}</p>
           </div>
         ) : (
           <>

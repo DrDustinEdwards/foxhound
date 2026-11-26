@@ -223,7 +223,7 @@ function RecoverableEstimate({ totals, currency }: { totals: MoneyTotals; curren
           <Lines lines={formatTotals(shown, currency)} />
         </div>
       </div>
-      <p className="fh-tiny fh-faint">
+      <p className="fh-tiny fh-quiet">
         Assumes {AUDIT_RECOVERY_ESTIMATE_PCT}% of failed invoices are recovered. This is an
         assumption, not a measured rate.
       </p>

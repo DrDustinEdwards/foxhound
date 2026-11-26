@@ -168,7 +168,7 @@ export function PaymentTiles({
         <p className="fh-title fh-bold fh-text">
           {relative(toMs(failedPayment.detectedAt), nowMs, "UTC")}
         </p>
-        <p className="fh-payment-tile-note fh-tiny fh-faint">
+        <p className="fh-payment-tile-note fh-tiny fh-quiet">
           {formatDate(failedPayment.detectedAt, { style: "monthDay" }) ?? ""}
         </p>
       </Panel>
@@ -178,7 +178,7 @@ export function PaymentTiles({
         </p>
         {/* Recova shows no subtext below two recovered payments. */}
         {estimatedLtvCents != null ? (
-          <p className="fh-payment-tile-note fh-tiny fh-faint">
+          <p className="fh-payment-tile-note fh-tiny fh-quiet">
             ~{formatMoney(Math.round(estimatedLtvCents), failedPayment.currency)} est. LTV
           </p>
         ) : null}
@@ -239,19 +239,19 @@ export function PaymentFactPanels({
 
       <Panel title="Email engagement">
         {emailSteps.length === 0 ? (
-          <p className="fh-small fh-faint">No emails sent yet</p>
+          <p className="fh-small fh-quiet">No emails sent yet</p>
         ) : (
           <dl className="">
             <DetailRow label="Emails sent" value={String(emailSteps.length)} />
             <DetailRow
               label="Opened"
               value={`${openedEmails.length} of ${emailSteps.length}`}
-              valueClass={openedEmails.length > 0 ? "fh-green" : "fh-faint"}
+              valueClass={openedEmails.length > 0 ? "fh-green" : "fh-quiet"}
             />
             <DetailRow
               label="Clicked"
               value={`${clickedEmails.length} of ${emailSteps.length}`}
-              valueClass={clickedEmails.length > 0 ? "fh-green" : "fh-faint"}
+              valueClass={clickedEmails.length > 0 ? "fh-green" : "fh-quiet"}
             />
             {recovery ? (
               <DetailRow
@@ -265,14 +265,14 @@ export function PaymentFactPanels({
 
         {previousFailures.length > 0 ? (
           <>
-            <p className="fh-payment-links-title fh-tiny fh-medium fh-faint">
+            <p className="fh-payment-links-title fh-tiny fh-medium fh-quiet">
               Previous failures ({previousFailures.length})
             </p>
             <ul className="">
               {previousFailures.map((p) => (
                 <li key={p.id}>
                   <a href={`/recovery/payments/${p.id}`} className="fh-payment-link">
-                    <span className="fh-tiny fh-faint">
+                    <span className="fh-tiny fh-quiet">
                       {relative(toMs(p.detectedAt), nowMs, "UTC")}
                     </span>
                     <span className="fh-payment-link-label">
@@ -341,7 +341,7 @@ function DetailRow({
 }) {
   return (
     <div className="fh-payment-fact">
-      <dt className="cap-keep fh-tiny fh-faint">{label}</dt>
+      <dt className="cap-keep fh-tiny fh-quiet">{label}</dt>
       <dd
         className={`fh-payment-fact-value fh-truncate fh-right ${small ? "fh-tiny" : "fh-small"} ${
           mono ? "fh-mono" : ""

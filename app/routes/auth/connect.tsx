@@ -206,7 +206,7 @@ function ConnectHeading({ title, subtitle }: { title: string; subtitle?: string 
       >
         {title}
       </h1>
-      {subtitle ? <p className="fh-auth-lede fh-small fh-faint">{subtitle}</p> : null}
+      {subtitle ? <p className="fh-auth-lede fh-small fh-quiet">{subtitle}</p> : null}
     </>
   );
 }
@@ -281,10 +281,10 @@ export default function Connect({ loaderData, actionData }: Route.ComponentProps
           Stripe Connect is not configured in this environment yet.
         </p>
       )}
-      <p className="fh-auth-after fh-tiny fh-faint">
+      <p className="fh-auth-after fh-tiny fh-quiet">
         Not ready? <AuthLink to="/demos/recovery">See a demo first</AuthLink>
       </p>
-      <p className="fh-connect-fine fh-tiny fh-faint">
+      <p className="fh-connect-fine fh-tiny fh-quiet">
         <AuthLink to="/settings">Manage account</AuthLink>
       </p>
     </ConnectFrame>

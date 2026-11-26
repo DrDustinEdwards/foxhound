@@ -80,7 +80,7 @@ export function AlertsSection({
               <p className="fh-soft">
                 {plural(alerts.length, "alert")} configured
                 {notificationEmail ? (
-                  <span className="fh-faint"> · email goes to {notificationEmail}</span>
+                  <span className="fh-quiet"> · email goes to {notificationEmail}</span>
                 ) : null}
               </p>
               {creating ? (
@@ -102,7 +102,7 @@ export function AlertsSection({
             </div>
 
             {alerts.length === 0 && !creating ? (
-              <p className="fh-alerts-empty fh-center fh-small fh-faint">No alerts yet.</p>
+              <p className="fh-alerts-empty fh-center fh-small fh-quiet">No alerts yet.</p>
             ) : null}
 
             {alerts.length > 0 ? (
@@ -132,16 +132,16 @@ export function AlertsSection({
                         <tr key={a.id}>
                           <td>{a.label ?? "-"}</td>
                           <td data-label="Metric">
-                            <span className="fh-faint">{alertMetricLabel(a.metric)}</span>
+                            <span className="fh-quiet">{alertMetricLabel(a.metric)}</span>
                           </td>
                           <td data-label="Condition">{condition}</td>
                           <td data-label="Channel">
-                            <span className="fh-caps-fine fh-mono fh-tiny fh-faint">
+                            <span className="fh-caps-fine fh-mono fh-tiny fh-quiet">
                               {a.channel}
                             </span>
                           </td>
                           <td data-label="Last triggered">
-                            <span className="fh-mono fh-faint">
+                            <span className="fh-mono fh-quiet">
                               {dateOrNever(a.lastTriggeredAt)}
                             </span>
                           </td>
@@ -185,7 +185,7 @@ export function AlertsSection({
       <div className="fh-alerts-head">
         <Panel title="Recent triggers">
           {history.length === 0 ? (
-            <p className="fh-small fh-faint">No alerts have fired yet.</p>
+            <p className="fh-small fh-quiet">No alerts have fired yet.</p>
           ) : (
             <Table caption="Recent triggers" captionHidden reflow>
               <thead>
@@ -202,7 +202,7 @@ export function AlertsSection({
                   <tr key={h.id}>
                     <td>{alertMetricLabel(h.metric)}</td>
                     <td data-label="Condition">
-                      <span className="fh-faint">
+                      <span className="fh-quiet">
                         {alertShortCondition(h.direction, h.metric, h.thresholdValue)}
                       </span>
                     </td>
@@ -212,10 +212,10 @@ export function AlertsSection({
                       </span>
                     </td>
                     <td data-label="Channel">
-                      <span className="fh-caps-fine fh-mono fh-tiny fh-faint">{h.channel}</span>
+                      <span className="fh-caps-fine fh-mono fh-tiny fh-quiet">{h.channel}</span>
                     </td>
                     <td data-label="Fired at">
-                      <span className="fh-mono fh-faint">{formatDateTime(h.firedAt)}</span>
+                      <span className="fh-mono fh-quiet">{formatDateTime(h.firedAt)}</span>
                     </td>
                   </tr>
                 ))}
@@ -323,7 +323,7 @@ function CreateAlertForm({
             <TextField
               label={
                 <>
-                  Label <span className="fh-faint">(optional)</span>
+                  Label <span className="fh-quiet">(optional)</span>
                 </>
               }
               name="label"
@@ -343,7 +343,7 @@ function CreateAlertForm({
                 ]}
               />
               {!hasSlack ? (
-                <p className="fh-alerts-sub fh-tiny fh-faint">
+                <p className="fh-alerts-sub fh-tiny fh-quiet">
                   Add a Slack webhook above and save it first.
                 </p>
               ) : null}

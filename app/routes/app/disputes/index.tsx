@@ -257,7 +257,7 @@ export default function Disputes({ loaderData, actionData }: Route.ComponentProp
                             </span>
                           )}
                         </div>
-                        <div className="fh-tiny fh-faint">{d.customerEmail || ""}</div>
+                        <div className="fh-tiny fh-quiet">{d.customerEmail || ""}</div>
                       </td>
                       <td data-label="Amount" data-num="">
                         {formatMoney(d.amountCents, d.currency)}

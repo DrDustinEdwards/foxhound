@@ -194,7 +194,7 @@ function CronTableRow({ cron: c, busy }: { cron: CronRow; busy: boolean }) {
         <span className="fh-line fh-mono fh-text">{c.name}</span>
         <span className="fh-line fh-soft">
           {words ?? c.schedule}
-          {words ? <span className="fh-cron-schedule fh-mono fh-faint">{c.schedule}</span> : null}
+          {words ? <span className="fh-cron-schedule fh-mono fh-quiet">{c.schedule}</span> : null}
         </span>
       </th>
       <td data-label="State">

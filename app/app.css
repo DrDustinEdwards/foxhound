@@ -365,9 +365,6 @@ body {
   .fh-quiet {
     color: var(--dim);
   }
-  .fh-faint {
-    color: var(--dim);
-  }
   .fh-error {
     color: var(--crit);
   }
@@ -375,9 +372,6 @@ body {
     color: var(--ok);
   }
   .fh-brand {
-    color: var(--accent-text);
-  }
-  .fh-accent {
     color: var(--accent-text);
   }
   .fh-mono {

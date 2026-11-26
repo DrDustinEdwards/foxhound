@@ -70,8 +70,8 @@ export function RecoveryCalculator() {
               value={mrr}
               onChange={setMrr}
               format={fmt}
-              minLabel={<span className="fh-mono fh-source fh-faint">$1k</span>}
-              maxLabel={<span className="fh-mono fh-source fh-faint">$500k</span>}
+              minLabel={<span className="fh-mono fh-source fh-quiet">$1k</span>}
+              maxLabel={<span className="fh-mono fh-source fh-quiet">$500k</span>}
               // React itself injects a client-only style.caretColor on controlled
               // range inputs during hydration (a Firefox thumb-rendering
               // workaround baked into react-dom, not app markup), which is absent
@@ -95,8 +95,8 @@ export function RecoveryCalculator() {
               value={failureShare}
               onChange={setFailureShare}
               format={percent}
-              minLabel={<span className="fh-mono fh-source fh-faint">0%</span>}
-              maxLabel={<span className="fh-mono fh-source fh-faint">20%</span>}
+              minLabel={<span className="fh-mono fh-source fh-quiet">0%</span>}
+              maxLabel={<span className="fh-mono fh-source fh-quiet">20%</span>}
               // Same react-dom hydration workaround as the slider above.
               suppressHydrationWarning
             />
@@ -116,8 +116,8 @@ export function RecoveryCalculator() {
               value={recoveryShare}
               onChange={setRecoveryShare}
               format={percent}
-              minLabel={<span className="fh-mono fh-source fh-faint">0%</span>}
-              maxLabel={<span className="fh-mono fh-source fh-faint">100%</span>}
+              minLabel={<span className="fh-mono fh-source fh-quiet">0%</span>}
+              maxLabel={<span className="fh-mono fh-source fh-quiet">100%</span>}
               // Same react-dom hydration workaround as the slider above.
               suppressHydrationWarning
             />
@@ -142,7 +142,7 @@ export function RecoveryCalculator() {
               label="Your recoverable opportunity"
               sub="What Stripe's own retries could not get back"
               value={fmt(remaining)}
-              valueClassName="fh-accent"
+              valueClassName="fh-brand"
             />
             <Row
               name="foxhoundRecovers"
@@ -181,7 +181,7 @@ export function RecoveryCalculator() {
             </div>
           </div>
 
-          <p className="fh-calc-block-2 fh-center fh-mono fh-source fh-faint">
+          <p className="fh-calc-block-2 fh-center fh-mono fh-source fh-quiet">
             Stripe {STRIPE_RECOVERY_RATE_PERCENT}% recovery: stripe.com/billing, read {STAT_AS_OF}.
             The failure and recovery shares are assumptions you set, not Foxhound results: Foxhound
             does not project a failure or recovery rate.
@@ -197,7 +197,7 @@ export function RecoveryCalculator() {
               Get your actual numbers free
             </ButtonLink>
           </div>
-          <p className="fh-calc-text-2 fh-center fh-mono fh-tiny fh-faint">
+          <p className="fh-calc-text-2 fh-center fh-mono fh-tiny fh-quiet">
             Free audit &middot; No account required &middot; {AUDIT_ACCESS_CHIP}
           </p>
         </div>

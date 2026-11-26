@@ -39,7 +39,7 @@ function HeroCard({
       <p className={`fh-mono fh-display fh-medium cap-num ${valueClassName ?? "fh-text"}`}>
         {value}
       </p>
-      <p className="fh-console-sub fh-small fh-faint">{sub}</p>
+      <p className="fh-console-sub fh-small fh-quiet">{sub}</p>
     </Panel>
   );
 }
@@ -175,7 +175,7 @@ const ROW_TONE: Record<AttentionRow["tone"], "crit" | undefined> = {
 export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
   // The list has no visible heading; its name gives a screen reader one.
   if (rows.length === 0) {
-    return <p className="fh-small fh-faint">All clear. The platform is running.</p>;
+    return <p className="fh-small fh-quiet">All clear. The platform is running.</p>;
   }
   return (
     <ul className="cap-rows" role="list" aria-label="Needs attention">
@@ -187,13 +187,13 @@ export function ConsoleAttentionFeed({ rows }: { rows: AttentionRow[] }) {
             {row.emphasis ? (
               <>
                 {" "}
-                <span className={row.tone === "urgent" ? "fh-medium fh-error" : "fh-faint"}>
+                <span className={row.tone === "urgent" ? "fh-medium fh-error" : "fh-quiet"}>
                   {row.emphasis}
                 </span>
               </>
             ) : null}
             {row.mrrCents && row.mrrCurrency ? (
-              <span className="fh-faint">
+              <span className="fh-quiet">
                 {" "}
                 ({formatMoneyShort(row.mrrCents, row.mrrCurrency)}/mo)
               </span>

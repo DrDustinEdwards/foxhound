@@ -34,7 +34,7 @@ export function PaymentsTable({
         <span className="fh-recpanel-legend fh-small">
           {/* Recova counted "active" among the eight rows on show; this is
               every payment in recovery now, which is what the word claims. */}
-          <span className="fh-faint">
+          <span className="fh-quiet">
             {w.totalFailedCount} total · {w.activePaymentsCount} active
           </span>
           <Link to="/recovery/payments" className="fh-brand">
@@ -108,12 +108,12 @@ export function PaymentsTable({
                           {prior > 0 ? <Pill tone="warn">{prior + 1}x failure</Pill> : null}
                         </span>
                         {p.customerName ? (
-                          <span className="fh-line fh-tiny fh-regular fh-faint">
+                          <span className="fh-line fh-tiny fh-regular fh-quiet">
                             {p.customerEmail}
                           </span>
                         ) : null}
                         {p.planName ? (
-                          <span className="fh-line fh-tiny fh-regular fh-faint">{p.planName}</span>
+                          <span className="fh-line fh-tiny fh-regular fh-quiet">{p.planName}</span>
                         ) : null}
                       </th>
                       <td data-label="Amount" className="fh-nowrap fh-mono">
@@ -122,12 +122,12 @@ export function PaymentsTable({
                       <td data-label="Decline">
                         <Pill variant="outline">{declineLabel(p.declineCategory)}</Pill>
                         {p.declineCode ? (
-                          <span className="fh-line fh-mono fh-tiny fh-faint">{p.declineCode}</span>
+                          <span className="fh-line fh-mono fh-tiny fh-quiet">{p.declineCode}</span>
                         ) : null}
                       </td>
                       <td data-label="Steps">
                         <span
-                          className={`fh-mono fh-tiny ${s.completed > 0 ? "fh-text" : "fh-faint"}`}
+                          className={`fh-mono fh-tiny ${s.completed > 0 ? "fh-text" : "fh-quiet"}`}
                         >
                           {s.completed}/{s.total}
                         </span>
@@ -140,7 +140,7 @@ export function PaymentsTable({
                           {FAILED_PAYMENT_STATUS_LABELS[p.status] ?? p.status}
                         </Pill>
                       </td>
-                      <td data-label="Detected" className="fh-nowrap fh-tiny fh-faint">
+                      <td data-label="Detected" className="fh-nowrap fh-tiny fh-quiet">
                         <span className="fh-line">
                           {relative(toMs(p.detectedAt), nowMs, "UTC", { granularity: "day" })}
                         </span>

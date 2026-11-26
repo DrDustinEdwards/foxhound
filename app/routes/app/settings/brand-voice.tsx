@@ -119,7 +119,7 @@ function CategoryVoice({
         <span aria-hidden="true" className="fh-voice-dot" data-tone={row.dot}></span>
         <div>
           <div className="fh-small fh-medium fh-text">{row.label}</div>
-          <div id={helpId} className="fh-voice-help fh-tiny fh-faint">
+          <div id={helpId} className="fh-voice-help fh-tiny fh-quiet">
             {row.description}
           </div>
         </div>

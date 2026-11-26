@@ -172,7 +172,7 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
   return (
     <Panel title="Decline breakdown">
       {w.totalFailedCount === 0 ? (
-        <p className="fh-small fh-faint">No declined payments yet.</p>
+        <p className="fh-small fh-quiet">No declined payments yet.</p>
       ) : (
         <ul className="cap-stack" data-gap="4">
           {rows.map((row) => (
@@ -203,7 +203,7 @@ export function DeclineBreakdown({ w }: { w: RecoveryDashboardWindow }) {
                       )}
                     />
                   ) : null}
-                  <span className="fh-mono fh-tiny fh-faint">{declineRowText(row)}</span>
+                  <span className="fh-mono fh-tiny fh-quiet">{declineRowText(row)}</span>
                 </span>
               }
               valueText={`${row.count} failed payments, ${row.pct}% of all${row.recoveredPct !== null ? `, ${row.recoveredPct}% recovered` : ""}.`}

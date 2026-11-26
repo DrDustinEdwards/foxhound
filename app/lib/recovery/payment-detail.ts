@@ -50,7 +50,7 @@ export function declineValueClass(category: string): string {
     case "fraud":
       return "fh-red";
     default:
-      return "fh-faint";
+      return "fh-quiet";
   }
 }
 
@@ -63,7 +63,7 @@ export function statusValueClass(status: string): string {
     case "failed_unrecovered":
       return "fh-red";
     default:
-      return "fh-faint";
+      return "fh-quiet";
   }
 }
 

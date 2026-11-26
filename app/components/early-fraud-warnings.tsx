@@ -133,7 +133,7 @@ export function EarlyFraudWarnings({
                     <td>
                       <div className="fh-small fh-text">{label}</div>
                       {w.customerName && w.customerEmail ? (
-                        <div className="fh-tiny fh-faint">{w.customerEmail}</div>
+                        <div className="fh-tiny fh-quiet">{w.customerEmail}</div>
                       ) : null}
                     </td>
                     <td data-label="Amount" data-num="">
@@ -196,7 +196,7 @@ export function EarlyFraudWarnings({
                               </button>
                             </Form>
                           ) : (
-                            <span className="fh-warnings-note fh-tiny fh-faint">
+                            <span className="fh-warnings-note fh-tiny fh-quiet">
                               Only the account owner can refund.
                             </span>
                           )}

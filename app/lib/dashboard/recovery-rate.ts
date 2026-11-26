@@ -48,5 +48,5 @@ export function recoveryRateBand(pct: number | null): string {
  * handling so a no-history account renders subtle rather than alarming red.
  */
 export function recoveryRateClassNameOrNull(pct: number | null): string {
-  return pct === null ? "fh-faint" : recoveryRateClassName(pct);
+  return pct === null ? "fh-quiet" : recoveryRateClassName(pct);
 }

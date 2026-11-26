@@ -69,65 +69,54 @@ async function deleteOlderThan(
   return rows.length;
 }
 
-export async function sweepEngagementEvents(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_ENGAGEMENT_DAYS, Date.now());
-  const rows = await deleteOlderThan(
-    getDb(env),
-    engagementEvents,
-    engagementEvents.id,
-    engagementEvents.occurredAt,
-    cutoff,
-  );
-  return { rowsProcessed: rows };
+/** One retention step: delete a batch of `table` rows older than `days`. */
+function sweepOlderThan(
+  table: SQLiteTable,
+  idColumn: SQLiteColumn,
+  tsColumn: SQLiteColumn,
+  days: number,
+): (env: Env) => Promise<CronJobResult> {
+  return async (env) => ({
+    rowsProcessed: await deleteOlderThan(
+      getDb(env),
+      table,
+      idColumn,
+      tsColumn,
+      cutoffFor(days, Date.now()),
+    ),
+  });
 }
 
-export async function sweepEmailSends(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_EMAIL_SENDS_DAYS, Date.now());
-  const rows = await deleteOlderThan(
-    getDb(env),
-    emailSends,
-    emailSends.id,
-    emailSends.createdAt,
-    cutoff,
-  );
-  return { rowsProcessed: rows };
-}
-
-export async function sweepAdminApiCalls(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_ADMIN_API_CALLS_DAYS, Date.now());
-  const rows = await deleteOlderThan(
-    getDb(env),
-    adminApiCalls,
-    adminApiCalls.id,
-    adminApiCalls.createdAt,
-    cutoff,
-  );
-  return { rowsProcessed: rows };
-}
-
-export async function sweepWebhookEvents(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_WEBHOOK_EVENTS_DAYS, Date.now());
-  const rows = await deleteOlderThan(
-    getDb(env),
-    webhookEvents,
-    webhookEvents.id,
-    webhookEvents.receivedAt,
-    cutoff,
-  );
-  return { rowsProcessed: rows };
-}
-
-export async function sweepHealthScoreHistory(env: Env): Promise<CronJobResult> {
-  const cutoff = cutoffFor(RETENTION_HEALTH_SCORE_DAYS, Date.now());
-  const rows = await deleteOlderThan(
-    getDb(env),
-    healthScoreHistory,
-    healthScoreHistory.id,
-    healthScoreHistory.recordedAt,
-    cutoff,
-  );
-  return { rowsProcessed: rows };
-}
+export const sweepEngagementEvents = sweepOlderThan(
+  engagementEvents,
+  engagementEvents.id,
+  engagementEvents.occurredAt,
+  RETENTION_ENGAGEMENT_DAYS,
+);
+export const sweepEmailSends = sweepOlderThan(
+  emailSends,
+  emailSends.id,
+  emailSends.createdAt,
+  RETENTION_EMAIL_SENDS_DAYS,
+);
+export const sweepAdminApiCalls = sweepOlderThan(
+  adminApiCalls,
+  adminApiCalls.id,
+  adminApiCalls.createdAt,
+  RETENTION_ADMIN_API_CALLS_DAYS,
+);
+export const sweepWebhookEvents = sweepOlderThan(
+  webhookEvents,
+  webhookEvents.id,
+  webhookEvents.receivedAt,
+  RETENTION_WEBHOOK_EVENTS_DAYS,
+);
+export const sweepHealthScoreHistory = sweepOlderThan(
+  healthScoreHistory,
+  healthScoreHistory.id,
+  healthScoreHistory.recordedAt,
+  RETENTION_HEALTH_SCORE_DAYS,
+);
 
 export interface AiCallRow {
   id: string;

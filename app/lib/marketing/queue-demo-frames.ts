@@ -127,7 +127,7 @@ const STATUS_ICON_CLASS: Record<Status, string> = {
 };
 
 const AMOUNT_CLASS: Record<Status, string> = {
-  failed: "fh-faint",
+  failed: "fh-quiet",
   running: "fh-brand",
   recovered: "fh-green",
 };

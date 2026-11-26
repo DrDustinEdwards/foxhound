@@ -122,7 +122,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                 <br />
                 you recover.
                 <br />
-                <span className="fh-accent">Not before.</span>
+                <span className="fh-brand">Not before.</span>
               </>
             }
             lead={
@@ -170,7 +170,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
               </li>
               {TRUST_ITEMS.map((label, i, arr) => (
                 <li key={label} className="fh-home-item">
-                  <span className="fh-mono fh-caption fh-faint">{label}</span>
+                  <span className="fh-mono fh-caption fh-quiet">{label}</span>
                   {i < arr.length - 1 ? (
                     <span aria-hidden="true" className="fh-home-label">
                       &middot;
@@ -196,7 +196,7 @@ export default function Home({ loaderData }: Route.ComponentProps) {
             <h2 className="fh-home-title-2 fh-center fh-statement fh-semibold fh-text">
               {STRIPE_GAP} of failed payments
               <br />
-              <span className="fh-accent">never come back.</span>
+              <span className="fh-brand">never come back.</span>
             </h2>
             <p className="fh-home-wrap fh-center fh-subhead fh-soft">{STATEMENT_BODY}</p>
             <div className="fh-home-row-2">
@@ -271,13 +271,13 @@ export default function Home({ loaderData }: Route.ComponentProps) {
                     <div className="cap-panel-body">
                       <div>
                         <div className="fh-mk-tile-icon">
-                          <Icon d={icon} className="fh-icon-18 fh-icon-180 fh-accent" />
+                          <Icon d={icon} className="fh-icon-18 fh-icon-180 fh-brand" />
                         </div>
                         <div className="fh-home-block-12 fh-body fh-medium fh-text">
                           {PRODUCTS[key].name}
                         </div>
                         <p className="fh-home-text-5 fh-small fh-soft">{card.description}</p>
-                        <div className="fh-mono fh-small fh-accent">{card.price}</div>
+                        <div className="fh-mono fh-small fh-brand">{card.price}</div>
                       </div>
                     </div>
                   </Link>

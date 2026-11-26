@@ -78,7 +78,7 @@ export default function AuditPage() {
                       <span className="fh-audit-label-3 fh-line fh-copy fh-medium fh-text">
                         {title}
                       </span>
-                      <span className="fh-line fh-small fh-faint">{desc}</span>
+                      <span className="fh-line fh-small fh-quiet">{desc}</span>
                     </span>
                   </li>
                 ))}
@@ -93,7 +93,7 @@ export default function AuditPage() {
               >
                 See my numbers
               </ButtonLink>
-              <p className="fh-audit-text-2 fh-small fh-faint">
+              <p className="fh-audit-text-2 fh-small fh-quiet">
                 {AUDIT_ACCESS_CHIP}. 30 seconds. No account required.
               </p>
             </div>
@@ -108,7 +108,7 @@ export default function AuditPage() {
               <p className="fh-audit-text-3 fh-mono fh-display fh-bold fh-green">
                 {AUDIT_LOOKBACK_DAYS} days
               </p>
-              <p className="fh-caption fh-faint">of failed invoices the audit reads</p>
+              <p className="fh-caption fh-quiet">of failed invoices the audit reads</p>
             </div>
           </div>
         </div>
@@ -116,14 +116,14 @@ export default function AuditPage() {
           <div className="cap-panel-body">
             <div>
               <p className="fh-audit-text-4 fh-mono fh-display fh-bold">$0</p>
-              <p className="fh-caption fh-faint">cost to run this audit today</p>
+              <p className="fh-caption fh-quiet">cost to run this audit today</p>
             </div>
           </div>
         </div>
       </div>
 
       {/* A 24px target (min-h-6) for a link that stands alone. */}
-      <a href="/demos/recovery" rel="nofollow" className="fh-audit-link-2 fh-copy fh-accent">
+      <a href="/demos/recovery" rel="nofollow" className="fh-audit-link-2 fh-copy fh-brand">
         View live demo &rarr;
       </a>
 
@@ -144,7 +144,7 @@ export default function AuditPage() {
               <ButtonLink to="/audit/connect" variant="primary">
                 Run the free audit
               </ButtonLink>
-              <p className="fh-audit-text-8 fh-mono fh-tiny fh-faint">
+              <p className="fh-audit-text-8 fh-mono fh-tiny fh-quiet">
                 No account required &middot; The audit only reads &middot; Nothing is stored
               </p>
             </div>

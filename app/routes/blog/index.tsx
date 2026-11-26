@@ -212,7 +212,7 @@ function BlogSection({ section, posts }: { section: BlogSectionConfig; posts: Bl
       <div className="fh-mk-wide">
         <div className="cap-stack fh-blog-block-2" data-gap="4">
           <div>
-            <p className="fh-mono fh-copy fh-accent fh-caps-wide">{section.label}</p>
+            <p className="fh-mono fh-copy fh-brand fh-caps-wide">{section.label}</p>
             <p className="fh-blog-text-2 fh-copy fh-soft">{section.description}</p>
           </div>
           <Link to={section.tagHref} className="fh-blog-link-5 fh-hover-group fh-nowrap fh-copy">
