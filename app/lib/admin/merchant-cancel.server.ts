@@ -135,7 +135,7 @@ export interface CancelMerchantDeps {
  * bill at the next run unless the account is also billing_exempt (PRICING.md:
  * cancel never silently forgives owed fees). The Stripe oauth.deauthorize call
  * is best-effort AFTER the local commit: a deauthorize failure is logged,
- * queued for the daily stripe-deauthorize-retry cron, and returned for the
+ * queued for the daily stripe-catch-up cron, and returned for the
  * caller to surface, but NEVER rolls back the local cancel - the merchant is
  * canceled on our side regardless.
  */

@@ -16,28 +16,23 @@ export interface CronStatusRow {
 
 /** The crons that surface to a merchant. Operator-only crons (retention sweeps, cron-health, demo-reset,
  *  billing) stay hidden. There is no dispute cron (intake is webhook-driven via the money DO), so
- *  `intelligence-ai`, the nightly run behind the Intelligence pages, takes that slot. */
-const VISIBLE_CRONS = [
-  "recovery-tick",
-  "winback-send",
-  "expiring-cards",
-  "intelligence-ai",
-] as const;
+ *  `intelligence`, the nightly run behind the Intelligence pages, takes that slot. */
+const VISIBLE_CRONS = ["recovery-tick", "winback-send", "expiring-cards", "intelligence"] as const;
 
 const CRON_LABELS: Record<string, string> = {
   "recovery-tick": "Recovery sequences",
   "winback-send": "Win-back sequences",
   "expiring-cards": "Expiring card alerts",
-  "intelligence-ai": "Customer health scoring",
+  intelligence: "Customer health scoring",
 };
 
 /** Minutes of slack before a cron reads stale: 90 for the five-minute recovery-tick and winback-send, 1500
- *  (25 hours) for the daily expiring-cards and intelligence-ai. */
+ *  (25 hours) for the daily expiring-cards and intelligence. */
 const CRON_STALE_MINUTES: Record<string, number> = {
   "recovery-tick": 90,
   "winback-send": 90,
   "expiring-cards": 1500,
-  "intelligence-ai": 1500,
+  intelligence: 1500,
 };
 
 const DEFAULT_STALE_MINUTES = 90;

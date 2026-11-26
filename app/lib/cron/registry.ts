@@ -397,6 +397,18 @@ const retention = cronSteps([
   { name: "tool-call-log", handler: toolCallLogExport },
 ]);
 
+/** Sync first: the AI run reads the snapshot it writes. */
+const intelligence = cronSteps([
+  { name: "sync", handler: intelligenceSync },
+  { name: "ai", handler: intelligenceAi },
+]);
+
+const stripeCatchUp = cronSteps([
+  { name: "credit-notes", handler: creditNoteRetry },
+  { name: "deauthorize", handler: stripeDeauthorizeRetry },
+  { name: "missed-events", handler: stripeMissedEvents },
+]);
+
 const cronHealth: CronHandler = async (env) =>
   runCronHealthCheck(env, getDb(env), CRON_JOBS, new Date());
 
@@ -429,18 +441,11 @@ export const CRON_JOBS: CronJob[] = [
   { name: "expiring-cards", schedule: CRON_SCHEDULE_EXPIRING_CARDS, handler: expiringCards },
   { name: "backup", schedule: CRON_SCHEDULE_DAILY, handler: backup },
   { name: DEMO_RESET_CRON_NAME, schedule: CRON_SCHEDULE_DAILY, handler: demoReset },
-  { name: "credit-note-retry", schedule: CRON_SCHEDULE_DAILY, handler: creditNoteRetry },
-  {
-    name: "stripe-deauthorize-retry",
-    schedule: CRON_SCHEDULE_DAILY,
-    handler: stripeDeauthorizeRetry,
-  },
-  { name: "stripe-missed-events", schedule: CRON_SCHEDULE_DAILY, handler: stripeMissedEvents },
+  { name: "stripe-catch-up", schedule: CRON_SCHEDULE_DAILY, handler: stripeCatchUp },
   { name: "dispute-fee-pricing", schedule: CRON_SCHEDULE_DAILY, handler: disputeFeePricing },
   { name: "billing-monthly", schedule: CRON_SCHEDULE_MONTHLY, handler: billingMonthly },
-  { name: "intelligence-sync", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceSync },
+  { name: "intelligence", schedule: CRON_SCHEDULE_DAILY, handler: intelligence },
   { name: "monthly-audit", schedule: CRON_SCHEDULE_MONTHLY_AUDIT, handler: monthlyAudit },
-  { name: "intelligence-ai", schedule: CRON_SCHEDULE_DAILY, handler: intelligenceAi },
   { name: "retention", schedule: CRON_SCHEDULE_DAILY, handler: retention },
   // The day each code-written sitemap page last changed, for /sitemap.xml's
   // lastmod.
