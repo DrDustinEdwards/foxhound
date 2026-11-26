@@ -48,10 +48,7 @@ export const customerContext = sqliteTable(
     scheduledChangeKind: text("scheduled_change_kind"),
     scheduledChangeAt: ts("scheduled_change_at"),
   },
-  (t) => [
-    index("customer_context_account_idx").on(t.accountId),
-    uniqueIndex("customer_context_account_customer_uq").on(t.accountId, t.stripeCustomerId),
-  ],
+  (t) => [uniqueIndex("customer_context_account_customer_uq").on(t.accountId, t.stripeCustomerId)],
 );
 
 // One row per change Intelligence tracks on a connected account's subscription, recorded from customer.subscription.updated as Stripe sends it (app/lib/intelligence/subscription-change.ts): a cancellation scheduled or taken back, collection paused or resumed, a downgrade. A log beside customer_context, never a write to the columns the daily sync owns; the health score reads both. Rides the webhook claim's batch, and the (event, kind) index makes a redelivery a no-op.
@@ -181,7 +178,6 @@ export const mrrSnapshots = sqliteTable(
     createdAt: ts("created_at").notNull(),
   },
   (t) => [
-    index("mrr_snapshots_account_idx").on(t.accountId),
     // One snapshot per account per UTC day (snapshot_date is ms): a second sync the same day replaces the day's row (sync.server.ts) instead of charting the day twice.
     uniqueIndex("mrr_snapshots_account_day_uq").on(
       t.accountId,
@@ -200,7 +196,6 @@ export const intelligenceReports = sqliteTable(
     generatedAt: ts("generated_at").notNull(),
   },
   (t) => [
-    index("intelligence_reports_account_idx").on(t.accountId),
     // The nightly narrative (narrative.ts) refreshes the SAME monthly report every night (upsert): one row per account per report_month, kept current.
     uniqueIndex("intelligence_reports_account_month_uq").on(t.accountId, t.reportMonth),
   ],

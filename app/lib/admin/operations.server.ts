@@ -16,6 +16,7 @@ import { countActiveRecoveries } from "~/lib/admin/overview.server";
 import { accountProcessingEligibleCondition, stepDueCondition } from "~/lib/cron/due-steps";
 import {
   CRON_LOCK_PEEK_TIMEOUT_MS,
+  RETENTION_ADMIN_API_CALLS_DAYS,
   RETENTION_AI_CALLS_DAYS,
   RETENTION_CRON_LOG_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
@@ -29,6 +30,7 @@ import { lockHealth } from "@dustinedwards/site-runtime/cron-lock";
 import { withTimeout } from "@dustinedwards/site-runtime/time";
 import {
   accounts,
+  adminApiCalls,
   aiCalls,
   cronRunLog,
   emailSends,
@@ -145,6 +147,7 @@ export async function getGrowthTableCounts(db: Db): Promise<GrowthTableRow[]> {
     ],
     ["Cron run log", `${RETENTION_CRON_LOG_DAYS} days, newest 1,500 per job`, cronRunLog],
     ["Page 404s (daily aggregate)", `${RETENTION_PAGE_404_DAILY_DAYS} days`, page404Daily],
+    ["Admin API calls", `${RETENTION_ADMIN_API_CALLS_DAYS} days`, adminApiCalls],
     ["AI calls", `${RETENTION_AI_CALLS_DAYS} days raw, monthly cost aggregates after`, aiCalls],
   ];
   return Promise.all(

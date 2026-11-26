@@ -465,11 +465,12 @@ describe("no money path exists on the API", () => {
   });
 });
 
-describe("every call is logged, append-only", () => {
-  it("a read and a write each leave one row naming the acting admin and the key", async () => {
+describe("writes and refusals are logged, append-only for 30 days", () => {
+  it("a successful read leaves no row; a write and a refused read each leave one naming the admin and the key", async () => {
     const { sqlite, keys } = await seed();
     await api("/platform", asAdmin(keys.admin));
     await api("/pause", { ...asAdmin(keys.admin), method: "POST", body: { account_id: MERCHANT } });
+    await api("/merchants/nope", asAdmin(keys.admin));
     const rows = sqlite.prepare("SELECT * FROM admin_api_calls ORDER BY rowid").all() as {
       actor_email: string;
       api_key_id: string;
@@ -477,15 +478,31 @@ describe("every call is logged, append-only", () => {
       path: string;
       status: number;
     }[];
-    expect(rows.map((r) => [r.actor_email, r.method, r.path, r.status])).toEqual([
-      [ADMIN, "GET", "/platform", 200],
-      [ADMIN, "POST", "/pause", 200],
+    expect(rows.map((r) => [r.actor_email, r.method, r.path])).toEqual([
+      [ADMIN, "POST", "/pause"],
+      [ADMIN, "GET", "/merchants/nope"],
     ]);
+    expect(rows[0].status).toBe(200);
+    expect(rows[1].status).toBeGreaterThanOrEqual(400);
     expect(rows[0].api_key_id).toBe(`key_${keys.admin}`);
     expect(() => sqlite.prepare("DELETE FROM admin_api_calls").run()).toThrow(/append-only/);
     expect(() => sqlite.prepare("UPDATE admin_api_calls SET path = 'x'").run()).toThrow(
       /append-only/,
     );
+  });
+
+  it("a row older than 30 days can be deleted, a younger one cannot", async () => {
+    const { sqlite } = await seed();
+    const insert = sqlite.prepare(
+      "INSERT INTO admin_api_calls (id, actor_email, api_key_id, method, path, status, created_at) VALUES (?, 'a@example.com', 'k', 'POST', '/x', 200, ?)",
+    );
+    insert.run("old", Date.now() - 31 * 86_400_000);
+    insert.run("new", Date.now() - 29 * 86_400_000);
+    expect(() => sqlite.prepare("DELETE FROM admin_api_calls WHERE id = 'new'").run()).toThrow(
+      /append-only/,
+    );
+    sqlite.prepare("DELETE FROM admin_api_calls WHERE id = 'old'").run();
+    expect(sqlite.prepare("SELECT id FROM admin_api_calls").all()).toEqual([{ id: "new" }]);
   });
 });
 
