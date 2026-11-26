@@ -1,6 +1,6 @@
 // The recovery tick's reads: processable accounts, due steps, the per-payment step choice, exhausted sequences.
 
-import { primaryConnectionValue } from "~/lib/stripe/connections.server";
+import { primaryConnectionValue, senderNameOrAccountName } from "~/lib/stripe/connections.server";
 import { and, asc, eq, isNull, lte, notExists, notLike, or, type SQL } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
 import { type Db, accounts, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
@@ -171,7 +171,7 @@ function selectStepRows(db: Db) {
       customerName: failedPayments.customerName,
       declineCategory: failedPayments.declineCategory,
       connectionAccessToken: stripeConnections.stripeAccessToken,
-      merchantName: stripeConnections.senderName,
+      merchantName: senderNameOrAccountName(stripeConnections.senderName, accounts.name),
       brandVoice: stripeConnections.brandVoice,
       merchantIndustry: accounts.merchantIndustry,
       primaryCustomerType: accounts.primaryCustomerType,

@@ -37,6 +37,16 @@ export function primaryConnectionValue<T>(column: AnySQLiteColumn, accountId: An
   )`;
 }
 
+/** The name a merchant's customers see mail from: the sender name the merchant set, else the
+ *  account's name (typed at sign-up, or the Stripe business name). Never "Support" while the
+ *  account has a name, so a customer can tell whose payment the mail is about. */
+export function senderNameOrAccountName(
+  senderName: AnySQLiteColumn | SQL,
+  accountName: AnySQLiteColumn,
+) {
+  return sql<string | null>`coalesce(nullif(trim(${senderName}), ''), ${accountName})`;
+}
+
 /** Every live connection of the account, with its encrypted access token. */
 export function listActiveConnections(
   db: Db,

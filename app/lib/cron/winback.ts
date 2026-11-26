@@ -1,5 +1,5 @@
 import { appOrigin } from "~/lib/app-origin";
-import { primaryConnectionValue } from "~/lib/stripe/connections.server";
+import { primaryConnectionValue, senderNameOrAccountName } from "~/lib/stripe/connections.server";
 import { and, eq, isNull, lte, or } from "drizzle-orm";
 
 import type { Db } from "~/db";
@@ -91,9 +91,9 @@ async function queryDueWinbackSteps(
         stripeConnections.brandVoiceSamples,
         winBackSequences.accountId,
       ),
-      senderName: primaryConnectionValue<string>(
-        stripeConnections.senderName,
-        winBackSequences.accountId,
+      senderName: senderNameOrAccountName(
+        primaryConnectionValue<string>(stripeConnections.senderName, winBackSequences.accountId),
+        accounts.name,
       ),
       replyToEmail: primaryConnectionValue<string>(
         stripeConnections.replyToEmail,

@@ -3,7 +3,8 @@
 // triggerDepsFor so tests can drive the dispatcher with fakes.
 
 import { and, eq } from "drizzle-orm";
-import { type Db, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
+import { accounts, type Db, failedPayments, getDb, recoverySteps, stripeConnections } from "~/db";
+import { senderNameOrAccountName } from "~/lib/stripe/connections.server";
 import { queryStepForManualTrigger, type DueStepRow } from "~/lib/cron/due-steps";
 import {
   executeEmailStep,
@@ -60,9 +61,13 @@ async function resendSender(
   stepId: string,
 ): Promise<{ senderName: string | null; replyTo: string | null }> {
   const rows = await getDb(env)
-    .select({ senderName: stripeConnections.senderName, replyTo: stripeConnections.replyToEmail })
+    .select({
+      senderName: senderNameOrAccountName(stripeConnections.senderName, accounts.name),
+      replyTo: stripeConnections.replyToEmail,
+    })
     .from(recoverySteps)
     .innerJoin(failedPayments, eq(failedPayments.id, recoverySteps.failedPaymentId))
+    .innerJoin(accounts, eq(accounts.id, recoverySteps.accountId))
     .innerJoin(stripeConnections, eq(stripeConnections.id, failedPayments.stripeConnectionId))
     .where(and(eq(recoverySteps.id, stepId), eq(recoverySteps.accountId, accountId)))
     .limit(1);

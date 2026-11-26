@@ -1,7 +1,10 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "~/db";
 import { accounts, stripeConnections } from "~/db/schema";
-import { activePrimaryConnectionWhere } from "~/lib/stripe/connections.server";
+import {
+  activePrimaryConnectionWhere,
+  senderNameOrAccountName,
+} from "~/lib/stripe/connections.server";
 import { isValidReplyToEmail } from "~/lib/settings/reply-to";
 
 /** ADMIN_EMAIL_TEST_RECIPIENTS, lower-cased, separated by commas or spaces. */
@@ -68,7 +71,7 @@ export async function loadMerchantEmailSettings(
   if (!account) return null;
   const [connection] = await db
     .select({
-      senderName: stripeConnections.senderName,
+      senderName: senderNameOrAccountName(stripeConnections.senderName, accounts.name),
       replyTo: stripeConnections.replyToEmail,
       brandVoice: stripeConnections.brandVoice,
       soft: stripeConnections.brandVoiceSoft,
@@ -77,6 +80,7 @@ export async function loadMerchantEmailSettings(
       fraud: stripeConnections.brandVoiceFraud,
     })
     .from(stripeConnections)
+    .innerJoin(accounts, eq(accounts.id, stripeConnections.accountId))
     .where(activePrimaryConnectionWhere(accountId))
     .limit(1);
   return {
