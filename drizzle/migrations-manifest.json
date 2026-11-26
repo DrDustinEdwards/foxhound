@@ -86,6 +86,7 @@
     "0085_ai_outcomes.sql": "773a3c83112ed08cf7a559ed01786e65320fabeea5df6c793f8561c4a48015c7",
     "0086_invite_token_uq.sql": "3ef1011f00ea4c270183197e0473a3e5ee39d67f2a961cba6c4ad7dbd2d17c4a",
     "0087_drop_unused_tables.sql": "3eef9063295f8051de52e10c62fe0327b04121ca91c9ea8c7de844327e8d088a",
-    "0088_drop_estimator_and_subscriptions.sql": "e556e616839e62e646d473e2c93ffc6768d1af571220a84bf89bf0720bf962d8"
+    "0088_drop_estimator_and_subscriptions.sql": "e556e616839e62e646d473e2c93ffc6768d1af571220a84bf89bf0720bf962d8",
+    "0089_drop_redundant_indexes.sql": "3baaa4138a1819610b7bdaeb0f1564656d2833bac03ebfd4255968506bf41f8b"
   }
 }

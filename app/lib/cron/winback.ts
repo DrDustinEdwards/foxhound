@@ -284,6 +284,7 @@ export async function runWinbackSends(env: Env, now: Date): Promise<WinbackSendR
           }),
           physicalAddress: env.PHYSICAL_ADDRESS ?? "",
           idempotencyKey: `winback-step:${step.stepId}`,
+          winBackStepId: step.stepId,
           cronRunId: null,
         },
         null,

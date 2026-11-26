@@ -102,15 +102,18 @@ export async function processEmailJob(
   // Live-send gate (per-account flag, default OFF: without it every eligible account would mail at once). Preview mail (own address, no customer) and
   // jobs marked liveSendGate "skip" (platform-to-merchant mail) are not held.
   if (job.audience !== "preview" && job.liveSendGate !== "skip" && !gate.liveSends(job)) {
-    await logSend(db, {
-      job,
-      status: "blocked",
-      providerMessageId: null,
-      error: LIVE_SENDS_DISABLED_ERROR,
-      recipientHash,
-      queueMessageId,
-      now,
-    });
+    // A held win-back step stays due and comes round every tick: log it blocked once, not once per tick.
+    if (!(await alreadyBlocked(db, job))) {
+      await logSend(db, {
+        job,
+        status: "blocked",
+        providerMessageId: null,
+        error: LIVE_SENDS_DISABLED_ERROR,
+        recipientHash,
+        queueMessageId,
+        now,
+      });
+    }
     return {
       status: "blocked",
       providerMessageId: null,
@@ -139,6 +142,16 @@ export async function processEmailJob(
     await recordClaimError(db, job.idempotencyKey, error);
     return { status: "failed", providerMessageId: null, error, retryable: true };
   }
+}
+
+async function alreadyBlocked(db: Db, job: OutboundEmailJob): Promise<boolean> {
+  if (!job.winBackStepId) return false;
+  const [row] = await db
+    .select({ id: emailSends.id })
+    .from(emailSends)
+    .where(and(eq(emailSends.winBackStepId, job.winBackStepId), eq(emailSends.status, "blocked")))
+    .limit(1);
+  return row !== undefined;
 }
 
 /**

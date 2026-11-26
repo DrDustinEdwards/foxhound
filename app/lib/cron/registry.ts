@@ -59,6 +59,7 @@ import { alertCronFailure, billingFailureError, runCronHealthCheck } from "./ale
 import { runRecoveryTick } from "./recovery-tick";
 import { cronSteps, type CronHandler } from "./run";
 import {
+  sweepAdminApiCalls,
   sweepAiCalls,
   sweepEmailSends,
   sweepEngagementEvents,
@@ -393,6 +394,7 @@ const retention = cronSteps([
   { name: "health-score", handler: sweepHealthScoreHistory },
   { name: "page-404", handler: retentionPage404 },
   { name: "ai-calls", handler: sweepAiCalls },
+  { name: "admin-api-calls", handler: sweepAdminApiCalls },
   { name: "auth-events", handler: retentionAuthEvents },
   { name: "tool-call-log", handler: toolCallLogExport },
 ]);
