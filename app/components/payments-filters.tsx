@@ -77,7 +77,6 @@ export function PaymentsFilters({
 
   return (
     <>
-      {/* Recova's PaymentsFilters: one panel, two rows. */}
       <div className="cap-panel">
         <div className="cap-panel-body">
           <FilterBar
@@ -222,8 +221,6 @@ export function PaymentsFilters({
         </div>
       </div>
 
-      {/* Recova's rows-per-page links, right-aligned between the panel and the
-          table, as Capsomer's link chips. */}
       <nav aria-label="Rows per page" className="fh-payments-rows">
         <span className="fh-payments-rows-label fh-tiny fh-quiet" aria-hidden="true">
           Rows per page

@@ -165,8 +165,6 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
         <input type="hidden" name="connectionId" value={connectionId ?? ""} />
         <section className="cap-panel">
           <div className="cap-panel-body">
-            {/* One child, so the body's grid gap does not add to Recova's
-                20px rhythm between the line and the rows. */}
             <div>
               {CATEGORY_VOICE_ROWS.map((row, i) => (
                 <CategoryVoice key={row.key} row={row} stored={stored[row.key]} first={i === 0} />
@@ -199,7 +197,6 @@ export default function BrandVoiceSettings({ loaderData, actionData }: Route.Com
           </Panel>
         </div>
 
-        {/* Recova's SaveBar: right-aligned, the result beside the button. */}
         <SaveBar
           pending={saving}
           saved={result?.ok === true}

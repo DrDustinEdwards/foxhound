@@ -175,13 +175,10 @@ export function PaymentsTable({
                     </td>
                   ) : null}
                   <th scope="row">
-                    {/* Recova's whole row opens the payment: Capsomer's
-                              stretched row link, under the box and the pills. */}
                     <span className="fh-payments-name">
                       <Link className="cap-table-open" to={`${BASE}/${p.id}`}>
                         {name}
                       </Link>
-                      {/* Recova's personal-outreach mark after the name (PaymentRow.tsx). */}
                       {p.outreach ? (
                         <Icon
                           d={iconTrendingUp}
@@ -245,9 +242,6 @@ export function PaymentsTable({
                           {formatDetectedDate(p.detectedAt)}
                         </span>
                       </span>
-                      {/* Recova's View, shown on hover. The row link above
-                                is the keyboard's way in, so this one is not a
-                                second tab stop. */}
                       <Link
                         to={`${BASE}/${p.id}`}
                         tabIndex={-1}

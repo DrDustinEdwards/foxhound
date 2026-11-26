@@ -240,7 +240,6 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
   const {
     account,
     connections,
-    subscriptions,
     recoveryActivity,
     disputeActivity,
     recentInvoices,
@@ -362,33 +361,6 @@ export default function AdminMerchantDetail({ loaderData, actionData }: Route.Co
                       {c.disconnectedAt ? "Disconnected" : "Active"}
                     </Pill>
                   </>
-                }
-              />
-            ))}
-          </RowList>
-        )}
-      </Panel>
-
-      {/* The Products card was REMOVED with the account_products table.
-          It had ZERO writers, so it rendered "None." for every merchant on every
-          visit since the rebuild: a permanently empty card describing a table
-          nothing filled. Subscriptions was its grid partner and is now a plain
-          full-width panel, matching this page's other full-width panels
-          rather than sitting alone in a grid built for two. */}
-      <Panel title="Subscriptions" flush={subscriptions.length > 0}>
-        {subscriptions.length === 0 ? (
-          <Empty kind="nothing-yet" title="No subscriptions." flush />
-        ) : (
-          <RowList label="Subscriptions">
-            {subscriptions.map((s) => (
-              <Row
-                key={s.id}
-                title={s.product}
-                meta={s.adminGranted ? "Admin-granted" : undefined}
-                actions={
-                  <Pill {...BADGE_PILL[s.status === "active" ? "success" : "neutral"]}>
-                    {s.status}
-                  </Pill>
                 }
               />
             ))}

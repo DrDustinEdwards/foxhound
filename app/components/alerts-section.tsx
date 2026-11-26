@@ -64,9 +64,6 @@ export function AlertsSection({
         </h2>
       </div>
 
-      {/* Recova's first card has no heading: a count line and a button lead
-          it. Capsomer's Panel needs a title, so this is Capsomer's panel
-          markup with its body only, as /intelligence/customers does. */}
       <div className="fh-alerts-head">
         <div className="cap-panel">
           <div className="cap-panel-body">
@@ -305,7 +302,6 @@ function CreateAlertForm({
               options={DIRECTION_ORDER.map((d) => ({ value: d, label: ALERT_DIRECTION_LABELS[d] }))}
             />
 
-            {/* Recova's threshold has no "Required" marker. */}
             <Field label="Threshold" id="alert-threshold" required showRequired={false}>
               {(p) => (
                 <InputGroup>
@@ -334,8 +330,6 @@ function CreateAlertForm({
               placeholder="e.g. Low recovery rate warning"
             />
 
-            {/* Recova's Email or Slack. Slack waits for a webhook, as Recova's
-                button does, with its sentence saying where to add one. */}
             <div className="cap-shrink">
               <Segmented
                 legend="Channel"
@@ -366,8 +360,6 @@ function CreateAlertForm({
             <Button type="submit" variant="primary" pending={busy}>
               {busy ? "Creating..." : "Create alert"}
             </Button>
-            {/* Recova's Cancel closes the form. A link back to the page, in
-                Capsomer's quiet button markup, closes it with no script. */}
             <ButtonLink variant="quiet" to="/settings/notifications">
               Cancel
             </ButtonLink>

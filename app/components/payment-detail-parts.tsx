@@ -86,7 +86,6 @@ export function PaymentActionBar({
         </div>
       ) : null}
 
-      {/* Recova's two Stripe links, PaymentDetailClient.tsx 329-360. */}
       <div className="fh-payment-chips">
         {isDemo ? (
           <>

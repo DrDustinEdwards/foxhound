@@ -37,8 +37,6 @@ export function SequenceSteps({ category }: { category: DeclineCategory }) {
           <div className="fh-recprev-block fh-tiny fh-medium fh-quiet fh-caps-wide">
             {label}: {count}
           </div>
-          {/* Recova's row scrolls sideways on a narrow screen; Capsomer's inline steps wrap instead,
-              since no page may need a sideways scrollbar (Dustin, 2026-10-30). */}
           <div className="cap-steps fh-recprev-block-2" data-variant="inline">
             <ol aria-label={`${label} sequence, ${count}`} className="cap-steps-list">
               {steps.map((step) => (
@@ -229,7 +227,6 @@ export function PaymentsPreview({ preview }: { preview: RecoveryPreview }) {
           </span>
         </header>
         <div className="cap-panel-body" data-flush>
-          {/* Recova's phone layout: one card per payment. */}
           <ul className="fh-recprev-list-2">
             {rows.map((row) => (
               <li key={row.id} className="fh-recprev-item">

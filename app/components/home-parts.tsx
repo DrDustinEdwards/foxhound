@@ -188,7 +188,6 @@ export function HomeBlogStrip({
         <div className="fh-home-grid-6">
           {blogPosts.map((post) => (
             <div key={post.slug} className="fh-home-grid-3 cap-reveal">
-              {/* Recova's blog card: the page ground on the surface band, p-5, 10px corners. */}
               <Link to={`/blog/${post.slug}`} className="fh-home-link-3 cap-panel">
                 <div className="cap-panel-body">
                   <div className="cap-stack fh-home-block-14" data-gap="4">

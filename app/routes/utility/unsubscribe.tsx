@@ -140,11 +140,6 @@ export default function Unsubscribe({ loaderData }: Route.ComponentProps) {
   return (
     <div className="fh-unsubscribe">
       <Header isAuthenticated={false} />
-      {/* Capsomer's result page: the wordmark over one card, the mark (none
-          while it still asks), the sentence as a polite status and the way on.
-          Its h1 is for screen readers only: Recova's page has none visible,
-          and the wordmark is not one. It names the outcome, so the result is
-          in the heading as well as the status paragraph. */}
       <div className="fh-unsubscribe-main fh-cap" data-cap-site="foxhound" data-family="amber">
         <ResultPage
           title={HEADING[state.state]}

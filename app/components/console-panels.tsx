@@ -141,8 +141,6 @@ export function ConsoleTileRow({ tiles, nowMs }: { tiles: ConsoleTiles; nowMs: n
         />
       </li>
 
-      {/* Always available, as in Recova. /audit/dashboard is the signed-in list
-          of the account's runs, at Recova's path. */}
       <li className="fh-fill">
         {tiles.lastAuditAt ? (
           <StatTile

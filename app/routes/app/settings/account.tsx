@@ -333,7 +333,6 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
 
   return (
     <SettingsLayout renderLink={routerRenderLink} title="My account">
-      {/* Recova's mb-10 under the form. */}
       <div className="fh-account-top">
         <ProfileForm account={account} result={result?.action === "profile" ? result : undefined} />
       </div>
@@ -344,7 +343,6 @@ export default function AccountSettings({ loaderData, actionData }: Route.Compon
         <SignInMethodsPanel initial={loaderData.signIn} isDemo={Boolean(isDemo)} />
       </div>
 
-      {/* Recova's mt-6 over the account card, after the appearance card's mb-4. */}
       <div className="fh-account-part">
         <section className="cap-panel">
           <div className="cap-panel-body">

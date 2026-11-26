@@ -174,11 +174,6 @@ export function RecoverySection({
             This account is canceled. Fees already earned still appear on the next invoice.
           </p>
         ) : null}
-        {/* Truthfulness fix: Recova's estimate was this month's recoveries times
-            the rate, invoiced next month. Foxhound bills a recovery at the first
-            run after it is 30 days old (PRICING.md, maturity-window billing), so
-            the estimate is the next run's recovery fees and this line says why
-            it is not the rate times the line above, in PRICING's own words. */}
         <p className="fh-billing-fine fh-tiny fh-faint">
           We never bill a recovery until you&apos;ve held the money for {RECOVERY_MATURITY_DAYS}{" "}
           days.

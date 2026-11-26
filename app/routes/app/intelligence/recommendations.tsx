@@ -87,7 +87,6 @@ export default function IntelligenceRecommendationsPage({ loaderData }: Route.Co
         </div>
       )}
 
-      {/* Recova's pager: Previous, "Page N of M", Next (Capsomer's steps form). */}
       {totalPages > 1 ? (
         <div className="fh-pager">
           <Pagination
@@ -149,7 +148,6 @@ function SectionTable({ section, rows }: { section: Section; rows: Recommendatio
                 >
                   {c.customerName ?? "(unnamed)"}
                 </Link>
-                {/* Recova's second line under the name: the Stripe id, micro and mono. */}
                 <span className="fh-line fh-mono fh-tiny fh-faint">{c.stripeCustomerId}</span>
               </th>
               <td data-label="Plan">

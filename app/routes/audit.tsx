@@ -1,145 +1,36 @@
 import { marketingMeta } from "~/lib/seo/meta";
 import { publicPageHeaders } from "@dustinedwards/site-runtime/edge-cache";
-import { Alert, Banner } from "capsomer/react/banner";
-import { Button } from "capsomer/react/button";
-import { Field } from "capsomer/react/field";
-import { mountTurnstile, verifyTurnstile } from "@dustinedwards/site-runtime/turnstile";
-import { useEffect, useId, useRef } from "react";
-import { data, Form, useNavigation } from "react-router";
 import { ButtonLink } from "capsomer/react/link";
-import "capsomer/banner.css";
-import "capsomer/button.css";
-import "capsomer/field.css";
 import "capsomer/panel.css";
-import "capsomer/select.css";
 import "capsomer/status.css";
 // Capsomer's tokens and the amber family (capbase layer), which the panel, the badge, the field, the select, the alert, the button and the focus ring read. The site header loads the same file; importing it here keeps the page whole under any layout.
 import "~/site-header.css";
 
-import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { AUDIT_LOOKBACK_DAYS } from "~/lib/constants";
 import { AUDIT_ACCESS_CHIP, AUDIT_GRANT_MINUTES } from "~/lib/marketing/audit-access";
-import {
-  estimateLeakage,
-  recordEstimatorRun,
-  type EstimatorResult,
-} from "~/lib/estimator/estimate.server";
-import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { siteUrl } from "~/lib/seo/jsonld";
 
 import type { Route } from "./+types/audit";
-import { readForm } from "@dustinedwards/site-runtime/body";
-import { BODY_MAX_BYTES } from "~/lib/http/body";
 import "~/audit-tool.css";
 
-// The real no-auth estimator and audit marketing page. No fabricated recovery-rate stat and no bare "2 to 3% of MRR fails every month" figure: the estimator's rate is the seeded benchmark_data median (drizzle/seed/benchmark_data.sql), a rounded interpolation and not a study, so the result card names it as an assumption applied to the visitor's MRR. It never claims to describe other accounts, and the seed's percentile spread is not shown. The pill is Capsomer's badge, every card its panel, the form its field, select and button, the unavailable notice its alert, each call to action its primary button; the hero h1 clamp, the tinted mono pill and the covers card's 40px padding are set through the parts' own variables.
-
-// Hydrates: this page has client logic (root.tsx renders <Scripts/> only for a route that says so).
-export const handle = { hydrate: true };
+// The audit marketing page. No fabricated recovery-rate stat and no bare "2 to 3% of MRR fails every month" figure. Every card is Capsomer's panel and each call to action its primary button; the hero h1 clamp and the covers card's 40px padding are set through the parts' own variables.
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
       title: "Free Stripe Revenue Leakage Audit",
       description:
-        "Estimate in 30 seconds what your Stripe account loses to failed payments, with no signup or credit card. Connect Stripe afterward to see your real numbers.",
+        "See in 30 seconds what your Stripe account loses to failed payments, with no signup or credit card. Foxhound reads your real numbers.",
       path: "/audit",
       siteUrl: loaderData?.siteUrl ?? "",
     }),
   ];
 }
 
-/** The currencies the form offers, and the only ones the action accepts. */
-const ESTIMATOR_CURRENCIES = ["usd", "eur", "gbp", "cad", "aud"] as const;
-/** Past any real MRR or customer base, and inside what an integer column holds. */
-const MRR_MAX = 1_000_000_000;
-const CUSTOMER_COUNT_MAX = 100_000_000;
-
-type ActionResult =
-  | { ok: true; result: EstimatorResult; mrrCents: number; currency: string }
-  | { ok: false; error: string };
-
 export function loader({ context }: Route.LoaderArgs) {
   const { env } = context.get(cloudflareContext);
-  return {
-    siteUrl: siteUrl(env),
-    // Both vars are required for a working form: TURNSTILE_SECRET_KEY gates the action's server-side verify call, TURNSTILE_SITE_KEY is what the client widget renders with. Gating on the secret alone could report "available" while the widget had no sitekey, landing on a stuck challenge instead of the clean "temporarily unavailable" state.
-    turnstileAvailable: Boolean(env.TURNSTILE_SECRET_KEY) && Boolean(env.TURNSTILE_SITE_KEY),
-    turnstileSiteKey: env.TURNSTILE_SITE_KEY ?? "",
-  };
-}
-
-export async function action({ request, context }: Route.ActionArgs) {
-  const { env } = context.get(cloudflareContext);
-
-  // Hard requirement: while TURNSTILE_SECRET_KEY is unset, the estimator never accepts a submission, no matter what a direct POST carries. This check runs before anything else, including reading the form body.
-  if (!env.TURNSTILE_SECRET_KEY) {
-    return data<ActionResult>(
-      { ok: false, error: "The estimator is temporarily unavailable. Please check back soon." },
-      { status: 503 },
-    );
-  }
-
-  const form = await readForm(request, BODY_MAX_BYTES);
-  const mrrDollars = Number(form.get("mrr"));
-  const customerCount = Number(form.get("customerCount"));
-  const currency = String(form.get("currency") ?? "usd").toLowerCase();
-  const turnstileToken = String(form.get("cf-turnstile-response") ?? "");
-
-  if (!Number.isFinite(mrrDollars) || mrrDollars <= 0 || mrrDollars > MRR_MAX) {
-    return data<ActionResult>(
-      { ok: false, error: "Enter a monthly recurring revenue amount greater than 0." },
-      { status: 400 },
-    );
-  }
-  if (
-    !Number.isInteger(customerCount) ||
-    customerCount <= 0 ||
-    customerCount > CUSTOMER_COUNT_MAX
-  ) {
-    return data<ActionResult>(
-      { ok: false, error: "Enter a whole customer count greater than 0." },
-      { status: 400 },
-    );
-  }
-  if (!(ESTIMATOR_CURRENCIES as readonly string[]).includes(currency)) {
-    return data<ActionResult>({ ok: false, error: "Choose a currency." }, { status: 400 });
-  }
-  if (!turnstileToken) {
-    return data<ActionResult>(
-      { ok: false, error: "Please complete the verification challenge." },
-      { status: 400 },
-    );
-  }
-
-  // site-runtime's verifyTurnstile fails closed and never throws: an unreachable siteverify is a refusal here, not a 500.
-  const verification = await verifyTurnstile(turnstileToken, env.TURNSTILE_SECRET_KEY, {
-    remoteIp: request.headers.get("CF-Connecting-IP"),
-  });
-  if (!verification.ok) {
-    return data<ActionResult>(
-      { ok: false, error: "Verification failed. Please try again." },
-      { status: 400 },
-    );
-  }
-
-  const mrrCents = Math.round(mrrDollars * 100);
-  const db = getDb(env);
-  const result = await estimateLeakage(db, { mrrCents, customerCount, currency });
-  if (!result) {
-    return data<ActionResult>(
-      {
-        ok: false,
-        error: "The estimator cannot estimate this amount yet. Try a different MRR amount.",
-      },
-      { status: 200 },
-    );
-  }
-
-  await recordEstimatorRun(db, { mrrCents, customerCount, currency, result, nowMs: Date.now() });
-
-  return data<ActionResult>({ ok: true, result, mrrCents, currency });
+  return { siteUrl: siteUrl(env) };
 }
 
 // The covers card's four lines. The expiring-cards line says what the engine's predicate actually does, which includes already-expired cards. Four lines, not six: both engines compute six scopes; past-due subscriptions and the Card Updater advisory are folded into the run itself and render on the results page. There is no "historical win rate" line: it is a platform figure Foxhound does not render.
@@ -159,10 +50,7 @@ const COVERS: ReadonlyArray<readonly [string, string]> = [
   ["Business health", "MRR, ARR, active subscriptions, voluntary versus involuntary churn rate."],
 ];
 
-export default function AuditPage({ loaderData, actionData }: Route.ComponentProps) {
-  const { turnstileAvailable, turnstileSiteKey } = loaderData;
-  const busy = useNavigation().state !== "idle";
-
+export default function AuditPage() {
   return (
     // A 680px column, centered, px-4 md:px-8, py-10 md:py-20, in Capsomer's amber family with Foxhound's own neutrals (.fh-cap, as /demos and /pricing), comfortable density so each panel takes Capsomer's roomier padding.
     <div
@@ -171,55 +59,11 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
       data-family="amber"
       data-density="comfortable"
     >
-      {/* Bespoke hero, restored per ruling 64: Recova's /audit sits OUTSIDE
-          (marketing) and never used MarketingPageHeader. */}
-      {/* Recova's clamp(28px,5vw,44px) h1, in rem. The words are Recova's,
-          drift fixed on sight: they describe the audit, not the
-          estimator, so they hold in every state of the form below. */}
       <h1 className="fh-audit-title fh-semibold fh-text">
         See everything leaking from your Stripe account
       </h1>
 
-      {/* The estimator: Foxhound's own working surface, which Recova has no
-          counterpart for. */}
-      <div className="fh-audit-grid">
-        <section className="cap-panel">
-          <div className="cap-panel-body">
-            <div className="cap-stack fh-left" data-gap="5">
-              {/* A standing notice, not a failure the visitor caused: an info
-                  banner (role="status"), never a critical alert. */}
-              {!turnstileAvailable ? (
-                <Banner tone="info">
-                  The estimator is temporarily unavailable while verification is being configured.
-                  Please check back soon, or run the full audit by connecting Stripe directly.
-                </Banner>
-              ) : (
-                <>
-                  {actionData && !actionData.ok ? <Alert>{actionData.error}</Alert> : null}
-
-                  {actionData?.ok ? (
-                    <EstimatorResultCard
-                      result={actionData.result}
-                      currency={actionData.currency}
-                    />
-                  ) : (
-                    <EstimatorForm busy={busy} siteKey={turnstileSiteKey} attempt={actionData} />
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </section>
-      </div>
-
-      {/* Recova's covers card: its heading, the four dot lines, "See my
-          numbers" full width, and the note under it. Recova's note said
-          "Read-only Stripe access" while asking for read_write. Stripe gives
-          read_only only to Extensions (2026-10-29), so the audit asks for
-          read_write too, and the note says what is true: Foxhound only reads
-          and disconnects itself when the window ends (audit-access.ts). */}
       <div className="fh-audit-grid-2">
-        {/* Recova's covers card: p-6, p-10 from md, 16px corners. */}
         <section className="fh-audit-band cap-panel">
           <div className="cap-panel-body">
             <div>
@@ -240,7 +84,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
                 ))}
               </ul>
 
-              {/* Recova's full-width button: py-4 at 1rem bold, 10px corners. */}
               <ButtonLink
                 to="/audit/connect"
                 className="fh-audit-link fh-bold"
@@ -258,12 +101,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
         </section>
       </div>
 
-      {/* Recova's two figure cards, restored as treatment. The
-          figures are product facts read from Foxhound's constants, not Recova's
-          "2 to 3%" industry benchmark, which Recova's own comment calls
-          marketing copy and which no source supports.
-          Plain panels, not Capsomer's stat tile: a tile is always a link, and
-          these lead nowhere. */}
       <div className="fh-audit-grid-4">
         <div className="cap-panel">
           <div className="cap-panel-body">
@@ -279,7 +116,7 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           <div className="cap-panel-body">
             <div>
               <p className="fh-audit-text-4 fh-mono fh-display fh-bold">$0</p>
-              <p className="fh-caption fh-faint">cost to run this estimate today</p>
+              <p className="fh-caption fh-faint">cost to run this audit today</p>
             </div>
           </div>
         </div>
@@ -314,88 +151,6 @@ export default function AuditPage({ loaderData, actionData }: Route.ComponentPro
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-/** The estimator's form: Capsomer's field, select and primary button. The Turnstile widget is site-runtime's, drawn again after each answer from the action because a token is good for one verify. */
-function EstimatorForm({
-  busy,
-  siteKey,
-  attempt,
-}: {
-  busy: boolean;
-  siteKey: string;
-  attempt: unknown;
-}) {
-  const currencyId = useId();
-  const widget = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!siteKey || !widget.current) return;
-    return mountTurnstile(widget.current, siteKey);
-  }, [siteKey, attempt]);
-  return (
-    <Form method="post" className="cap-stack" data-gap="5">
-      <Field label="Monthly recurring revenue (MRR)">
-        <input className="cap-input" name="mrr" type="number" autoComplete="off" required />
-      </Field>
-      <Field label="Active customer count">
-        <input
-          className="cap-input"
-          name="customerCount"
-          type="number"
-          autoComplete="off"
-          required
-        />
-      </Field>
-      <div className="cap-field">
-        <label className="cap-field-label" htmlFor={currencyId}>
-          Currency
-        </label>
-        <div className="cap-select-wrap">
-          <select className="cap-select" id={currencyId} name="currency" defaultValue="usd">
-            {ESTIMATOR_CURRENCIES.map((code) => (
-              <option key={code} value={code}>
-                {code.toUpperCase()}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      <div ref={widget} />
-
-      <Button type="submit" variant="primary" pending={busy} block>
-        Estimate my leakage
-      </Button>
-    </Form>
-  );
-}
-
-/** The assumed monthly failure rate, a fraction of MRR, as "2.2%". */
-function formatRatePercent(fraction: number): string {
-  return `${Number((fraction * 100).toFixed(1))}%`;
-}
-
-function EstimatorResultCard({ result, currency }: { result: EstimatorResult; currency: string }) {
-  return (
-    <div>
-      <p className="fh-audit-text-3 fh-mono fh-tiny fh-faint">Estimated monthly leakage</p>
-      <p className="fh-audit-text-9 fh-mono fh-display fh-semibold fh-text">
-        {formatMoney(result.estimatedLeakageCents, currency)}
-      </p>
-      <p className="fh-audit-text-5 fh-small fh-relaxed fh-soft">
-        An estimate from your inputs, not a measurement: your MRR times an assumed{" "}
-        {formatRatePercent(result.medianPct)} of MRR failing each month at your revenue. The rate is
-        an assumption, not data about your account or anyone else's. Connect Stripe for your
-        account's actual numbers.
-      </p>
-      {/* The estimator's own next step: the audit reads the merchant's actual
-          account, takes no account to run, and is what this card has been
-          promising as "your real numbers" all along. */}
-      <ButtonLink to="/audit/connect" variant="primary">
-        Run the free audit on your real numbers
-      </ButtonLink>
     </div>
   );
 }

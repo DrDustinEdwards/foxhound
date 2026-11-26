@@ -69,7 +69,6 @@ export default function PrivacyPage() {
               .
             </p>
             <div className="fh-privacy-block">
-              {/* Recova's summary card: p-6, its heading a mono label inside. */}
               <section className={CARD} aria-labelledby="privacy-summary">
                 <div className="cap-panel-body">
                   <h2 id="privacy-summary" className="fh-privacy-title fh-mono fh-tiny fh-quiet">

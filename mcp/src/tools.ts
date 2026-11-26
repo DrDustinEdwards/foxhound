@@ -133,7 +133,7 @@ export const ADMIN_TOOLS: AdminTool[] = [
     name: "foxhound_admin_find_merchant",
     title: "Find a merchant",
     description:
-      "Find merchants by name or account id (filter narrows to the paused, billing-exempt or canceled ones), or pass account_id for one merchant in full: its account state, Stripe connections (never their tokens), subscriptions, recovery and dispute activity and recent invoices. Paginated: pass next_cursor back to read on.",
+      "Find merchants by name or account id (filter narrows to the paused, billing-exempt or canceled ones), or pass account_id for one merchant in full: its account state, Stripe connections (never their tokens), recovery and dispute activity and recent invoices. Paginated: pass next_cursor back to read on.",
     inputSchema: input({
       query: { type: "string", description: "Part of a merchant's name or account id." },
       account_id: {

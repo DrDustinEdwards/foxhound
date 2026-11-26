@@ -205,14 +205,10 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
 
   return (
     <div className="fh-dispute">
-      {/* Recova's main: max-w-[960px] mx-auto px-4 md:px-8 py-10. Its pb-28
-          clears the sticky action bar, which Foxhound's approve card replaces. */}
       <Link to={backLink.href} className="fh-dispute-back fh-small fh-quiet">
         {backLink.label}
       </Link>
 
-      {/* 1. Recova's header: the amount large in the accent, the customer as the
-          heading, the reason, and the days remaining or the outcome. */}
       <header className="fh-dispute-header">
         <div>
           <div className="fh-mono fh-display fh-bold fh-tight fh-brand">
@@ -249,7 +245,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         </div>
       </header>
 
-      {/* 2. Recova's triage banner: fight in green, accept in the accent. */}
       {dispute.triageRecommendation ? (
         <div className="fh-dispute-section">
           <Banner
@@ -275,8 +270,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         </div>
       ) : null}
 
-      {/* Recova's IntegrityLayerBanner: the customer's context, after the
-          dispute's own triage (DisputeDetailClient.tsx 143). */}
       <RecommendationBanner prediction={prediction} surface="dispute" nowMs={nowMs} />
 
       {/* 3. Timeline. */}
@@ -295,11 +288,8 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
         </Panel>
       </div>
 
-      {/* 4. Recova's DisputeEvidenceSummary, over what Foxhound writes. */}
       <DisputeFindings dispute={dispute} findings={findings} />
 
-      {/* 5 and 7. Staged evidence and Additional evidence share Recova's one
-          draft: Save draft saves the narrative and the Customer IP together. */}
       <saveFetcher.Form
         method="post"
         onChange={(e) => {
@@ -356,8 +346,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
           </Panel>
         </div>
 
-        {/* 6. Recova's Evidence files. Its controls belong to the upload
-            and remove forms below, through the form attribute. */}
         <div className="fh-dispute-section">
           <EvidenceFiles
             disputeId={dispute.id}
@@ -390,7 +378,6 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
                 </p>
                 {shippingEditable ? (
                   <div className="fh-dispute-more">
-                    {/* Recova's three shipping inputs, one row of three on desktop. */}
                     <div className="fh-dispute-fields">
                       <div className="cap-field">
                         <label htmlFor="dispute_tracking_number" className="cap-field-label">
@@ -449,12 +436,8 @@ export default function DisputeDetail({ loaderData, actionData }: Route.Componen
       </saveFetcher.Form>
       {draftEditable && filesAvailable ? <EvidenceFileForms /> : null}
 
-      {/* Recova's DisputeSyncForm, withheld from the demo as Recova's is. */}
       {!isDemo ? <SyncDisputeLink result={syncResult} copy={SYNC_DETAIL_COPY} /> : null}
 
-      {/* 8. Where Recova's action bar sits: Foxhound's approve-and-submit card
-          (approved 2026-08-28), and once submitted, its approval record and
-          fee receipt. */}
       <DisputeApproval
         dispute={dispute}
         approval={approval}

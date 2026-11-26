@@ -85,14 +85,3 @@ export const auditDigestRuns = sqliteTable(
   },
   (t) => [uniqueIndex("audit_digest_runs_account_period_uq").on(t.accountId, t.periodMonth)],
 );
-
-export const estimatorRuns = sqliteTable("estimator_runs", {
-  id: id(),
-  createdAt: ts("created_at").notNull(),
-  mrrCents: integer("mrr_cents"),
-  customerCount: integer("customer_count"),
-  currency: text("currency"),
-  estimatedLeakageCents: integer("estimated_leakage_cents"),
-  benchmarkCohort: text("benchmark_cohort"),
-  resultJson: json("result_json"),
-});

@@ -7,7 +7,6 @@ import { and, asc, count, desc, eq, gte, isNull, ne, notLike, sql } from "drizzl
 import {
   type Db,
   accountMembers,
-  accountSubscriptions,
   accounts,
   billingInvoices,
   billingLineItems,
@@ -242,7 +241,6 @@ export async function getMerchantFigures(db: Db, nowMs: number): Promise<Merchan
 export interface MerchantDetail {
   account: typeof accounts.$inferSelect;
   connections: Array<typeof stripeConnections.$inferSelect>;
-  subscriptions: Array<typeof accountSubscriptions.$inferSelect>;
   recoveryActivity: {
     activeCount: number;
     recoveredCount: number;
@@ -283,10 +281,9 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
   const account = accountRows[0];
   if (!account) return null;
 
-  const [connections, subscriptions, activeCount, recoveredCount, allDisputes, recentInvoices] =
-    await Promise.all([
+  const [connections, activeCount, recoveredCount, allDisputes, recentInvoices] = await Promise.all(
+    [
       db.select().from(stripeConnections).where(eq(stripeConnections.accountId, accountId)),
-      db.select().from(accountSubscriptions).where(eq(accountSubscriptions.accountId, accountId)),
       countRows(
         db,
         failedPayments,
@@ -304,7 +301,8 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
         .where(eq(billingInvoices.accountId, accountId))
         .orderBy(desc(billingInvoices.createdAt))
         .limit(10),
-    ]);
+    ],
+  );
 
   const openStates = new Set<string>(DISPUTE_OPEN_STATES);
   const disputeActivity = {
@@ -316,7 +314,6 @@ export async function getMerchantDetail(db: Db, accountId: string): Promise<Merc
   return {
     account,
     connections,
-    subscriptions,
     recoveryActivity: { activeCount, recoveredCount },
     disputeActivity,
     recentInvoices,

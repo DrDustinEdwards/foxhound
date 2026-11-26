@@ -43,7 +43,6 @@ async function merchantForAgent(db: Db, accountId: string) {
       connectedAt: c.connectedAt,
       disconnectedAt: c.disconnectedAt,
     })),
-    subscriptions: detail.subscriptions,
     recoveryActivity: detail.recoveryActivity,
     disputeActivity: detail.disputeActivity,
     recentInvoices: detail.recentInvoices,

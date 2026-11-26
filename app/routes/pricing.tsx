@@ -61,14 +61,6 @@ export default function PricingPage() {
     <div className="fh-cap" data-cap-site="foxhound" data-family="amber">
       <Hero className="fh-page-hero" title="Pricing" />
 
-      {/* Legacy's pricing card grid is max-w-[1200px], NOT the 1100px the home
-          page uses. The container width is a per-page value, not a site-wide
-          constant, which is why ruling 60 says check it per surface rather than
-          bulk-replacing max-w-5xl everywhere.
-
-          Each card is Capsomer's price card at Recova's p-6 and sizes (pricing.css
-          sets them through the card's own variables). A card with no price label
-          keeps a blank line there, as Recova's does, so the descriptions line up. */}
       <section className="fh-pricing-band speakable-pricing-cards">
         <div className="fh-pricing-wrap">
           <PriceGrid label="Plans">
@@ -98,14 +90,6 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Recova's note under the cards ("Annual plans: 10 months billed, 2
-          months free. Multiple Stripe accounts supported at the same
-          per-account rate."). Its multi-account clause is back: one login can
-          hold several accounts, each with its own Stripe connection
-          (/connect/additional, the header's account switcher), and each is
-          billed on its own recoveries at the same rates. The annual term stays
-          off: PRICING.md rev 3 item 3 keeps it off /pricing until a checkout can
-          sell it (377(8), beside the Intelligence bullets in pricing-copy.ts). */}
       <p className="fh-pricing-text-2 fh-center fh-small fh-soft">
         Multiple Stripe accounts supported at the same per-account rate.
       </p>
@@ -139,7 +123,6 @@ export default function PricingPage() {
         </div>
       </section>
 
-      {/* Recova's 48px closing button at 1rem. */}
       <CtaBand
         quiet
         className="fh-closing-band fh-closing-pricing"
@@ -147,9 +130,9 @@ export default function PricingPage() {
         actions={<ConnectStripeAction />}
       >
         Connect Stripe for a free diagnostic. Failed invoices, expiring cards, open disputes, and
-        business health. Results in <span className="fh-mono">30</span> seconds. The estimator needs
-        no Stripe connection. The full audit has Stripe grant {AUDIT_SCOPE_WORDS} access, which
-        Foxhound only reads and drops after {AUDIT_GRANT_MINUTES} minutes.
+        business health. Results in <span className="fh-mono">30</span> seconds. The audit has
+        Stripe grant {AUDIT_SCOPE_WORDS} access, which Foxhound only reads and drops after{" "}
+        {AUDIT_GRANT_MINUTES} minutes.
       </CtaBand>
     </div>
   );

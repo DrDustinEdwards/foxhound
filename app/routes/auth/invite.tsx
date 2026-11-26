@@ -115,7 +115,6 @@ export default function Invite({ loaderData, actionData }: Route.ComponentProps)
                 </>
               }
             />
-            {/* Recova's button: full width, text-sm, py-3. */}
             <Form method="post" className="fh-invite-actions">
               <Button type="submit" variant="primary" size="lg" pending={busy}>
                 {busy ? "Accepting…" : "Accept invite"}

@@ -47,7 +47,6 @@ export function PaymentsTable({
         <Empty kind="nothing-yet" title="No failed payments yet" flush />
       ) : (
         <>
-          {/* Recova's phone layout: one card per payment. */}
           <ul className="fh-phone-list cap-rows" role="list">
             {payments.map((p) => (
               <Row

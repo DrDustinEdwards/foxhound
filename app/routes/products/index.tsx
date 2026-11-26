@@ -36,10 +36,6 @@ export default function ProductsIndexPage() {
     <>
       <MarketingPageHeader title="Four products" />
 
-      {/* div, not main: marketing.tsx already renders this page's one main landmark.
-          Recova's 720px column, in Capsomer's amber family with Foxhound's own
-          neutrals (.fh-cap, as the site header and the legal pages); the focus
-          ring reads the family's amber ring here, as in Capsomer's own parts. */}
       <div className="fh-products-wrap fh-cap" data-cap-site="foxhound" data-family="amber">
         <div className="fh-mk-cards-2">
           {PRODUCT_ORDER.map((key) => {
@@ -50,7 +46,6 @@ export default function ProductsIndexPage() {
               // Capsomer's linked panel, the whole-card link. "group" carries no style; it drives the arrow's nudge below.
               <Link key={key} to={p.href} className="fh-mk-card cap-panel fh-hover-group">
                 <div className="cap-panel-body">
-                  {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
                     <div className="fh-mk-tile-icon">
                       <Icon d={icon} className="fh-icon-18 fh-icon-180 fh-accent" />

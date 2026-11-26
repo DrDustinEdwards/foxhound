@@ -43,7 +43,6 @@ export default function CompareIndex() {
             return (
               <Link key={slug} to={`/compare/${slug}`} className={`${CARD_MD}`}>
                 <div className="cap-panel-body">
-                  {/* One block, so the body's grid gap leaves Recova's own spacing alone. */}
                   <div>
                     <p className="fh-compare-text fh-mono fh-tiny fh-quiet fh-caps">{c.category}</p>
                     <p className="fh-compare-text-2 fh-body fh-medium fh-text">

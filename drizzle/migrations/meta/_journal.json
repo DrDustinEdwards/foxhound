@@ -589,6 +589,13 @@
       "when": 1795425489014,
       "tag": "0087_drop_unused_tables",
       "breakpoints": true
+    },
+    {
+      "idx": 84,
+      "version": "6",
+      "when": 1795656212125,
+      "tag": "0088_drop_estimator_and_subscriptions",
+      "breakpoints": true
     }
   ]
 }

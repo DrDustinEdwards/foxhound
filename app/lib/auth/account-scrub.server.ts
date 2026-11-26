@@ -8,7 +8,6 @@ import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import {
   type Db,
   accountMembers,
-  accountSubscriptions,
   accounts,
   aiCalls,
   alertHistory,
@@ -368,10 +367,6 @@ export function buildAccountScrubStatements(
     db.delete(oauthGrants).where(eq(oauthGrants.accountId, accountId)),
     db.delete(oauthAuthorizationCodes).where(eq(oauthAuthorizationCodes.accountId, accountId)),
     db.delete(apiKeys).where(eq(apiKeys.accountId, accountId)),
-    db
-      .update(accountSubscriptions)
-      .set({ cancellationFeedback: null })
-      .where(eq(accountSubscriptions.accountId, accountId)),
     // The claim row stays (its stripe_event_id is what stops a redelivered
     // event being processed twice); the Stripe payload, full of customer
     // details, goes.
