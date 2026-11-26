@@ -188,7 +188,6 @@ export const earlyFraudWarnings = sqliteTable(
     dismissedAt: ts("dismissed_at"),
   },
   (t) => [
-    index("early_fraud_warnings_account_idx").on(t.accountId),
     uniqueIndex("early_fraud_warnings_account_warning_uq").on(t.accountId, t.stripeWarningId),
   ],
 );

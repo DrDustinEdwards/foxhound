@@ -5,6 +5,7 @@ import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { Db } from "~/db";
 import {
+  adminApiCalls,
   aiCalls,
   aiCallsMonthly,
   emailSends,
@@ -15,6 +16,7 @@ import {
 } from "~/db";
 import {
   DAY_MS,
+  RETENTION_ADMIN_API_CALLS_DAYS,
   RETENTION_AI_CALLS_DAYS,
   RETENTION_EMAIL_SENDS_DAYS,
   RETENTION_ENGAGEMENT_DAYS,
@@ -86,6 +88,18 @@ export async function sweepEmailSends(env: Env): Promise<CronJobResult> {
     emailSends,
     emailSends.id,
     emailSends.createdAt,
+    cutoff,
+  );
+  return { rowsProcessed: rows };
+}
+
+export async function sweepAdminApiCalls(env: Env): Promise<CronJobResult> {
+  const cutoff = cutoffFor(RETENTION_ADMIN_API_CALLS_DAYS, Date.now());
+  const rows = await deleteOlderThan(
+    getDb(env),
+    adminApiCalls,
+    adminApiCalls.id,
+    adminApiCalls.createdAt,
     cutoff,
   );
   return { rowsProcessed: rows };

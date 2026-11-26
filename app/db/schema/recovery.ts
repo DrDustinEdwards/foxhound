@@ -184,7 +184,6 @@ export const expiringCardAlerts = sqliteTable(
     reason: text("reason").$type<ExpiringCardAlertReason>().notNull().default("card_expiring"),
   },
   (t) => [
-    index("expiring_card_alerts_account_idx").on(t.accountId),
     // ONE CANDIDATE PER CARD EXPIRY MONTH, enforced by the database: the nightly scan and the customer.updated webhook would otherwise race to insert the same tuple and the merchant's customer would get two identical warnings. The webhook writer upserts against this unique index. PLAIN, not partial on `deleted_at IS NULL`, so a soft-deleted alert blocks a fresh candidate for the same card and month.
     uniqueIndex("expiring_card_alerts_card_month_uq").on(
       t.accountId,

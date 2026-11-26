@@ -214,6 +214,8 @@ export const RETENTION_WEBHOOK_EVENTS_DAYS = 90;
 export const RETENTION_HEALTH_SCORE_DAYS = 90;
 export const RETENTION_CRON_LOG_DAYS = 90;
 export const RETENTION_AI_CALLS_DAYS = 90;
+/** The admin API call log; the database trigger refuses to delete a row younger than 30 days. */
+export const RETENTION_ADMIN_API_CALLS_DAYS = 90;
 
 export const RETENTION_PAGE_404_DAILY_DAYS = 90;
 /** Max raw rows swept per table per tick. */

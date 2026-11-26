@@ -29,6 +29,10 @@ export const emailSends = sqliteTable(
     index("email_sends_account_idx").on(t.accountId),
     // Retention sweep predicate (cron/retention.ts); without it every daily sweep reads the whole table.
     index("email_sends_created_idx").on(t.createdAt),
+    // The held win-back step's one blocked row is found by this (dispatch alreadyBlocked); also the foreign key's child index.
+    index("email_sends_win_back_step_idx")
+      .on(t.winBackStepId)
+      .where(sql`${t.winBackStepId} is not null`),
     uniqueIndex("email_sends_idempotency_uq")
       .on(t.idempotencyKey)
       .where(sql`${t.idempotencyKey} is not null`),

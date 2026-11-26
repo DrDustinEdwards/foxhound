@@ -335,6 +335,9 @@ export async function handleAdminApiRequest(request: Request, env: Env): Promise
       }
     }
   }
-  await logCall(db, caller, request, path, input, response.status, error);
+  // Reads that succeed are not logged (a polling key wrote 1,900 rows a day); every write and every refusal is.
+  if (request.method !== "GET" || response.status >= 400) {
+    await logCall(db, caller, request, path, input, response.status, error);
+  }
   return response;
 }

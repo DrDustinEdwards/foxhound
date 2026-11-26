@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   accounts,
+  adminApiCalls,
   aiCalls,
   aiCallsMonthly,
   customerContext,
@@ -163,6 +164,27 @@ const SWEEPERS: Record<string, SweeperCase> = {
         ),
       );
     },
+  },
+  sweepAdminApiCalls: {
+    fn: retention.sweepAdminApiCalls,
+    seed: (db, n, when) =>
+      insertMany(
+        db,
+        adminApiCalls,
+        rowsOf(
+          n,
+          (i) => ({
+            id: `aac_${when.getTime()}_${i}`,
+            actorEmail: "admin@example.com",
+            apiKeyId: "key_1",
+            method: "POST",
+            path: "/pause",
+            status: 200,
+            createdAt: when,
+          }),
+          when,
+        ),
+      ),
   },
   sweepAiCalls: {
     fn: retention.sweepAiCalls,
