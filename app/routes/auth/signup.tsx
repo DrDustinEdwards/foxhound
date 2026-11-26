@@ -30,7 +30,7 @@ import { noindexMeta } from "~/lib/seo/meta";
 import { readForm } from "@dustinedwards/site-runtime/body";
 import { BODY_MAX_BYTES } from "~/lib/http/body";
 
-// /signup: one card, "Connect Stripe once", the fee line, the providers, the "or" rule, Email, the error, then "Already have an account? Log in". The ways in are the family's one sign-in (site-runtime ./sign-in): Google, Apple, or an emailed link. The link signs in an existing merchant too, so the page says the same either way. No passkey button: a new merchant has none yet, and the link offers one. The fee is read from RECOVERY_FEE_BPS, never retyped. There is no "We start recovering immediately." clause: a soft failure waits for Stripe's own retries, while a hard decline, or any failure for a merchant with Smart Retries off, starts at once, so no single timing clause is true. No Name field.
+// /signup: one card, "Connect Stripe once", the fee line, the providers, the "or" rule, Email, the error, the agree-to-Terms line (the assent the Terms' arbitration and fee clauses rest on), then "Already have an account? Log in". The ways in are the family's one sign-in (site-runtime ./sign-in): Google, Apple, or an emailed link. The link signs in an existing merchant too, so the page says the same either way. No passkey button: a new merchant has none yet, and the link offers one. The fee is read from RECOVERY_FEE_BPS, never retyped. There is no "We start recovering immediately." clause: a soft failure waits for Stripe's own retries, while a hard decline, or any failure for a merchant with Smart Retries off, starts at once, so no single timing clause is true. No Name field.
 
 export const meta = noindexMeta("Sign up - Foxhound");
 
@@ -93,6 +93,10 @@ export default function Signup({ loaderData, actionData }: Route.ComponentProps)
             busy={busy}
             attempt={actionData}
           />
+          <AuthFootnote>
+            By continuing, you agree to the <AuthLink to="/terms">Terms of Service</AuthLink> and
+            the <AuthLink to="/privacy">Privacy Policy</AuthLink>.
+          </AuthFootnote>
         </>
       )}
 

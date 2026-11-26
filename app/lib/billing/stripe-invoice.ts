@@ -5,6 +5,7 @@ import type { Db, MoneyWriteBatch } from "~/db";
 import { billingInvoices } from "~/db";
 import { getStripe } from "~/lib/stripe/client";
 import { PLATFORM_CHARGES_ENABLED } from "./charges-switch";
+import { INVOICE_DAYS_UNTIL_DUE } from "~/lib/constants";
 
 // Turn a billing_invoices row into a Stripe invoice on Foxhound's OWN account. Only fee lines are charged; adjustment lines and admin_granted subscriptions never touch Stripe (PRICING.md).
 
@@ -89,8 +90,6 @@ export function stripeErrorSummary(err: unknown): string {
   return typeof e.code === "string" ? `${type} (${e.code})` : type;
 }
 
-const SEND_INVOICE_DAYS_UNTIL_DUE = 30;
-
 /** The slice of a retrieved platform customer the collection choice reads. */
 interface CustomerPaymentMethodFields {
   deleted?: boolean | void;
@@ -151,7 +150,7 @@ export async function createPlatformInvoice(
       ...(sendByEmail
         ? {
             collection_method: "send_invoice" as const,
-            days_until_due: SEND_INVOICE_DAYS_UNTIL_DUE,
+            days_until_due: INVOICE_DAYS_UNTIL_DUE,
           }
         : { collection_method: "charge_automatically" as const }),
       // Draft while items attach: a half-built invoice must never advance or be emailed. Finalize turns auto_advance on.

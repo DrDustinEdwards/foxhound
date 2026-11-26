@@ -254,6 +254,7 @@ export interface ConnectionSummary {
 export interface DashboardOnboardingProfile {
   notificationEmail: string | null;
   onboardingCompleted: boolean;
+  liveSendsEnabled: boolean;
   /** The sender name on the primary, still-connected Stripe connection. */
   senderName: string | null;
 }
@@ -267,6 +268,7 @@ export async function getDashboardOnboardingProfile(
       .select({
         notificationEmail: accounts.notificationEmail,
         onboardingCompleted: accounts.onboardingCompleted,
+        liveSendsEnabled: accounts.liveSendsEnabled,
       })
       .from(accounts)
       .where(eq(accounts.id, accountId))
@@ -280,6 +282,7 @@ export async function getDashboardOnboardingProfile(
   return {
     notificationEmail: account?.notificationEmail ?? null,
     onboardingCompleted: account?.onboardingCompleted ?? false,
+    liveSendsEnabled: account?.liveSendsEnabled ?? false,
     senderName: connection?.senderName ?? null,
   };
 }

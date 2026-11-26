@@ -118,6 +118,7 @@ export interface DueStepRow {
   /** failed_payments.customer_name, for the day 1, 3 and 7 greeting. */
   customerName: string | null;
   declineCategory: string;
+  liveSendsEnabled: boolean;
   connectionAccessToken: string | null;
   merchantName: string | null;
   brandVoice: string | null;
@@ -170,6 +171,7 @@ function selectStepRows(db: Db) {
       customerEmail: failedPayments.customerEmail,
       customerName: failedPayments.customerName,
       declineCategory: failedPayments.declineCategory,
+      liveSendsEnabled: accounts.liveSendsEnabled,
       connectionAccessToken: stripeConnections.stripeAccessToken,
       merchantName: stripeConnections.senderName,
       brandVoice: stripeConnections.brandVoice,
@@ -290,6 +292,7 @@ export function toEmailContext(row: DueStepRow): EmailStepContext {
     stepType: row.stepType,
     attemptCount: row.attemptCount,
     declineCategory: row.declineCategory,
+    liveSendsEnabled: row.liveSendsEnabled,
     customerEmail: row.customerEmail,
     customerName: row.customerName,
     amountCents: row.amountCents,

@@ -8,6 +8,7 @@ import { markup } from "capsomer/behavior/trusted-html";
 import { clickSuspectLabel, stepResultTone, type Tone } from "~/lib/recovery/labels";
 import { PILL_TONE, stepResultWords } from "~/lib/recovery/payment-detail";
 import { isEmailStep } from "~/lib/recovery/schedule";
+import { EMAIL_SKIPPED_SENDS_OFF } from "~/lib/recovery/step-state";
 import type { loader } from "~/routes/app/recovery/payments/detail";
 
 type Steps = Awaited<ReturnType<typeof loader>>["steps"];
@@ -32,7 +33,11 @@ export function RecoveryTimeline({ steps, nowMs }: { steps: Steps; nowMs: number
               const executed = step.executedAt !== null;
               const pending = !executed && step.result === null;
               const email = isEmailStep(step.stepType);
-              const showEngagement = executed && email && step.result !== "email_failed";
+              const showEngagement =
+                executed &&
+                email &&
+                step.result !== "email_failed" &&
+                step.result !== EMAIL_SKIPPED_SENDS_OFF;
               const showExpander = executed && step.previewHtml !== null;
               const expanded = expandedStepId === step.id;
               return (

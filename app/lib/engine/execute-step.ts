@@ -25,7 +25,7 @@ import {
 } from "~/lib/recovery/email-generation";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { linksTo, storedCopyCarriesRecoveryLink } from "~/lib/recovery/update-link";
-import type { StepStatePatch } from "~/lib/recovery/step-state";
+import { EMAIL_SKIPPED_SENDS_OFF, type StepStatePatch } from "~/lib/recovery/step-state";
 import { loadSlackCustomer, postToSlack, resolveSlackTarget } from "~/lib/notify/slack.server";
 import { alertEmailFailed } from "~/lib/cron/alerts.server";
 import { decideEmailStep } from "./step-runner";
@@ -55,6 +55,8 @@ export interface EmailStepContext {
   stepType: string;
   attemptCount: number;
   declineCategory: string;
+  /** accounts.live_sends_enabled: the merchant's "Email customers" switch. Off skips the step before any copy is written. */
+  liveSendsEnabled: boolean;
   customerEmail: string;
   /** failed_payments.customer_name, raw; templates greet with it, falling back to "there". */
   customerName?: string | null;
@@ -392,6 +394,25 @@ export async function executeEmailStep(
   const generate = deps.generate ?? defaultGenerate;
 
   const now = new Date();
+  // Customer emails off: the step ends as skipped, before any AI copy is paid for. It is not a send
+  // failure, so it neither backs off nor raises the failed-for-good alert. The dispatch gate stays the backstop.
+  if (!ctx.liveSendsEnabled) {
+    await persistPatch(env, ctx.stepId, {
+      attemptCount: ctx.attemptCount,
+      lastAttemptError: null,
+      nextRetryAt: null,
+      executedAt: now,
+      result: EMAIL_SKIPPED_SENDS_OFF,
+    });
+    return {
+      action: "email",
+      sent: false,
+      result: EMAIL_SKIPPED_SENDS_OFF,
+      usedTemplate: false,
+      templateReason: null,
+      suppressed: false,
+    };
+  }
   const baseUrl = appOrigin(env);
 
   let attempt: { ok: boolean; permanent?: boolean; error?: string };

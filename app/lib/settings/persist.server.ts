@@ -36,10 +36,18 @@ export function buildNotificationSettingsUpdate(
 export interface FeatureSettingsInput {
   winbackNotificationsEnabled: boolean;
   expiringCardNotificationsEnabled: boolean;
+  liveSendsEnabled?: boolean;
 }
 
 export function buildFeatureSettingsUpdate(db: Db, accountId: string, input: FeatureSettingsInput) {
-  return db.update(accounts).set(input).where(eq(accounts.id, accountId));
+  return db
+    .update(accounts)
+    .set({
+      winbackNotificationsEnabled: input.winbackNotificationsEnabled,
+      expiringCardNotificationsEnabled: input.expiringCardNotificationsEnabled,
+      ...(input.liveSendsEnabled === undefined ? {} : { liveSendsEnabled: input.liveSendsEnabled }),
+    })
+    .where(eq(accounts.id, accountId));
 }
 
 export interface IntelligenceContextInput {

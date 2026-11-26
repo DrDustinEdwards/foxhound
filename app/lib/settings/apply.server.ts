@@ -93,14 +93,20 @@ export async function applyAuditSettings(
 export interface FeatureSettingsState {
   winbackNotificationsEnabled: boolean;
   expiringCardNotificationsEnabled: boolean;
+  /** The "Email customers" switch (accounts.live_sends_enabled). Only the settings form sends it: no agent tool turns customer mail on. */
+  liveSendsEnabled?: boolean;
 }
 
-/** The two toggles, and nothing else. The builder names the two columns, so a
- *  caller passing a third writes none of them. */
+/** The email toggles, and nothing else. The builder names the columns, so a
+ *  caller passing another writes none of them. */
 export async function applyFeatureSettings(
   db: Db,
   accountId: string,
-  input: { winbackNotificationsEnabled: unknown; expiringCardNotificationsEnabled: unknown },
+  input: {
+    winbackNotificationsEnabled: unknown;
+    expiringCardNotificationsEnabled: unknown;
+    liveSendsEnabled?: unknown;
+  },
   trace?: WriteTrace,
 ): Promise<ApplyResult<FeatureSettingsState>> {
   const state: FeatureSettingsState = {
@@ -108,6 +114,10 @@ export async function applyFeatureSettings(
     expiringCardNotificationsEnabled: asBoolean(input.expiringCardNotificationsEnabled),
   };
   const fields = ["winback_notifications_enabled", "expiring_card_notifications_enabled"];
+  if (input.liveSendsEnabled !== undefined) {
+    state.liveSendsEnabled = asBoolean(input.liveSendsEnabled);
+    fields.push("live_sends_enabled");
+  }
   await commit(db, accountId, fields, buildFeatureSettingsUpdate(db, accountId, state), trace);
   return { ok: true, fields, state };
 }

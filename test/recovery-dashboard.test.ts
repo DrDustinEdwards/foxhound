@@ -79,6 +79,7 @@ describe("dashboard arithmetic", () => {
         senderName: null,
         notificationEmail: null,
         onboardingCompleted: false,
+        liveSendsEnabled: true,
       }),
     ).toBe(true);
     expect(
@@ -87,6 +88,7 @@ describe("dashboard arithmetic", () => {
         senderName: "A",
         notificationEmail: "a@example.com",
         onboardingCompleted: false,
+        liveSendsEnabled: true,
       }),
     ).toBe(false);
     expect(
@@ -95,6 +97,7 @@ describe("dashboard arithmetic", () => {
         senderName: null,
         notificationEmail: null,
         onboardingCompleted: true,
+        liveSendsEnabled: true,
       }),
     ).toBe(false);
   });

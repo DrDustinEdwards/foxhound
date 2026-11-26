@@ -63,6 +63,7 @@ export function onboardingSteps({
   connected,
   senderNameSet,
   alertAddressSet,
+  customerEmailsOn,
 }: OnboardingChecklistState): SetupStep[] {
   return [
     {
@@ -94,6 +95,17 @@ export function onboardingSteps({
       done: alertAddressSet,
       action: (
         <ButtonLink to="/settings" size="sm">
+          Go to settings
+        </ButtonLink>
+      ),
+    },
+    {
+      id: "customer-emails",
+      title: "Turn on customer emails",
+      detail: "No email reaches your customers until this is on",
+      done: customerEmailsOn,
+      action: (
+        <ButtonLink to="/settings/email" size="sm">
           Go to settings
         </ButtonLink>
       ),

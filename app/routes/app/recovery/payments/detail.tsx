@@ -158,9 +158,9 @@ export async function action({ context, params, request }: Route.ActionArgs) {
     case "customer_unsubscribed":
       return data({ error: "Customer has unsubscribed from emails" }, { status: 409 });
     case "live_sends_disabled":
-      // Honest rather than a silent success, because nothing was mailed (the live-send flag is off).
+      // Honest rather than a silent success, because nothing was mailed (the Email customers switch is off).
       return data(
-        { error: "Live email sending is switched off for this account." },
+        { error: "Customer emails are off. Turn them on in Settings > Email." },
         { status: 409 },
       );
     case "resend_failed":

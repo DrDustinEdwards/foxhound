@@ -5,6 +5,7 @@ import {
   AUDIT_LOOKBACK_DAYS,
   DISPUTE_FEE_CAP_CENTS,
   EXPIRING_CARD_DAYS_AHEAD,
+  CUSTOMER_EMAILS_TOGGLE_LABEL,
   EXPIRING_CARD_TOGGLE_LABEL,
   RECOVERY_MATURITY_DAYS,
 } from "~/lib/constants";
@@ -50,7 +51,9 @@ export const PLATFORM_GUIDE: Omit<DocGuide, "datePublished"> = {
         { kind: "h3", text: "Disconnecting Stripe" },
         "Disconnect at any time from your Stripe dashboard or from Settings inside Foxhound, under Stripe connections, one connected Stripe account at a time. Disconnecting stops recovery work on that Stripe account immediately, and any other Stripe account you have connected keeps running. It does not close your Foxhound account and it does not waive fees already earned on recoveries Foxhound attributed, which still invoice. To stop everything, cancel the account under Danger zone in Settings and My account.",
         { kind: "h3", text: "Initial setup" },
-        "Three settings are worth putting in before your first failure, because all three change what your customers read.",
+        "Three settings are worth putting in before your first failure, because all three change what your customers read. Then turn customer emails on.",
+        { kind: "h3", text: "Customer emails" },
+        `Settings and Email holds the "${CUSTOMER_EMAILS_TOGGLE_LABEL}" switch, and it starts off. Until you turn it on, Foxhound still retries failed payments, but no email reaches your customers: each recovery email in the sequence is marked "Skipped: customer emails off" on the payment's timeline. Set the sender name and send yourself a test email first.`,
         { kind: "h3", text: "Sender name" },
         'Settings and Email holds the sender name, the name your customers see in the From line of every recovery email. Set it before your first send: until you do, recovery mail goes out from "Support". Send test email delivers a sample to your own address through the real sending path, so the From line you see is the one your customers get.',
         { kind: "h3", text: "Reply-to email" },

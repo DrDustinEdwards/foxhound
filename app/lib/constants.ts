@@ -176,6 +176,11 @@ export const CRON_LOCK_LEASE_MS = 16 * 60 * 1000;
 export const CRON_LOCK_PEEK_TIMEOUT_MS = 2000;
 /** Expiring-card alert lookahead in days; already-expired cards belong to dunning. */
 export const EXPIRING_CARD_DAYS_AHEAD = 30;
+/** Days a platform invoice emailed to a merchant with no card on file has to be paid (Stripe days_until_due); the Terms quote it. */
+export const INVOICE_DAYS_UNTIL_DUE = 30;
+
+/** The Settings > Email master switch (accounts.live_sends_enabled): off, no email reaches a merchant's customer. The docs and the setup checklist name it the same way. */
+export const CUSTOMER_EMAILS_TOGGLE_LABEL = "Email your customers";
 /** The Settings > Email switch for that alert; the docs name it the same way. */
 export const EXPIRING_CARD_TOGGLE_LABEL = `Email customers ${EXPIRING_CARD_DAYS_AHEAD} days before their card expires`;
 

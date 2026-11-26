@@ -34,6 +34,7 @@ function row(overrides: Partial<DueStepRow> = {}): DueStepRow {
     customerEmail: "c@example.com",
     customerName: null,
     declineCategory: "soft",
+    liveSendsEnabled: true,
     connectionAccessToken: "iv:cipher",
     merchantName: "Acme",
     brandVoice: null,

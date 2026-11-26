@@ -1,5 +1,9 @@
 import { DISPUTE_FEE_PERCENT, RECOVERY_FEE_PERCENT } from "~/lib/billing/page";
-import { DISPUTE_FEE_CAP_CENTS, RECOVERY_MATURITY_DAYS } from "~/lib/constants";
+import {
+  DISPUTE_FEE_CAP_CENTS,
+  INVOICE_DAYS_UNTIL_DUE,
+  RECOVERY_MATURITY_DAYS,
+} from "~/lib/constants";
 import { formatMoneyShort } from "@dustinedwards/site-runtime/money";
 import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import type { LegalSection } from "capsomer/react/legal-doc";
@@ -182,14 +186,16 @@ export const TERMS_USE: LegalSection[] = [
           all purchases made via the Services. You further agree to promptly update account and
           payment information, including email address, payment method, and payment card expiration
           date, so that we can complete your transactions and contact you as needed. Sales tax will
-          be added to the price of purchases as deemed required by us. We may change prices at any
-          time. All payments shall be in US dollars.
+          be added to the price of purchases as deemed required by us. Each invoice is in the
+          currency of the payments and disputes it bills, so results in more than one currency are
+          invoiced separately, one invoice per currency.
         </p>
         <p>
-          You agree to pay all charges at the prices then in effect for your purchases and you
-          authorize us to charge your chosen payment provider for any such amounts at each monthly
-          billing run. We reserve the right to correct any errors or mistakes in pricing, even if we
-          have already requested or received payment.
+          You agree to pay all charges at the prices then in effect. If you have a payment method on
+          file, you authorize us to charge it for each invoice at the monthly billing run. If you do
+          not, we email you the invoice and it is due within {INVOICE_DAYS_UNTIL_DUE} days. We
+          reserve the right to correct any errors or mistakes in pricing, even if we have already
+          requested or received payment.
         </p>
         <p>We reserve the right to refuse any order placed through the Services.</p>
       </>
@@ -197,10 +203,10 @@ export const TERMS_USE: LegalSection[] = [
   },
   {
     id: "subscriptions",
-    title: "SUBSCRIPTIONS",
+    title: "FEES, CREDITS AND CANCELLATION",
     body: (
       <>
-        <h3>Billing and Renewal</h3>
+        <h3>Fees</h3>
         <p>
           Recovery and Disputes are billed as a percentage of outcomes: {RECOVERY_FEE_PERCENT}% of
           payments recovered by Foxhound, and {DISPUTE_FEE_PERCENT}% of disputes won by Foxhound,
@@ -212,21 +218,28 @@ export const TERMS_USE: LegalSection[] = [
           and submitted its evidence, and the fee on one dispute is capped at{" "}
           {formatMoneyShort(DISPUTE_FEE_CAP_CENTS, "usd")}, converted at Stripe&apos;s rate on the
           day the dispute resolves. Intelligence and Audit are free with no billing. You will be
-          charged only for results that became billable in the prior billing period. Your
-          subscription will continue and automatically renew unless canceled.
+          charged only for results that became billable in the prior billing period. There is no
+          subscription and no fixed charge: a month with no billable result has no invoice.
+        </p>
+        <h3>Credits</h3>
+        <p>
+          If a payment we charged a recovery fee on is later refunded or charged back, we credit
+          that fee in full, or the refunded share of it for a partial refund. If a dispute we
+          charged a fee on is later reversed against you, we credit that fee. Credits are issued
+          against the invoice that carried the fee. Apart from these credits, fees are
+          non-refundable.
         </p>
         <h3>Cancellation</h3>
         <p>
-          All purchases are non-refundable. You can cancel your subscription at any time by logging
-          into your account settings and disconnecting your Stripe account or canceling the
-          applicable subscription. Cancellation takes effect immediately. You remain responsible for
-          fees incurred prior to cancellation. If you have any questions or are unsatisfied with our
-          Services, please email us at {SUPPORT_EMAIL}.
+          You can stop at any time by disconnecting your Stripe account in Settings, or by canceling
+          your account in Settings and My account. Either takes effect immediately. Fees on results
+          earned before you stopped still invoice once they become billable. If you have any
+          questions or are unsatisfied with our Services, please email us at {SUPPORT_EMAIL}.
         </p>
         <h3>Fee Changes</h3>
         <p>
-          We may, from time to time, make changes to the subscription fee and will communicate any
-          price changes to you in accordance with applicable law.
+          We may, from time to time, make changes to our fees and will communicate any fee changes
+          to you in accordance with applicable law.
         </p>
       </>
     ),

@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
@@ -60,6 +61,7 @@ function ctx(over: Partial<EmailStepContext> = {}): EmailStepContext {
     stepType: "email_day1",
     attemptCount: 0,
     declineCategory: "expired",
+    liveSendsEnabled: true,
     customerEmail: "jane@example.com",
     customerName: "Jane Buyer",
     amountCents: 4900,
@@ -225,5 +227,31 @@ describe("a due step sends through the real dispatch", () => {
     const r = await processEmailJob(env, job, null);
     expect(r.status).toBe("suppressed");
     expect(harness.sent).toHaveLength(0);
+  });
+
+  it("customer emails off: the step is skipped, with no copy written and nothing sent", async () => {
+    await seedPayment("Jane Buyer");
+    const db = harness.db as ReturnType<typeof createInMemoryDb>["db"];
+    await db.update(schema.accounts).set({ liveSendsEnabled: false });
+    const row = (await queryDueRecoverySteps(env, new Date(T0.getTime() + 24 * HOUR))).find(
+      (r) => r.stepType === "email_day1",
+    );
+    expect(row?.liveSendsEnabled).toBe(false);
+    let generated = 0;
+    const result = await executeEmailStep(env, toEmailContext(row!), {
+      generate: async () => {
+        generated += 1;
+        throw new Error("never called");
+      },
+    });
+    expect(result).toMatchObject({ sent: false, result: "email_skipped_sends_off" });
+    expect(generated).toBe(0);
+    expect(harness.sent).toHaveLength(0);
+    const [stored] = await db
+      .select({ result: schema.recoverySteps.result, executedAt: schema.recoverySteps.executedAt })
+      .from(schema.recoverySteps)
+      .where(eq(schema.recoverySteps.id, row!.stepId));
+    expect(stored.result).toBe("email_skipped_sends_off");
+    expect(stored.executedAt).not.toBeNull();
   });
 });
