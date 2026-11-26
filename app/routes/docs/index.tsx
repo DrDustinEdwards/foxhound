@@ -22,7 +22,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // The hub as a LIST, so a crawler reading /docs gets the set rather than five pages it has to discover by link-following. Derived from DOC_GUIDES in render order, so a sixth guide joins it by construction.
   return [
     ...marketingMeta({
-      title: "Docs",
+      title: "User guides: setup, recovery and disputes",
       description:
         "User guides for Foxhound: platform setup, recovery, disputes, and intelligence.",
       path: "/docs",

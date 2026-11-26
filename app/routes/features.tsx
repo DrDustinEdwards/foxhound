@@ -63,7 +63,7 @@ function SectionInlineExample({ id }: { id: string }) {
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Features",
+      title: "Features for Stripe payment recovery",
       description: FEATURES_META_DESCRIPTION,
       path: "/features",
       siteUrl: loaderData?.siteUrl ?? "",

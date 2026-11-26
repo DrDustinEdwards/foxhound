@@ -20,7 +20,7 @@ import "~/products.css";
 
 export function meta({ loaderData }: Route.MetaArgs) {
   return marketingMeta({
-    title: "Products",
+    title: "Recovery, disputes and churn tools for Stripe",
     description:
       "Audit, Recovery, Disputes, and Intelligence. Four products that recover failed Stripe payments, fight chargebacks, and predict customer churn.",
     path: "/products",

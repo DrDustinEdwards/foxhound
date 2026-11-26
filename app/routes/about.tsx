@@ -13,7 +13,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // personJsonLd's worksFor references the Organization node by @id (jsonld.ts); that node must be emitted on this page or the reference dangles. Render both here, as blog/post.tsx does.
   return [
     ...marketingMeta({
-      title: "About",
+      title: "About Foxhound and who builds it",
       description: "Foxhound is built and run by Dustin Edwards in Texas, on Stripe Connect.",
       path: "/about",
       siteUrl: loaderData?.siteUrl ?? "",

@@ -35,7 +35,7 @@ export function meta({ loaderData }: Route.MetaArgs) {
   // JSON-LD: a WebPage whose SpeakableSpecification points at the cards and FAQ sections by the classes on them. Every URL comes from the loader's siteUrl.
   return [
     ...marketingMeta({
-      title: "Pricing",
+      title: "Pricing: pay only for payments Foxhound recovers",
       description: PRICING_META_DESCRIPTION,
       path: "/pricing",
       siteUrl: loaderData?.siteUrl ?? "",

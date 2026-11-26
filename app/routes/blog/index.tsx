@@ -36,7 +36,7 @@ import "~/blog-index.css";
 export function meta({ loaderData }: Route.MetaArgs) {
   return [
     ...marketingMeta({
-      title: "Blog",
+      title: "Stripe payment recovery and dispute guides",
       description:
         "Guides on Stripe payment recovery, dispute handling, and subscription intelligence.",
       path: "/blog",
