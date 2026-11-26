@@ -1,6 +1,6 @@
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, count, desc, eq, isNull, sql } from "drizzle-orm";
 import { inList } from "@dustinedwards/site-runtime/d1";
-import { byAccount, byAccountActive } from "~/db/scope";
+import { byAccountActive } from "~/db/scope";
 import {
   type Db,
   expiringCardAlerts,
@@ -130,11 +130,11 @@ export async function listWinbackSequences(
   db: Db,
   accountId: string,
 ): Promise<WinBackSequenceRow[]> {
-  const rows = await db
+  return db
     .select()
     .from(winBackSequences)
-    .where(byAccount(winBackSequences.accountId, accountId));
-  return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    .where(eq(winBackSequences.accountId, accountId))
+    .orderBy(desc(winBackSequences.createdAt));
 }
 
 /** Expiring-card alerts for the account, soonest expiry first. Cards only

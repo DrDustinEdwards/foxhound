@@ -1,3 +1,4 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import type Stripe from "stripe";
 
 import type {
@@ -27,7 +28,7 @@ export async function collectPaginated<T, R>(
 /** The reason string a caller sees when a read throws. Never the raw error
  *  object, which can carry request context, and never a wide dash. */
 function reasonFor(what: string, err: unknown): string {
-  const detail = err instanceof Error ? err.message : "unknown error";
+  const detail = errorMessage(err);
   return `Could not read ${what} from Stripe: ${detail}`;
 }
 

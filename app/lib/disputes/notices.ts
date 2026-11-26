@@ -38,19 +38,6 @@ export function reminderKey(eventType: ReminderBucket["eventType"], disputeId: s
 }
 
 /**
- * Which reminder a dispute is due, from the hours left before its deadline: at
- * least `fromHours` and under `toHours`, else none.
- */
-export function resolveReminderBucket(hoursLeft: number): ReminderBucket | null {
-  for (const band of REMINDER_BANDS) {
-    if (hoursLeft >= band.fromHours && hoursLeft < band.toHours) {
-      return { eventType: band.eventType, daysLeft: band.daysLeft };
-    }
-  }
-  return null;
-}
-
-/**
  * The monthly billing run's day and hour, read from its cron expression ("0 4 1
  * * *") so the date in the won notice cannot drift from the run.
  */

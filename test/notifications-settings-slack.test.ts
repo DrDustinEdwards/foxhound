@@ -17,7 +17,7 @@ vi.mock("~/db", async (importOriginal) => ({
   getDb: () => harness.db,
 }));
 
-const { buildSlackPayload, postToSlack, postSlackNotification } =
+const { buildSlackPayload, postToSlack, resolveSlackTarget } =
   await import("~/lib/notify/slack.server");
 const { normalizeSlackWebhookUrl, SLACK_WEBHOOK_ERROR } =
   await import("~/lib/settings/slack-webhook");
@@ -111,18 +111,18 @@ describe("the gate refuses before anything is posted", () => {
   };
 
   it("an untouched account posts nothing", async () => {
-    expect(await postSlackNotification(env, ACCOUNT, event)).toEqual({ status: "disabled" });
+    expect(await resolveSlackTarget(env, ACCOUNT)).toEqual({ status: "disabled" });
     expect(harness.posted).toEqual([]);
   });
 
   it("enabled with NO webhook posts nothing", async () => {
     await save({ slackNotificationsEnabled: true });
-    expect(await postSlackNotification(env, ACCOUNT, event)).toEqual({ status: "no_webhook" });
+    expect(await resolveSlackTarget(env, ACCOUNT)).toEqual({ status: "no_webhook" });
     expect(harness.posted).toEqual([]);
   });
 
   it("a demo account refuses before the account is read", async () => {
-    expect(await postSlackNotification(env, "demo_teamflow", event)).toEqual({ status: "demo" });
+    expect(await resolveSlackTarget(env, "demo_teamflow")).toEqual({ status: "demo" });
     expect(harness.posted).toEqual([]);
   });
 
@@ -132,7 +132,10 @@ describe("the gate refuses before anything is posted", () => {
       slackWebhookUrl: "https://hooks.slack.com/services/T/B/x",
     });
 
-    expect(await postSlackNotification(env, ACCOUNT, event)).toEqual({ status: "posted" });
+    const target = await resolveSlackTarget(env, ACCOUNT);
+    expect(target.status).toBe("ready");
+    if (target.status !== "ready") return;
+    expect(await postToSlack(target.webhookUrl, event)).toEqual({ status: "posted" });
     expect(harness.posted).toHaveLength(1);
     expect(harness.posted[0].url).toBe("https://hooks.slack.com/services/T/B/x");
     expect(harness.posted[0].body).toEqual(buildSlackPayload(event));

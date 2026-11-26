@@ -32,7 +32,7 @@ vi.mock("~/lib/money/execute", () => ({
   },
 }));
 
-const { resolveReminderBucket, DISPUTE_REMINDER_TEMPLATE } = await import("~/lib/disputes/notices");
+const { DISPUTE_REMINDER_TEMPLATE } = await import("~/lib/disputes/notices");
 const { runDisputeReminders, REFUSED_REMINDER_BACKOFF_MS } =
   await import("~/lib/cron/dispute-reminders");
 
@@ -108,17 +108,6 @@ function outcomeRows() {
     .prepare("SELECT event_type AS type, outcome, product FROM outcomes ORDER BY event_type")
     .all() as { type: string; outcome: string; product: string }[];
 }
-
-describe("the reminder bands", () => {
-  it("24 to 48 hours is the 1-day reminder; nothing between or after", () => {
-    expect(resolveReminderBucket(60)).toBeNull();
-    expect(resolveReminderBucket(48)).toBeNull();
-    expect(resolveReminderBucket(47.9)).toEqual({ eventType: "dispute_reminder_1d", daysLeft: 1 });
-    expect(resolveReminderBucket(24)).toEqual({ eventType: "dispute_reminder_1d", daysLeft: 1 });
-    expect(resolveReminderBucket(23.9)).toBeNull();
-    expect(resolveReminderBucket(-5)).toBeNull();
-  });
-});
 
 describe("who is reminded", () => {
   it("one reminder per dispute inside a band", async () => {

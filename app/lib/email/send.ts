@@ -107,31 +107,21 @@ export async function sendJobEmail(
  *  so no unsubscribe or postal footer. Throws if the binding is unconfigured. */
 export async function sendTransactionalEmail(
   env: Env,
-  message: { to: string; subject: string; bodyHtml: string; fromName?: string | null },
+  message: { to: string; subject: string; bodyHtml: string },
 ): Promise<{ providerMessageId: string | null }> {
-  const { fromName, rendered } = renderTransactional(message);
-  const sent = await sendThroughAuthSender(env, { to: message.to, rendered, fromName });
+  const rendered = renderTransactional(message);
+  const sent = await sendThroughAuthSender(env, { to: message.to, rendered, fromName: "Foxhound" });
   if (sent.status === "sent") return { providerMessageId: sent.providerMessageId };
   throw new Error(sent.error ?? "EMAIL binding is not configured");
 }
 
-function renderTransactional(message: {
-  to: string;
-  subject: string;
-  bodyHtml: string;
-  fromName?: string | null;
-}): {
-  fromName: string;
-  rendered: Rendered;
-} {
-  const fromName = fromDisplayName(message.fromName ?? "Foxhound");
-  const rendered = renderFoxhoundEmail({
+function renderTransactional(message: { to: string; subject: string; bodyHtml: string }): Rendered {
+  return renderFoxhoundEmail({
     subject: message.subject,
     bodyHtml: message.bodyHtml,
-    brandName: fromName,
+    brandName: "Foxhound",
     to: message.to,
   });
-  return { fromName, rendered };
 }
 
 function authSenderMessage(to: string, rendered: Rendered, fromName: string): EmailSendMessage {
@@ -148,10 +138,8 @@ export function buildTransactionalMessage(message: {
   to: string;
   subject: string;
   bodyHtml: string;
-  fromName?: string | null;
 }): EmailSendMessage {
-  const { fromName, rendered } = renderTransactional(message);
-  return authSenderMessage(message.to, rendered, fromName);
+  return authSenderMessage(message.to, renderTransactional(message), "Foxhound");
 }
 
 export function buildRenderedTransactionalMessage(message: {

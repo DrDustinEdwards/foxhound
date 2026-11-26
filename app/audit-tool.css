@@ -22,14 +22,6 @@
     line-height: var(--leading-crisp);
     letter-spacing: -1px;
   }
-  .fh-audit-text {
-    margin-bottom: var(--space-7-5);
-    line-height: var(--leading-relaxed);
-  }
-  .fh-audit-grid {
-    margin-bottom: var(--space-7-5);
-    display: grid;
-  }
   .fh-audit-grid-2 {
     margin-bottom: var(--space-6);
     display: grid;
@@ -93,9 +85,6 @@
     margin-bottom: var(--space-2);
     color: var(--blue);
   }
-  .fh-audit-text-5 {
-    margin-bottom: var(--space-5);
-  }
   .fh-audit-link-2 {
     display: inline-flex;
     min-height: 1.5rem;
@@ -116,9 +105,6 @@
   }
   .fh-audit-text-8 {
     margin-top: var(--space-5);
-  }
-  .fh-audit-text-9 {
-    margin-bottom: var(--space-4);
   }
   .fh-auditconnect-row {
     display: flex;
@@ -153,9 +139,6 @@
   }
   .fh-auditconnect-text-2 {
     margin-top: var(--space-5);
-  }
-  .fh-results-text {
-    margin-bottom: var(--space-5);
   }
   .fh-results-text-2 {
     margin-top: var(--space-3);

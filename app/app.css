@@ -320,9 +320,6 @@ body {
   .fh-item-title {
     font-size: 0.9375rem;
   }
-  .fh-tag {
-    font-size: var(--fs-tiny);
-  }
   .fh-subsection {
     font-size: var(--title-3);
   }

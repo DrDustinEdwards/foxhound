@@ -203,10 +203,7 @@ export async function priceUnpricedDisputeFees(
   try {
     result.mismatched = await checkPricedFeesAgainstStripe(env, now);
   } catch (err) {
-    console.error(
-      "dispute fee stripe check failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("dispute fee stripe check failed:", errorMessage(err));
   }
 
   return result;

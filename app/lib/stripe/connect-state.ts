@@ -1,9 +1,7 @@
 // The Stripe Connect OAuth `state` payload, and the one place that decides whether a callback's
 // state is trustworthy. WHERE THE MINT RECORD LIVES: the existing state cookie
 // (`stripe_oauth_state`, HttpOnly, Secure, SameSite=Lax, 600s), which is set server-side at flow
-// start and never readable or writable by a client. Its callback accepts a bare non-JSON state as a
-// plain CSRF token (`catch { csrfFromState = state }`), because it grew the JSON form later and had
-// live flows to keep working.
+// start and never readable or writable by a client.
 
 export const ADD_ACCOUNT_ACTION = "add_account";
 export const CONNECT_ACTION = "connect";

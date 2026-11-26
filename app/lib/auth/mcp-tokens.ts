@@ -12,8 +12,8 @@ import { keyScopes, MERCHANT_SCOPES } from "~/lib/oauth/metadata";
 //     persisted or logged.
 //   - Scope lives in api_keys.scope and pins the token to one of two surfaces:
 //       mcp_merchant -> merchant MCP (/mcp), account-scoped: api_keys.account_id
-//                       is the owning account; every query MUST go through the
-//                       byAccount helpers keyed on it.
+//                       is the owning account; every query MUST be scoped by
+//                       that account_id.
 //       mcp_admin    -> an Admin API key, platform-scoped: account_id is null;
 //                       not tied to any single tenant. The admin MCP Worker
 //                       signs in through Access and does not use these.

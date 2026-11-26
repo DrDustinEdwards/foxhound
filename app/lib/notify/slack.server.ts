@@ -98,17 +98,6 @@ async function postSlackBody(webhookUrl: string, body: { text: string }): Promis
   }
 }
 
-/** Gate then post. Never throws into the caller and never blocks the email. */
-export async function postSlackNotification(
-  env: Env,
-  accountId: string,
-  event: SlackEvent,
-): Promise<SlackOutcome> {
-  const target = await resolveSlackTarget(env, accountId);
-  if (target.status !== "ready") return target;
-  return postToSlack(target.webhookUrl, event);
-}
-
 export async function postSlackText(
   env: Env,
   accountId: string,

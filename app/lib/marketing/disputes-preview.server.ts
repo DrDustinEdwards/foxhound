@@ -10,7 +10,6 @@ import {
   humanizeDisputeReason,
   isDisputeResolved,
 } from "~/lib/disputes/labels";
-import { sortDisputesNewestFirst } from "~/lib/disputes/order";
 import { computeDisputeStats, winRateCard } from "~/lib/disputes/stats";
 import { formatMoney } from "@dustinedwards/site-runtime/money";
 import { formatAmounts, type CurrencyAmount } from "~/lib/money/totals";
@@ -20,7 +19,7 @@ import type { DisputesPreview, PreviewDisputeRow } from "./disputes-preview";
 
 // The data behind the /product/disputes previews: the demo account's seed, never a merchant's rows. Foxhound builds the Teamflow
 // disputes its demo runs on (buildDisputesSeed, pure) and reads them the way the merchant dashboard
-// (app/routes/app/disputes/index.tsx) does: order from sortDisputesNewestFirst; the five cards from computeDisputeStats, totaled
+// (app/routes/app/disputes/index.tsx) does: newest first; the five cards from computeDisputeStats, totaled
 // per currency with groupSumByCurrency and written with formatAmounts (Win rate's words from winRateCard); status words from
 // disputeListStatus, with "has evidence" decided from the evidence rows by getDisputesWithEvidence's own test; deadline days and
 // bands from daysUntilDeadline and deadlineUrgency. Strings are formatted here, on the server, so server and browser render the same text.
@@ -55,7 +54,7 @@ function buildDisputesPreview(now: Date): DisputesPreview {
     triageRecommendation: d.triageRecommendation ?? null,
     triageConfidence: d.triageConfidence ?? null,
   }));
-  const ordered = sortDisputesNewestFirst(seeded);
+  const ordered = seeded.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
   const stats = computeDisputeStats(ordered);
 
   const rows = ordered.map((d): PreviewDisputeRow => {

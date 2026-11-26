@@ -4,6 +4,7 @@
 // site-runtime ./prose's, the family's one prose check, which Carrel runs on AI
 // drafts too.
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { checkProse, WRITING_RULES, type ProseIssue } from "@dustinedwards/site-runtime/prose";
 
 /**
@@ -66,10 +67,7 @@ export async function retryStockPhrasing<T>(
     if (text.trim() && findStockPhrasing(text, allow).length < issues.length) return retried;
   } catch (err) {
     // The message only: an SDK error object can carry request details.
-    console.error(
-      "stock-phrasing retry failed; keeping the first draft:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("stock-phrasing retry failed; keeping the first draft:", errorMessage(err));
   }
   return first;
 }

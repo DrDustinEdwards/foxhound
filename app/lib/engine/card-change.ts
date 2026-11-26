@@ -4,6 +4,7 @@
 // update through the hosted card page. Anything unreadable is treated as unchanged: the safe failure is a
 // skipped retry, never a forbidden charge. Read-only; the charge is executeRetryStep's.
 
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import type Stripe from "stripe";
 
 import { getDb } from "~/db";
@@ -147,10 +148,7 @@ export async function checkCardChanged(
     const stripe = getConnectedStripe(await decryptToken(env, ctx.connectionAccessToken));
     return await compareCardsWithClient(stripe, ctx.invoiceId);
   } catch (err) {
-    console.error(
-      "expired retry card check failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("expired retry card check failed:", errorMessage(err));
     return "unverified";
   }
 }

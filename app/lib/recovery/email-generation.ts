@@ -1,3 +1,4 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
 
 import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
@@ -104,10 +105,7 @@ async function applyTimingWordGuard(
         copy = retried;
     } catch (err) {
       // The message only: an SDK error object can carry request details.
-      console.error(
-        "timing-word retry failed; keeping the first copy:",
-        err instanceof Error ? err.message : "unknown error",
-      );
+      console.error("timing-word retry failed; keeping the first copy:", errorMessage(err));
     }
   }
   return {
