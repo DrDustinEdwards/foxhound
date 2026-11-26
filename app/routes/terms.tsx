@@ -31,7 +31,7 @@ export default function TermsPage() {
     <LegalBody>
       <LegalDoc
         title="Terms of Service"
-        updated="2026-11-11"
+        updated="2026-11-26"
         contentsLabel="Contents"
         intro={
           <>

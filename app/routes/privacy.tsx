@@ -39,7 +39,7 @@ export default function PrivacyPage() {
     <LegalBody>
       <LegalDoc
         title="Privacy Policy"
-        updated="2026-11-24"
+        updated="2026-11-26"
         contentsLabel="Table of Contents"
         intro={
           <>

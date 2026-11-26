@@ -40,7 +40,7 @@ export const HOW_IT_WORKS: { title: string; body: React.ReactNode }[] = [
     // The connection is read and write, so the copy says "OAuth", not "Read-only OAuth".
     body: (
       <>
-        <a href="https://stripe.com/docs/connect/oauth-standard-accounts" rel="external">
+        <a href="https://docs.stripe.com/connect/oauth-standard-accounts" rel="external">
           OAuth
         </a>
         . 60 seconds. Foxhound never touches your billing configuration or existing Stripe setup.

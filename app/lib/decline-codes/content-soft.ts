@@ -32,7 +32,7 @@ export const SOFT_DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "How does Foxhound decide when to email the customer?",
         answer:
-          "Only after its background retry schedule for the charge is exhausted. Before that point, retries happen silently and no email goes out.",
+          "After its first silent retry fails. Foxhound retries the charge 4 hours into the sequence and, if that fails, sends the first email an hour later. Further retries on day 2 and day 21 run between the emails.",
       },
     ],
   },
@@ -69,7 +69,7 @@ export const SOFT_DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound email the customer as soon as this code appears?",
         answer:
-          "No. Foxhound retries silently in the background first. The customer only receives an email if all scheduled retries fail to recover the charge.",
+          "No. Foxhound retries silently first, 4 hours into the sequence. The customer receives the first email only if that retry fails to recover the charge.",
       },
     ],
   },
@@ -106,7 +106,7 @@ export const SOFT_DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Will I get an email every time a retry fails?",
         answer:
-          "Not under Foxhound's handling. Retries run silently in the background first. A customer only hears from the merchant if the full retry schedule runs out without recovering the charge.",
+          "No. Foxhound's first retry runs silently, and the customer hears from the merchant only once it fails. After that, emails and retries follow one fixed schedule, not one email per failed retry.",
       },
     ],
   },
@@ -214,7 +214,7 @@ export const SOFT_DECLINE_CONTENT: Record<string, DeclineCodeContent> = {
       {
         question: "Does Foxhound notify the customer right away when this code appears?",
         answer:
-          "No. It runs a silent background retry first and only sends the merchant's branded recovery email if the retry schedule doesn't recover the charge.",
+          "No. It runs a silent retry first and sends the merchant's branded recovery email only if that retry doesn't recover the charge.",
       },
     ],
   },
