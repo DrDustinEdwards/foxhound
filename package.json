@@ -37,7 +37,7 @@
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.183.1",
     "@modelcontextprotocol/server": "2.4.0",
     "better-auth": "1.7.27",
-    "capsomer": "github:DrDustinEdwards/capsomer#v0.164.10",
+    "capsomer": "github:DrDustinEdwards/capsomer#v0.164.11",
     "drizzle-orm": "0.45.4",
     "enarratio": "0.17.3",
     "hast-util-to-mdast": "10.1.4",
