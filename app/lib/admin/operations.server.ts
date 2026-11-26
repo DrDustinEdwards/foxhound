@@ -173,10 +173,10 @@ export interface EnvSanityRow {
 }
 
 /**
- * STRIPE_SECRET_KEY must be a live key: Foxhound runs one production Worker,
- * claims and ignores every test-mode webhook and refuses a test-mode Connect
- * token, so a test key here connects nobody and recovers nothing. Only the
- * key's mode prefix is read, never the rest of it.
+ * STRIPE_SECRET_KEY must be a live key in production: Foxhound acts only on
+ * Stripe objects in its key's mode (stripe/mode.ts), so a test key here would
+ * ignore every real merchant. Only the key's mode prefix is read, never the
+ * rest of it.
  */
 function stripeKeyProblem(key: unknown): string | null {
   if (typeof key !== "string" || !key) return null;

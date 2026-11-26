@@ -7,6 +7,7 @@ import {
 } from "~/lib/stripe/constants";
 
 import { getStripe } from "./client";
+import { isTestStripeKey } from "./mode";
 
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
@@ -55,10 +56,10 @@ export interface StripeOAuthResult {
 }
 
 /**
- * Exchange an authorization code for connected-account credentials. A TEST-MODE TOKEN IS REFUSED.
- * Foxhound runs on a live key only and claims and ignores every test-mode webhook, so a connection
- * made with a test key (a misconfigured STRIPE_SECRET_KEY) would look connected and never recover a
- * payment. The message names the cause and carries no token, so the callback can log it.
+ * Exchange an authorization code for connected-account credentials. A TOKEN IN THE OTHER MODE FROM
+ * STRIPE_SECRET_KEY IS REFUSED (isTestStripeKey): webhooks in the other mode are claimed and
+ * ignored, so such a connection would look connected and never recover a payment. The message
+ * names the cause and carries no token, so the callback can log it.
  */
 export async function exchangeConnectCode(env: Env, code: string): Promise<StripeOAuthResult> {
   const token = await getStripe(env).oauth.token({
@@ -68,9 +69,9 @@ export async function exchangeConnectCode(env: Env, code: string): Promise<Strip
   if (!token.stripe_user_id || !token.access_token) {
     throw new Error("Stripe OAuth token response missing stripe_user_id/access_token");
   }
-  if (token.livemode !== true) {
+  if (token.livemode === isTestStripeKey(env)) {
     throw new Error(
-      "Stripe OAuth returned a test-mode token; check STRIPE_SECRET_KEY is a live key",
+      `Stripe OAuth returned a ${token.livemode ? "live" : "test-mode"} token; STRIPE_SECRET_KEY is a ${token.livemode ? "test" : "live"} key`,
     );
   }
   return {
