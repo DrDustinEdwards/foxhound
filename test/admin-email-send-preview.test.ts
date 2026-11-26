@@ -81,7 +81,7 @@ const ALL_TYPES = [
   "sign_in_link",
   "cron_failure",
   "cron_stale",
-  "dead_letter_alert",
+  "email_failed_alert",
 ];
 const CUSTOMER_TYPES = ALL_TYPES.slice(0, 12);
 

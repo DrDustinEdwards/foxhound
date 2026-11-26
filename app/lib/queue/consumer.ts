@@ -1,29 +1,14 @@
-import { AUDIT_QUEUE_NAME, EMAIL_EVENTS_QUEUE_NAME, EMAIL_QUEUE_NAME } from "~/lib/queue/constants";
-import { processEmailJob } from "~/lib/email/dispatch";
+import { AUDIT_QUEUE_NAME, EMAIL_EVENTS_QUEUE_NAME } from "~/lib/queue/constants";
 import { processEmailEvent } from "~/lib/email/events";
-import type { EmailJob } from "~/lib/email/types";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Single queue-consumer entry, dispatched by queue name:
-//   foxhound-email        -> send each job through the one send module (ack/retry)
 //   foxhound-email-events -> bounce/complaint events into the suppression list
 //   foxhound-audit        -> one account's monthly audit per message, or one
 //                            anonymous audit's delayed Stripe grant revoke
-// Each queue's own retry ceiling + dead-letter (wrangler consumer config) handles
-// repeated failures. Wired into the worker entry's `queue` handler.
+// Each queue's own retry ceiling (wrangler consumer config) handles repeated
+// failures. Wired into the worker entry's `queue` handler.
 export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): Promise<void> {
-  if (batch.queue === EMAIL_QUEUE_NAME) {
-    for (const message of batch.messages) {
-      const result = await processEmailJob(env, message.body as EmailJob, message.id);
-      if (result.retryable) {
-        message.retry();
-      } else {
-        message.ack();
-      }
-    }
-    return;
-  }
-
   if (batch.queue === EMAIL_EVENTS_QUEUE_NAME) {
     for (const message of batch.messages) {
       try {

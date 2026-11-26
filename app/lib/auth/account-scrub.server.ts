@@ -22,7 +22,6 @@ import {
   disputeEvidence,
   disputes,
   earlyFraudWarnings,
-  emailDeadLetters,
   emailSends,
   emailSuppressions,
   engagementEvents,
@@ -211,7 +210,6 @@ export function buildAccountScrubStatements(
     db.update(engagementEvents).set({ targetUrl: null }).where(engagementOfAccount),
     db.delete(emailSends).where(and(sendOfAccount, not(stepKept(db, emailSends.recoveryStepId)))),
     db.update(emailSends).set({ recipientHash: null, error: null }).where(sendOfAccount),
-    db.delete(emailDeadLetters).where(eq(emailDeadLetters.accountId, accountId)),
 
     db.delete(winBackSteps).where(inArray(winBackSteps.id, winBackStepsOfAccount)),
     db.delete(winBackSequences).where(eq(winBackSequences.accountId, accountId)),

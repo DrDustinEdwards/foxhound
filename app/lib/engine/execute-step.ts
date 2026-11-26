@@ -27,6 +27,7 @@ import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { linksTo, storedCopyCarriesRecoveryLink } from "~/lib/recovery/update-link";
 import type { StepStatePatch } from "~/lib/recovery/step-state";
 import { loadSlackCustomer, postToSlack, resolveSlackTarget } from "~/lib/notify/slack.server";
+import { alertEmailFailed } from "~/lib/cron/alerts.server";
 import { decideEmailStep } from "./step-runner";
 
 /** Slack posts for an email send. Both gate first (demo account, disabled toggle, missing webhook), so the
@@ -440,6 +441,12 @@ export async function executeEmailStep(
   // Slack after the step is persisted, only on a successful send; a Slack failure cannot unwind the send.
   if (attempt.ok) {
     await notifySlackEmailSent(env, ctx);
+  } else if (patch.result === "email_failed") {
+    await alertEmailFailed(
+      env,
+      { accountId: ctx.accountId, stepId: ctx.stepId, attempts: patch.attemptCount },
+      now,
+    );
   }
   return {
     action: "email",

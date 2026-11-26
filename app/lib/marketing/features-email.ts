@@ -68,7 +68,7 @@ export function emailSection({ digestDay }: FeatureCadence): FeatureSection {
       },
       {
         name: "Send retry with backoff",
-        description: `Up to ${SEND_MAX_ATTEMPTS} send attempts, backing off ${backoff} between them. A send that still fails is dead-lettered and alerted, so sequences do not silently stop.`,
+        description: `Up to ${SEND_MAX_ATTEMPTS} send attempts, backing off ${backoff} between them. A send that still fails is marked Email failed on the payment and Foxhound is alerted, so sequences do not silently stop.`,
         product: "Recovery",
       },
       {

@@ -88,6 +88,7 @@
     "0087_drop_unused_tables.sql": "3eef9063295f8051de52e10c62fe0327b04121ca91c9ea8c7de844327e8d088a",
     "0088_drop_estimator_and_subscriptions.sql": "e556e616839e62e646d473e2c93ffc6768d1af571220a84bf89bf0720bf962d8",
     "0089_drop_redundant_indexes.sql": "3baaa4138a1819610b7bdaeb0f1564656d2833bac03ebfd4255968506bf41f8b",
-    "0090_drop_unused_payment_columns.sql": "206621aeaa36c81f52452d45792747ad6a4c12aadad4214960c5d498cbae4097"
+    "0090_drop_unused_payment_columns.sql": "206621aeaa36c81f52452d45792747ad6a4c12aadad4214960c5d498cbae4097",
+    "0091_drop_email_dead_letters.sql": "19a6026e486c4b6f18cbe2b4cf5f354c2097ad81b25bd4cfc079f1d233c986bf"
   }
 }

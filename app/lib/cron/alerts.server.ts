@@ -1,3 +1,4 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { appOrigin } from "~/lib/app-origin";
 import {
   alertOnce,
@@ -41,7 +42,7 @@ import { SUPPORT_EMAIL } from "~/lib/seo/jsonld";
  * record, and never rethrown.
  */
 
-type AlertKind = "failure" | "stale" | "dead_letter";
+type AlertKind = "failure" | "stale" | "email_failed";
 export type { AlertOutcome };
 
 /**
@@ -182,23 +183,6 @@ export function renderCronAlertEmail(
   });
 }
 
-/** The dead-letter alert's subject and body, Foxhound's own. Pure. */
-export function deadLetterAlertMessage(
-  counts: { written: number; failed: number },
-  now: Date,
-): { subject: string; bodyHtml: string } {
-  return {
-    subject: "Foxhound dunning emails DEAD-LETTERED",
-    bodyHtml: [
-      `<p>${counts.written} dunning email(s) exhausted their queue retries and were dead-lettered at ${now.toISOString()}.</p>`,
-      counts.failed ? `<p>${counts.failed} dead letter(s) could not even be recorded.</p>` : "",
-      `<p>Query email_dead_letters for the rows. One alert per day.</p>`,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  };
-}
-
 /** Send one alert, deduped, never throwing. */
 async function sendAlert(
   env: Env,
@@ -254,33 +238,36 @@ async function lastSuccessAt(db: Db, cronName: string): Promise<Date | null> {
   return row?.okAt == null ? null : new Date(row.okAt);
 }
 
-/**
- * The dead-letter alert (313 build B). Shares the dedupe mechanism with the
- * cron alerts, keyed on the pseudo-cron name below, so a burst of dead letters
- * raises ONE email per day rather than one per message.
- */
-const DEAD_LETTER_ALERT_KEY = "email-dead-letters";
+/** The alert for a recovery email that failed for good, Foxhound's own. Pure. */
+export function emailFailedAlertMessage(
+  failure: { accountId: string; stepId: string; attempts: number },
+  now: Date,
+): { subject: string; bodyHtml: string } {
+  return {
+    subject: "Foxhound recovery email failed for good",
+    bodyHtml: [
+      `<p>A recovery email failed after ${failure.attempts} attempt(s) at ${now.toISOString()} (account ${failure.accountId}, step ${failure.stepId}).</p>`,
+      `<p>The payment's timeline shows Email failed; recovery_steps.last_attempt_error has the reason. One alert per day.</p>`,
+    ].join("\n"),
+  };
+}
 
-export async function alertDeadLetters(
+/** Mail the support inbox when a recovery email fails for good, at most once a day. Never throws. */
+export async function alertEmailFailed(
   env: Env,
-  counts: { written: number; failed: number },
+  failure: { accountId: string; stepId: string; attempts: number },
   now: Date,
 ): Promise<AlertOutcome> {
-  if (counts.written === 0 && counts.failed === 0) return { sent: false, reason: "deduped" };
   try {
     return await sendAlert(
       env,
-      DEAD_LETTER_ALERT_KEY,
-      "dead_letter",
-      deadLetterAlertMessage(counts, now),
+      "recovery-email-failed",
+      "email_failed",
+      emailFailedAlertMessage(failure, now),
       now,
     );
   } catch (err) {
-    return {
-      sent: false,
-      reason: "send_failed",
-      error: err instanceof Error ? err.message : "dead-letter alert failed",
-    };
+    return { sent: false, reason: "send_failed", error: errorMessage(err) };
   }
 }
 

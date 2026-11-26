@@ -17,7 +17,6 @@ import { draftPostContext } from "~/lib/preview-context";
 import { siteFiles } from "~/lib/seo/files";
 import { SITE_ORIGIN, SUPPORT_EMAIL } from "~/lib/seo/jsonld";
 import { codePagePaths } from "~/routes/files/sitemap";
-import { EMAIL_DLQ_QUEUE_NAME } from "~/lib/queue/constants";
 import { runScheduledJobs } from "~/lib/cron/run";
 import { ensureCronTickerArmed } from "~/lib/cron/ticker";
 import { TOKEN_ROUTES } from "~/lib/errors/token-routes";
@@ -155,22 +154,10 @@ export class Renderer extends siteRenderer(WorkerEntrypoint<Env>, site) {}
 
 // Under Sentry (site-runtime ./sentry) with the shared fetch: the queue consumer and Foxhound's own cron.
 export default siteWorker(site, {
-  // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit, foxhound-email (no producer; live sends are synchronous in the recovery cron), its dead-letter queue, and foxhound-email-events (bounces and complaints).
+  // Queue consumer for every queue wrangler.jsonc registers: foxhound-audit and foxhound-email-events (bounces and complaints). Mail itself is sent directly by the job that sends it, not through a queue.
   async queue(batch, env, ctx) {
     // Arms the five-minute ticker if its alarm is not set (a no-op once it is). The queues run whenever mail is sent or an email event arrives, so this arms the ticker soon after a deploy rather than at the next 03:00 UTC daily run. Off the batch's path: it never throws and is not awaited.
     ctx.waitUntil(ensureCronTickerArmed(env));
-    // TWO QUEUES, ONE HANDLER. The dead-letter queue routes here too, so the branch is on the queue NAME: a repeatedly-failing dunning email would otherwise be discarded with no trace after max_retries; this branch writes the row that records it. Imported dynamically, like scheduled(), to keep the dead-letter and alerting import graph out of the normal send path.
-    if (batch.queue === EMAIL_DLQ_QUEUE_NAME) {
-      const { recordDeadLetters } = await import("~/lib/email/dead-letters.server");
-      const { getDb } = await import("~/db");
-      await recordDeadLetters(
-        env,
-        getDb(env),
-        batch.messages.map((m) => ({ id: m.id, attempts: m.attempts, body: m.body })),
-        new Date(),
-      );
-      return;
-    }
     await handleQueueBatch(batch, env);
   },
   // Cron Triggers: Foxhound's own, not the shared `cron`, because each job runs behind Foxhound's gates (config + interval + DO lock, app/lib/cron/run.ts) and the five-minute ticker must be re-armed on every trigger. Jobs are independent, run sequentially to keep D1 load bounded.
