@@ -101,7 +101,7 @@ export function buildVoiceSamplesUpdate(
 // route client chunk. Re-exported so server callers have one import site.
 
 export interface SenderSettingsInput {
-  /** Null is a real state, not a gap: the From header falls back to "Support" and delivers. */
+  /** Null is a real state, not a gap: the From header falls back to the account's name and delivers. */
   senderName: string | null;
   /** `reply_to_email`. */
   replyToEmail?: string | null;

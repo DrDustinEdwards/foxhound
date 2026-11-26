@@ -52,7 +52,7 @@ export const PLATFORM_GUIDE: Omit<DocGuide, "datePublished"> = {
         { kind: "h3", text: "Initial setup" },
         "Three settings are worth putting in before your first failure, because all three change what your customers read.",
         { kind: "h3", text: "Sender name" },
-        'Settings and Email holds the sender name, the name your customers see in the From line of every recovery email. Set it before your first send: until you do, recovery mail goes out from "Support". Send test email delivers a sample to your own address through the real sending path, so the From line you see is the one your customers get.',
+        "Settings and Email holds the sender name, the name your customers see in the From line of every recovery email. Until you set it, recovery mail goes out under your account name. Send test email delivers a sample to your own address through the real sending path, so the From line you see is the one your customers get.",
         { kind: "h3", text: "Reply-to email" },
         "Also in Settings and Email. Set the address your customers reach when they reply to a recovery email. Use an inbox somebody reads, because a customer who replies is often trying to fix their payment. Until you set one, replies go to the address in the From line.",
         { kind: "h3", text: "Brand voice" },
@@ -152,7 +152,7 @@ export const PLATFORM_GUIDE: Omit<DocGuide, "datePublished"> = {
           rows: [
             [
               "Sender name",
-              'The name your customers see in the From line of every recovery email. Recovery mail goes out from "Support" until you set it.',
+              "The name your customers see in the From line of every recovery email. Until you set it, recovery mail goes out under your account name.",
             ],
             [
               "Reply-to email",

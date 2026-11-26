@@ -340,7 +340,8 @@ describe("the claim and the fallbacks, each reached alone", () => {
     expect(harness.sent[0].html).toContain("Hi there,");
     expect(text).toContain("Hi there,");
     expect(text).toContain("your Card card ending in **** is expiring on 03/2027.");
-    expect(text).toContain("Thanks,\n\nSupport");
-    expect(harness.sent[0].from.startsWith("Support <")).toBe(true);
+    // No sender name set: the account's name signs it, never "Support".
+    expect(text).toContain("Thanks,\n\nAcme");
+    expect(harness.sent[0].from.startsWith("Acme <")).toBe(true);
   });
 });

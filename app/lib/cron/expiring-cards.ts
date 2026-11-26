@@ -2,6 +2,7 @@ import { appOrigin } from "~/lib/app-origin";
 import {
   activePrimaryConnectionWhere,
   primaryConnectionValue,
+  senderNameOrAccountName,
 } from "~/lib/stripe/connections.server";
 import { and, eq, isNull, sql } from "drizzle-orm";
 
@@ -238,9 +239,9 @@ export async function sendExpiringCardAlerts(env: Env, now: Date): Promise<SendR
       expiresYear: expiringCardAlerts.expiresYear,
       reason: expiringCardAlerts.reason,
       notificationsEnabled: accounts.expiringCardNotificationsEnabled,
-      senderName: primaryConnectionValue<string>(
-        stripeConnections.senderName,
-        expiringCardAlerts.accountId,
+      senderName: senderNameOrAccountName(
+        primaryConnectionValue<string>(stripeConnections.senderName, expiringCardAlerts.accountId),
+        accounts.name,
       ),
       replyToEmail: primaryConnectionValue<string>(
         stripeConnections.replyToEmail,

@@ -397,6 +397,10 @@ describe("a pretend merchant, end to end", () => {
     );
     expect(sim.attempts.get("in_ana")).toHaveLength(2);
     expect(sim.attempts.get("in_ben")).toHaveLength(2);
+    // From the merchant's business name, which it never set as a sender name, not "Support".
+    expect(new Set(harness.sent.map((m) => m.from))).toEqual(
+      new Set(["Pretend Co <recovery@send.foxhoundapp.com>"]),
+    );
     const firsts = harness.sent.map((m) => ({ to: m.to, subject: m.subject }));
     day1Emails.push(...harness.sent);
     expect(firsts.map((m) => m.to).sort()).toEqual(["ana@customer.test", "ben@customer.test"]);
