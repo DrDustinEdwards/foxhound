@@ -57,7 +57,12 @@ function seed(payments: PaymentSeed[], opts: { paused?: boolean } = {}) {
   ] as const) {
     runStatement(
       sqlite,
-      db.insert(accounts).values({ id, name, processingPaused: id === "acc_1" && !!opts.paused }),
+      db.insert(accounts).values({
+        id,
+        name,
+        processingPaused: id === "acc_1" && !!opts.paused,
+        liveSendsEnabled: true,
+      }),
     );
   }
   for (const p of payments) {
@@ -340,6 +345,7 @@ describe("bulk trigger: every executor status keeps its own name (267)", () => {
             currency: "usd",
             customerEmail: "customer@example.com",
             declineCategory: "soft",
+            liveSendsEnabled: true,
             connectionAccessToken: null,
             merchantName: "Acme",
             brandVoice: null,

@@ -213,10 +213,14 @@ export interface OnboardingInput {
   senderName: string | null;
   notificationEmail: string | null;
   onboardingCompleted: boolean;
+  liveSendsEnabled: boolean;
 }
 
 export function onboardingNeeded(o: OnboardingInput): boolean {
-  return !o.onboardingCompleted && !(o.connected && !!o.senderName && !!o.notificationEmail);
+  return (
+    !o.onboardingCompleted &&
+    !(o.connected && !!o.senderName && !!o.notificationEmail && o.liveSendsEnabled)
+  );
 }
 
 /** The queue's heading window, in hours, from the read model's window. */
@@ -262,6 +266,7 @@ export interface OnboardingChecklistState {
   connected: boolean;
   senderNameSet: boolean;
   alertAddressSet: boolean;
+  customerEmailsOn: boolean;
 }
 
 export function onboardingChecklistState(
@@ -269,6 +274,7 @@ export function onboardingChecklistState(
     senderName: string | null;
     notificationEmail: string | null;
     onboardingCompleted: boolean;
+    liveSendsEnabled: boolean;
   },
   connected: boolean,
 ): OnboardingChecklistState {
@@ -277,6 +283,7 @@ export function onboardingChecklistState(
     connected,
     senderNameSet: !!profile.senderName,
     alertAddressSet: !!profile.notificationEmail,
+    customerEmailsOn: profile.liveSendsEnabled,
   };
 }
 

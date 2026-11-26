@@ -8,7 +8,7 @@ import { DemoForm } from "~/lib/demo/use-demo-guard";
 import { SettingsLayout, SwitchRow } from "capsomer/react/settings-row";
 import { routerRenderLink } from "capsomer/react/link";
 import { accounts, getDb } from "~/db";
-import { EXPIRING_CARD_TOGGLE_LABEL } from "~/lib/constants";
+import { CUSTOMER_EMAILS_TOGGLE_LABEL, EXPIRING_CARD_TOGGLE_LABEL } from "~/lib/constants";
 import { eq } from "drizzle-orm";
 import { accountScope } from "~/lib/auth/context";
 import { REPLY_TO_EMAIL_MAX_LENGTH } from "~/lib/settings/reply-to";
@@ -30,7 +30,7 @@ import { BODY_MAX_BYTES } from "~/lib/http/body";
 // THE TEST EMAIL'S OUTCOMES: "Sent! Check your inbox" or "Failed. Try again.", going back to "Send test email" after four seconds. Foxhound's send path also refuses a suppressed address, where "Try again" would not help, so that outcome says why nothing was sent.
 // THE TEST BUTTON SITS IN THE CARD BUT POSTS ITS OWN FORM, through the HTML `form` attribute: a submit button owned by the save form would be the one an Enter key in the sender name presses, and would send mail. Owned by its own ReadOnlyForm it keeps the demo refusal and works without script.
 
-// THE RECOVERY EMAILS CARD: win-back sequences and expiring card alerts, the switches that turn emails to customers on or off. It keeps its own form and save bar, and the NULL-is-ON pair: a merchant who never touched it has both on.
+// THE RECOVERY EMAILS CARD: Email customers (accounts.live_sends_enabled, off until the merchant turns it on: nothing reaches a customer before that), win-back sequences and expiring card alerts, the switches that turn emails to customers on or off. It keeps its own form and save bar, and the NULL-is-ON pair: a merchant who never touched it has both on.
 
 export const meta = noindexMeta("Email settings - Foxhound");
 
@@ -58,6 +58,7 @@ export async function loader({ context }: Route.LoaderArgs) {
       .select({
         winbackNotificationsEnabled: accounts.winbackNotificationsEnabled,
         expiringCardNotificationsEnabled: accounts.expiringCardNotificationsEnabled,
+        liveSendsEnabled: accounts.liveSendsEnabled,
       })
       .from(accounts)
       .where(eq(accounts.id, auth.membership.accountId))
@@ -69,6 +70,7 @@ export async function loader({ context }: Route.LoaderArgs) {
     replyToEmail: connection?.replyToEmail ?? "",
     winbackNotificationsEnabled: features?.winbackNotificationsEnabled ?? NULL_IS_ON,
     expiringCardNotificationsEnabled: features?.expiringCardNotificationsEnabled ?? NULL_IS_ON,
+    liveSendsEnabled: features?.liveSendsEnabled ?? false,
   };
 }
 
@@ -125,11 +127,12 @@ export async function action({ request, context }: Route.ActionArgs) {
   }
 
   if (intent === "features") {
-    // TWO columns, through the shared apply layer so this form and the MCP `set_feature_settings` tool cannot disagree. A checkbox posts its name only when checked, so an absent key is OFF.
+    // THREE columns, through the shared apply layer so this form and the MCP `set_feature_settings` tool cannot disagree. A checkbox posts its name only when checked, so an absent key is OFF.
     try {
       await applyFeatureSettings(getDb(env), accountId, {
         winbackNotificationsEnabled: form.get("winbackNotificationsEnabled") === "on",
         expiringCardNotificationsEnabled: form.get("expiringCardNotificationsEnabled") === "on",
+        liveSendsEnabled: form.get("liveSendsEnabled") === "on",
       });
     } catch (err) {
       console.error("feature settings write failed:", err);
@@ -255,6 +258,11 @@ export default function EmailSettings({ loaderData, actionData }: Route.Componen
         <h2 className="fh-mb-4 fh-semibold fh-text">Recovery emails</h2>
         <section className="cap-panel">
           <div className="cap-panel-body">
+            <SwitchRow
+              name="liveSendsEnabled"
+              label={CUSTOMER_EMAILS_TOGGLE_LABEL}
+              defaultChecked={loaderData.liveSendsEnabled}
+            />
             <SwitchRow
               name="winbackNotificationsEnabled"
               label="Win-back sequences"

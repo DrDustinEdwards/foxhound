@@ -148,6 +148,7 @@ describe("customer mail carries both parts and the CAN-SPAM footer", () => {
         stepType: "email_day1",
         attemptCount: 0,
         declineCategory: category,
+        liveSendsEnabled: true,
         customerEmail: "buyer@acme.test",
         amountCents: 4900,
         currency: "usd",

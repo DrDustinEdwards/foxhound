@@ -19,6 +19,7 @@ export const PILL_TONE: Record<Tone, StatusTone | undefined> = {
 const STEP_RESULT_WORDS: Record<string, string> = {
   email_sent: "Email sent",
   email_failed: "Email failed",
+  email_skipped_sends_off: "Skipped: customer emails off",
   retry_succeeded: "Payment recovered",
   retry_card_declined: "Card declined",
   retry_failed: "Retry failed",

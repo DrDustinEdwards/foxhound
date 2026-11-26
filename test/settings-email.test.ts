@@ -306,3 +306,29 @@ describe("the docs on the expiring-card email", () => {
     expect(docs).toContain('"Send emails about expiring cards" in your Stripe Dashboard');
   });
 });
+
+describe("the Email your customers switch", () => {
+  function liveSends(id: string): number {
+    return (
+      sqlite.prepare("SELECT live_sends_enabled AS v FROM accounts WHERE id = ?").get(id) as {
+        v: number;
+      }
+    ).v;
+  }
+
+  it("turns customer email on and off for this account only", async () => {
+    const on = await post({ _action: "features", liveSendsEnabled: "on" });
+    expect(on.body.ok).toBe(true);
+    expect(liveSends(ACCOUNT)).toBe(1);
+    expect(liveSends(OTHER)).toBe(0);
+    const loaded = await loader({
+      context: ctx,
+      request: new Request(`${BASE}/settings/email`),
+      params: {},
+    } as never);
+    expect(loaded.liveSendsEnabled).toBe(true);
+
+    await post({ _action: "features" });
+    expect(liveSends(ACCOUNT)).toBe(0);
+  });
+});

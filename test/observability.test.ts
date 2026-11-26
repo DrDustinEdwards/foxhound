@@ -90,6 +90,7 @@ describe("a recovery email that fails for good", () => {
     stepType: "email_day1",
     attemptCount: 4,
     declineCategory: "expired",
+    liveSendsEnabled: true,
     customerEmail: "jane@example.com",
     customerName: "Jane",
     amountCents: 4900,

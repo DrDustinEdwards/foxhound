@@ -65,6 +65,7 @@ describe("if even the template lost the link, nothing is sent", () => {
         stepType: "email_day1",
         attemptCount: 0,
         declineCategory: "soft",
+        liveSendsEnabled: true,
         customerEmail: "customer@example.com",
         amountCents: 4900,
         currency: "usd",

@@ -307,6 +307,8 @@ async function triggerNextStep(
   // remaining reason it can be missing is the ACCOUNT being ineligible: the emergency brake is
   // engaged, processing is paused, or the account is canceled.
   if (!row) return { ok: false, reason: "processing_paused" };
+  if (action === "email" && !row.liveSendsEnabled)
+    return { ok: false, reason: "live_sends_disabled" };
 
   let suppressed = false;
   try {

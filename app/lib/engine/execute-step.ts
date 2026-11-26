@@ -25,7 +25,7 @@ import {
 } from "~/lib/recovery/email-generation";
 import { buildTemplateEmail } from "~/lib/recovery/email-template";
 import { linksTo, storedCopyCarriesRecoveryLink } from "~/lib/recovery/update-link";
-import type { StepStatePatch } from "~/lib/recovery/step-state";
+import { EMAIL_SKIPPED_SENDS_OFF, type StepStatePatch } from "~/lib/recovery/step-state";
 import { loadSlackCustomer, postToSlack, resolveSlackTarget } from "~/lib/notify/slack.server";
 import { alertEmailFailed } from "~/lib/cron/alerts.server";
 import { decideEmailStep } from "./step-runner";
@@ -55,6 +55,7 @@ export interface EmailStepContext {
   stepType: string;
   attemptCount: number;
   declineCategory: string;
+  liveSendsEnabled: boolean;
   customerEmail: string;
   /** failed_payments.customer_name, raw; templates greet with it, falling back to "there". */
   customerName?: string | null;
@@ -392,6 +393,24 @@ export async function executeEmailStep(
   const generate = deps.generate ?? defaultGenerate;
 
   const now = new Date();
+  // Customer emails off: skipped before any AI copy is paid for; not a send failure, so no backoff and no alert.
+  if (!ctx.liveSendsEnabled) {
+    await persistPatch(env, ctx.stepId, {
+      attemptCount: ctx.attemptCount,
+      lastAttemptError: null,
+      nextRetryAt: null,
+      executedAt: now,
+      result: EMAIL_SKIPPED_SENDS_OFF,
+    });
+    return {
+      action: "email",
+      sent: false,
+      result: EMAIL_SKIPPED_SENDS_OFF,
+      usedTemplate: false,
+      templateReason: null,
+      suppressed: false,
+    };
+  }
   const baseUrl = appOrigin(env);
 
   let attempt: { ok: boolean; permanent?: boolean; error?: string };

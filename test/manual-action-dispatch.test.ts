@@ -291,6 +291,7 @@ describe("trigger", () => {
       currency: "usd",
       customerEmail: "customer@example.com",
       declineCategory: "soft",
+      liveSendsEnabled: true,
       connectionAccessToken: "iv:cipher",
       merchantName: "Acme",
       brandVoice: null,
@@ -343,6 +344,22 @@ describe("trigger", () => {
       }),
     );
     expect(out).toMatchObject({ ok: true, action: "retry", result: "retry_card_declined" });
+  });
+
+  it("customer emails off: refused before the email step runs, and the step stays pending", async () => {
+    const { sqlite, db } = seed({ steps: [PENDING] });
+    let ran = 0;
+    const out = await dispatchManualAction(
+      triggerReq(db, sqlite, {
+        loadStep: async () => stepRow({ liveSendsEnabled: false }),
+        runEmail: async () => {
+          ran += 1;
+          throw new Error("must not run");
+        },
+      }),
+    );
+    expect(out).toEqual({ ok: false, reason: "live_sends_disabled" });
+    expect(ran).toBe(0);
   });
 
   it("a sent email is a 200 carrying the stored subject", async () => {
@@ -448,6 +465,7 @@ describe("trigger: the concurrent-claim race", () => {
               currency: "usd",
               customerEmail: "customer@example.com",
               declineCategory: "soft",
+              liveSendsEnabled: true,
               connectionAccessToken: "iv:cipher",
               merchantName: "Acme",
               brandVoice: null,

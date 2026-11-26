@@ -71,6 +71,8 @@ export function afterTransientFailure(
   });
 }
 
+export const EMAIL_SKIPPED_SENDS_OFF = "email_skipped_sends_off";
+
 /** Next state after a PERMANENT send failure: terminal immediately. */
 export function afterPermanentFailure(
   attemptCount: number,

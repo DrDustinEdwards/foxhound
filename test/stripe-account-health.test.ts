@@ -150,6 +150,7 @@ describe("the recovery tick holds retry steps while Stripe has charges off", () 
           customerEmail: "c@example.com",
           customerName: null,
           declineCategory: "soft",
+          liveSendsEnabled: true,
           connectionAccessToken: "iv:cipher",
           merchantName: null,
           brandVoice: null,
