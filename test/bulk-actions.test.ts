@@ -57,14 +57,12 @@ function seed(payments: PaymentSeed[], opts: { paused?: boolean } = {}) {
   ] as const) {
     runStatement(
       sqlite,
-      db
-        .insert(accounts)
-        .values({
-          id,
-          name,
-          processingPaused: id === "acc_1" && !!opts.paused,
-          liveSendsEnabled: true,
-        }),
+      db.insert(accounts).values({
+        id,
+        name,
+        processingPaused: id === "acc_1" && !!opts.paused,
+        liveSendsEnabled: true,
+      }),
     );
   }
   for (const p of payments) {
