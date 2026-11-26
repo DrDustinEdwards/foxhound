@@ -176,6 +176,8 @@ export const CRON_LOCK_LEASE_MS = 16 * 60 * 1000;
 export const CRON_LOCK_PEEK_TIMEOUT_MS = 2000;
 /** Expiring-card alert lookahead in days; already-expired cards belong to dunning. */
 export const EXPIRING_CARD_DAYS_AHEAD = 30;
+/** The Settings > Email switch for that alert; the docs name it the same way. */
+export const EXPIRING_CARD_TOGGLE_LABEL = `Email customers ${EXPIRING_CARD_DAYS_AHEAD} days before their card expires`;
 
 /** Cron schedules (UTC). MUST match wrangler.jsonc triggers.crons exactly. */
 export const CRON_SCHEDULE_DAILY = "0 3 * * *"; // 03:00 UTC, retention sweeps

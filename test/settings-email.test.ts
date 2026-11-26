@@ -8,6 +8,7 @@ import { authContext } from "~/lib/auth/context";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { SENDER_NAME_MAX_LENGTH } from "~/lib/settings/sender-name";
 import { EXPIRING_CARD_DAYS_AHEAD } from "~/lib/constants";
+import { PLATFORM_GUIDE } from "~/lib/marketing/docs-platform";
 
 import { createInMemoryDb } from "./helpers/inmemory-db";
 
@@ -290,5 +291,18 @@ describe("the expiring-card toggle", () => {
       `Email customers ${EXPIRING_CARD_DAYS_AHEAD} days before their card expires`,
     );
     expect(html).not.toContain("Expiring card alerts");
+  });
+});
+
+describe("the docs on the expiring-card email", () => {
+  it("tell a merchant both switches, Foxhound's by the label Settings shows", () => {
+    const docs = PLATFORM_GUIDE.sections
+      .flatMap((section) => section.body)
+      .filter((block): block is string => typeof block === "string")
+      .join("\n");
+    expect(docs).toContain(
+      `"Email customers ${EXPIRING_CARD_DAYS_AHEAD} days before their card expires" in Settings and Email`,
+    );
+    expect(docs).toContain('"Send emails about expiring cards" in your Stripe Dashboard');
   });
 });
