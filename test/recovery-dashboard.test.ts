@@ -175,12 +175,12 @@ describe("Deliverability: sends from email_sends, bounces and complaints from em
     await db
       .insert(emailSuppressions)
       .values([
-        supp("a@example.com", "bounce", inside),
+        supp("a@example.com", "hard_bounce", inside),
         supp("b@example.com", "hard_bounce", inside),
         supp("c@example.com", "complaint", inside),
         supp("d@example.com", "unsubscribe", inside),
-        supp("e@example.com", "bounce", outside),
-        supp("f@example.com", "spam", inside, null),
+        supp("e@example.com", "hard_bounce", outside),
+        supp("f@example.com", "complaint", inside, null),
       ]);
 
     const counts = await getDeliverabilityCounts(db, DEMO_ACCOUNT_ID, now.getTime() - 30 * DAY);

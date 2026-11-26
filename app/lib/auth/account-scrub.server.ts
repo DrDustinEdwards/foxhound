@@ -156,8 +156,6 @@ export function buildAccountScrubStatements(
         notificationEmail: null,
         slackWebhookUrl: null,
         digestEmail: null,
-        lastVisitedPath: null,
-        lastVisitedProduct: null,
         mrrEstimateCents: null,
         merchantIndustry: null,
         primaryCustomerType: null,

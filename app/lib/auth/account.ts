@@ -1,5 +1,4 @@
-import { and, asc, eq, inArray, isNotNull, isNull, type SQL } from "drizzle-orm";
-import { inList } from "@dustinedwards/site-runtime/d1";
+import { and, asc, eq, inArray, isNull, type SQL } from "drizzle-orm";
 import {
   type Db,
   accountFirstCreations,
@@ -59,7 +58,7 @@ export async function resolveActiveMembership(
   userId: string,
   activeAccountId: string | null,
 ): Promise<Membership | null> {
-  return resolveActiveMembershipFrom(db, await listMemberships(db, userId), activeAccountId);
+  return resolveActiveMembershipFrom(await listMemberships(db, userId), activeAccountId);
 }
 
 /**
@@ -75,37 +74,12 @@ function pickMarkedMembership(
   return memberships.find((m) => m.accountId === activeAccountId) ?? null;
 }
 
-/** The same resolution over a membership list the caller already has. */
-export async function resolveActiveMembershipFrom(
-  db: Db,
+/** The same resolution over a membership list the caller already has. Pure. */
+export function resolveActiveMembershipFrom(
   memberships: Membership[],
   activeAccountId: string | null,
-): Promise<Membership | null> {
-  const marked = pickMarkedMembership(memberships, activeAccountId);
-  if (marked) return marked;
-  if (memberships.length <= 1) return memberships[0] ?? null;
-
-  const visited = await db
-    .select({ id: accounts.id })
-    .from(accounts)
-    .where(
-      and(
-        inList(
-          accounts.id,
-          memberships.map((m) => m.accountId),
-        ),
-        isNotNull(accounts.lastVisitedPath),
-      ),
-    )
-    .orderBy(accounts.createdAt, accounts.id)
-    .limit(1);
-
-  const visitedId = visited[0]?.id;
-  if (visitedId) {
-    const match = memberships.find((m) => m.accountId === visitedId);
-    if (match) return match;
-  }
-  return memberships[0] ?? null;
+): Membership | null {
+  return pickMarkedMembership(memberships, activeAccountId) ?? memberships[0] ?? null;
 }
 
 /**

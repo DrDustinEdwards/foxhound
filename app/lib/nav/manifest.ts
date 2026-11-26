@@ -102,10 +102,6 @@ export const MARKETING_PILL_ITEMS: MarketingPillItem[] = [
   { label: "Intelligence", to: PRODUCT_MANIFEST.intelligence.href },
 ];
 
-export function isProductKey(value: string | null | undefined): value is ProductKey {
-  return PRODUCT_ORDER.includes(value as ProductKey);
-}
-
 /** Which product a URL belongs to, or null for a platform/admin page. */
 export function resolveProductFromPath(pathname: string): ProductKey | null {
   for (const key of PRODUCT_ORDER) {

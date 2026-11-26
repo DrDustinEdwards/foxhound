@@ -1,5 +1,6 @@
 import { AUDIT_QUEUE_NAME, EMAIL_EVENTS_QUEUE_NAME } from "~/lib/queue/constants";
-import { processEmailEvent } from "~/lib/email/events";
+import { getDb } from "~/db";
+import { recordEmailEvent } from "~/lib/email/events";
 import { errorMessage } from "@dustinedwards/site-runtime/log";
 
 // Single queue-consumer entry, dispatched by queue name:
@@ -12,7 +13,7 @@ export async function handleQueueBatch(batch: MessageBatch<unknown>, env: Env): 
   if (batch.queue === EMAIL_EVENTS_QUEUE_NAME) {
     for (const message of batch.messages) {
       try {
-        await processEmailEvent(env, message.body);
+        await recordEmailEvent(getDb(env), message.body, new Date());
         message.ack();
       } catch (err) {
         console.error(

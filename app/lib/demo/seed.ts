@@ -238,7 +238,6 @@ async function seedDemoBusiness(db: Db, business: DemoBusiness, now: Date): Prom
         accountId: accountId,
         stripeCustomerId: c.stripeCustomerId,
         score: c.healthScore ?? 0,
-        bandEvidenceHash: `demo_${c.healthScore}`,
         horizonDays: 30,
         predictedAt: new Date(now.getTime() - 5 * DAY_MS),
         realizedOutcome: null,

@@ -531,7 +531,7 @@ function switchRequest(accountId: string): Request {
 async function renderFromSession(): Promise<{ accountId: string; render: Record<string, string> }> {
   const db = harness.db as Parameters<typeof listMemberships>[0];
   const memberships = await listMemberships(db, USER);
-  const membership = await resolveActiveMembershipFrom(db, memberships, markerOf());
+  const membership = resolveActiveMembershipFrom(memberships, markerOf());
   if (!membership) throw new Error("no membership resolved");
   const ctx = contextFor(membership.accountId, membership.accountName ?? "");
   const render: Record<string, string> = {};

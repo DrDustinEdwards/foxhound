@@ -1,7 +1,7 @@
 import { eq, isNull } from "drizzle-orm";
 
 import type { Db } from "~/db";
-import { getDb, emailSends, emailSuppressions } from "~/db";
+import { emailSends, emailSuppressions } from "~/db";
 
 // Bounce/complaint handling: hard bounces and spam complaints add the recipient to email_suppressions so
 // the gate never sends to them again. Idempotent via the unique index email_suppressions_email_uq
@@ -12,9 +12,8 @@ export interface EmailServiceEvent {
   type: string;
   email: string;
   eventId: string;
-  messageId?: string | null;
-  reason?: string | null;
-  accountId?: string | null;
+  messageId: string | null;
+  reason: string | null;
 }
 
 interface EmailSendingEnvelope {
@@ -29,47 +28,41 @@ interface EmailSendingEnvelope {
 
 const ENVELOPE_PREFIX = "cf.email.sending.message.";
 
-/** A queue body as an EmailServiceEvent: the Email Sending envelope or the flat shape. A bounce is hard
+/** A queue body (the Email Sending envelope) as an EmailServiceEvent, or null for anything else. A bounce is hard
  *  unless its bounce type says soft. Pure. */
-function normalizeEmailEvent(body: unknown): EmailServiceEvent {
-  const raw = (body ?? {}) as EmailSendingEnvelope & Partial<EmailServiceEvent>;
-  if (typeof raw.type === "string" && raw.type.startsWith(ENVELOPE_PREFIX) && raw.payload) {
-    const p = raw.payload;
-    const kind = raw.type.slice(ENVELOPE_PREFIX.length);
-    const type =
-      kind === "bounced"
-        ? p.bounce?.type === "soft"
-          ? "soft_bounce"
-          : "hard_bounce"
-        : kind === "complained"
-          ? "complaint"
-          : kind;
-    return {
-      type,
-      email: p.recipient ?? "",
-      eventId: p.eventId ?? "",
-      messageId: p.messageId ?? null,
-      reason: p.bounce?.reason ?? null,
-    };
+function normalizeEmailEvent(body: unknown): EmailServiceEvent | null {
+  const raw = (body ?? {}) as EmailSendingEnvelope;
+  if (typeof raw.type !== "string" || !raw.type.startsWith(ENVELOPE_PREFIX) || !raw.payload) {
+    return null;
   }
+  const p = raw.payload;
+  const kind = raw.type.slice(ENVELOPE_PREFIX.length);
+  const type =
+    kind === "bounced"
+      ? p.bounce?.type === "soft"
+        ? "soft_bounce"
+        : "hard_bounce"
+      : kind === "complained"
+        ? "complaint"
+        : kind;
   return {
-    type: raw.type ?? "",
-    email: raw.email ?? "",
-    eventId: raw.eventId ?? "",
-    messageId: raw.messageId ?? null,
-    reason: raw.reason ?? null,
-    accountId: raw.accountId ?? null,
+    type,
+    email: p.recipient ?? "",
+    eventId: p.eventId ?? "",
+    messageId: p.messageId ?? null,
+    reason: p.bounce?.reason ?? null,
   };
 }
 
-const SUPPRESSING_TYPES = new Set(["bounce", "hard_bounce", "complaint", "spam"]);
+/** The suppression reasons written: a hard bounce and a spam complaint. The deliverability panel counts by them. */
+export const SUPPRESSION_REASON = { bounce: "hard_bounce", complaint: "complaint" } as const;
+const SUPPRESSING_TYPES = new Set<string>(Object.values(SUPPRESSION_REASON));
 
 export function shouldSuppress(event: EmailServiceEvent): boolean {
   return SUPPRESSING_TYPES.has(event.type) && !!event.email;
 }
 
 async function resolveEventAccountId(db: Db, event: EmailServiceEvent): Promise<string | null> {
-  if (event.accountId) return event.accountId;
   if (!event.messageId) return null;
   const [send] = await db
     .select({ accountId: emailSends.accountId })
@@ -114,7 +107,7 @@ export async function recordEmailEvent(
   now: Date,
 ): Promise<"suppressed" | "ignored"> {
   const event = normalizeEmailEvent(body);
-  if (!shouldSuppress(event)) return "ignored";
+  if (!event || !shouldSuppress(event)) return "ignored";
   await buildSuppressionInsert(db, {
     email: event.email,
     token: event.eventId,
@@ -123,11 +116,4 @@ export async function recordEmailEvent(
     now,
   });
   return "suppressed";
-}
-
-export async function processEmailEvent(
-  env: Env,
-  body: unknown,
-): Promise<"suppressed" | "ignored"> {
-  return recordEmailEvent(getDb(env), body, new Date());
 }

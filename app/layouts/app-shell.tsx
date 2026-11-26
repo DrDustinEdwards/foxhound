@@ -70,7 +70,7 @@ import { adminPageName as routePageName } from "~/lib/admin/page";
 import { getDb } from "~/db";
 import { cloudflareContext } from "@dustinedwards/site-runtime/context";
 import { errorDetails } from "~/lib/errors/boundary-message";
-import { resolveNavContext } from "~/lib/nav/context.server";
+import { resolveNavContext } from "~/lib/nav/context";
 import { listSwitcherAccounts } from "~/lib/nav/accounts.server";
 import {
   PLATFORM_LINKS,
@@ -126,17 +126,11 @@ function requestPathname(request: Request): string {
 // The three-level nav model (product switcher, contextual primary links, utility cluster) is rendered once here, with ZERO extra DB queries in the nav components: resolveNavContext and listSwitcherAccounts run ONCE here and the components only read their props. No admin-bypass hack: the real role guard governs /admin visibility.
 // `auth.memberships` comes off the chokepoint; the stripe_connections lookup that turns it into switcher rows happens here, in the nav's own loader, never in resolveAccount.
 export async function loader({ request, context }: Route.LoaderArgs) {
-  const { env, ctx } = context.get(cloudflareContext);
+  const { env } = context.get(cloudflareContext);
   const auth = context.get(authContext);
   const db = getDb(env);
   const pathname = requestPathname(request);
-  const nav = await resolveNavContext(
-    db,
-    auth.membership.accountId,
-    pathname,
-    auth.isDemo,
-    (promise) => ctx.waitUntil(promise),
-  );
+  const nav = resolveNavContext(pathname);
 
   return {
     accountName: auth.membership.accountName,
