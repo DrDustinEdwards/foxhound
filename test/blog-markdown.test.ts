@@ -7,7 +7,7 @@ import { BLOG_DIAGRAMS } from "~/lib/blog/diagrams";
 import { renderPostBody } from "~/lib/blog/markdown.server";
 import { DECLINE_CATEGORIES } from "~/lib/constants";
 import { classifyDecline } from "~/lib/recovery/decline";
-import { RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
+import { isRetryStep, RECOVERY_SCHEDULES } from "~/lib/recovery/schedule";
 
 // An empty-D1 stand-in: renderPostBody only reads the db for ::postlink.
 function emptyDb(): Db {
@@ -64,15 +64,28 @@ describe("renderPostBody", () => {
   }
 
   it("draws each category's recovery steps as the engine schedules them", () => {
-    for (const slug of ["recovery-sequence", "dunning-sequence-timeline"]) {
-      const groups = categoryGroups(BLOG_DIAGRAMS[slug]!);
-      expect([...groups.keys()].sort(), slug).toEqual([...DECLINE_CATEGORIES].sort());
-      for (const category of DECLINE_CATEGORIES) {
-        const drawn = [
-          ...groups.get(category)!.matchAll(/data-step="([a-z0-9_]+)" data-hours="(\d+)"/g),
-        ].map((m) => ({ stepType: m[1], offsetHours: Number(m[2]) }));
-        expect(drawn, `${slug} ${category}`).toEqual(RECOVERY_SCHEDULES[category]);
-      }
+    const timeline = categoryGroups(BLOG_DIAGRAMS["dunning-sequence-timeline"]!);
+    const flowchart = categoryGroups(BLOG_DIAGRAMS["recovery-sequence"]!);
+    for (const groups of [timeline, flowchart]) {
+      expect([...groups.keys()].sort()).toEqual([...DECLINE_CATEGORIES].sort());
+    }
+    for (const category of DECLINE_CATEGORIES) {
+      const schedule = RECOVERY_SCHEDULES[category];
+      const marks = [...timeline.get(category)!.matchAll(/data-step="(\w+)" data-hours="(\d+)"/g)];
+      expect(
+        marks.map((m) => ({ stepType: m[1], offsetHours: Number(m[2]) })),
+        category,
+      ).toEqual(schedule);
+      const read = [
+        ...flowchart.get(category)!.matchAll(/>(\d+h|D\d+)<tspan[^>]*>(retry|email)</g),
+      ];
+      expect(
+        read.map((m) => ({
+          retry: m[2] === "retry",
+          hours: m[1]!.startsWith("D") ? Number(m[1]!.slice(1)) * 24 : Number.parseInt(m[1]!, 10),
+        })),
+        category,
+      ).toEqual(schedule.map((s) => ({ retry: isRetryStep(s.stepType), hours: s.offsetHours })));
     }
   });
 
