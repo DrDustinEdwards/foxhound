@@ -1,12 +1,10 @@
 import { logEvent } from "@dustinedwards/site-runtime/log";
 
 import { outcomes } from "~/db";
-import type { AttributionKind } from "~/lib/constants";
 import { executeMoneyWrite } from "~/lib/money/execute";
 
 // recordOutcome: the Network Intelligence Layer write. Never throws: outcomes are analytics and must never
-// block the recovery/dispute/billing path that called it. attributionKind + attributedRef are recorded on the
-// row so lift and billing derive from it. The write rides the per-account money-write Durable Object with a
+// block the recovery/dispute/billing path that called it. The write rides the per-account money-write Durable Object with a
 // required idempotency key (outcomes_idempotency_uq).
 
 export interface RecordOutcomeParams {
@@ -16,8 +14,6 @@ export interface RecordOutcomeParams {
   eventData?: Record<string, unknown>;
   outcome?: string;
   outcomeAt?: Date;
-  attributionKind?: AttributionKind;
-  attributedRef?: string;
   idempotencyKey: string;
 }
 
@@ -38,8 +34,6 @@ export async function recordOutcome(env: Env, params: RecordOutcomeParams): Prom
           outcomeAt: params.outcomeAt ?? now,
           createdAt: now,
           idempotencyKey: params.idempotencyKey,
-          attributionKind: params.attributionKind ?? null,
-          attributedRef: params.attributedRef ?? null,
         }),
       ],
     });

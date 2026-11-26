@@ -35,14 +35,6 @@ export const MANUAL_INTENTS = [...MANUAL_ACTION_INTENTS, NOTE_INTENT] as const;
 
 export type ManualIntent = (typeof MANUAL_INTENTS)[number];
 
-/** Narrow an untrusted form value to an ACTION-ROW intent. Returns null for
- *  anything else, `note` included, because the row does not carry it. */
-export function parseManualActionIntent(raw: unknown): ManualActionIntent | null {
-  return typeof raw === "string" && (MANUAL_ACTION_INTENTS as readonly string[]).includes(raw)
-    ? (raw as ManualActionIntent)
-    : null;
-}
-
 /** Narrow an untrusted form value to any intent the dispatcher accepts. */
 export function parseManualIntent(raw: unknown): ManualIntent | null {
   return typeof raw === "string" && (MANUAL_INTENTS as readonly string[]).includes(raw)

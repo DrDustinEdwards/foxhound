@@ -3,7 +3,7 @@ import { plural } from "@drdustinedwards/site-helpers/text";
 import { formatDate } from "capsomer/behavior/time";
 import { useEffect, useId } from "react";
 import { data, useNavigation, useSearchParams } from "react-router";
-import { logEvent } from "@dustinedwards/site-runtime/log";
+import { logEvent, errorMessage } from "@dustinedwards/site-runtime/log";
 import { Link, routerRenderLink, ButtonLink } from "capsomer/react/link";
 import { Alert } from "capsomer/react/banner";
 import { Button } from "capsomer/react/button";
@@ -69,11 +69,7 @@ async function readCallLog(
     const { calls, more } = await listAccountMcpCalls(getDb(env), accountId, before);
     return { state: "ok", calls, more, newer: before !== undefined };
   } catch (err) {
-    logEvent(
-      "mcp_call_log_read_failed",
-      { error: err instanceof Error ? err.message : "unknown error" },
-      { level: "error" },
-    );
+    logEvent("mcp_call_log_read_failed", { error: errorMessage(err) }, { level: "error" });
     return { state: "failed" };
   }
 }
@@ -87,7 +83,7 @@ export async function loader({ context, request }: Route.LoaderArgs) {
     return { keys, loadError: false, isOwner: isOwner(auth), callLog };
   } catch (err) {
     // The state shown when the read fails, rather than an error page. The message names the failure only, never a key.
-    console.error("api keys read failed:", err instanceof Error ? err.message : "unknown error");
+    console.error("api keys read failed:", errorMessage(err));
     return { keys: null, loadError: true, isOwner: isOwner(auth), callLog };
   }
 }

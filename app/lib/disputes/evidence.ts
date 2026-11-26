@@ -1,3 +1,4 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { UNTRUSTED_DATA_RULE, untrusted } from "@dustinedwards/site-runtime/anthropic";
 
 import { askStructured, REWRITE, type AiCallMeter } from "~/lib/ai/client";
@@ -185,7 +186,7 @@ export async function draftDisputeEvidence(
   } catch (err) {
     console.error(
       "dispute evidence drafting failed; the deterministic fields stand:",
-      err instanceof Error ? err.message : "unknown error",
+      errorMessage(err),
     );
   }
   return fields;

@@ -25,14 +25,10 @@ export interface TocItem {
 // library's index in app/lib/carrel/media-adapter.server.ts). A library picture
 // is written with site-runtime ./image's srcset and AVIF and WebP sources, at
 // the post column's width, and links to its original.
-const DIAGRAM = /^\/diagrams\/[a-z0-9-]+-(\d+)x(\d+)\.svg$/;
-
 type LibraryPicture = Pick<MediaRow, "key" | "width" | "height" | "focus" | "sha256">;
 
 function mediaOptions(pictures: Map<string, LibraryPicture>) {
   const resolveImage = async (src: string): Promise<{ width: number; height: number }> => {
-    const size = DIAGRAM.exec(src);
-    if (size) return { width: Number(size[1]), height: Number(size[2]) };
     const key = keyOfAddress(src, MEDIA_ADDRESSES);
     const picture = key ? pictures.get(key) : undefined;
     if (picture?.width && picture.height) return { width: picture.width, height: picture.height };
@@ -40,7 +36,7 @@ function mediaOptions(pictures: Map<string, LibraryPicture>) {
       "post",
       key
         ? `${src} is not in the media library; upload it there first`
-        : `${src} is not an image this site serves; use a media library picture (/media/...) or a diagram in public/diagrams as <name>-<width>x<height>.svg`,
+        : `${src} is not an image this site serves; use a media library picture (/media/...)`,
     );
   };
   const imageProps = (src: string) => {

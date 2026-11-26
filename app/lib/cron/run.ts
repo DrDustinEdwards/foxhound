@@ -1,8 +1,10 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import {
   runJobs,
   type CronHistory,
   type CronJob as SiteCronJob,
 } from "@dustinedwards/site-runtime/cron";
+import { withLease } from "@dustinedwards/site-runtime/cron-lock";
 import { eq } from "drizzle-orm";
 
 import { cronConfig, cronRuns, getDb } from "~/db";
@@ -44,7 +46,7 @@ export function cronSteps(steps: { name: string; handler: CronHandler }[]): Cron
         rowsProcessed += result.rowsProcessed;
         done.push(`${step.name}: ${reasonOf(result)}`);
       } catch (err) {
-        failed.push(`${step.name} failed: ${err instanceof Error ? err.message : String(err)}`);
+        failed.push(`${step.name} failed: ${errorMessage(err)}`);
       }
     }
     if (failed.length > 0)
@@ -133,18 +135,10 @@ function gatedJob(env: Env, job: CronJob, { now = false }: { now?: boolean } = {
           )
         )
           return { outcome: "skipped", reason: "not_due" };
-        const lock = env.CRON_LOCK.get(env.CRON_LOCK.idFromName(job.name));
-        const token = await lock.acquire(CRON_LOCK_LEASE_MS);
-        if (token === null) return { outcome: "skipped", reason: "locked" };
-        try {
-          return { outcome: "ok", reason: reasonOf(await job.handler(env, { runId })) };
-        } finally {
-          try {
-            await lock.release(token);
-          } catch {
-            // Deliberately swallowed: a failed release only lets the lease run out, and must not hide the job's own result.
-          }
-        }
+        return await withLease(env.CRON_LOCK, job.name, CRON_LOCK_LEASE_MS, async () => ({
+          outcome: "ok" as const,
+          reason: reasonOf(await job.handler(env, { runId })),
+        }));
       } catch (err) {
         await alertCronFailure(
           env,
@@ -152,7 +146,7 @@ function gatedJob(env: Env, job: CronJob, { now = false }: { now?: boolean } = {
           {
             cronName: job.name,
             runId,
-            error: err instanceof Error ? err.message : String(err),
+            error: errorMessage(err),
             stack: err instanceof Error ? (err.stack ?? null) : null,
           },
           new Date(),

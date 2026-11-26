@@ -1,3 +1,4 @@
+import { errorMessage } from "@dustinedwards/site-runtime/log";
 import { askModel, REWRITE } from "~/lib/ai/client";
 import { PLAIN_WRITING_PROMPT, retryStockPhrasing } from "~/lib/ai/plain-writing";
 import { AUDIT_SUMMARY_MAX_TOKENS, MODEL_AUDIT_SUMMARY } from "~/lib/constants";
@@ -59,7 +60,7 @@ export async function generateAuditSummary(
   } catch (err) {
     // The message only: it names the failure's kind, never the prompt, which
     // carries this merchant's money.
-    const detail = err instanceof Error ? err.message : "unknown error";
+    const detail = errorMessage(err);
     console.error("audit summary generation failed:", detail);
     return { source: "fallback", summary: AUDIT_SUMMARY_FALLBACK, reason: detail };
   }

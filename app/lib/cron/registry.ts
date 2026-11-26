@@ -205,18 +205,6 @@ const demoReset: CronHandler = async (env) => {
 };
 
 /**
- * The never-executed and overdue detector: a cron that fails, or never runs at
- * all, otherwise notifies nobody.
- */
-/**
- * The daily expiring-card alert. The CronLockDurableObject lease in run.ts is
- * what stops two ticks scanning at once.
- */
-/**
- * The win-back send pass. Reusing it needs no new wrangler.jsonc trigger, which
- * is the same reasoning intelligence-sync and intelligence-ai already record.
- */
-/**
  * The weekly merchant digest. NULL is OFF on digest_enabled, the one toggle
  * with that semantic.
  */

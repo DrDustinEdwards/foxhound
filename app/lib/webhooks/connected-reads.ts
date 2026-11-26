@@ -117,10 +117,7 @@ export async function resolveFailureFacts(
   try {
     stripe = await connectedStripeFor(env, connectionId);
   } catch (err) {
-    console.error(
-      "intake connection read failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("intake connection read failed:", errorMessage(err));
     return { decline: null, invoiceStatus: null };
   }
   if (!stripe) return { decline: null, invoiceStatus: null };
@@ -128,10 +125,7 @@ export async function resolveFailureFacts(
   try {
     invoiceStatus = (await stripe.invoices.retrieve(invoiceId)).status ?? null;
   } catch (err) {
-    console.error(
-      "intake invoice read failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("intake invoice read failed:", errorMessage(err));
   }
   return { decline: await readDeclineFacts(stripe, invoiceId), invoiceStatus };
 }
@@ -156,10 +150,7 @@ async function readDeclineFacts(stripe: Stripe, invoiceId: string): Promise<Decl
       cardCountry: card?.country ?? null,
     };
   } catch (err) {
-    console.error(
-      "intake decline facts read failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("intake decline facts read failed:", errorMessage(err));
     return null;
   }
 }
@@ -188,10 +179,7 @@ export async function resolveRecoveredChargeFee(
       netCurrency: bt.currency,
     };
   } catch (err) {
-    console.error(
-      "recovered charge fee read failed:",
-      err instanceof Error ? err.message : "unknown error",
-    );
+    console.error("recovered charge fee read failed:", errorMessage(err));
     return null;
   }
 }

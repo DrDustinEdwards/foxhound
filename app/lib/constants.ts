@@ -192,8 +192,6 @@ export const CRON_SCHEDULE_EXPIRING_CARDS = "0 9 * * *";
 export const CRON_SCHEDULE_RECOVERY_TICK = "*/5 * * * *";
 /** Scheduled blog publishing (site-api's runSchedules), every minute. */
 export const CRON_SCHEDULE_BLOG = "* * * * *";
-/** The ticker's alarm period (workers/cron-ticker.ts); equals the recovery tick schedule. */
-export const CRON_TICKER_INTERVAL_MS = 5 * MINUTE_MS;
 /** The ticker is one Durable Object, addressed by this name. */
 export const CRON_TICKER_INSTANCE_NAME = "five-minute-ticker";
 /** Max due steps per tick. A step spends ~4-5 subrequests and Workers allow ~1000. Also the limit for queryExhaustedSequences. */

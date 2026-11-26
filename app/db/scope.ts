@@ -3,13 +3,6 @@ import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { Db } from "./client";
 
-// Account scoping by construction. Tenant queries pass their table's account_id column through byAccount(); nothing queries a tenant table without a scope.
-
-/** account_id = :accountId */
-export function byAccount(accountIdColumn: SQLiteColumn, accountId: string): SQL {
-  return eq(accountIdColumn, accountId);
-}
-
 /**
  * account_id = :accountId AND deleted_at IS NULL. Use on tables that carry a
  * soft-delete column (failed_payments, recovery_steps, recovered_payments, etc.).
