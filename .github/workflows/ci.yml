@@ -182,7 +182,6 @@ jobs:
       # `exports`, which Cloudflare's docs list as unsupported for gradual deployments; this is the test, and the
       # revert is removing these two lines.
       gradual-percent: 10
-      gradual-minutes: 10
     secrets:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
