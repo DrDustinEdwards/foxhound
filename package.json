@@ -33,7 +33,7 @@
     "@cloudflare/workers-oauth-provider": "1.2.4",
     "@drdustinedwards/site-helpers": "github:DrDustinEdwards/prelum#v0.69.0",
     "@dustinedwards/d1-dump": "github:DrDustinEdwards/d1-dump#v0.18.0",
-    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.50.1",
+    "@dustinedwards/site-api": "github:DrDustinEdwards/site-api#v0.51.1",
     "@dustinedwards/site-runtime": "github:DrDustinEdwards/site-runtime#v0.183.1",
     "@modelcontextprotocol/server": "2.4.0",
     "better-auth": "1.7.27",
@@ -62,7 +62,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.70.1",
-    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.65.0",
+    "@dustinedwards/devkit": "github:DrDustinEdwards/devkit#v0.66.0",
     "@modelcontextprotocol/conformance": "0.2.0-alpha.12",
     "@react-router/dev": "8.5.2",
     "@types/better-sqlite3": "9.6.0",
