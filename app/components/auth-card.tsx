@@ -7,7 +7,7 @@ import { Panel } from "capsomer/react/panel";
 import { useEffect, useEffectEvent, useRef, useState, type ReactNode } from "react";
 import { Form } from "react-router";
 
-import { betterAuthClient } from "~/lib/auth/client";
+import { betterAuthClient } from "~/lib/auth/client.client";
 
 import "capsomer/banner.css";
 import "capsomer/button.css";
