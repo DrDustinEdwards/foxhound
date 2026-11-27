@@ -16,7 +16,7 @@ import { securityHistoryWords } from "@dustinedwards/site-runtime/sign-in-words"
 import type { AccountFormState } from "@dustinedwards/site-runtime/sign-in-form";
 
 import { signInAgainIfStale } from "@dustinedwards/site-runtime/sign-in-client";
-import { betterAuthClient, reauthHref, signInAgain } from "~/lib/auth/client";
+import { betterAuthClient, reauthHref, signInAgain } from "~/lib/auth/client.client";
 import { DEMO_READ_ONLY_MESSAGE } from "~/lib/demo/constants";
 
 /** Where this person is signed in (site-runtime's sessionRows, current first);

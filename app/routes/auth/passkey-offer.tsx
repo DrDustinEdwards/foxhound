@@ -12,7 +12,7 @@ import { Form, redirect, useNavigation } from "react-router";
 import { AuthCard, AuthFootnote, AuthHeading } from "~/components/auth-card";
 import { getBetterAuth } from "~/lib/auth";
 import { signInAgainIfStale } from "@dustinedwards/site-runtime/sign-in-client";
-import { betterAuthClient, reauthHref } from "~/lib/auth/client";
+import { betterAuthClient, reauthHref } from "~/lib/auth/client.client";
 import { signedInLanding } from "~/lib/auth/landing.server";
 import { safeNextPath } from "@dustinedwards/site-runtime/sign-in-form";
 import { DEFAULT_NEXT_PATH } from "~/lib/auth/next-path";
