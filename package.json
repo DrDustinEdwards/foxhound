@@ -79,7 +79,7 @@
     "typescript": "7.0.2",
     "vite": "8.3.8",
     "vitest": "4.1.12",
-    "wrangler": "4.164.0"
+    "wrangler": "4.168.0"
   },
   "overrides": {
     "@esbuild-kit/core-utils": {
