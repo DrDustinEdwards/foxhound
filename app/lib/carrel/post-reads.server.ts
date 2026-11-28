@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, like, ne } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, sql } from "drizzle-orm";
 import { blogPostLinks, blogPostVersions, blogPosts, type Db } from "~/db";
 import { SITE_ORIGIN } from "~/lib/seo/jsonld";
 
@@ -34,7 +34,9 @@ export async function findBacklinks(db: Db, id: string, slug: string) {
         and(
           ne(blogPosts.id, id),
           isNull(blogPosts.trashedAt),
-          like(blogPosts.body, `%/blog/${slug}%`),
+          // instr, not LIKE: D1 refuses a LIKE pattern over 50 bytes, which a slug over 42
+          // characters makes, and then the post could not be trashed.
+          sql`instr(${blogPosts.body}, ${`/blog/${slug}`}) > 0`,
         ),
       )
   ).filter((r) => inText.test(r.body));
